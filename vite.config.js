@@ -1,7 +1,6 @@
 import tailwindcss from "@tailwindcss/vite";
-import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
-import { nitro } from "nitro/vite";
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -64,28 +63,11 @@ function stripRouteTreeTypes() {
 export default defineConfig({
   plugins: [
     tailwindcss(),
-    tanstackStart({
-      router: {
-        generatedRouteTree: "routeTree.gen.js",
-        disableTypes: true,
-        routeTreeFileHeader: ["/* eslint-disable */"],
-      },
-      server: { entry: "server" },
-      importProtection: {
-        behavior: "error",
-        client: {
-          files: ["**/server/**"],
-          specifiers: ["server-only"],
-        },
-      },
-    }),
-    nitro({
-      preset: "vercel",
-      vercel: {
-        functions: {
-          runtime: "nodejs22.x",
-        },
-      },
+    tanstackRouter({
+      target: "react",
+      generatedRouteTree: "./src/routeTree.gen.js",
+      disableTypes: true,
+      routeFileIgnorePattern: "api/.*",
     }),
     react(),
     stripRouteTreeTypes(),

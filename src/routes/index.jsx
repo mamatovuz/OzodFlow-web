@@ -332,9 +332,7 @@ function Projects({ projects }) {
             <h2 className="mt-4 text-balance font-display text-4xl font-bold tracking-tight md:text-5xl">
               Men qilgan ishlar va real yechimlar.
             </h2>
-            <p className="mt-4 text-lg text-muted-foreground">
-              Bu bo'lim admin panel orqali yangilanadi. 5 tadan ko'p loyiha bo'lsa, qolganlari tugma bilan ochiladi.
-            </p>
+            
           </div>
           <a
             href={TG_CHANNEL}

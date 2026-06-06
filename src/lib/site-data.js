@@ -20,7 +20,7 @@ export const DEFAULT_SITE_DATA = {
       icon: "Bot",
       title: "Telegram Bot",
       desc: "Buyurtma, mijozlar va avtomatlashtirish uchun maxsus bot.",
-      price: "2 000 000",
+      price: "1 200 000",
       deadline: "7-14 kun",
       items: ["Admin panel", "To'lov integratsiyasi", "Google Sheets / CRM", "Bildirishnomalar"],
       featured: true,
@@ -32,7 +32,7 @@ export const DEFAULT_SITE_DATA = {
       desc: "Mijozlar, sotuvlar va xodimlarni boshqaruvchi maxsus dasturiy tizim.",
       price: "6 000 000",
       deadline: "3-6 hafta",
-      items: ["Rollar va ruxsatlar", "Hisobotlar", "Telegram integratsiya", "Cloud hosting"],
+      items: ["Rollar va ruxsatlar", "Hisobotlar", "Telegram integratsiya"],
       featured: false,
     },
     {
@@ -42,7 +42,7 @@ export const DEFAULT_SITE_DATA = {
       desc: "Ko'p sahifali korporativ sayt, blog yoki katalog. To'liq admin panel.",
       price: "3 500 000",
       deadline: "2-4 hafta",
-      items: ["Admin panel", "Blog / katalog", "Ko'p tilli", "Domen + hosting"],
+      items: ["Admin panel", "Blog / katalog", "Ko'p tilli"],
       featured: false,
     },
   ],
@@ -130,25 +130,47 @@ export function storeSiteData(data) {
 export async function fetchSiteData(options = {}) {
   const response = await fetch(SITE_DATA_API_URL, {
     signal: options.signal,
+    cache: "no-store",
     headers: { Accept: "application/json" },
   });
 
-  if (!response.ok) {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!response.ok || !contentType.includes("application/json")) {
     throw new Error("Site data could not be loaded");
   }
 
   return normalizeSiteData(await response.json());
 }
 
-export async function saveSiteData(data) {
+export async function verifyAdminLogin({ login, password }) {
+  const response = await fetch(SITE_DATA_API_URL, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ login, password }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Admin login failed");
+  }
+
+  return true;
+}
+
+export async function saveSiteData(data, options = {}) {
   const normalized = normalizeSiteData(data);
   storeSiteData(normalized);
 
   const response = await fetch(SITE_DATA_API_URL, {
     method: "PUT",
+    cache: "no-store",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
+      "X-Admin-Password": options.password ?? "",
     },
     body: JSON.stringify(normalized),
   });

@@ -19,6 +19,7 @@ import {
   getStoredSiteData,
   saveSiteData,
   storeSiteData,
+  verifyAdminLogin,
 } from "@/lib/site-data";
 
 export const Route = createFileRoute("/admin")({
@@ -32,8 +33,7 @@ export const Route = createFileRoute("/admin")({
 });
 
 const ADMIN_LOGIN = "admin";
-const ADMIN_PASSWORD = "ozodflow2026";
-const SESSION_KEY = "ozodflow-admin-session";
+const SESSION_KEY = "ozodflow-admin-password";
 const iconOptions = ["Globe", "Bot", "Database", "LayoutGrid", "Sparkles", "BriefcaseBusiness"];
 
 const fieldClass =
@@ -42,33 +42,64 @@ const labelClass = "text-xs font-semibold uppercase tracking-wider text-muted-fo
 
 function AdminPage() {
   const [loggedIn, setLoggedIn] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
 
   useEffect(() => {
-    setLoggedIn(window.localStorage.getItem(SESSION_KEY) === "true");
+    const storedPassword = window.sessionStorage.getItem(SESSION_KEY);
+    if (storedPassword) {
+      setAdminPassword(storedPassword);
+      setLoggedIn(true);
+    }
   }, []);
 
   if (!loggedIn) {
-    return <LoginScreen onLogin={() => setLoggedIn(true)} />;
+    return (
+      <LoginScreen
+        onLogin={(password) => {
+          setAdminPassword(password);
+          setLoggedIn(true);
+        }}
+      />
+    );
   }
 
-  return <Dashboard onLogout={() => setLoggedIn(false)} />;
+  return (
+    <Dashboard
+      adminPassword={adminPassword}
+      onLogout={() => {
+        setAdminPassword("");
+        setLoggedIn(false);
+      }}
+    />
+  );
 }
 
 function LoginScreen({ onLogin }) {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function submit(event) {
+  async function submit(event) {
     event.preventDefault();
+    setError("");
 
-    if (login === ADMIN_LOGIN && password === ADMIN_PASSWORD) {
-      window.localStorage.setItem(SESSION_KEY, "true");
-      onLogin();
+    if (login.trim() !== ADMIN_LOGIN || !password) {
+      setError("Login yoki parol noto'g'ri.");
       return;
     }
 
-    setError("Login yoki parol noto'g'ri.");
+    setLoading(true);
+    try {
+      await verifyAdminLogin({ login: login.trim(), password });
+      window.sessionStorage.setItem(SESSION_KEY, password);
+      window.localStorage.removeItem("ozodflow-admin-session");
+      onLogin(password);
+    } catch {
+      setError("Login yoki parol noto'g'ri yoki server sozlanmagan.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -103,9 +134,10 @@ function LoginScreen({ onLogin }) {
 
           <button
             type="submit"
+            disabled={loading}
             className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-card transition hover:bg-accent"
           >
-            Kirish
+            {loading ? "Tekshirilmoqda..." : "Kirish"}
           </button>
         </form>
       </div>
@@ -113,7 +145,7 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-function Dashboard({ onLogout }) {
+function Dashboard({ adminPassword, onLogout }) {
   const [data, setData] = useState(DEFAULT_SITE_DATA);
   const [status, setStatus] = useState("Ma'lumotlar yuklanmoqda...");
   const [saving, setSaving] = useState(false);
@@ -140,18 +172,19 @@ function Dashboard({ onLogout }) {
   async function persist() {
     setSaving(true);
     try {
-      const saved = await saveSiteData(data);
+      const saved = await saveSiteData(data, { password: adminPassword });
       setData(saved);
-      setStatus("Saqlandi.");
+      setStatus("Global saqlandi. Hamma qurilmada ko'rinadi.");
     } catch {
-      setStatus("Server ishlamayapti. Nusxa brauzerga saqlandi.");
+      setStatus("Server saqlay olmadi. Vercel env sozlamalarini tekshiring.");
     } finally {
       setSaving(false);
     }
   }
 
   function logout() {
-    window.localStorage.removeItem(SESSION_KEY);
+    window.sessionStorage.removeItem(SESSION_KEY);
+    window.localStorage.removeItem("ozodflow-admin-session");
     onLogout();
   }
 

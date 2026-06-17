@@ -3,6 +3,9 @@ export const TG_CHANNEL = "https://t.me/OzodFlow";
 export const SITE_DATA_STORAGE_KEY = "ozodflow-site-data";
 export const SITE_DATA_API_URL = import.meta.env?.VITE_DATA_API_URL || "/api/site-data";
 export const LEAD_API_URL = import.meta.env?.VITE_LEAD_API_URL || "/api/lead";
+export const API_BASE = SITE_DATA_API_URL.replace(/\/site-data$/, "");
+export const UPLOAD_API_URL = `${API_BASE}/upload`;
+export const ADMIN_CREDENTIALS_API_URL = `${API_BASE}/admin-credentials`;
 
 export const DEFAULT_SITE_DATA = {
   services: [
@@ -218,6 +221,46 @@ export async function submitLead(lead, options = {}) {
   }
 
   return true;
+}
+
+export async function uploadImage(dataUrl, options = {}) {
+  const response = await fetch(UPLOAD_API_URL, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "X-Admin-Password": options.password ?? "",
+    },
+    body: JSON.stringify({ dataUrl }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Rasmni yuklab bo'lmadi");
+  }
+
+  const result = await response.json();
+  return result.url;
+}
+
+export async function updateAdminCredentials({ login, password }, options = {}) {
+  const response = await fetch(ADMIN_CREDENTIALS_API_URL, {
+    method: "PUT",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "X-Admin-Password": options.password ?? "",
+    },
+    body: JSON.stringify({ login, password }),
+  });
+
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    throw new Error(result.error || "Saqlab bo'lmadi");
+  }
+
+  return response.json();
 }
 
 export async function saveSiteData(data, options = {}) {

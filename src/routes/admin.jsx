@@ -1,18 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
-  Bot,
   BriefcaseBusiness,
-  Database,
-  Globe,
-  LayoutGrid,
+  Check,
+  ImagePlus,
+  Loader2,
   LogOut,
   MessageSquareQuote,
   Plus,
   Save,
+  Settings,
   Sparkles,
   Trash2,
+  Upload,
+  X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   DEFAULT_SITE_DATA,
@@ -20,6 +22,8 @@ import {
   getStoredSiteData,
   saveSiteData,
   storeSiteData,
+  updateAdminCredentials,
+  uploadImage,
   verifyAdminLogin,
 } from "@/lib/site-data";
 
@@ -33,13 +37,47 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-const ADMIN_LOGIN = "admin";
 const SESSION_KEY = "ozodflow-admin-password";
 const iconOptions = ["Globe", "Bot", "Database", "LayoutGrid", "Sparkles", "BriefcaseBusiness"];
 
 const fieldClass =
   "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20";
 const labelClass = "text-xs font-semibold uppercase tracking-wider text-muted-foreground";
+
+/* --------------------------- image resize helper -------------------------- */
+
+function resizeImage(file, maxSize = 1400, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Faylni o'qib bo'lmadi"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Rasm noto'g'ri"));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxSize || height > maxSize) {
+          if (width >= height) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          } else {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* -------------------------------- top level ------------------------------- */
 
 function AdminPage() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -67,6 +105,10 @@ function AdminPage() {
   return (
     <Dashboard
       adminPassword={adminPassword}
+      onPasswordChange={(password) => {
+        window.sessionStorage.setItem(SESSION_KEY, password);
+        setAdminPassword(password);
+      }}
       onLogout={() => {
         setAdminPassword("");
         setLoggedIn(false);
@@ -85,8 +127,8 @@ function LoginScreen({ onLogin }) {
     event.preventDefault();
     setError("");
 
-    if (login.trim() !== ADMIN_LOGIN || !password) {
-      setError("Login yoki parol noto'g'ri.");
+    if (!login.trim() || !password) {
+      setError("Login va parolni kiriting.");
       return;
     }
 
@@ -146,10 +188,18 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-function Dashboard({ adminPassword, onLogout }) {
+const TABS = [
+  { id: "services", label: "Xizmatlar", icon: Sparkles },
+  { id: "projects", label: "Loyihalar", icon: BriefcaseBusiness },
+  { id: "testimonials", label: "Fikrlar", icon: MessageSquareQuote },
+  { id: "settings", label: "Sozlamalar", icon: Settings },
+];
+
+function Dashboard({ adminPassword, onPasswordChange, onLogout }) {
   const [data, setData] = useState(DEFAULT_SITE_DATA);
   const [status, setStatus] = useState("Ma'lumotlar yuklanmoqda...");
   const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState("services");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -177,7 +227,7 @@ function Dashboard({ adminPassword, onLogout }) {
       setData(saved);
       setStatus("Global saqlandi. Hamma qurilmada ko'rinadi.");
     } catch {
-      setStatus("Server saqlay olmadi. Vercel env sozlamalarini tekshiring.");
+      setStatus("Server saqlay olmadi. Sozlamalarni tekshiring.");
     } finally {
       setSaving(false);
     }
@@ -189,30 +239,48 @@ function Dashboard({ adminPassword, onLogout }) {
     onLogout();
   }
 
+  const counts = {
+    services: data.services?.length || 0,
+    projects: data.projects?.length || 0,
+    testimonials: (data.testimonials || []).length,
+    settings: null,
+  };
+
   return (
-    <main className="min-h-screen bg-surface/50 text-foreground">
-      <header className="border-b bg-background">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 md:flex-row md:items-center md:justify-between md:px-6">
+    <main className="min-h-screen bg-surface/40 text-foreground">
+      <header className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
           <div className="flex items-center gap-3">
-            <img src="/favicon.svg" alt="OzodFlow" className="h-11 w-11 rounded-xl shadow-card" />
+            <img src="/favicon.svg" alt="OzodFlow" className="h-10 w-10 rounded-xl shadow-card" />
             <div>
-              <h1 className="font-display text-2xl font-bold">OzodFlow Dashboard</h1>
-              <p className="text-sm text-muted-foreground">{status}</p>
+              <h1 className="font-display text-xl font-bold leading-tight">OzodFlow Dashboard</h1>
+              <p className="text-xs text-muted-foreground">{status}</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={persist}
-              disabled={saving}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-card transition hover:bg-accent disabled:opacity-60"
+            {tab !== "settings" && (
+              <button
+                type="button"
+                onClick={persist}
+                disabled={saving}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-card transition hover:bg-accent disabled:opacity-60"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                {saving ? "Saqlanmoqda..." : "Saqlash"}
+              </button>
+            )}
+            <a
+              href="/"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-xl border bg-card px-4 py-2.5 text-sm font-semibold transition hover:border-accent hover:text-accent"
             >
-              <Save className="h-4 w-4" /> {saving ? "Saqlanmoqda..." : "Saqlash"}
-            </button>
+              Saytni ko'rish
+            </a>
             <button
               type="button"
               onClick={logout}
-              className="inline-flex items-center gap-2 rounded-xl border bg-card px-4 py-2.5 text-sm font-semibold transition hover:border-accent hover:text-accent"
+              className="inline-flex items-center gap-2 rounded-xl border bg-card px-4 py-2.5 text-sm font-semibold transition hover:border-destructive hover:text-destructive"
             >
               <LogOut className="h-4 w-4" /> Chiqish
             </button>
@@ -220,12 +288,92 @@ function Dashboard({ adminPassword, onLogout }) {
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-8 md:px-6">
-        <ServicesEditor data={data} setData={setData} />
-        <ProjectsEditor data={data} setData={setData} />
-        <TestimonialsEditor data={data} setData={setData} />
+      <div className="mx-auto max-w-7xl gap-8 px-4 py-8 md:grid md:grid-cols-[220px_1fr] md:px-6">
+        {/* Tabs / sidebar */}
+        <nav className="mb-6 flex gap-2 overflow-x-auto md:mb-0 md:flex-col md:overflow-visible">
+          {TABS.map((item) => {
+            const Icon = item.icon;
+            const active = tab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setTab(item.id)}
+                className={`inline-flex shrink-0 items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold transition md:w-full ${
+                  active
+                    ? "bg-primary text-primary-foreground shadow-card"
+                    : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                <span className="flex-1 text-left">{item.label}</span>
+                {counts[item.id] != null && (
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs ${
+                      active ? "bg-primary-foreground/20" : "bg-secondary"
+                    }`}
+                  >
+                    {counts[item.id]}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="min-w-0">
+          {tab === "services" && <ServicesEditor data={data} setData={setData} />}
+          {tab === "projects" && (
+            <ProjectsEditor data={data} setData={setData} adminPassword={adminPassword} />
+          )}
+          {tab === "testimonials" && <TestimonialsEditor data={data} setData={setData} />}
+          {tab === "settings" && (
+            <SettingsEditor adminPassword={adminPassword} onPasswordChange={onPasswordChange} />
+          )}
+        </div>
       </div>
     </main>
+  );
+}
+
+function SectionShell({ icon: Icon, label, title, action, children }) {
+  return (
+    <section className="rounded-2xl border bg-background p-5 shadow-card md:p-7">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-accent">
+            {Icon && <Icon className="h-3.5 w-3.5" />} {label}
+          </div>
+          <h2 className="mt-2 font-display text-2xl font-bold md:text-3xl">{title}</h2>
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function AddButton({ onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex w-fit items-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold transition hover:bg-primary hover:text-primary-foreground"
+    >
+      <Plus className="h-4 w-4" /> {children}
+    </button>
+  );
+}
+
+function DeleteButton({ onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-2 rounded-lg border border-destructive/20 px-3 py-2 text-sm font-semibold text-destructive transition hover:bg-destructive hover:text-destructive-foreground"
+    >
+      <Trash2 className="h-4 w-4" /> O'chirish
+    </button>
   );
 }
 
@@ -264,23 +412,12 @@ function ServicesEditor({ data, setData }) {
   }
 
   return (
-    <section className="rounded-2xl border bg-background p-5 shadow-card md:p-7">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-accent">
-            <Sparkles className="h-3.5 w-3.5" /> Xizmatlar
-          </div>
-          <h2 className="mt-2 font-display text-3xl font-bold">Narxlar va tavsiflar</h2>
-        </div>
-        <button
-          type="button"
-          onClick={addService}
-          className="inline-flex w-fit items-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold transition hover:bg-primary hover:text-primary-foreground"
-        >
-          <Plus className="h-4 w-4" /> Xizmat qo'shish
-        </button>
-      </div>
-
+    <SectionShell
+      icon={Sparkles}
+      label="Xizmatlar"
+      title="Narxlar va tavsiflar"
+      action={<AddButton onClick={addService}>Xizmat qo'shish</AddButton>}
+    >
       <div className="mt-6 grid gap-5">
         {data.services.map((service) => (
           <div key={service.id} className="rounded-xl border bg-card p-4">
@@ -333,7 +470,7 @@ function ServicesEditor({ data, setData }) {
                 />
               </label>
               <label className="block space-y-2">
-                <span className={labelClass}>Punktlar</span>
+                <span className={labelClass}>Punktlar (har biri yangi qatordan)</span>
                 <textarea
                   value={service.items.join("\n")}
                   onChange={(event) =>
@@ -356,22 +493,91 @@ function ServicesEditor({ data, setData }) {
                 />
                 Mashhur belgisi
               </label>
-              <button
-                type="button"
-                onClick={() => deleteService(service.id)}
-                className="inline-flex items-center gap-2 rounded-lg border border-destructive/20 px-3 py-2 text-sm font-semibold text-destructive transition hover:bg-destructive hover:text-destructive-foreground"
-              >
-                <Trash2 className="h-4 w-4" /> O'chirish
-              </button>
+              <DeleteButton onClick={() => deleteService(service.id)} />
             </div>
           </div>
         ))}
       </div>
-    </section>
+    </SectionShell>
   );
 }
 
-function ProjectsEditor({ data, setData }) {
+function ImageField({ value, onChange, adminPassword, alt }) {
+  const inputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleFile(event) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setError("");
+    setUploading(true);
+    try {
+      const dataUrl = await resizeImage(file);
+      const url = await uploadImage(dataUrl, { password: adminPassword });
+      onChange(url);
+    } catch (uploadError) {
+      setError(uploadError.message || "Yuklab bo'lmadi");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <span className={labelClass}>Rasm</span>
+      <div className="flex flex-wrap items-start gap-4">
+        <div className="relative h-28 w-44 shrink-0 overflow-hidden rounded-lg border bg-surface">
+          {value ? (
+            <>
+              <img src={value} alt={alt} className="h-full w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => onChange("")}
+                className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-md bg-background/90 text-destructive shadow-card transition hover:bg-destructive hover:text-destructive-foreground"
+                aria-label="Rasmni o'chirish"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </>
+          ) : (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground/50">
+              <ImagePlus className="h-6 w-6" />
+              <span className="text-xs">Rasm yo'q</span>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFile}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={uploading}
+            className="inline-flex items-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold transition hover:bg-primary hover:text-primary-foreground disabled:opacity-60"
+          >
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {uploading ? "Yuklanmoqda..." : "Fayldan yuklash"}
+          </button>
+          <p className="max-w-xs text-xs text-muted-foreground">
+            JPG, PNG yoki WEBP. Rasm avtomatik kichraytiriladi. "Saqlash" tugmasini bosishni unutmang.
+          </p>
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProjectsEditor({ data, setData, adminPassword }) {
   function updateProject(id, patch) {
     setData((current) => ({
       ...current,
@@ -406,27 +612,23 @@ function ProjectsEditor({ data, setData }) {
   }
 
   return (
-    <section className="rounded-2xl border bg-background p-5 shadow-card md:p-7">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-accent">
-            <BriefcaseBusiness className="h-3.5 w-3.5" /> Loyihalar
-          </div>
-          <h2 className="mt-2 font-display text-3xl font-bold">Men qilgan ishlar</h2>
-        </div>
-        <button
-          type="button"
-          onClick={addProject}
-          className="inline-flex w-fit items-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold transition hover:bg-primary hover:text-primary-foreground"
-        >
-          <Plus className="h-4 w-4" /> Loyiha qo'shish
-        </button>
-      </div>
-
+    <SectionShell
+      icon={BriefcaseBusiness}
+      label="Loyihalar"
+      title="Men qilgan ishlar"
+      action={<AddButton onClick={addProject}>Loyiha qo'shish</AddButton>}
+    >
       <div className="mt-6 grid gap-5">
         {data.projects.map((project) => (
           <div key={project.id} className="rounded-xl border bg-card p-4">
-            <div className="grid gap-4 md:grid-cols-3">
+            <ImageField
+              value={project.image || ""}
+              onChange={(url) => updateProject(project.id, { image: url })}
+              adminPassword={adminPassword}
+              alt={project.title}
+            />
+
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
               <label className="block space-y-2">
                 <span className={labelClass}>Nomi</span>
                 <input
@@ -452,23 +654,6 @@ function ProjectsEditor({ data, setData }) {
                 />
               </label>
             </div>
-
-            <label className="mt-4 block space-y-2">
-              <span className={labelClass}>Rasm havolasi (URL)</span>
-              <input
-                value={project.image || ""}
-                onChange={(event) => updateProject(project.id, { image: event.target.value })}
-                placeholder="https://... (bo'sh bo'lsa, chiroyli o'rin egallaydi)"
-                className={fieldClass}
-              />
-              {project.image ? (
-                <img
-                  src={project.image}
-                  alt={project.title}
-                  className="mt-2 h-32 w-full rounded-lg border object-cover"
-                />
-              ) : null}
-            </label>
 
             <div className="mt-4 grid gap-4 md:grid-cols-3">
               <label className="block space-y-2 md:col-span-2">
@@ -504,18 +689,12 @@ function ProjectsEditor({ data, setData }) {
             </div>
 
             <div className="mt-4 flex justify-end">
-              <button
-                type="button"
-                onClick={() => deleteProject(project.id)}
-                className="inline-flex items-center gap-2 rounded-lg border border-destructive/20 px-3 py-2 text-sm font-semibold text-destructive transition hover:bg-destructive hover:text-destructive-foreground"
-              >
-                <Trash2 className="h-4 w-4" /> O'chirish
-              </button>
+              <DeleteButton onClick={() => deleteProject(project.id)} />
             </div>
           </div>
         ))}
       </div>
-    </section>
+    </SectionShell>
   );
 }
 
@@ -555,23 +734,12 @@ function TestimonialsEditor({ data, setData }) {
   }
 
   return (
-    <section className="rounded-2xl border bg-background p-5 shadow-card md:p-7">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-accent">
-            <MessageSquareQuote className="h-3.5 w-3.5" /> Mijozlar fikri
-          </div>
-          <h2 className="mt-2 font-display text-3xl font-bold">Sharhlar</h2>
-        </div>
-        <button
-          type="button"
-          onClick={addTestimonial}
-          className="inline-flex w-fit items-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold transition hover:bg-primary hover:text-primary-foreground"
-        >
-          <Plus className="h-4 w-4" /> Sharh qo'shish
-        </button>
-      </div>
-
+    <SectionShell
+      icon={MessageSquareQuote}
+      label="Mijozlar fikri"
+      title="Sharhlar"
+      action={<AddButton onClick={addTestimonial}>Sharh qo'shish</AddButton>}
+    >
       <div className="mt-6 grid gap-5">
         {testimonials.map((item) => (
           <div key={item.id} className="rounded-xl border bg-card p-4">
@@ -619,17 +787,123 @@ function TestimonialsEditor({ data, setData }) {
             </label>
 
             <div className="mt-4 flex justify-end">
-              <button
-                type="button"
-                onClick={() => deleteTestimonial(item.id)}
-                className="inline-flex items-center gap-2 rounded-lg border border-destructive/20 px-3 py-2 text-sm font-semibold text-destructive transition hover:bg-destructive hover:text-destructive-foreground"
-              >
-                <Trash2 className="h-4 w-4" /> O'chirish
-              </button>
+              <DeleteButton onClick={() => deleteTestimonial(item.id)} />
             </div>
           </div>
         ))}
       </div>
-    </section>
+    </SectionShell>
+  );
+}
+
+function SettingsEditor({ adminPassword, onPasswordChange }) {
+  const [login, setLogin] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState(null); // { type, text }
+
+  async function submit(event) {
+    event.preventDefault();
+    setMessage(null);
+
+    if (login.trim().length < 3) {
+      setMessage({ type: "error", text: "Login kamida 3 ta belgidan iborat bo'lsin." });
+      return;
+    }
+    if (password.length < 6) {
+      setMessage({ type: "error", text: "Parol kamida 6 ta belgidan iborat bo'lsin." });
+      return;
+    }
+    if (password !== confirm) {
+      setMessage({ type: "error", text: "Parollar mos kelmadi." });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await updateAdminCredentials(
+        { login: login.trim(), password },
+        { password: adminPassword }
+      );
+      onPasswordChange(password);
+      setPassword("");
+      setConfirm("");
+      setMessage({
+        type: "success",
+        text: "Login va parol yangilandi. Keyingi kirishda yangisidan foydalaning.",
+      });
+    } catch (error) {
+      setMessage({ type: "error", text: error.message || "Saqlab bo'lmadi." });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <SectionShell icon={Settings} label="Sozlamalar" title="Admin login va parol">
+      <div className="mt-6 max-w-xl">
+        <div className="rounded-xl border border-accent/20 bg-accent/5 px-4 py-3 text-sm text-muted-foreground">
+          Yangi login va parolni kiriting. Saqlangach, tizim avtomatik yangi parolga o'tadi —
+          qayta kirish shart emas.
+        </div>
+
+        <form onSubmit={submit} className="mt-6 space-y-4 rounded-xl border bg-card p-5">
+          <label className="block space-y-2">
+            <span className={labelClass}>Yangi login</span>
+            <input
+              value={login}
+              onChange={(event) => setLogin(event.target.value)}
+              autoComplete="username"
+              className={fieldClass}
+              placeholder="masalan: ozodbek"
+            />
+          </label>
+          <label className="block space-y-2">
+            <span className={labelClass}>Yangi parol</span>
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="new-password"
+              className={fieldClass}
+              placeholder="kamida 6 ta belgi"
+            />
+          </label>
+          <label className="block space-y-2">
+            <span className={labelClass}>Parolni tasdiqlang</span>
+            <input
+              type="password"
+              value={confirm}
+              onChange={(event) => setConfirm(event.target.value)}
+              autoComplete="new-password"
+              className={fieldClass}
+              placeholder="parolni qayta kiriting"
+            />
+          </label>
+
+          {message && (
+            <p
+              className={`rounded-lg px-3 py-2 text-sm ${
+                message.type === "success"
+                  ? "bg-accent/10 text-accent"
+                  : "bg-destructive/10 text-destructive"
+              }`}
+            >
+              {message.text}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-card transition hover:bg-accent disabled:opacity-60"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            {saving ? "Saqlanmoqda..." : "Yangilash"}
+          </button>
+        </form>
+      </div>
+    </SectionShell>
   );
 }

@@ -1,6 +1,7 @@
 import express from "express";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,19 +18,22 @@ const dataFilePath = path.resolve(
   rootDir,
   process.env.SITE_DATA_FILE || defaultDataFile
 );
+const dataDir = path.dirname(dataFilePath);
 const seedDataFilePath = path.resolve(rootDir, "server/data/site-data.json");
-const leadsFilePath = path.resolve(path.dirname(dataFilePath), "leads.json");
+const leadsFilePath = path.resolve(dataDir, "leads.json");
+const adminCredsFilePath = path.resolve(dataDir, "admin.json");
+const uploadsDir = path.resolve(dataDir, "uploads");
 const distDir = path.resolve(rootDir, "dist");
 const indexHtmlPath = path.resolve(distDir, "index.html");
 
-const adminLogin = process.env.OZODFLOW_ADMIN_LOGIN || "admin";
-const adminPassword = process.env.OZODFLOW_ADMIN_PASSWORD || "ozodflow2026";
+const defaultAdminLogin = process.env.OZODFLOW_ADMIN_LOGIN || "admin";
+const defaultAdminPassword = process.env.OZODFLOW_ADMIN_PASSWORD || "ozodflow2026";
 
 const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN || "";
 const telegramChatId = process.env.TELEGRAM_CHAT_ID || "";
 
 app.disable("x-powered-by");
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "12mb" }));
 
 app.use((req, res, next) => {
   const allowedOrigins = (process.env.CORS_ORIGIN || "*")
@@ -85,8 +89,61 @@ async function writeSiteData(data) {
   return normalized;
 }
 
-function isAdminPassword(req) {
-  return (req.headers["x-admin-password"] || "") === adminPassword;
+async function readAdminCreds() {
+  try {
+    const content = JSON.parse(await readFile(adminCredsFilePath, "utf8"));
+    return {
+      login: content.login || defaultAdminLogin,
+      password: content.password || defaultAdminPassword,
+    };
+  } catch {
+    return { login: defaultAdminLogin, password: defaultAdminPassword };
+  }
+}
+
+async function writeAdminCreds(creds) {
+  await mkdir(dataDir, { recursive: true });
+  const tempFilePath = `${adminCredsFilePath}.${process.pid}.tmp`;
+  await writeFile(tempFilePath, `${JSON.stringify(creds, null, 2)}\n`, "utf8");
+  await rename(tempFilePath, adminCredsFilePath);
+}
+
+async function isAdminRequest(req) {
+  const creds = await readAdminCreds();
+  return (req.headers["x-admin-password"] || "") === creds.password;
+}
+
+const UPLOAD_MIME_EXT = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/svg+xml": "svg",
+};
+
+async function saveUpload(dataUrl) {
+  const match = /^data:([^;]+);base64,(.+)$/s.exec(dataUrl || "");
+  if (!match) {
+    throw new Error("Invalid image data");
+  }
+
+  const mime = match[1];
+  const ext = UPLOAD_MIME_EXT[mime];
+  if (!ext) {
+    throw new Error("Unsupported image type");
+  }
+
+  const buffer = Buffer.from(match[2], "base64");
+  if (buffer.length > 10 * 1024 * 1024) {
+    throw new Error("Image too large");
+  }
+
+  await mkdir(uploadsDir, { recursive: true });
+  const fileName = `${Date.now()}-${randomBytes(6).toString("hex")}.${ext}`;
+  await writeFile(path.join(uploadsDir, fileName), buffer);
+
+  return `/uploads/${fileName}`;
 }
 
 async function appendLead(lead) {
@@ -175,10 +232,11 @@ app.get("/api/site-data", async (req, res) => {
   res.json(await readSiteData());
 });
 
-app.post("/api/site-data", (req, res) => {
+app.post("/api/site-data", async (req, res) => {
   noStore(res);
 
-  if (req.body?.login !== adminLogin || req.body?.password !== adminPassword) {
+  const creds = await readAdminCreds();
+  if (req.body?.login !== creds.login || req.body?.password !== creds.password) {
     res.status(401).json({ ok: false });
     return;
   }
@@ -189,7 +247,7 @@ app.post("/api/site-data", (req, res) => {
 app.put("/api/site-data", async (req, res) => {
   noStore(res);
 
-  if (!isAdminPassword(req)) {
+  if (!(await isAdminRequest(req))) {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
@@ -201,6 +259,54 @@ app.put("/api/site-data", async (req, res) => {
     res.status(500).json({ error: "Site data could not be saved" });
   }
 });
+
+app.post("/api/upload", async (req, res) => {
+  noStore(res);
+
+  if (!(await isAdminRequest(req))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  try {
+    const url = await saveUpload(req.body?.dataUrl);
+    res.json({ url });
+  } catch (error) {
+    console.error("Upload failed:", error);
+    res.status(400).json({ error: error.message || "Upload failed" });
+  }
+});
+
+app.put("/api/admin-credentials", async (req, res) => {
+  noStore(res);
+
+  if (!(await isAdminRequest(req))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const login = String(req.body?.login || "").trim();
+  const password = String(req.body?.password || "");
+
+  if (login.length < 3) {
+    res.status(400).json({ error: "Login kamida 3 ta belgidan iborat bo'lsin" });
+    return;
+  }
+  if (password.length < 6) {
+    res.status(400).json({ error: "Parol kamida 6 ta belgidan iborat bo'lsin" });
+    return;
+  }
+
+  try {
+    await writeAdminCreds({ login, password });
+    res.json({ ok: true, login });
+  } catch (error) {
+    console.error("Credentials update failed:", error);
+    res.status(500).json({ error: "Saqlab bo'lmadi" });
+  }
+});
+
+app.use("/uploads", express.static(uploadsDir, { maxAge: "7d" }));
 
 if (existsSync(distDir)) {
   app.use(express.static(distDir));

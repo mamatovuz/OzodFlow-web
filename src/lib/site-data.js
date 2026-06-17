@@ -2,6 +2,7 @@ export const TG_SUPPORT = "https://t.me/OzodFlow_uz";
 export const TG_CHANNEL = "https://t.me/OzodFlow";
 export const SITE_DATA_STORAGE_KEY = "ozodflow-site-data";
 export const SITE_DATA_API_URL = import.meta.env?.VITE_DATA_API_URL || "/api/site-data";
+export const LEAD_API_URL = import.meta.env?.VITE_LEAD_API_URL || "/api/lead";
 
 export const DEFAULT_SITE_DATA = {
   services: [
@@ -55,6 +56,7 @@ export const DEFAULT_SITE_DATA = {
       result: "Buyurtmalar tezligi oshdi",
       stack: ["Telegram", "Node.js", "Google Sheets"],
       url: "https://t.me/OzodFlow",
+      image: "",
     },
     {
       id: "sales-crm",
@@ -64,6 +66,7 @@ export const DEFAULT_SITE_DATA = {
       result: "Jarayonlar nazoratga olindi",
       stack: ["React", "Node.js", "PostgreSQL"],
       url: "https://t.me/OzodFlow",
+      image: "",
     },
     {
       id: "product-landing",
@@ -73,6 +76,7 @@ export const DEFAULT_SITE_DATA = {
       result: "Konversiya yaxshilandi",
       stack: ["React", "Tailwind", "SEO"],
       url: "https://t.me/OzodFlow",
+      image: "",
     },
     {
       id: "clinic-site",
@@ -82,6 +86,7 @@ export const DEFAULT_SITE_DATA = {
       result: "Online murojaatlar ko'paydi",
       stack: ["React", "Admin panel", "Hosting"],
       url: "https://t.me/OzodFlow",
+      image: "",
     },
     {
       id: "education-platform",
@@ -91,6 +96,7 @@ export const DEFAULT_SITE_DATA = {
       result: "Ro'yxatdan o'tish qulaylashdi",
       stack: ["React", "Forms", "Analytics"],
       url: "https://t.me/OzodFlow",
+      image: "",
     },
     {
       id: "warehouse-panel",
@@ -100,14 +106,49 @@ export const DEFAULT_SITE_DATA = {
       result: "Hisobotlar avtomatlashtirildi",
       stack: ["React", "Node.js", "Reports"],
       url: "https://t.me/OzodFlow",
+      image: "",
+    },
+  ],
+  testimonials: [
+    {
+      id: "t-restaurant",
+      name: "Jasur Karimov",
+      role: "Restoran egasi, Andijon",
+      text: "Telegram bot orqali buyurtmalar ancha tezlashdi. Ozodbek aytgan muddatda, sifatli qilib topshirdi. Tavsiya qilaman.",
+      rating: 5,
+    },
+    {
+      id: "t-clinic",
+      name: "Dilnoza Rahimova",
+      role: "Klinika rahbari",
+      text: "Saytdan keyin online murojaatlar sezilarli ko'paydi. Har bir savolga tez javob berdi, ishi puxta.",
+      rating: 5,
+    },
+    {
+      id: "t-shop",
+      name: "Bobur Tursunov",
+      role: "Online do'kon",
+      text: "CRM tizim ishimizni butunlay tartibga soldi. Vositachisiz, to'g'ridan-to'g'ri dasturchi bilan ishlash juda qulay.",
+      rating: 5,
     },
   ],
 };
 
+function normalizeProject(project) {
+  return { image: "", ...project };
+}
+
 export function normalizeSiteData(data) {
+  const projects = Array.isArray(data?.projects)
+    ? data.projects.map(normalizeProject)
+    : DEFAULT_SITE_DATA.projects;
+
   return {
     services: Array.isArray(data?.services) ? data.services : DEFAULT_SITE_DATA.services,
-    projects: Array.isArray(data?.projects) ? data.projects : DEFAULT_SITE_DATA.projects,
+    projects,
+    testimonials: Array.isArray(data?.testimonials)
+      ? data.testimonials
+      : DEFAULT_SITE_DATA.testimonials,
   };
 }
 
@@ -155,6 +196,25 @@ export async function verifyAdminLogin({ login, password }) {
 
   if (!response.ok) {
     throw new Error("Admin login failed");
+  }
+
+  return true;
+}
+
+export async function submitLead(lead, options = {}) {
+  const response = await fetch(LEAD_API_URL, {
+    method: "POST",
+    signal: options.signal,
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(lead),
+  });
+
+  if (!response.ok) {
+    throw new Error("Lead could not be submitted");
   }
 
   return true;

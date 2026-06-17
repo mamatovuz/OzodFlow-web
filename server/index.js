@@ -18,11 +18,15 @@ const dataFilePath = path.resolve(
   process.env.SITE_DATA_FILE || defaultDataFile
 );
 const seedDataFilePath = path.resolve(rootDir, "server/data/site-data.json");
+const leadsFilePath = path.resolve(path.dirname(dataFilePath), "leads.json");
 const distDir = path.resolve(rootDir, "dist");
 const indexHtmlPath = path.resolve(distDir, "index.html");
 
 const adminLogin = process.env.OZODFLOW_ADMIN_LOGIN || "admin";
 const adminPassword = process.env.OZODFLOW_ADMIN_PASSWORD || "ozodflow2026";
+
+const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN || "";
+const telegramChatId = process.env.TELEGRAM_CHAT_ID || "";
 
 app.disable("x-powered-by");
 app.use(express.json({ limit: "1mb" }));
@@ -85,8 +89,84 @@ function isAdminPassword(req) {
   return (req.headers["x-admin-password"] || "") === adminPassword;
 }
 
+async function appendLead(lead) {
+  await mkdir(path.dirname(leadsFilePath), { recursive: true });
+
+  let leads = [];
+  try {
+    leads = JSON.parse(await readFile(leadsFilePath, "utf8"));
+    if (!Array.isArray(leads)) leads = [];
+  } catch {
+    leads = [];
+  }
+
+  leads.push(lead);
+
+  const tempFilePath = `${leadsFilePath}.${process.pid}.tmp`;
+  await writeFile(tempFilePath, `${JSON.stringify(leads, null, 2)}\n`, "utf8");
+  await rename(tempFilePath, leadsFilePath);
+}
+
+async function sendLeadToTelegram(lead) {
+  if (!telegramBotToken || !telegramChatId) return false;
+
+  const lines = [
+    "🟢 *Yangi murojaat — OzodFlow*",
+    "",
+    `👤 *Ism:* ${lead.name}`,
+    `📞 *Telefon:* ${lead.phone}`,
+    lead.service ? `🧩 *Xizmat:* ${lead.service}` : "",
+    lead.message ? `💬 *Xabar:* ${lead.message}` : "",
+  ].filter(Boolean);
+
+  const response = await fetch(
+    `https://api.telegram.org/bot${telegramBotToken}/sendMessage`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: telegramChatId,
+        text: lines.join("\n"),
+        parse_mode: "Markdown",
+      }),
+    }
+  );
+
+  return response.ok;
+}
+
 app.get("/api/health", (req, res) => {
   noStore(res);
+  res.json({ ok: true });
+});
+
+app.post("/api/lead", async (req, res) => {
+  noStore(res);
+
+  const name = String(req.body?.name || "").trim().slice(0, 120);
+  const phone = String(req.body?.phone || "").trim().slice(0, 40);
+  const service = String(req.body?.service || "").trim().slice(0, 120);
+  const message = String(req.body?.message || "").trim().slice(0, 1000);
+
+  if (!name || !phone) {
+    res.status(400).json({ error: "Ism va telefon majburiy" });
+    return;
+  }
+
+  const lead = { name, phone, service, message, createdAt: new Date().toISOString() };
+
+  try {
+    await appendLead(lead);
+  } catch (error) {
+    console.error("Lead save failed:", error);
+  }
+
+  try {
+    await sendLeadToTelegram(lead);
+  } catch (error) {
+    console.error("Telegram notify failed:", error);
+  }
+
   res.json({ ok: true });
 });
 

@@ -6,6 +6,7 @@ import {
   Globe,
   LayoutGrid,
   LogOut,
+  MessageSquareQuote,
   Plus,
   Save,
   Sparkles,
@@ -222,6 +223,7 @@ function Dashboard({ adminPassword, onLogout }) {
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-8 md:px-6">
         <ServicesEditor data={data} setData={setData} />
         <ProjectsEditor data={data} setData={setData} />
+        <TestimonialsEditor data={data} setData={setData} />
       </div>
     </main>
   );
@@ -390,6 +392,7 @@ function ProjectsEditor({ data, setData }) {
           result: "Natija",
           stack: ["React"],
           url: "https://t.me/OzodFlow",
+          image: "",
         },
       ],
     }));
@@ -450,6 +453,23 @@ function ProjectsEditor({ data, setData }) {
               </label>
             </div>
 
+            <label className="mt-4 block space-y-2">
+              <span className={labelClass}>Rasm havolasi (URL)</span>
+              <input
+                value={project.image || ""}
+                onChange={(event) => updateProject(project.id, { image: event.target.value })}
+                placeholder="https://... (bo'sh bo'lsa, chiroyli o'rin egallaydi)"
+                className={fieldClass}
+              />
+              {project.image ? (
+                <img
+                  src={project.image}
+                  alt={project.title}
+                  className="mt-2 h-32 w-full rounded-lg border object-cover"
+                />
+              ) : null}
+            </label>
+
             <div className="mt-4 grid gap-4 md:grid-cols-3">
               <label className="block space-y-2 md:col-span-2">
                 <span className={labelClass}>Tavsif</span>
@@ -487,6 +507,121 @@ function ProjectsEditor({ data, setData }) {
               <button
                 type="button"
                 onClick={() => deleteProject(project.id)}
+                className="inline-flex items-center gap-2 rounded-lg border border-destructive/20 px-3 py-2 text-sm font-semibold text-destructive transition hover:bg-destructive hover:text-destructive-foreground"
+              >
+                <Trash2 className="h-4 w-4" /> O'chirish
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TestimonialsEditor({ data, setData }) {
+  const testimonials = data.testimonials || [];
+
+  function updateTestimonial(id, patch) {
+    setData((current) => ({
+      ...current,
+      testimonials: (current.testimonials || []).map((item) =>
+        item.id === id ? { ...item, ...patch } : item
+      ),
+    }));
+  }
+
+  function addTestimonial() {
+    setData((current) => ({
+      ...current,
+      testimonials: [
+        ...(current.testimonials || []),
+        {
+          id: `testimonial-${Date.now()}`,
+          name: "Mijoz ismi",
+          role: "Lavozim, shahar",
+          text: "Mijoz fikri matni",
+          rating: 5,
+        },
+      ],
+    }));
+  }
+
+  function deleteTestimonial(id) {
+    setData((current) => ({
+      ...current,
+      testimonials: (current.testimonials || []).filter((item) => item.id !== id),
+    }));
+  }
+
+  return (
+    <section className="rounded-2xl border bg-background p-5 shadow-card md:p-7">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-accent">
+            <MessageSquareQuote className="h-3.5 w-3.5" /> Mijozlar fikri
+          </div>
+          <h2 className="mt-2 font-display text-3xl font-bold">Sharhlar</h2>
+        </div>
+        <button
+          type="button"
+          onClick={addTestimonial}
+          className="inline-flex w-fit items-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-sm font-semibold transition hover:bg-primary hover:text-primary-foreground"
+        >
+          <Plus className="h-4 w-4" /> Sharh qo'shish
+        </button>
+      </div>
+
+      <div className="mt-6 grid gap-5">
+        {testimonials.map((item) => (
+          <div key={item.id} className="rounded-xl border bg-card p-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <label className="block space-y-2">
+                <span className={labelClass}>Ism</span>
+                <input
+                  value={item.name}
+                  onChange={(event) => updateTestimonial(item.id, { name: event.target.value })}
+                  className={fieldClass}
+                />
+              </label>
+              <label className="block space-y-2">
+                <span className={labelClass}>Lavozim / shahar</span>
+                <input
+                  value={item.role}
+                  onChange={(event) => updateTestimonial(item.id, { role: event.target.value })}
+                  className={fieldClass}
+                />
+              </label>
+              <label className="block space-y-2">
+                <span className={labelClass}>Baho (1-5)</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="5"
+                  value={item.rating ?? 5}
+                  onChange={(event) =>
+                    updateTestimonial(item.id, {
+                      rating: Math.max(1, Math.min(5, Number(event.target.value) || 5)),
+                    })
+                  }
+                  className={fieldClass}
+                />
+              </label>
+            </div>
+
+            <label className="mt-4 block space-y-2">
+              <span className={labelClass}>Fikr matni</span>
+              <textarea
+                value={item.text}
+                onChange={(event) => updateTestimonial(item.id, { text: event.target.value })}
+                className={`${fieldClass} min-h-24`}
+              />
+            </label>
+
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => deleteTestimonial(item.id)}
                 className="inline-flex items-center gap-2 rounded-lg border border-destructive/20 px-3 py-2 text-sm font-semibold text-destructive transition hover:bg-destructive hover:text-destructive-foreground"
               >
                 <Trash2 className="h-4 w-4" /> O'chirish

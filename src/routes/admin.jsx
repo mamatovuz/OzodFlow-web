@@ -6,10 +6,12 @@ import {
   Loader2,
   LogOut,
   MessageSquareQuote,
+  Moon,
   Plus,
   Save,
   Settings,
   Sparkles,
+  Sun,
   Trash2,
   Upload,
   X,
@@ -26,6 +28,7 @@ import {
   uploadImage,
   verifyAdminLogin,
 } from "@/lib/site-data";
+import { getInitialTheme, setStoredTheme } from "@/lib/theme";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -195,6 +198,31 @@ const TABS = [
   { id: "settings", label: "Sozlamalar", icon: Settings },
 ];
 
+function ThemeToggle({ className = "" }) {
+  const [theme, setTheme] = useState("light");
+
+  useEffect(() => {
+    setTheme(getInitialTheme());
+  }, []);
+
+  function toggle() {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    setStoredTheme(next);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border bg-card text-muted-foreground transition hover:border-accent hover:text-accent ${className}`}
+      aria-label="Tungi rejim"
+    >
+      {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    </button>
+  );
+}
+
 function Dashboard({ adminPassword, onPasswordChange, onLogout }) {
   const [data, setData] = useState(DEFAULT_SITE_DATA);
   const [status, setStatus] = useState("Ma'lumotlar yuklanmoqda...");
@@ -258,6 +286,7 @@ function Dashboard({ adminPassword, onPasswordChange, onLogout }) {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            <ThemeToggle />
             {tab !== "settings" && (
               <button
                 type="button"

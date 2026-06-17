@@ -33,7 +33,25 @@ const telegramBotToken = process.env.TELEGRAM_BOT_TOKEN || "";
 const telegramChatId = process.env.TELEGRAM_CHAT_ID || "";
 
 app.disable("x-powered-by");
+app.set("trust proxy", 1);
 app.use(express.json({ limit: "12mb" }));
+
+// Simple in-memory rate limiter (per IP, sliding window).
+const leadHits = new Map();
+const LEAD_WINDOW_MS = 10 * 60 * 1000;
+const LEAD_MAX = 5;
+
+function isRateLimited(ip) {
+  const now = Date.now();
+  const hits = (leadHits.get(ip) || []).filter((time) => now - time < LEAD_WINDOW_MS);
+  if (hits.length >= LEAD_MAX) {
+    leadHits.set(ip, hits);
+    return true;
+  }
+  hits.push(now);
+  leadHits.set(ip, hits);
+  return false;
+}
 
 app.use((req, res, next) => {
   const allowedOrigins = (process.env.CORS_ORIGIN || "*")
@@ -199,6 +217,17 @@ app.get("/api/health", (req, res) => {
 
 app.post("/api/lead", async (req, res) => {
   noStore(res);
+
+  // Honeypot: bots fill hidden fields. Pretend success, drop silently.
+  if (String(req.body?.website || "").trim()) {
+    res.json({ ok: true });
+    return;
+  }
+
+  if (isRateLimited(req.ip)) {
+    res.status(429).json({ error: "Juda ko'p urinish. Birozdan keyin qayta urinib ko'ring." });
+    return;
+  }
 
   const name = String(req.body?.name || "").trim().slice(0, 120);
   const phone = String(req.body?.phone || "").trim().slice(0, 40);

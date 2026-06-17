@@ -23,11 +23,13 @@ import {
   MapPin,
   MessageCircle,
   Menu,
+  Moon,
   Phone,
   Quote,
   Shield,
   Sparkles,
   Star,
+  Sun,
   X,
   Zap,
 } from "lucide-react";
@@ -47,6 +49,7 @@ import {
   storeSiteData,
   submitLead,
 } from "@/lib/site-data";
+import { getInitialTheme, setStoredTheme } from "@/lib/theme";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -461,6 +464,31 @@ function LangToggle({ className = "" }) {
   );
 }
 
+function ThemeToggle({ className = "" }) {
+  const [theme, setTheme] = useState("light");
+
+  useEffect(() => {
+    setTheme(getInitialTheme());
+  }, []);
+
+  function toggle() {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    setStoredTheme(next);
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className={`inline-flex h-10 w-10 items-center justify-center rounded-lg border bg-card text-muted-foreground transition hover:border-accent hover:text-accent ${className}`}
+      aria-label="Tungi rejim"
+    >
+      {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+    </button>
+  );
+}
+
 function Nav() {
   const { t } = useLang();
   const [open, setOpen] = useState(false);
@@ -486,6 +514,7 @@ function Nav() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <LangToggle />
           <a
             href={TG}
@@ -941,7 +970,7 @@ function ContactForm({ services }) {
   const { t } = useLang();
   const f = t.contact.form;
 
-  const [form, setForm] = useState({ name: "", phone: "", service: "", message: "" });
+  const [form, setForm] = useState({ name: "", phone: "", service: "", message: "", website: "" });
   const [state, setState] = useState("idle"); // idle | sending | success | error
 
   const serviceOptions = useMemo(
@@ -964,7 +993,7 @@ function ContactForm({ services }) {
     try {
       await submitLead(form);
       setState("success");
-      setForm({ name: "", phone: "", service: "", message: "" });
+      setForm({ name: "", phone: "", service: "", message: "", website: "" });
     } catch {
       setState("error");
     }
@@ -975,6 +1004,17 @@ function ContactForm({ services }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
+      {/* Honeypot — bots fill this, humans never see it */}
+      <input
+        type="text"
+        name="website"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        value={form.website}
+        onChange={(event) => update("website", event.target.value)}
+        className="absolute left-[-9999px] h-0 w-0 opacity-0"
+      />
       <div className="text-sm font-semibold text-primary-foreground/80">{f.title}</div>
       <div className="grid gap-3 sm:grid-cols-2">
         <input

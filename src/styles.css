@@ -75,6 +75,41 @@
   --shadow-elevated: 0 2px 4px oklch(0.22 0.05 255 / 0.05), 0 20px 40px -18px oklch(0.22 0.05 255 / 0.18);
 }
 
+.dark {
+  --navy: oklch(0.92 0.02 255);
+  --sky: oklch(0.7 0.15 230);
+  --surface: oklch(0.24 0.02 260);
+
+  --background: oklch(0.17 0.02 260);
+  --foreground: oklch(0.96 0.01 250);
+
+  --card: oklch(0.21 0.025 260);
+  --card-foreground: oklch(0.96 0.01 250);
+  --popover: oklch(0.21 0.025 260);
+  --popover-foreground: oklch(0.96 0.01 250);
+
+  --primary: oklch(0.27 0.04 258);
+  --primary-foreground: oklch(0.98 0.01 250);
+  --secondary: oklch(0.27 0.02 260);
+  --secondary-foreground: oklch(0.96 0.01 250);
+  --muted: oklch(0.27 0.02 260);
+  --muted-foreground: oklch(0.72 0.02 255);
+
+  --accent: oklch(0.66 0.16 230);
+  --accent-foreground: oklch(0.16 0.02 260);
+
+  --destructive: oklch(0.62 0.2 27);
+  --destructive-foreground: oklch(0.98 0.01 250);
+  --border: oklch(0.31 0.02 260);
+  --input: oklch(0.31 0.02 260);
+  --ring: oklch(0.66 0.16 230);
+
+  --gradient-hero: radial-gradient(120% 80% at 80% 0%, oklch(0.32 0.07 258) 0%, transparent 60%),
+                   linear-gradient(180deg, oklch(0.2 0.02 260) 0%, oklch(0.17 0.02 260) 100%);
+  --shadow-card: 0 1px 2px oklch(0 0 0 / 0.3), 0 8px 24px -12px oklch(0 0 0 / 0.5);
+  --shadow-elevated: 0 2px 4px oklch(0 0 0 / 0.4), 0 20px 40px -18px oklch(0 0 0 / 0.6);
+}
+
 @layer base {
   * { border-color: var(--color-border); }
   html { scroll-behavior: smooth; }
@@ -101,5 +136,10 @@
       linear-gradient(to bottom, oklch(0.92 0.008 240) 1px, transparent 1px);
     background-size: 56px 56px;
     mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  }
+  .dark .grid-bg {
+    background-image:
+      linear-gradient(to right, oklch(0.32 0.02 260) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(0.32 0.02 260) 1px, transparent 1px);
   }
 }

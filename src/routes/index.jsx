@@ -57,7 +57,7 @@ export const Route = createFileRoute("/")({
       { title: "OzodFlow - Landing, Telegram bot, CRM va saytlar" },
       {
         name: "description",
-        content: "OzodFlow - Andijon. Sayt, Telegram bot va CRM tizimlar. Aloqa: +998 93 303 04 10.",
+        content: "OzodFlow - Andijon. Sayt, Telegram bot va CRM tizimlar. Aloqa: +998 93 230 34 10.",
       },
       { property: "og:title", content: "OzodFlow - Raqamli mahsulotlar studiyasi" },
       { property: "og:description", content: "Landing page, Telegram bot, CRM va biznes saytlar." },
@@ -1095,7 +1095,7 @@ function Contact({ services }) {
     { icon: MessageCircle, label: "Telegram (Support)", value: "@OzodFlow_uz", href: TG_SUPPORT },
     { icon: MessageCircle, label: "Telegram kanal", value: "@OzodFlow", href: TG_CHANNEL },
     { icon: Mail, label: "Email", value: "mamatovo354@gmail.com", href: "mailto:mamatovo354@gmail.com" },
-    { icon: Phone, label: "Telefon", value: "+998 93 303 04 10", href: "tel:+998933030410" },
+    { icon: Phone, label: "Telefon", value: "+998 93 230 34 10", href: "tel:+998932303410" },
     { icon: MapPin, label: "Joylashuv", value: "Andijon, O'zbekiston", href: "#" },
   ];
 

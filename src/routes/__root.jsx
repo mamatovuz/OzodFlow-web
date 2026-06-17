@@ -77,7 +77,7 @@ export const Route = createRootRouteWithContext()({
           "OzodFlow - frilanser studiya. Landing page, Telegram bot, CRM tizim va biznes saytlar. Tez, sifatli, qulay narxda.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:image", content: "/favicon.svg" },
+      { property: "og:image", content: "/favicon-96x96.png" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "OzodFlow" },
       {
@@ -85,7 +85,7 @@ export const Route = createRootRouteWithContext()({
         content:
           "OzodFlow - frilanser studiya. Landing page, Telegram bot, CRM tizim va biznes saytlar. Tez, sifatli, qulay narxda.",
       },
-      { name: "twitter:image", content: "/favicon.svg" },
+      { name: "twitter:image", content: "/favicon-96x96.png" },
     ],
   }),
   component: RootComponent,

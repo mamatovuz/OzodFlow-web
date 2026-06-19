@@ -7,6 +7,7 @@ import {
   LogOut,
   MessageSquareQuote,
   Moon,
+  Newspaper,
   Plus,
   Save,
   Settings,
@@ -153,7 +154,7 @@ function LoginScreen({ onLogin }) {
       <div className="mx-auto flex min-h-[70vh] max-w-md items-center">
         <form onSubmit={submit} className="w-full rounded-2xl border bg-card p-8 shadow-elevated">
           <div className="flex items-center gap-3">
-            <img src="/favicon.svg" alt="OzodFlow" className="h-11 w-11 rounded-xl shadow-card" />
+            <img src="/logo-mark.png" alt="OzodFlow" className="h-11 w-11 rounded-xl shadow-card" />
             <div>
               <h1 className="font-display text-2xl font-bold">OzodFlow Admin</h1>
               <p className="text-sm text-muted-foreground">Dashboardga kirish</p>
@@ -195,6 +196,7 @@ const TABS = [
   { id: "services", label: "Xizmatlar", icon: Sparkles },
   { id: "projects", label: "Loyihalar", icon: BriefcaseBusiness },
   { id: "testimonials", label: "Fikrlar", icon: MessageSquareQuote },
+  { id: "blog", label: "Blog", icon: Newspaper },
   { id: "settings", label: "Sozlamalar", icon: Settings },
 ];
 
@@ -271,6 +273,7 @@ function Dashboard({ adminPassword, onPasswordChange, onLogout }) {
     services: data.services?.length || 0,
     projects: data.projects?.length || 0,
     testimonials: (data.testimonials || []).length,
+    blog: (data.posts || []).length,
     settings: null,
   };
 
@@ -279,7 +282,7 @@ function Dashboard({ adminPassword, onPasswordChange, onLogout }) {
       <header className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
           <div className="flex items-center gap-3">
-            <img src="/favicon.svg" alt="OzodFlow" className="h-10 w-10 rounded-xl shadow-card" />
+            <img src="/logo-mark.png" alt="OzodFlow" className="h-10 w-10 rounded-xl shadow-card" />
             <div>
               <h1 className="font-display text-xl font-bold leading-tight">OzodFlow Dashboard</h1>
               <p className="text-xs text-muted-foreground">{status}</p>
@@ -356,6 +359,9 @@ function Dashboard({ adminPassword, onPasswordChange, onLogout }) {
             <ProjectsEditor data={data} setData={setData} adminPassword={adminPassword} />
           )}
           {tab === "testimonials" && <TestimonialsEditor data={data} setData={setData} />}
+          {tab === "blog" && (
+            <PostsEditor data={data} setData={setData} adminPassword={adminPassword} />
+          )}
           {tab === "settings" && (
             <SettingsEditor adminPassword={adminPassword} onPasswordChange={onPasswordChange} />
           )}
@@ -817,6 +823,146 @@ function TestimonialsEditor({ data, setData }) {
 
             <div className="mt-4 flex justify-end">
               <DeleteButton onClick={() => deleteTestimonial(item.id)} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </SectionShell>
+  );
+}
+
+function slugify(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/['']/g, "")
+    .replace(/[^a-z0-9Ѐ-ӿ]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+function PostsEditor({ data, setData, adminPassword }) {
+  const posts = data.posts || [];
+
+  function updatePost(id, patch) {
+    setData((current) => ({
+      ...current,
+      posts: (current.posts || []).map((post) => (post.id === id ? { ...post, ...patch } : post)),
+    }));
+  }
+
+  function addPost() {
+    const stamp = Date.now();
+    setData((current) => ({
+      ...current,
+      posts: [
+        {
+          id: `post-${stamp}`,
+          slug: `maqola-${stamp}`,
+          title: "Yangi maqola",
+          excerpt: "Qisqa tavsif",
+          cover: "",
+          date: new Date().toISOString().slice(0, 10),
+          published: true,
+          content: "Maqola matni. Sarlavha uchun qatorni '## ' bilan boshlang.",
+        },
+        ...(current.posts || []),
+      ],
+    }));
+  }
+
+  function deletePost(id) {
+    setData((current) => ({
+      ...current,
+      posts: (current.posts || []).filter((post) => post.id !== id),
+    }));
+  }
+
+  return (
+    <SectionShell
+      icon={Newspaper}
+      label="Blog"
+      title="Maqolalar"
+      action={<AddButton onClick={addPost}>Maqola qo'shish</AddButton>}
+    >
+      <div className="mt-6 grid gap-5">
+        {posts.map((post) => (
+          <div key={post.id} className="rounded-xl border bg-card p-4">
+            <ImageField
+              value={post.cover || ""}
+              onChange={(url) => updatePost(post.id, { cover: url })}
+              adminPassword={adminPassword}
+              alt={post.title}
+            />
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <label className="block space-y-2">
+                <span className={labelClass}>Sarlavha</span>
+                <input
+                  value={post.title}
+                  onChange={(event) => updatePost(post.id, { title: event.target.value })}
+                  className={fieldClass}
+                />
+              </label>
+              <label className="block space-y-2">
+                <span className={labelClass}>Slug (havola)</span>
+                <div className="flex gap-2">
+                  <input
+                    value={post.slug}
+                    onChange={(event) => updatePost(post.id, { slug: slugify(event.target.value) })}
+                    className={fieldClass}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => updatePost(post.id, { slug: slugify(post.title) })}
+                    className="shrink-0 rounded-lg bg-secondary px-3 text-xs font-semibold transition hover:bg-primary hover:text-primary-foreground"
+                  >
+                    Avto
+                  </button>
+                </div>
+              </label>
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto]">
+              <label className="block space-y-2">
+                <span className={labelClass}>Sana</span>
+                <input
+                  type="date"
+                  value={post.date || ""}
+                  onChange={(event) => updatePost(post.id, { date: event.target.value })}
+                  className={fieldClass}
+                />
+              </label>
+              <label className="flex items-end gap-2 pb-2 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={post.published !== false}
+                  onChange={(event) => updatePost(post.id, { published: event.target.checked })}
+                  className="h-4 w-4 accent-[var(--color-accent)]"
+                />
+                Chop etilgan (saytda ko'rinadi)
+              </label>
+            </div>
+
+            <label className="mt-4 block space-y-2">
+              <span className={labelClass}>Qisqa tavsif</span>
+              <textarea
+                value={post.excerpt}
+                onChange={(event) => updatePost(post.id, { excerpt: event.target.value })}
+                className={`${fieldClass} min-h-20`}
+              />
+            </label>
+
+            <label className="mt-4 block space-y-2">
+              <span className={labelClass}>Matn (sarlavha uchun "## " bilan boshlang)</span>
+              <textarea
+                value={post.content}
+                onChange={(event) => updatePost(post.id, { content: event.target.value })}
+                className={`${fieldClass} min-h-48`}
+              />
+            </label>
+
+            <div className="mt-4 flex justify-end">
+              <DeleteButton onClick={() => deletePost(post.id)} />
             </div>
           </div>
         ))}

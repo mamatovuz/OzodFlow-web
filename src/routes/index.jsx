@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   createContext,
   useContext,
@@ -40,16 +40,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import {
-  DEFAULT_SITE_DATA,
-  TG_CHANNEL,
-  TG_SUPPORT,
-  fetchSiteData,
-  getStoredSiteData,
-  storeSiteData,
-  submitLead,
-} from "@/lib/site-data";
+import { TG_CHANNEL, TG_SUPPORT, submitLead } from "@/lib/site-data";
 import { getInitialTheme, setStoredTheme } from "@/lib/theme";
+import { useSiteData } from "@/hooks/use-site-data";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -67,7 +60,7 @@ export const Route = createFileRoute("/")({
 });
 
 const TG = TG_SUPPORT;
-const LOGO_URL = "/favicon.svg";
+const LOGO_URL = "/logo-mark.png";
 
 const iconMap = {
   Globe,
@@ -90,9 +83,17 @@ const translations = {
       projects: "Loyihalarim",
       process: "Jarayon",
       testimonials: "Fikrlar",
+      blog: "Blog",
       faq: "Savollar",
       contact: "Aloqa",
       cta: "Aloqa",
+    },
+    blog: {
+      label: "Blog",
+      title: "Foydali maqolalar.",
+      desc: "Sayt, bot va CRM haqida tushunarli tilda.",
+      readMore: "Batafsil",
+      all: "Barcha maqolalar",
     },
     hero: {
       badge: "Yangi loyihalarga ochiq - 2026",
@@ -208,9 +209,17 @@ const translations = {
       projects: "Проекты",
       process: "Процесс",
       testimonials: "Отзывы",
+      blog: "Блог",
       faq: "Вопросы",
       contact: "Контакты",
       cta: "Связаться",
+    },
+    blog: {
+      label: "Блог",
+      title: "Полезные статьи.",
+      desc: "О сайтах, ботах и CRM простым языком.",
+      readMore: "Подробнее",
+      all: "Все статьи",
     },
     hero: {
       badge: "Открыт для новых проектов - 2026",
@@ -391,34 +400,8 @@ function Reveal({ children, className = "", delay = 0, as: Tag = "div" }) {
   );
 }
 
-/* ------------------------------- data hook -------------------------------- */
-
-function useSiteData() {
-  const [siteData, setSiteData] = useState(DEFAULT_SITE_DATA);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setSiteData(getStoredSiteData());
-
-    fetchSiteData({ signal: controller.signal })
-      .then((data) => {
-        storeSiteData(data);
-        setSiteData(data);
-      })
-      .catch((error) => {
-        if (error.name !== "AbortError") {
-          setSiteData(getStoredSiteData());
-        }
-      });
-
-    return () => controller.abort();
-  }, []);
-
-  return siteData;
-}
-
 function Index() {
-  const { services, projects, testimonials } = useSiteData();
+  const { services, projects, testimonials, posts } = useSiteData();
 
   return (
     <LanguageProvider>
@@ -432,6 +415,7 @@ function Index() {
           <Process />
           <Why />
           <Testimonials testimonials={testimonials} />
+          <Blog posts={posts} />
           <FAQ />
           <Contact services={services} />
         </main>
@@ -498,6 +482,7 @@ function Nav() {
     { href: "#loyihalar", label: t.nav.projects },
     { href: "#jarayon", label: t.nav.process },
     { href: "#fikrlar", label: t.nav.testimonials },
+    { href: "#blog", label: t.nav.blog },
     { href: "#savollar", label: t.nav.faq },
     { href: "#aloqa", label: t.nav.contact },
   ];
@@ -928,6 +913,77 @@ function Testimonials({ testimonials }) {
               <div className="mt-4 border-t pt-4">
                 <div className="font-semibold text-foreground">{item.name}</div>
                 <div className="text-sm text-muted-foreground">{item.role}</div>
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function formatDate(value, lang) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(lang === "ru" ? "ru-RU" : "uz-UZ", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function Blog({ posts }) {
+  const { t, lang } = useLang();
+  const published = (posts || []).filter((post) => post.published !== false);
+
+  if (!published.length) return null;
+
+  const visible = published.slice(0, 3);
+
+  return (
+    <section id="blog" className="py-24 md:py-32">
+      <div className="mx-auto max-w-7xl px-4 md:px-6">
+        <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
+          <SectionHeading icon={Sparkles} label={t.blog.label} title={t.blog.title} desc={t.blog.desc} />
+          <Link
+            to="/blog"
+            className="inline-flex w-fit items-center gap-2 rounded-xl border bg-card px-5 py-3 text-sm font-semibold transition hover:border-accent hover:text-accent"
+          >
+            {t.blog.all} <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+
+        <div className="mt-14 grid gap-5 md:grid-cols-3">
+          {visible.map((post, i) => (
+            <Reveal
+              key={post.id}
+              delay={(i % 3) * 90}
+              as="article"
+              className="flex flex-col overflow-hidden rounded-2xl border bg-card shadow-card transition hover:shadow-elevated"
+            >
+              <Link to="/blog/$slug" params={{ slug: post.slug }} className="block aspect-video overflow-hidden bg-surface">
+                {post.cover ? (
+                  <img src={post.cover} alt={post.title} loading="lazy" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/5 via-accent/5 to-sky/10">
+                    <span className="px-6 text-center font-display text-xl font-bold text-muted-foreground/40">
+                      {post.title}
+                    </span>
+                  </div>
+                )}
+              </Link>
+              <div className="flex flex-1 flex-col p-6">
+                <div className="text-xs font-medium text-muted-foreground">{formatDate(post.date, lang)}</div>
+                <h3 className="mt-2 font-display text-xl font-bold leading-snug">{post.title}</h3>
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{post.excerpt}</p>
+                <Link
+                  to="/blog/$slug"
+                  params={{ slug: post.slug }}
+                  className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-accent underline-offset-4 hover:underline"
+                >
+                  {t.blog.readMore} <ArrowRight className="h-4 w-4" />
+                </Link>
               </div>
             </Reveal>
           ))}

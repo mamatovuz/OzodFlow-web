@@ -135,10 +135,40 @@ export const DEFAULT_SITE_DATA = {
       rating: 5,
     },
   ],
+  posts: [
+    {
+      id: "post-telegram-bot",
+      slug: "telegram-bot-biznesga-nima-beradi",
+      title: "Telegram bot biznesingizga nima beradi?",
+      excerpt:
+        "Telegram bot — bu 24/7 ishlaydigan avtomatik yordamchi. Buyurtma qabul qilish, mijozlar bilan ishlash va sotuvni qanday oshirishini ko'rib chiqamiz.",
+      cover: "",
+      date: "2026-06-10",
+      published: true,
+      content:
+        "Telegram O'zbekistonda eng ko'p ishlatiladigan messenjerlardan biri. Shuning uchun biznes uchun aynan shu yerda bo'lish — mijozga eng yaqin joyda bo'lish demakdir.\n\n## Bot nimalarni avtomatlashtiradi?\n\nBot buyurtmalarni 24 soat qabul qiladi, mijoz ma'lumotlarini saqlaydi va sizga bildirishnoma yuboradi. Xodim uxlab yotганida ham bot ishlaydi.\n\n## Qanday natija beradi?\n\nKo'p bizneslar botdan keyin buyurtmalar tezligi va mijozlar mamnuniyati oshganini aytishadi. Eng muhimi — takrorlanuvchi ishlar avtomatlashadi va siz asosiy ishingizga vaqt ajratasiz.\n\nAgar biznesingiz uchun bot kerak bo'lsa, Telegram orqali yozing — bepul maslahat beraman.",
+    },
+    {
+      id: "post-landing",
+      slug: "landing-page-nima-uchun-kerak",
+      title: "Landing page nima uchun kerak?",
+      excerpt:
+        "Yaxshi landing page — bu sizning 24 soat ishlaydigan sotuvchingiz. U nima uchun muhim va qanday qilib mijozni xaridorga aylantiradi?",
+      cover: "",
+      date: "2026-06-05",
+      published: true,
+      content:
+        "Landing page — bu bitta maqsadga yo'naltirilgan sahifa: mijozni harakatga undash. Reklama bergan bo'lsangiz, odam aynan shu sahifaga tushadi.\n\n## Nima uchun oddiy sayt yetarli emas?\n\nKo'p sahifali sayt e'tiborni tarqatadi. Landing esa bitta xizmat yoki mahsulotга diqqatni jamlaydi va konversiyani oshiradi.\n\n## Yaxshi landing'ning sirlari\n\nTez yuklanish, aniq taklif, ishonch belgilari (sharhlar, kafolat) va ko'rinib turadigan aloqa tugmasi. Shu narsalar mijozni xaridorga aylantiradi.",
+    },
+  ],
 };
 
 function normalizeProject(project) {
   return { image: "", ...project };
+}
+
+function normalizePost(post) {
+  return { cover: "", published: true, ...post };
 }
 
 export function normalizeSiteData(data) {
@@ -152,6 +182,7 @@ export function normalizeSiteData(data) {
     testimonials: Array.isArray(data?.testimonials)
       ? data.testimonials
       : DEFAULT_SITE_DATA.testimonials,
+    posts: Array.isArray(data?.posts) ? data.posts.map(normalizePost) : DEFAULT_SITE_DATA.posts,
   };
 }
 

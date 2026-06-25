@@ -62,6 +62,12 @@ export const Route = createFileRoute("/")({
 const TG = TG_SUPPORT;
 const LOGO_URL = "/logo-mark.png";
 
+// Opens the Telegram chat with a ready-to-send message ("{title}" -> service name).
+function tgOrderLink(template, title) {
+  const text = String(template || "").replace("{title}", title);
+  return `${TG}?text=${encodeURIComponent(text)}`;
+}
+
 const iconMap = {
   Globe,
   Bot,
@@ -126,6 +132,7 @@ const translations = {
       startPrice: "Boshlang'ich narx",
       currency: "so'm",
       order: "Buyurtma",
+      orderMessage: "Salom! Menga «{title}» xizmati kerak edi. Batafsil ma'lumot bera olasizmi?",
       note: "* Narxlar minimal funksionallik uchun. Aniq narx loyiha hajmi va talablariga qarab belgilanadi.",
     },
     projects: {
@@ -252,6 +259,7 @@ const translations = {
       startPrice: "Начальная цена",
       currency: "сум",
       order: "Заказать",
+      orderMessage: "Здравствуйте! Меня интересует услуга «{title}». Можете рассказать подробнее?",
       note: "* Цены указаны за минимальный функционал. Точная цена зависит от объёма и требований проекта.",
     },
     projects: {
@@ -704,7 +712,7 @@ function Services({ services }) {
                     </div>
                   </div>
                   <a
-                    href={TG}
+                    href={tgOrderLink(t.services.orderMessage, s.title)}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold transition hover:bg-primary hover:text-primary-foreground"

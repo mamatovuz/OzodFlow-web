@@ -2,13 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
   BriefcaseBusiness,
   Calculator as CalculatorIcon,
+  CalendarClock,
   Check,
   ChevronDown,
   ChevronUp,
   Copy,
+  Download,
   FileText,
   FolderKanban,
-  Download,
   GripVertical,
   HelpCircle,
   ImagePlus,
@@ -23,6 +24,7 @@ import {
   Plus,
   Printer,
   Save,
+  Search,
   Settings,
   Sparkles,
   StickyNote,
@@ -33,8 +35,9 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-const IncomeChart = lazy(() => import("@/components/IncomeChart"));
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+
+const IncomeChart = lazy(() => import("@/components/IncomeChart"));
 
 import {
   DEFAULT_SITE_DATA,
@@ -1501,10 +1504,104 @@ function daysLeft(dateStr) {
   return Math.round((target - today) / 86400000);
 }
 
+function formatDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("uz-UZ", { day: "numeric", month: "short", year: "numeric" });
+}
+
+const PILL_TONES = {
+  accent: "bg-accent/15 text-accent",
+  blue: "bg-sky/15 text-sky",
+  amber: "bg-amber-500/15 text-amber-600",
+  green: "bg-emerald-500/15 text-emerald-600",
+  gray: "bg-secondary text-muted-foreground",
+  red: "bg-destructive/10 text-destructive",
+};
+
+function Pill({ tone = "gray", children, className = "" }) {
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${PILL_TONES[tone] || PILL_TONES.gray} ${className}`}>
+      {children}
+    </span>
+  );
+}
+
+const LEAD_STATUS = { new: ["🆕 Yangi", "blue"], seen: ["👀 Ko'rilgan", "amber"], done: ["✅ Yakunlangan", "green"] };
+const CLIENT_STATUS_MAP = { new: ["Yangi", "blue"], talks: ["Muzokara", "amber"], active: ["Faol", "green"], done: ["Tugagan", "gray"] };
+const WORK_STATUS_MAP = { plan: ["Rejada", "gray"], doing: ["Jarayonda", "blue"], test: ["Test", "amber"], done: ["Topshirildi", "green"] };
+
+function Avatar({ name, tone = "accent" }) {
+  const initial = (name || "?").trim().charAt(0).toUpperCase() || "?";
+  const tones = { accent: "bg-accent/15 text-accent", blue: "bg-sky/15 text-sky" };
+  return (
+    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-display text-lg font-bold ${tones[tone] || tones.accent}`}>
+      {initial}
+    </div>
+  );
+}
+
+function EmptyState({ icon: Icon, title, hint }) {
+  return (
+    <div className="mt-6 flex flex-col items-center justify-center rounded-2xl border border-dashed py-16 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary text-muted-foreground">
+        <Icon className="h-7 w-7" />
+      </div>
+      <div className="mt-4 font-display text-lg font-bold">{title}</div>
+      {hint && <div className="mt-1 max-w-sm text-sm text-muted-foreground">{hint}</div>}
+    </div>
+  );
+}
+
+function StatChip({ label, value, tone = "" }) {
+  return (
+    <div className="rounded-xl border bg-card px-4 py-3">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className={`mt-0.5 font-display text-xl font-bold ${tone}`}>{value}</div>
+    </div>
+  );
+}
+
+function FilterTabs({ tabs, value, onChange }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          onClick={() => onChange(tab.id)}
+          className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
+            value === tab.id ? "border-accent bg-accent text-accent-foreground" : "bg-card hover:border-accent"
+          }`}
+        >
+          {tab.label}
+          {tab.count != null ? ` (${tab.count})` : ""}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SearchBox({ value, onChange, placeholder }) {
+  return (
+    <div className="relative">
+      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className={`${fieldClass} pl-9`}
+      />
+    </div>
+  );
+}
+
 /* ------------------------------- Arizalar -------------------------------- */
 
 function LeadsManager({ leads, setLeads, workspace, setWorkspace, adminPassword }) {
   const [message, setMessage] = useState("");
+  const [filter, setFilter] = useState("all");
 
   function updateLead(id, patch) {
     setLeads((current) => current.map((lead) => (lead.id === id ? { ...lead, ...patch } : lead)));
@@ -1538,6 +1635,13 @@ function LeadsManager({ leads, setLeads, workspace, setWorkspace, adminPassword 
   }
 
   const sorted = [...leads].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  const counts = {
+    all: sorted.length,
+    new: sorted.filter((l) => l.status === "new").length,
+    seen: sorted.filter((l) => l.status === "seen").length,
+    done: sorted.filter((l) => l.status === "done").length,
+  };
+  const visible = filter === "all" ? sorted : sorted.filter((l) => l.status === filter);
 
   function exportCsv() {
     downloadCsv("arizalar.csv", [
@@ -1553,65 +1657,89 @@ function LeadsManager({ leads, setLeads, workspace, setWorkspace, adminPassword 
       title="Saytdan kelgan murojaatlar"
       action={leads.length > 0 ? <ExportButton onClick={exportCsv} /> : null}
     >
-      {message && <div className="mt-4 rounded-lg bg-accent/10 px-4 py-2 text-sm text-accent">{message}</div>}
-      <p className="mt-2 text-sm text-muted-foreground">
-        Holatni o'zgartirgach yuqoridagi "Saqlash" tugmasini bosing.
-      </p>
+      {message && <div className="mt-4 rounded-lg bg-accent/10 px-4 py-2.5 text-sm font-medium text-accent">{message}</div>}
 
       {sorted.length === 0 ? (
-        <p className="mt-6 text-muted-foreground">
-          Hozircha ariza yo'q. Saytdagi aloqa formasidan kelganlar shu yerda chiqadi.
-        </p>
+        <EmptyState icon={Inbox} title="Hozircha ariza yo'q" hint="Saytdagi aloqa formasidan kelgan murojaatlar shu yerda paydo bo'ladi." />
       ) : (
-        <div className="mt-6 grid gap-4">
-          {sorted.map((lead) => (
-            <div
-              key={lead.id}
-              className={`rounded-xl border p-4 ${lead.status === "new" ? "border-accent/40 bg-accent/5" : "bg-card"}`}
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <div className="font-display text-lg font-bold">{lead.name}</div>
-                  <a href={`tel:${lead.phone}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-accent">
-                    <Phone className="h-3.5 w-3.5" /> {lead.phone}
-                  </a>
-                  {lead.service && <div className="mt-1 text-sm text-muted-foreground">Xizmat: {lead.service}</div>}
-                </div>
-                <div className="text-right text-xs text-muted-foreground">
-                  {lead.createdAt ? new Date(lead.createdAt).toLocaleString("uz-UZ") : ""}
-                </div>
-              </div>
+        <>
+          <div className="mt-5">
+            <FilterTabs
+              value={filter}
+              onChange={setFilter}
+              tabs={[
+                { id: "all", label: "Hammasi", count: counts.all },
+                { id: "new", label: "Yangi", count: counts.new },
+                { id: "seen", label: "Ko'rilgan", count: counts.seen },
+                { id: "done", label: "Yakunlangan", count: counts.done },
+              ]}
+            />
+          </div>
 
-              {lead.message && <p className="mt-3 rounded-lg bg-surface px-3 py-2 text-sm">{lead.message}</p>}
+          <div className="mt-5 grid gap-3">
+            {visible.map((lead) => {
+              const [statusLabel, statusTone] = LEAD_STATUS[lead.status] || LEAD_STATUS.new;
+              return (
+                <div
+                  key={lead.id}
+                  className={`rounded-2xl border p-4 transition ${lead.status === "new" ? "border-accent/40 bg-accent/[0.04]" : "bg-card"}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <Avatar name={lead.name} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-display text-lg font-bold">{lead.name}</span>
+                        <Pill tone={statusTone}>{statusLabel}</Pill>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                        <a href={`tel:${lead.phone}`} className="inline-flex items-center gap-1.5 font-medium text-accent">
+                          <Phone className="h-3.5 w-3.5" /> {lead.phone}
+                        </a>
+                        {lead.service && <span className="text-muted-foreground">🧩 {lead.service}</span>}
+                        {lead.createdAt && (
+                          <span className="text-muted-foreground">{new Date(lead.createdAt).toLocaleString("uz-UZ")}</span>
+                        )}
+                      </div>
+                      {lead.message && <p className="mt-3 rounded-lg bg-surface px-3 py-2 text-sm text-muted-foreground">{lead.message}</p>}
+                    </div>
+                  </div>
 
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <select
-                  value={lead.status}
-                  onChange={(event) => updateLead(lead.id, { status: event.target.value })}
-                  className="rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-accent"
-                >
-                  <option value="new">🆕 Yangi</option>
-                  <option value="seen">👀 Ko'rilgan</option>
-                  <option value="done">✅ Yakunlangan</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={() => convert(lead)}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-2 text-sm font-semibold transition hover:bg-primary hover:text-primary-foreground"
-                >
-                  <Users className="h-4 w-4" /> Mijozga aylantirish
-                </button>
-                <button
-                  type="button"
-                  onClick={() => deleteLead(lead.id)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/20 px-3 py-2 text-sm font-semibold text-destructive transition hover:bg-destructive hover:text-destructive-foreground"
-                >
-                  <Trash2 className="h-4 w-4" /> O'chirish
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
+                    <select
+                      value={lead.status}
+                      onChange={(event) => updateLead(lead.id, { status: event.target.value })}
+                      className="rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+                    >
+                      <option value="new">🆕 Yangi</option>
+                      <option value="seen">👀 Ko'rilgan</option>
+                      <option value="done">✅ Yakunlangan</option>
+                    </select>
+                    <a
+                      href={`tel:${lead.phone}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-2 text-sm font-semibold transition hover:border-accent hover:text-accent"
+                    >
+                      <Phone className="h-4 w-4" /> Qo'ng'iroq
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => convert(lead)}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-3 py-2 text-sm font-semibold transition hover:bg-primary hover:text-primary-foreground"
+                    >
+                      <Users className="h-4 w-4" /> Mijozga aylantirish
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteLead(lead.id)}
+                      className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-destructive/20 px-3 py-2 text-sm font-semibold text-destructive transition hover:bg-destructive hover:text-destructive-foreground"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
     </SectionShell>
   );
@@ -1628,6 +1756,8 @@ const CLIENT_STATUS = [
 
 function ClientsEditor({ workspace, setWorkspace }) {
   const clients = workspace.clients;
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   function update(id, patch) {
     setWorkspace((current) => ({
@@ -1651,9 +1781,17 @@ function ClientsEditor({ workspace, setWorkspace }) {
   function exportCsv() {
     downloadCsv("mijozlar.csv", [
       ["Ism", "Aloqa", "Manba", "Holat", "Izoh"],
-      ...clients.map((c) => [c.name, c.contact, c.source, c.status, c.note]),
+      ...clients.map((c) => [c.name, c.contact, c.source, CLIENT_STATUS_MAP[c.status]?.[0] || c.status, c.note]),
     ]);
   }
+
+  const query = search.trim().toLowerCase();
+  const visible = clients.filter((c) => {
+    const matchesQuery = !query || `${c.name} ${c.contact} ${c.source}`.toLowerCase().includes(query);
+    const matchesStatus = statusFilter === "all" || c.status === statusFilter;
+    return matchesQuery && matchesStatus;
+  });
+  const activeCount = clients.filter((c) => c.status === "active").length;
 
   return (
     <SectionShell
@@ -1668,43 +1806,83 @@ function ClientsEditor({ workspace, setWorkspace }) {
       }
     >
       {clients.length === 0 ? (
-        <p className="mt-6 text-muted-foreground">Hozircha mijoz yo'q. Ariza kelганда "Mijozga aylantirish" bilan qo'shing.</p>
+        <EmptyState icon={Users} title="Hozircha mijoz yo'q" hint="«Mijoz qo'shish» bilan qo'shing yoki Arizalar bo'limidan «Mijozga aylantirish» tugmasini bosing." />
       ) : (
-        <div className="mt-6 grid gap-4">
-          {clients.map((client) => (
-            <div key={client.id} className="rounded-xl border bg-card p-4">
-              <div className="grid gap-4 md:grid-cols-4">
-                <label className="block space-y-2">
-                  <span className={labelClass}>Ism</span>
-                  <input value={client.name} onChange={(e) => update(client.id, { name: e.target.value })} className={fieldClass} />
-                </label>
-                <label className="block space-y-2">
-                  <span className={labelClass}>Aloqa (tel/Telegram)</span>
-                  <input value={client.contact} onChange={(e) => update(client.id, { contact: e.target.value })} className={fieldClass} />
-                </label>
-                <label className="block space-y-2">
-                  <span className={labelClass}>Manba</span>
-                  <input value={client.source} onChange={(e) => update(client.id, { source: e.target.value })} placeholder="Sayt / Tavsiya / Reklama" className={fieldClass} />
-                </label>
-                <label className="block space-y-2">
-                  <span className={labelClass}>Holat</span>
-                  <select value={client.status} onChange={(e) => update(client.id, { status: e.target.value })} className={fieldClass}>
-                    {CLIENT_STATUS.map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <label className="mt-4 block space-y-2">
-                <span className={labelClass}>Izoh</span>
-                <textarea value={client.note} onChange={(e) => update(client.id, { note: e.target.value })} className={`${fieldClass} min-h-20`} />
-              </label>
-              <div className="mt-4 flex justify-end">
-                <DeleteButton onClick={() => remove(client.id)} />
-              </div>
+        <>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <StatChip label="Jami mijozlar" value={clients.length} />
+            <StatChip label="Faol" value={activeCount} tone="text-emerald-600" />
+            <StatChip label="Yangi" value={clients.filter((c) => c.status === "new").length} tone="text-sky" />
+          </div>
+
+          <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="md:w-72">
+              <SearchBox value={search} onChange={setSearch} placeholder="Ism yoki telefon bo'yicha qidirish..." />
             </div>
-          ))}
-        </div>
+            <FilterTabs
+              value={statusFilter}
+              onChange={setStatusFilter}
+              tabs={[
+                { id: "all", label: "Hammasi" },
+                { id: "new", label: "Yangi" },
+                { id: "talks", label: "Muzokara" },
+                { id: "active", label: "Faol" },
+                { id: "done", label: "Tugagan" },
+              ]}
+            />
+          </div>
+
+          {visible.length === 0 ? (
+            <p className="mt-6 text-sm text-muted-foreground">Mos mijoz topilmadi.</p>
+          ) : (
+            <div className="mt-5 grid gap-4">
+              {visible.map((client) => {
+                const [statusLabel, statusTone] = CLIENT_STATUS_MAP[client.status] || CLIENT_STATUS_MAP.new;
+                return (
+                  <div key={client.id} className="rounded-2xl border bg-card p-4">
+                    <div className="mb-4 flex items-center gap-3">
+                      <Avatar name={client.name} tone="blue" />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-display text-lg font-bold">{client.name || "—"}</div>
+                        {client.contact && <div className="truncate text-sm text-muted-foreground">{client.contact}</div>}
+                      </div>
+                      <Pill tone={statusTone}>{statusLabel}</Pill>
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-4">
+                      <label className="block space-y-2">
+                        <span className={labelClass}>Ism</span>
+                        <input value={client.name} onChange={(e) => update(client.id, { name: e.target.value })} className={fieldClass} />
+                      </label>
+                      <label className="block space-y-2">
+                        <span className={labelClass}>Aloqa (tel/Telegram)</span>
+                        <input value={client.contact} onChange={(e) => update(client.id, { contact: e.target.value })} className={fieldClass} />
+                      </label>
+                      <label className="block space-y-2">
+                        <span className={labelClass}>Manba</span>
+                        <input value={client.source} onChange={(e) => update(client.id, { source: e.target.value })} placeholder="Sayt / Tavsiya" className={fieldClass} />
+                      </label>
+                      <label className="block space-y-2">
+                        <span className={labelClass}>Holat</span>
+                        <select value={client.status} onChange={(e) => update(client.id, { status: e.target.value })} className={fieldClass}>
+                          {CLIENT_STATUS.map(([value, label]) => (
+                            <option key={value} value={value}>{label}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <label className="mt-4 block space-y-2">
+                      <span className={labelClass}>Izoh</span>
+                      <textarea value={client.note} onChange={(e) => update(client.id, { note: e.target.value })} className={`${fieldClass} min-h-16`} />
+                    </label>
+                    <div className="mt-4 flex justify-end">
+                      <DeleteButton onClick={() => remove(client.id)} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </SectionShell>
   );
@@ -1722,6 +1900,7 @@ const WORK_STATUS = [
 function WorksEditor({ workspace, setWorkspace }) {
   const works = workspace.works;
   const clientNames = workspace.clients.map((client) => client.name);
+  const [statusFilter, setStatusFilter] = useState("all");
 
   function update(id, patch) {
     setWorkspace((current) => ({
@@ -1742,90 +1921,132 @@ function WorksEditor({ workspace, setWorkspace }) {
     setWorkspace((current) => ({ ...current, works: current.works.filter((item) => item.id !== id) }));
   }
 
+  const activeCount = works.filter((w) => w.status !== "done").length;
+  const totalValue = works.reduce((sum, w) => sum + toNumber(w.price), 0);
+  const received = works.reduce((sum, w) => sum + toNumber(w.prepaid), 0);
+  const visible = statusFilter === "all" ? works : works.filter((w) => w.status === statusFilter);
+
   return (
     <SectionShell icon={FolderKanban} label="Ishlar" title="Joriy loyihalar (ichki)" action={<AddButton onClick={add}>Ish qo'shish</AddButton>}>
       {works.length === 0 ? (
-        <p className="mt-6 text-muted-foreground">Hozircha ish yo'q.</p>
+        <EmptyState icon={FolderKanban} title="Hozircha ish yo'q" hint="«Ish qo'shish» bilan loyiha yarating va deadline, narx, bajarilishini kuzating." />
       ) : (
-        <div className="mt-6 grid gap-4">
-          {works.map((work) => {
-            const left = daysLeft(work.deadline);
-            const remaining = toNumber(work.price) - toNumber(work.prepaid);
-            return (
-              <div key={work.id} className="rounded-xl border bg-card p-4">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <label className="block space-y-2">
-                    <span className={labelClass}>Ish nomi</span>
-                    <input value={work.title} onChange={(e) => update(work.id, { title: e.target.value })} className={fieldClass} />
-                  </label>
-                  <label className="block space-y-2">
-                    <span className={labelClass}>Mijoz</span>
-                    <input list="client-names" value={work.client} onChange={(e) => update(work.id, { client: e.target.value })} className={fieldClass} />
-                    <datalist id="client-names">
-                      {clientNames.map((name) => (
-                        <option key={name} value={name} />
-                      ))}
-                    </datalist>
-                  </label>
-                  <label className="block space-y-2">
-                    <span className={labelClass}>Tur</span>
-                    <input value={work.type} onChange={(e) => update(work.id, { type: e.target.value })} placeholder="Landing / Bot / CRM" className={fieldClass} />
-                  </label>
-                </div>
+        <>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <StatChip label="Faol ishlar" value={activeCount} tone="text-sky" />
+            <StatChip label="Jami qiymat" value={`${formatSom(totalValue)} so'm`} />
+            <StatChip label="Olingan to'lov" value={`${formatSom(received)} so'm`} tone="text-emerald-600" />
+          </div>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-4">
-                  <label className="block space-y-2">
-                    <span className={labelClass}>Narx (so'm)</span>
-                    <input type="number" value={work.price} onChange={(e) => update(work.id, { price: Number(e.target.value) })} className={fieldClass} />
-                  </label>
-                  <label className="block space-y-2">
-                    <span className={labelClass}>Oldindan to'lov</span>
-                    <input type="number" value={work.prepaid} onChange={(e) => update(work.id, { prepaid: Number(e.target.value) })} className={fieldClass} />
-                  </label>
-                  <label className="block space-y-2">
-                    <span className={labelClass}>Deadline</span>
-                    <input type="date" value={work.deadline} onChange={(e) => update(work.id, { deadline: e.target.value })} className={fieldClass} />
-                  </label>
-                  <label className="block space-y-2">
-                    <span className={labelClass}>Holat</span>
-                    <select value={work.status} onChange={(e) => update(work.id, { status: e.target.value })} className={fieldClass}>
-                      {WORK_STATUS.map(([value, label]) => (
-                        <option key={value} value={value}>{label}</option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
+          <div className="mt-5">
+            <FilterTabs
+              value={statusFilter}
+              onChange={setStatusFilter}
+              tabs={[{ id: "all", label: "Hammasi" }, ...WORK_STATUS.map(([id, label]) => ({ id, label }))]}
+            />
+          </div>
 
-                <label className="mt-4 block space-y-2">
-                  <span className={labelClass}>Bajarilish: {work.progress}%</span>
-                  <input type="range" min="0" max="100" step="5" value={work.progress} onChange={(e) => update(work.id, { progress: Number(e.target.value) })} className="w-full accent-[var(--color-accent)]" />
-                </label>
+          <div className="mt-5 grid gap-4">
+            {visible.map((work) => {
+              const left = daysLeft(work.deadline);
+              const remaining = toNumber(work.price) - toNumber(work.prepaid);
+              const [statusLabel, statusTone] = WORK_STATUS_MAP[work.status] || WORK_STATUS_MAP.plan;
+              const progress = Math.max(0, Math.min(100, Number(work.progress) || 0));
+              return (
+                <div key={work.id} className="rounded-2xl border bg-card p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-display text-lg font-bold">{work.title || "—"}</span>
+                        <Pill tone={statusTone}>{statusLabel}</Pill>
+                      </div>
+                      <div className="mt-0.5 text-sm text-muted-foreground">
+                        {work.client || "Mijoz belgilanmagan"}{work.type ? ` · ${work.type}` : ""}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-display text-lg font-bold">{formatSom(work.price)} <span className="text-xs font-normal text-muted-foreground">so'm</span></div>
+                      <div className="text-xs text-muted-foreground">Qoldiq: {formatSom(remaining)}</div>
+                    </div>
+                  </div>
 
-                <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-                  <span className="rounded-lg bg-surface px-3 py-1.5">Qoldiq to'lov: <b>{formatSom(remaining)}</b> so'm</span>
+                  <div className="mt-3">
+                    <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Bajarilish</span>
+                      <span className="font-semibold text-foreground">{progress}%</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-secondary">
+                      <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${progress}%` }} />
+                    </div>
+                  </div>
+
                   {left != null && work.status !== "done" && (
-                    <span
-                      className={`rounded-lg px-3 py-1.5 font-medium ${
-                        left < 0 ? "bg-destructive/10 text-destructive" : left <= 3 ? "bg-amber-500/15 text-amber-600" : "bg-surface text-muted-foreground"
-                      }`}
-                    >
-                      {left < 0 ? `Muddati ${-left} kun o'tdi` : left === 0 ? "Bugun deadline" : `${left} kun qoldi`}
-                    </span>
+                    <div className="mt-3">
+                      <Pill tone={left < 0 ? "red" : left <= 3 ? "amber" : "gray"}>
+                        <CalendarClock className="h-3.5 w-3.5" />
+                        {left < 0 ? `Muddati ${-left} kun o'tdi` : left === 0 ? "Bugun deadline" : `${left} kun qoldi`}
+                      </Pill>
+                    </div>
                   )}
-                </div>
 
-                <label className="mt-3 block space-y-2">
-                  <span className={labelClass}>Izoh</span>
-                  <textarea value={work.note} onChange={(e) => update(work.id, { note: e.target.value })} className={`${fieldClass} min-h-16`} />
-                </label>
-
-                <div className="mt-4 flex justify-end">
-                  <DeleteButton onClick={() => remove(work.id)} />
+                  <details className="mt-3 border-t pt-3">
+                    <summary className="cursor-pointer text-sm font-semibold text-accent">Tahrirlash</summary>
+                    <div className="mt-3 grid gap-4 md:grid-cols-3">
+                      <label className="block space-y-2">
+                        <span className={labelClass}>Ish nomi</span>
+                        <input value={work.title} onChange={(e) => update(work.id, { title: e.target.value })} className={fieldClass} />
+                      </label>
+                      <label className="block space-y-2">
+                        <span className={labelClass}>Mijoz</span>
+                        <input list="work-client-names" value={work.client} onChange={(e) => update(work.id, { client: e.target.value })} className={fieldClass} />
+                        <datalist id="work-client-names">
+                          {clientNames.map((name) => (
+                            <option key={name} value={name} />
+                          ))}
+                        </datalist>
+                      </label>
+                      <label className="block space-y-2">
+                        <span className={labelClass}>Tur</span>
+                        <input value={work.type} onChange={(e) => update(work.id, { type: e.target.value })} placeholder="Landing / Bot / CRM" className={fieldClass} />
+                      </label>
+                      <label className="block space-y-2">
+                        <span className={labelClass}>Narx (so'm)</span>
+                        <input type="number" value={work.price} onChange={(e) => update(work.id, { price: Number(e.target.value) })} className={fieldClass} />
+                      </label>
+                      <label className="block space-y-2">
+                        <span className={labelClass}>Oldindan to'lov</span>
+                        <input type="number" value={work.prepaid} onChange={(e) => update(work.id, { prepaid: Number(e.target.value) })} className={fieldClass} />
+                      </label>
+                      <label className="block space-y-2">
+                        <span className={labelClass}>Deadline</span>
+                        <input type="date" value={work.deadline} onChange={(e) => update(work.id, { deadline: e.target.value })} className={fieldClass} />
+                      </label>
+                      <label className="block space-y-2">
+                        <span className={labelClass}>Holat</span>
+                        <select value={work.status} onChange={(e) => update(work.id, { status: e.target.value })} className={fieldClass}>
+                          {WORK_STATUS.map(([value, label]) => (
+                            <option key={value} value={value}>{label}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block space-y-2 md:col-span-2">
+                        <span className={labelClass}>Bajarilish: {progress}%</span>
+                        <input type="range" min="0" max="100" step="5" value={progress} onChange={(e) => update(work.id, { progress: Number(e.target.value) })} className="w-full accent-[var(--color-accent)]" />
+                      </label>
+                      <label className="block space-y-2 md:col-span-3">
+                        <span className={labelClass}>Izoh</span>
+                        <textarea value={work.note} onChange={(e) => update(work.id, { note: e.target.value })} className={`${fieldClass} min-h-16`} />
+                      </label>
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <DeleteButton onClick={() => remove(work.id)} />
+                    </div>
+                  </details>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </>
       )}
     </SectionShell>
   );
@@ -1835,6 +2056,9 @@ function WorksEditor({ workspace, setWorkspace }) {
 
 function PaymentsEditor({ workspace, setWorkspace }) {
   const payments = workspace.payments;
+  const [statusFilter, setStatusFilter] = useState("all");
+  const clientNames = workspace.clients.map((c) => c.name);
+  const workTitles = workspace.works.map((w) => w.title);
   const totalPaid = useMemo(
     () => payments.filter((p) => p.status === "paid").reduce((sum, p) => sum + toNumber(p.amount), 0),
     [payments]
@@ -1919,42 +2143,84 @@ function PaymentsEditor({ workspace, setWorkspace }) {
       )}
 
       {payments.length === 0 ? (
-        <p className="mt-6 text-muted-foreground">Hozircha to'lov yozuvi yo'q.</p>
+        <EmptyState icon={Wallet} title="Hozircha to'lov yozuvi yo'q" hint="Har bir to'lovni qo'shib boring — jami daromad va qarzdorlar avtomatik hisoblanadi." />
       ) : (
-        <div className="mt-6 grid gap-4">
-          {payments.map((payment) => (
-            <div key={payment.id} className="rounded-xl border bg-card p-4">
-              <div className="grid gap-4 md:grid-cols-5">
-                <label className="block space-y-2">
-                  <span className={labelClass}>Mijoz</span>
-                  <input value={payment.client} onChange={(e) => update(payment.id, { client: e.target.value })} className={fieldClass} />
-                </label>
-                <label className="block space-y-2">
-                  <span className={labelClass}>Ish</span>
-                  <input value={payment.work} onChange={(e) => update(payment.id, { work: e.target.value })} className={fieldClass} />
-                </label>
-                <label className="block space-y-2">
-                  <span className={labelClass}>Summa</span>
-                  <input type="number" value={payment.amount} onChange={(e) => update(payment.id, { amount: Number(e.target.value) })} className={fieldClass} />
-                </label>
-                <label className="block space-y-2">
-                  <span className={labelClass}>Sana</span>
-                  <input type="date" value={payment.date} onChange={(e) => update(payment.id, { date: e.target.value })} className={fieldClass} />
-                </label>
-                <label className="block space-y-2">
-                  <span className={labelClass}>Holat</span>
-                  <select value={payment.status} onChange={(e) => update(payment.id, { status: e.target.value })} className={fieldClass}>
-                    <option value="pending">⏳ Kutilmoqda</option>
-                    <option value="paid">✅ To'langan</option>
-                  </select>
-                </label>
-              </div>
-              <div className="mt-4 flex justify-end">
-                <DeleteButton onClick={() => remove(payment.id)} />
-              </div>
-            </div>
-          ))}
-        </div>
+        <>
+          <div className="mt-5">
+            <FilterTabs
+              value={statusFilter}
+              onChange={setStatusFilter}
+              tabs={[
+                { id: "all", label: "Hammasi", count: payments.length },
+                { id: "paid", label: "To'langan", count: payments.filter((p) => p.status === "paid").length },
+                { id: "pending", label: "Kutilmoqda", count: payments.filter((p) => p.status !== "paid").length },
+              ]}
+            />
+          </div>
+
+          <datalist id="pay-clients">
+            {clientNames.map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
+          <datalist id="pay-works">
+            {workTitles.map((title) => (
+              <option key={title} value={title} />
+            ))}
+          </datalist>
+
+          <div className="mt-5 grid gap-4">
+            {payments
+              .filter((p) => statusFilter === "all" || (statusFilter === "paid" ? p.status === "paid" : p.status !== "paid"))
+              .map((payment) => (
+                <div key={payment.id} className="rounded-2xl border bg-card p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-display text-lg font-bold">{formatSom(payment.amount)} <span className="text-xs font-normal text-muted-foreground">so'm</span></div>
+                      <div className="text-sm text-muted-foreground">
+                        {payment.client || "—"}{payment.work ? ` · ${payment.work}` : ""}{payment.date ? ` · ${formatDate(payment.date)}` : ""}
+                      </div>
+                    </div>
+                    <Pill tone={payment.status === "paid" ? "green" : "amber"}>
+                      {payment.status === "paid" ? "✅ To'langan" : "⏳ Kutilmoqda"}
+                    </Pill>
+                  </div>
+
+                  <details className="mt-3 border-t pt-3">
+                    <summary className="cursor-pointer text-sm font-semibold text-accent">Tahrirlash</summary>
+                    <div className="mt-3 grid gap-4 md:grid-cols-5">
+                      <label className="block space-y-2">
+                        <span className={labelClass}>Mijoz</span>
+                        <input list="pay-clients" value={payment.client} onChange={(e) => update(payment.id, { client: e.target.value })} className={fieldClass} />
+                      </label>
+                      <label className="block space-y-2">
+                        <span className={labelClass}>Ish</span>
+                        <input list="pay-works" value={payment.work} onChange={(e) => update(payment.id, { work: e.target.value })} className={fieldClass} />
+                      </label>
+                      <label className="block space-y-2">
+                        <span className={labelClass}>Summa</span>
+                        <input type="number" value={payment.amount} onChange={(e) => update(payment.id, { amount: Number(e.target.value) })} className={fieldClass} />
+                      </label>
+                      <label className="block space-y-2">
+                        <span className={labelClass}>Sana</span>
+                        <input type="date" value={payment.date} onChange={(e) => update(payment.id, { date: e.target.value })} className={fieldClass} />
+                      </label>
+                      <label className="block space-y-2">
+                        <span className={labelClass}>Holat</span>
+                        <select value={payment.status} onChange={(e) => update(payment.id, { status: e.target.value })} className={fieldClass}>
+                          <option value="pending">⏳ Kutilmoqda</option>
+                          <option value="paid">✅ To'langan</option>
+                        </select>
+                      </label>
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <DeleteButton onClick={() => remove(payment.id)} />
+                    </div>
+                  </details>
+                </div>
+              ))}
+          </div>
+        </>
       )}
     </SectionShell>
   );
@@ -2006,35 +2272,44 @@ function TasksBoard({ workspace, setWorkspace }) {
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">
-        {TASK_COLS.map(([colId, colLabel], colIndex) => (
-          <div key={colId} className="rounded-xl border bg-surface/40 p-3">
-            <div className="px-1 pb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {colLabel} ({tasks.filter((task) => task.status === colId).length})
-            </div>
-            <div className="grid gap-2">
-              {tasks
-                .filter((task) => task.status === colId)
-                .map((task) => (
-                  <div key={task.id} className={`rounded-lg border bg-card p-3 text-sm ${colId === "done" ? "opacity-70" : ""}`}>
-                    <div className={colId === "done" ? "line-through" : ""}>{task.title}</div>
+        {TASK_COLS.map(([colId, colLabel], colIndex) => {
+          const colTone = { todo: "gray", doing: "blue", done: "green" }[colId];
+          const dotColor = { todo: "bg-muted-foreground/40", doing: "bg-sky", done: "bg-emerald-500" }[colId];
+          const colTasks = tasks.filter((task) => task.status === colId);
+          return (
+            <div key={colId} className="rounded-2xl border bg-surface/40 p-3">
+              <div className="flex items-center justify-between px-1 pb-3">
+                <span className="inline-flex items-center gap-2 text-sm font-semibold">
+                  <span className={`h-2 w-2 rounded-full ${dotColor}`} /> {colLabel}
+                </span>
+                <Pill tone={colTone}>{colTasks.length}</Pill>
+              </div>
+              <div className="grid gap-2">
+                {colTasks.length === 0 && (
+                  <div className="rounded-lg border border-dashed py-6 text-center text-xs text-muted-foreground">Bo'sh</div>
+                )}
+                {colTasks.map((task) => (
+                  <div key={task.id} className="group rounded-xl border bg-card p-3 text-sm shadow-card">
+                    <div className={colId === "done" ? "text-muted-foreground line-through" : ""}>{task.title}</div>
                     <div className="mt-2 flex items-center justify-between">
                       <div className="flex gap-1">
                         {colIndex > 0 && (
-                          <button type="button" onClick={() => setStatus(task.id, TASK_COLS[colIndex - 1][0])} className="rounded border px-1.5 text-xs hover:border-accent hover:text-accent">◀</button>
+                          <button type="button" onClick={() => setStatus(task.id, TASK_COLS[colIndex - 1][0])} className="inline-flex h-6 w-6 items-center justify-center rounded-md border text-xs transition hover:border-accent hover:text-accent">◀</button>
                         )}
                         {colIndex < TASK_COLS.length - 1 && (
-                          <button type="button" onClick={() => setStatus(task.id, TASK_COLS[colIndex + 1][0])} className="rounded border px-1.5 text-xs hover:border-accent hover:text-accent">▶</button>
+                          <button type="button" onClick={() => setStatus(task.id, TASK_COLS[colIndex + 1][0])} className="inline-flex h-6 w-6 items-center justify-center rounded-md border text-xs transition hover:border-accent hover:text-accent">▶</button>
                         )}
                       </div>
-                      <button type="button" onClick={() => remove(task.id)} className="text-destructive/70 hover:text-destructive">
+                      <button type="button" onClick={() => remove(task.id)} className="text-destructive/60 transition hover:text-destructive">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
                 ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </SectionShell>
   );
@@ -2074,15 +2349,19 @@ function NotesEditor({ workspace, setWorkspace }) {
       </div>
 
       {notes.length === 0 ? (
-        <p className="mt-6 text-muted-foreground">Hozircha eslatma yo'q.</p>
+        <EmptyState icon={StickyNote} title="Hozircha eslatma yo'q" hint="G'oya, eslatma yoki kerakli matnni tez yozib qo'ying." />
       ) : (
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {notes.map((note) => (
-            <div key={note.id} className="rounded-xl border bg-card p-3">
-              <textarea value={note.text} onChange={(e) => update(note.id, e.target.value)} className={`${fieldClass} min-h-20 border-0 bg-transparent p-0 focus:ring-0`} />
-              <div className="mt-2 flex items-center justify-between border-t pt-2 text-xs text-muted-foreground">
-                <span>{note.updatedAt ? new Date(note.updatedAt).toLocaleDateString("uz-UZ") : ""}</span>
-                <button type="button" onClick={() => remove(note.id)} className="text-destructive/70 hover:text-destructive">
+            <div key={note.id} className="flex flex-col rounded-2xl border border-amber-500/20 bg-amber-500/[0.05] p-4 shadow-card">
+              <textarea
+                value={note.text}
+                onChange={(e) => update(note.id, e.target.value)}
+                className="min-h-24 flex-1 resize-none border-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
+              />
+              <div className="mt-2 flex items-center justify-between border-t border-amber-500/15 pt-2 text-xs text-muted-foreground">
+                <span>{note.updatedAt ? formatDate(note.updatedAt) : ""}</span>
+                <button type="button" onClick={() => remove(note.id)} className="text-destructive/60 transition hover:text-destructive">
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>

@@ -583,6 +583,44 @@ function ReorderControls({ index, count, move, handleProps }) {
   );
 }
 
+function OrderMessageEditor({ data, setData }) {
+  const settings = data.settings || {};
+
+  function update(patch) {
+    setData((current) => ({ ...current, settings: { ...current.settings, ...patch } }));
+  }
+
+  return (
+    <details className="mt-6 rounded-xl border bg-card p-4">
+      <summary className="cursor-pointer font-semibold">
+        💬 Buyurtma xabari (Telegram'ga tayyor matn)
+      </summary>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Mijoz «Buyurtma» tugmasini bosganда Telegram shu matn bilan ochiladi.{" "}
+        <code className="rounded bg-secondary px-1.5 py-0.5 text-xs">{"{title}"}</code> — xizmat nomi avtomatik qo'yiladi.
+      </p>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <label className="block space-y-2">
+          <span className={labelClass}>Matn (UZ)</span>
+          <textarea
+            value={settings.orderMessageUz || ""}
+            onChange={(e) => update({ orderMessageUz: e.target.value })}
+            className={`${fieldClass} min-h-28`}
+          />
+        </label>
+        <label className="block space-y-2">
+          <span className={labelClass}>Matn (RU)</span>
+          <textarea
+            value={settings.orderMessageRu || ""}
+            onChange={(e) => update({ orderMessageRu: e.target.value })}
+            className={`${fieldClass} min-h-28`}
+          />
+        </label>
+      </div>
+    </details>
+  );
+}
+
 function ServicesEditor({ data, setData }) {
   function updateService(id, patch) {
     setData((current) => ({
@@ -628,6 +666,8 @@ function ServicesEditor({ data, setData }) {
       title="Narxlar va tavsiflar"
       action={<AddButton onClick={addService}>Xizmat qo'shish</AddButton>}
     >
+      <OrderMessageEditor data={data} setData={setData} />
+
       <div className="mt-6 grid gap-5">
         {data.services.map((service, index) => (
           <div

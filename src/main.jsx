@@ -24,6 +24,19 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+// Capture the install prompt so a custom "Install app" button can trigger it.
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    window.__ozodflowInstall = event;
+    window.dispatchEvent(new Event("ozodflow-installable"));
+  });
+  window.addEventListener("appinstalled", () => {
+    window.__ozodflowInstall = null;
+    window.dispatchEvent(new Event("ozodflow-installed"));
+  });
+}
+
 const router = getRouter();
 const rootElement = document.getElementById("root");
 

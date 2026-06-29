@@ -1,6 +1,10 @@
 {
-  "name": "OzodFlow",
+  "name": "OzodFlow - Sayt, Bot va CRM",
   "short_name": "OzodFlow",
+  "description": "Landing page, Telegram bot, CRM va biznes saytlar.",
+  "start_url": "/",
+  "scope": "/",
+  "lang": "uz",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",

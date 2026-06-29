@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Clock,
   Database,
+  Download,
   ExternalLink,
   Images,
   Globe,
@@ -97,6 +98,7 @@ const translations = {
       faq: "Savollar",
       contact: "Aloqa",
       cta: "Aloqa",
+      install: "Ilova o'rnatish",
     },
     blog: {
       label: "Blog",
@@ -136,7 +138,7 @@ const translations = {
       startPrice: "Boshlang'ich narx",
       currency: "so'm",
       order: "Buyurtma",
-      orderMessage: "Salom! Menga «{title}» xizmati kerak edi. Batafsil ma'lumot bera olasizmi?",
+      orderMessage: "Assalomu alaykum! 👋 Sayt orqali yozyapman.\nMenga «{title}» xizmati kerak edi. Narxi va muddati haqida batafsil ma'lumot bera olasizmi?",
       note: "* Narxlar minimal funksionallik uchun. Aniq narx loyiha hajmi va talablariga qarab belgilanadi.",
     },
     projects: {
@@ -224,6 +226,7 @@ const translations = {
       faq: "Вопросы",
       contact: "Контакты",
       cta: "Связаться",
+      install: "Установить",
     },
     blog: {
       label: "Блог",
@@ -263,7 +266,7 @@ const translations = {
       startPrice: "Начальная цена",
       currency: "сум",
       order: "Заказать",
-      orderMessage: "Здравствуйте! Меня интересует услуга «{title}». Можете рассказать подробнее?",
+      orderMessage: "Здравствуйте! 👋 Пишу с вашего сайта.\nМеня интересует услуга «{title}». Подскажите, пожалуйста, цену и сроки?",
       note: "* Цены указаны за минимальный функционал. Точная цена зависит от объёма и требований проекта.",
     },
     projects: {
@@ -414,7 +417,7 @@ function Reveal({ children, className = "", delay = 0, as: Tag = "div" }) {
 
 function Index() {
   const { data } = useSiteData();
-  const { services, projects, testimonials, posts, faqs } = data;
+  const { services, projects, testimonials, posts, faqs, settings } = data;
 
   return (
     <LanguageProvider>
@@ -423,7 +426,7 @@ function Index() {
         <main>
           <Hero />
           <Trust />
-          <Services services={services} />
+          <Services services={services} settings={settings} />
           <Projects projects={projects} />
           <Process />
           <Why />
@@ -487,6 +490,56 @@ function ThemeToggle({ className = "" }) {
   );
 }
 
+function InstallButton({ variant = "nav" }) {
+  const { t } = useLang();
+  const [available, setAvailable] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.__ozodflowInstall) setAvailable(true);
+    const onAvail = () => setAvailable(true);
+    const onDone = () => setAvailable(false);
+    window.addEventListener("ozodflow-installable", onAvail);
+    window.addEventListener("ozodflow-installed", onDone);
+    return () => {
+      window.removeEventListener("ozodflow-installable", onAvail);
+      window.removeEventListener("ozodflow-installed", onDone);
+    };
+  }, []);
+
+  async function install() {
+    const event = window.__ozodflowInstall;
+    if (!event) return;
+    event.prompt();
+    await event.userChoice;
+    window.__ozodflowInstall = null;
+    setAvailable(false);
+  }
+
+  if (!available) return null;
+
+  if (variant === "mobile") {
+    return (
+      <button
+        type="button"
+        onClick={install}
+        className="inline-flex items-center justify-center gap-2 rounded-lg border bg-card px-4 py-3 text-sm font-medium transition hover:border-accent hover:text-accent"
+      >
+        <Download className="h-4 w-4" /> {t.nav.install}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={install}
+      className="hidden items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm font-semibold text-muted-foreground transition hover:border-accent hover:text-accent lg:inline-flex"
+    >
+      <Download className="h-4 w-4" /> {t.nav.install}
+    </button>
+  );
+}
+
 function Nav() {
   const { t } = useLang();
   const [open, setOpen] = useState(false);
@@ -513,6 +566,7 @@ function Nav() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
+          <InstallButton />
           <ThemeToggle />
           <LangToggle />
           <a
@@ -548,6 +602,9 @@ function Nav() {
                 {link.label}
               </a>
             ))}
+            <div className="mt-2 flex flex-col gap-2" onClick={() => setOpen(false)}>
+              <InstallButton variant="mobile" />
+            </div>
             <a
               href={TG}
               target="_blank"
@@ -665,8 +722,10 @@ function SectionHeading({ icon: Icon, label, title, desc, center = false }) {
   );
 }
 
-function Services({ services }) {
-  const { t } = useLang();
+function Services({ services, settings }) {
+  const { t, lang } = useLang();
+  const orderTemplate =
+    (lang === "ru" ? settings?.orderMessageRu : settings?.orderMessageUz) || t.services.orderMessage;
 
   return (
     <section id="xizmatlar" className="py-24 md:py-32">
@@ -718,7 +777,7 @@ function Services({ services }) {
                     </div>
                   </div>
                   <a
-                    href={tgOrderLink(t.services.orderMessage, s.title)}
+                    href={tgOrderLink(orderTemplate, s.title)}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1.5 rounded-lg bg-secondary px-4 py-2.5 text-sm font-semibold transition hover:bg-primary hover:text-primary-foreground"

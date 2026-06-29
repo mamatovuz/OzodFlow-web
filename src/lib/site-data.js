@@ -202,7 +202,15 @@ export const DEFAULT_SITE_DATA = {
       aRu: "Нет. Каждый проект пишется с нуля под ваш бренд и требования.",
     },
   ],
+  settings: {
+    orderMessageUz:
+      "Assalomu alaykum! 👋 Sayt orqali yozyapman.\nMenga «{title}» xizmati kerak edi. Narxi va muddati haqida batafsil ma'lumot bera olasizmi?",
+    orderMessageRu:
+      "Здравствуйте! 👋 Пишу с вашего сайта.\nМеня интересует услуга «{title}». Подскажите, пожалуйста, цену и сроки?",
+  },
 };
+
+export const DEFAULT_SETTINGS = DEFAULT_SITE_DATA.settings;
 
 function normalizeProject(project) {
   return { image: "", gallery: [], ...project };
@@ -229,6 +237,7 @@ export function normalizeSiteData(data) {
       : DEFAULT_SITE_DATA.testimonials,
     posts: Array.isArray(data?.posts) ? data.posts.map(normalizePost) : DEFAULT_SITE_DATA.posts,
     faqs: Array.isArray(data?.faqs) ? data.faqs.map(normalizeFaq) : DEFAULT_SITE_DATA.faqs,
+    settings: { ...DEFAULT_SITE_DATA.settings, ...(data?.settings || {}) },
   };
 }
 

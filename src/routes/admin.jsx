@@ -2,6 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
   BriefcaseBusiness,
   Check,
+  ChevronDown,
+  ChevronUp,
+  GripVertical,
   ImagePlus,
   Loader2,
   LogOut,
@@ -412,6 +415,77 @@ function DeleteButton({ onClick }) {
   );
 }
 
+/* ----------------------------- reordering -------------------------------- */
+
+function useReorder(items, apply) {
+  const [dragIndex, setDragIndex] = useState(null);
+  const [overIndex, setOverIndex] = useState(null);
+
+  function move(from, to) {
+    if (to < 0 || to >= items.length || from === to) return;
+    const next = [...items];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    apply(next);
+  }
+
+  function rowProps(index) {
+    return {
+      onDragOver: (event) => {
+        event.preventDefault();
+        if (overIndex !== index) setOverIndex(index);
+      },
+      onDrop: (event) => {
+        event.preventDefault();
+        if (dragIndex !== null) move(dragIndex, index);
+        setDragIndex(null);
+        setOverIndex(null);
+      },
+      "data-over": dragIndex !== null && overIndex === index && dragIndex !== index ? "true" : undefined,
+    };
+  }
+
+  function handleProps(index) {
+    return {
+      draggable: true,
+      onDragStart: (event) => {
+        setDragIndex(index);
+        event.dataTransfer.effectAllowed = "move";
+      },
+      onDragEnd: () => {
+        setDragIndex(null);
+        setOverIndex(null);
+      },
+    };
+  }
+
+  return { move, rowProps, handleProps };
+}
+
+function ReorderControls({ index, count, move, handleProps }) {
+  const arrow =
+    "inline-flex h-7 w-7 items-center justify-center rounded-md border bg-background text-muted-foreground transition hover:border-accent hover:text-accent disabled:opacity-30 disabled:hover:border-border disabled:hover:text-muted-foreground";
+
+  return (
+    <div className="flex items-center gap-1">
+      <span
+        {...handleProps}
+        className="inline-flex h-7 w-7 cursor-grab items-center justify-center rounded-md border bg-background text-muted-foreground transition hover:border-accent hover:text-accent active:cursor-grabbing"
+        title="Tortib ko'chiring"
+      >
+        <GripVertical className="h-4 w-4" />
+      </span>
+      <button type="button" onClick={() => move(index, index - 1)} disabled={index === 0} className={arrow} aria-label="Yuqoriga">
+        <ChevronUp className="h-4 w-4" />
+      </button>
+      <button type="button" onClick={() => move(index, index + 1)} disabled={index === count - 1} className={arrow} aria-label="Pastga">
+        <ChevronDown className="h-4 w-4" />
+      </button>
+      <span className="ml-1 text-xs font-medium text-muted-foreground">#{index + 1}</span>
+    </div>
+  );
+}
+
 function ServicesEditor({ data, setData }) {
   function updateService(id, patch) {
     setData((current) => ({
@@ -446,6 +520,10 @@ function ServicesEditor({ data, setData }) {
     }));
   }
 
+  const reorder = useReorder(data.services, (next) =>
+    setData((current) => ({ ...current, services: next }))
+  );
+
   return (
     <SectionShell
       icon={Sparkles}
@@ -454,8 +532,15 @@ function ServicesEditor({ data, setData }) {
       action={<AddButton onClick={addService}>Xizmat qo'shish</AddButton>}
     >
       <div className="mt-6 grid gap-5">
-        {data.services.map((service) => (
-          <div key={service.id} className="rounded-xl border bg-card p-4">
+        {data.services.map((service, index) => (
+          <div
+            key={service.id}
+            {...reorder.rowProps(index)}
+            className="rounded-xl border bg-card p-4 transition data-[over=true]:border-accent data-[over=true]:ring-2 data-[over=true]:ring-accent/30"
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <ReorderControls index={index} count={data.services.length} move={reorder.move} handleProps={reorder.handleProps(index)} />
+            </div>
             <div className="grid gap-4 md:grid-cols-4">
               <label className="block space-y-2">
                 <span className={labelClass}>Nomi</span>
@@ -646,6 +731,10 @@ function ProjectsEditor({ data, setData, adminPassword }) {
     }));
   }
 
+  const reorder = useReorder(data.projects, (next) =>
+    setData((current) => ({ ...current, projects: next }))
+  );
+
   return (
     <SectionShell
       icon={BriefcaseBusiness}
@@ -654,8 +743,15 @@ function ProjectsEditor({ data, setData, adminPassword }) {
       action={<AddButton onClick={addProject}>Loyiha qo'shish</AddButton>}
     >
       <div className="mt-6 grid gap-5">
-        {data.projects.map((project) => (
-          <div key={project.id} className="rounded-xl border bg-card p-4">
+        {data.projects.map((project, index) => (
+          <div
+            key={project.id}
+            {...reorder.rowProps(index)}
+            className="rounded-xl border bg-card p-4 transition data-[over=true]:border-accent data-[over=true]:ring-2 data-[over=true]:ring-accent/30"
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <ReorderControls index={index} count={data.projects.length} move={reorder.move} handleProps={reorder.handleProps(index)} />
+            </div>
             <ImageField
               value={project.image || ""}
               onChange={(url) => updateProject(project.id, { image: url })}
@@ -768,6 +864,10 @@ function TestimonialsEditor({ data, setData }) {
     }));
   }
 
+  const reorder = useReorder(testimonials, (next) =>
+    setData((current) => ({ ...current, testimonials: next }))
+  );
+
   return (
     <SectionShell
       icon={MessageSquareQuote}
@@ -776,8 +876,15 @@ function TestimonialsEditor({ data, setData }) {
       action={<AddButton onClick={addTestimonial}>Sharh qo'shish</AddButton>}
     >
       <div className="mt-6 grid gap-5">
-        {testimonials.map((item) => (
-          <div key={item.id} className="rounded-xl border bg-card p-4">
+        {testimonials.map((item, index) => (
+          <div
+            key={item.id}
+            {...reorder.rowProps(index)}
+            className="rounded-xl border bg-card p-4 transition data-[over=true]:border-accent data-[over=true]:ring-2 data-[over=true]:ring-accent/30"
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <ReorderControls index={index} count={testimonials.length} move={reorder.move} handleProps={reorder.handleProps(index)} />
+            </div>
             <div className="grid gap-4 md:grid-cols-3">
               <label className="block space-y-2">
                 <span className={labelClass}>Ism</span>
@@ -863,6 +970,7 @@ function PostsEditor({ data, setData, adminPassword }) {
           cover: "",
           date: new Date().toISOString().slice(0, 10),
           published: true,
+          tags: [],
           content: "Maqola matni. Sarlavha uchun qatorni '## ' bilan boshlang.",
         },
         ...(current.posts || []),
@@ -877,6 +985,10 @@ function PostsEditor({ data, setData, adminPassword }) {
     }));
   }
 
+  const reorder = useReorder(posts, (next) =>
+    setData((current) => ({ ...current, posts: next }))
+  );
+
   return (
     <SectionShell
       icon={Newspaper}
@@ -885,8 +997,15 @@ function PostsEditor({ data, setData, adminPassword }) {
       action={<AddButton onClick={addPost}>Maqola qo'shish</AddButton>}
     >
       <div className="mt-6 grid gap-5">
-        {posts.map((post) => (
-          <div key={post.id} className="rounded-xl border bg-card p-4">
+        {posts.map((post, index) => (
+          <div
+            key={post.id}
+            {...reorder.rowProps(index)}
+            className="rounded-xl border bg-card p-4 transition data-[over=true]:border-accent data-[over=true]:ring-2 data-[over=true]:ring-accent/30"
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <ReorderControls index={index} count={posts.length} move={reorder.move} handleProps={reorder.handleProps(index)} />
+            </div>
             <ImageField
               value={post.cover || ""}
               onChange={(url) => updatePost(post.id, { cover: url })}
@@ -949,6 +1068,20 @@ function PostsEditor({ data, setData, adminPassword }) {
                 value={post.excerpt}
                 onChange={(event) => updatePost(post.id, { excerpt: event.target.value })}
                 className={`${fieldClass} min-h-20`}
+              />
+            </label>
+
+            <label className="mt-4 block space-y-2">
+              <span className={labelClass}>Teglar (vergul bilan ajrating)</span>
+              <input
+                value={(post.tags || []).join(", ")}
+                onChange={(event) =>
+                  updatePost(post.id, {
+                    tags: event.target.value.split(",").map((tag) => tag.trim()).filter(Boolean),
+                  })
+                }
+                placeholder="masalan: Telegram bot, Marketing"
+                className={fieldClass}
               />
             </label>
 

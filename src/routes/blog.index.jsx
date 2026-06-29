@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import { useSiteData } from "@/hooks/use-site-data";
+import { formatDate, readingTime } from "@/lib/blog";
 
 export const Route = createFileRoute("/blog/")({
   head: () => ({
@@ -13,16 +15,37 @@ export const Route = createFileRoute("/blog/")({
   component: BlogIndex,
 });
 
-function formatDate(value) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("uz-UZ", { day: "numeric", month: "long", year: "numeric" });
+function SkeletonCard() {
+  return (
+    <div className="overflow-hidden rounded-2xl border bg-card shadow-card">
+      <div className="aspect-video w-full animate-pulse bg-muted" />
+      <div className="space-y-3 p-6">
+        <div className="h-3 w-24 animate-pulse rounded bg-muted" />
+        <div className="h-6 w-3/4 animate-pulse rounded bg-muted" />
+        <div className="h-4 w-full animate-pulse rounded bg-muted" />
+        <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+      </div>
+    </div>
+  );
 }
 
 function BlogIndex() {
-  const { posts } = useSiteData();
-  const published = (posts || []).filter((post) => post.published !== false);
+  const { data, loading } = useSiteData();
+  const published = useMemo(
+    () => (data.posts || []).filter((post) => post.published !== false),
+    [data.posts]
+  );
+
+  const tags = useMemo(() => {
+    const set = new Set();
+    published.forEach((post) => (post.tags || []).forEach((tag) => set.add(tag)));
+    return [...set];
+  }, [published]);
+
+  const [activeTag, setActiveTag] = useState(null);
+  const visible = activeTag
+    ? published.filter((post) => (post.tags || []).includes(activeTag))
+    : published;
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-16 md:px-6 md:py-24">
@@ -36,11 +59,43 @@ function BlogIndex() {
         </p>
       </div>
 
-      {published.length === 0 ? (
+      {tags.length > 0 && (
+        <div className="mt-8 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTag(null)}
+            className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+              activeTag === null ? "border-accent bg-accent text-accent-foreground" : "bg-card hover:border-accent"
+            }`}
+          >
+            Barchasi
+          </button>
+          {tags.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => setActiveTag(tag)}
+              className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+                activeTag === tag ? "border-accent bg-accent text-accent-foreground" : "bg-card hover:border-accent"
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {loading && published.length === 0 ? (
+        <div className="mt-12 grid gap-5 md:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      ) : visible.length === 0 ? (
         <p className="mt-14 text-muted-foreground">Hozircha maqolalar yo'q.</p>
       ) : (
-        <div className="mt-14 grid gap-5 md:grid-cols-2">
-          {published.map((post) => (
+        <div className="mt-12 grid gap-5 md:grid-cols-2">
+          {visible.map((post) => (
             <article
               key={post.id}
               className="flex flex-col overflow-hidden rounded-2xl border bg-card shadow-card transition hover:shadow-elevated"
@@ -57,9 +112,22 @@ function BlogIndex() {
                 )}
               </Link>
               <div className="flex flex-1 flex-col p-6">
-                <div className="text-xs font-medium text-muted-foreground">{formatDate(post.date)}</div>
+                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <span>{formatDate(post.date)}</span>
+                  <span className="text-muted-foreground/40">•</span>
+                  <span>{readingTime(post.content)}</span>
+                </div>
                 <h2 className="mt-2 font-display text-2xl font-bold leading-snug">{post.title}</h2>
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{post.excerpt}</p>
+                {post.tags?.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {post.tags.slice(0, 3).map((tag) => (
+                      <span key={tag} className="rounded-full bg-secondary px-2.5 py-0.5 text-xs text-muted-foreground">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <Link
                   to="/blog/$slug"
                   params={{ slug: post.slug }}

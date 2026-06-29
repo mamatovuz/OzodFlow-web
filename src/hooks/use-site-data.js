@@ -8,25 +8,28 @@ import {
 } from "@/lib/site-data";
 
 export function useSiteData() {
-  const [siteData, setSiteData] = useState(DEFAULT_SITE_DATA);
+  const [data, setData] = useState(DEFAULT_SITE_DATA);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const controller = new AbortController();
-    setSiteData(getStoredSiteData());
+    setData(getStoredSiteData());
 
     fetchSiteData({ signal: controller.signal })
-      .then((data) => {
-        storeSiteData(data);
-        setSiteData(data);
+      .then((fresh) => {
+        storeSiteData(fresh);
+        setData(fresh);
+        setLoading(false);
       })
       .catch((error) => {
         if (error.name !== "AbortError") {
-          setSiteData(getStoredSiteData());
+          setData(getStoredSiteData());
+          setLoading(false);
         }
       });
 
     return () => controller.abort();
   }, []);
 
-  return siteData;
+  return { data, loading };
 }

@@ -43,6 +43,7 @@ import {
 import { TG_CHANNEL, TG_SUPPORT, submitLead } from "@/lib/site-data";
 import { getInitialTheme, setStoredTheme } from "@/lib/theme";
 import { useSiteData } from "@/hooks/use-site-data";
+import { formatDate, readingTime } from "@/lib/blog";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -409,7 +410,8 @@ function Reveal({ children, className = "", delay = 0, as: Tag = "div" }) {
 }
 
 function Index() {
-  const { services, projects, testimonials, posts } = useSiteData();
+  const { data } = useSiteData();
+  const { services, projects, testimonials, posts } = data;
 
   return (
     <LanguageProvider>
@@ -930,17 +932,6 @@ function Testimonials({ testimonials }) {
   );
 }
 
-function formatDate(value, lang) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString(lang === "ru" ? "ru-RU" : "uz-UZ", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
 function Blog({ posts }) {
   const { t, lang } = useLang();
   const published = (posts || []).filter((post) => post.published !== false);
@@ -982,9 +973,22 @@ function Blog({ posts }) {
                 )}
               </Link>
               <div className="flex flex-1 flex-col p-6">
-                <div className="text-xs font-medium text-muted-foreground">{formatDate(post.date, lang)}</div>
+                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <span>{formatDate(post.date, lang)}</span>
+                  <span className="text-muted-foreground/40">•</span>
+                  <span>{readingTime(post.content, lang)}</span>
+                </div>
                 <h3 className="mt-2 font-display text-xl font-bold leading-snug">{post.title}</h3>
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{post.excerpt}</p>
+                {post.tags?.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {post.tags.slice(0, 3).map((tag) => (
+                      <span key={tag} className="rounded-full bg-secondary px-2.5 py-0.5 text-xs text-muted-foreground">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <Link
                   to="/blog/$slug"
                   params={{ slug: post.slug }}

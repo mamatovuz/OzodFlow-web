@@ -145,6 +145,7 @@ export const DEFAULT_SITE_DATA = {
       cover: "",
       date: "2026-06-10",
       published: true,
+      tags: ["Telegram bot", "Avtomatlashtirish"],
       content:
         "Telegram O'zbekistonda eng ko'p ishlatiladigan messenjerlardan biri. Shuning uchun biznes uchun aynan shu yerda bo'lish — mijozga eng yaqin joyda bo'lish demakdir.\n\n## Bot nimalarni avtomatlashtiradi?\n\nBot buyurtmalarni 24 soat qabul qiladi, mijoz ma'lumotlarini saqlaydi va sizga bildirishnoma yuboradi. Xodim uxlab yotганida ham bot ishlaydi.\n\n## Qanday natija beradi?\n\nKo'p bizneslar botdan keyin buyurtmalar tezligi va mijozlar mamnuniyati oshganini aytishadi. Eng muhimi — takrorlanuvchi ishlar avtomatlashadi va siz asosiy ishingizga vaqt ajratasiz.\n\nAgar biznesingiz uchun bot kerak bo'lsa, Telegram orqali yozing — bepul maslahat beraman.",
     },
@@ -157,6 +158,7 @@ export const DEFAULT_SITE_DATA = {
       cover: "",
       date: "2026-06-05",
       published: true,
+      tags: ["Landing", "Marketing"],
       content:
         "Landing page — bu bitta maqsadga yo'naltirilgan sahifa: mijozni harakatga undash. Reklama bergan bo'lsangiz, odam aynan shu sahifaga tushadi.\n\n## Nima uchun oddiy sayt yetarli emas?\n\nKo'p sahifali sayt e'tiborni tarqatadi. Landing esa bitta xizmat yoki mahsulotга diqqatni jamlaydi va konversiyani oshiradi.\n\n## Yaxshi landing'ning sirlari\n\nTez yuklanish, aniq taklif, ishonch belgilari (sharhlar, kafolat) va ko'rinib turadigan aloqa tugmasi. Shu narsalar mijozni xaridorga aylantiradi.",
     },
@@ -168,7 +170,7 @@ function normalizeProject(project) {
 }
 
 function normalizePost(post) {
-  return { cover: "", published: true, ...post };
+  return { cover: "", published: true, tags: [], ...post };
 }
 
 export function normalizeSiteData(data) {

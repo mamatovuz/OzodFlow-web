@@ -165,10 +165,51 @@ export const DEFAULT_SITE_DATA = {
         "Landing page — bu bitta maqsadga yo'naltirilgan sahifa: mijozni harakatga undash. Reklama bergan bo'lsangiz, odam aynan shu sahifaga tushadi.\n\n## Nima uchun oddiy sayt yetarli emas?\n\nKo'p sahifali sayt e'tiborni tarqatadi. Landing esa bitta xizmat yoki mahsulotга diqqatni jamlaydi va konversiyani oshiradi.\n\n## Yaxshi landing'ning sirlari\n\nTez yuklanish, aniq taklif, ishonch belgilari (sharhlar, kafolat) va ko'rinib turadigan aloqa tugmasi. Shu narsalar mijozni xaridorga aylantiradi.",
     },
   ],
+  faqs: [
+    {
+      id: "faq-time",
+      q: "Loyiha qancha vaqtda tayyor bo'ladi?",
+      a: "Landing - 5-10 kun. Telegram bot - 1-2 hafta. CRM - 3-6 hafta. Aniq muddat texnik topshiriqdan keyin.",
+      qRu: "Сколько времени займёт проект?",
+      aRu: "Лендинг - 5-10 дней. Telegram-бот - 1-2 недели. CRM - 3-6 недель. Точный срок - после техзадания.",
+    },
+    {
+      id: "faq-prepay",
+      q: "Oldindan to'lov kerakmi?",
+      a: "Ha, 50% oldindan, 50% topshirilganda. Yirik loyihalarda 3 bosqichli to'lov mumkin.",
+      qRu: "Нужна ли предоплата?",
+      aRu: "Да, 50% предоплата, 50% при сдаче. Для крупных проектов возможна оплата в 3 этапа.",
+    },
+    {
+      id: "faq-domain",
+      q: "Domen va hostingni o'zim olamanmi?",
+      a: "Yo'q, men yordam beraman yoki o'zim sozlab beraman. Birinchi yil mening hisobimdan.",
+      qRu: "Домен и хостинг покупать самому?",
+      aRu: "Нет, я помогу или настрою сам. Первый год за мой счёт.",
+    },
+    {
+      id: "faq-warranty",
+      q: "Kafolat berasizmi?",
+      a: "Ha. 30 kun davomida kodda bo'lgan har qanday xatoni bepul tuzataman.",
+      qRu: "Даёте гарантию?",
+      aRu: "Да. В течение 30 дней бесплатно исправляю любые ошибки в коде.",
+    },
+    {
+      id: "faq-template",
+      q: "Tayyor shablonlardan foydalanasizmi?",
+      a: "Yo'q. Har bir loyiha noldan, sizning brendingiz va talablaringizga moslab yoziladi.",
+      qRu: "Используете готовые шаблоны?",
+      aRu: "Нет. Каждый проект пишется с нуля под ваш бренд и требования.",
+    },
+  ],
 };
 
 function normalizeProject(project) {
-  return { image: "", ...project };
+  return { image: "", gallery: [], ...project };
+}
+
+function normalizeFaq(faq) {
+  return { id: "", q: "", a: "", qRu: "", aRu: "", ...faq };
 }
 
 function normalizePost(post) {
@@ -187,6 +228,7 @@ export function normalizeSiteData(data) {
       ? data.testimonials
       : DEFAULT_SITE_DATA.testimonials,
     posts: Array.isArray(data?.posts) ? data.posts.map(normalizePost) : DEFAULT_SITE_DATA.posts,
+    faqs: Array.isArray(data?.faqs) ? data.faqs.map(normalizeFaq) : DEFAULT_SITE_DATA.faqs,
   };
 }
 

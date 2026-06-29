@@ -17,6 +17,13 @@ if (plausibleDomain && typeof document !== "undefined") {
   document.head.appendChild(script);
 }
 
+// PWA: register service worker so the site is installable and loads faster.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+
 const router = getRouter();
 const rootElement = document.getElementById("root");
 

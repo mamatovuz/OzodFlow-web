@@ -13,9 +13,12 @@ import {
   Bot,
   BriefcaseBusiness,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Database,
   ExternalLink,
+  Images,
   Globe,
   LayoutGrid,
   Loader2,
@@ -411,7 +414,7 @@ function Reveal({ children, className = "", delay = 0, as: Tag = "div" }) {
 
 function Index() {
   const { data } = useSiteData();
-  const { services, projects, testimonials, posts } = data;
+  const { services, projects, testimonials, posts, faqs } = data;
 
   return (
     <LanguageProvider>
@@ -426,10 +429,11 @@ function Index() {
           <Why />
           <Testimonials testimonials={testimonials} />
           <Blog posts={posts} />
-          <FAQ />
+          <FAQ faqs={faqs} />
           <Contact services={services} />
         </main>
         <Footer />
+        <FloatingTelegram />
       </div>
     </LanguageProvider>
   );
@@ -733,9 +737,59 @@ function Services({ services }) {
   );
 }
 
+function Lightbox({ images, index, onClose, onIndex }) {
+  useEffect(() => {
+    function onKey(event) {
+      if (event.key === "Escape") onClose();
+      if (event.key === "ArrowRight") onIndex((index + 1) % images.length);
+      if (event.key === "ArrowLeft") onIndex((index - 1 + images.length) % images.length);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [index, images.length, onClose, onIndex]);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-4" onClick={onClose}>
+      <button type="button" onClick={onClose} className="absolute right-4 top-4 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20" aria-label="Yopish">
+        <X className="h-5 w-5" />
+      </button>
+      <img
+        src={images[index]}
+        alt=""
+        onClick={(event) => event.stopPropagation()}
+        className="max-h-[85vh] max-w-[90vw] rounded-xl object-contain shadow-elevated"
+      />
+      {images.length > 1 && (
+        <>
+          <button
+            type="button"
+            onClick={(event) => { event.stopPropagation(); onIndex((index - 1 + images.length) % images.length); }}
+            className="absolute left-4 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20"
+            aria-label="Oldingi"
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </button>
+          <button
+            type="button"
+            onClick={(event) => { event.stopPropagation(); onIndex((index + 1) % images.length); }}
+            className="absolute right-4 bottom-1/2 inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 sm:bottom-auto sm:right-4 sm:top-1/2"
+            aria-label="Keyingi"
+          >
+            <ChevronRight className="h-6 w-6" />
+          </button>
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/10 px-3 py-1 text-sm text-white">
+            {index + 1} / {images.length}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function Projects({ projects }) {
   const { t } = useLang();
   const [showAll, setShowAll] = useState(false);
+  const [lightbox, setLightbox] = useState(null); // { images, index }
   const visibleProjects = useMemo(() => (showAll ? projects : projects.slice(0, 6)), [projects, showAll]);
   const hasMore = projects.length > 6;
 
@@ -755,38 +809,56 @@ function Projects({ projects }) {
         </div>
 
         <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {visibleProjects.map((project, i) => (
+          {visibleProjects.map((project, i) => {
+            const images = [project.image, ...(project.gallery || [])].filter(Boolean);
+            const cover = images[0];
+            return (
             <Reveal
               key={project.id}
               delay={(i % 3) * 90}
               as="article"
               className="flex flex-col overflow-hidden rounded-2xl border bg-card shadow-card transition hover:shadow-elevated"
             >
-              <a
-                href={project.url || TG_CHANNEL}
-                target="_blank"
-                rel="noreferrer"
-                className="relative block aspect-video overflow-hidden bg-surface"
-                aria-label={project.title}
-              >
-                {project.image ? (
+              {images.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setLightbox({ images, index: 0 })}
+                  className="group relative block aspect-video overflow-hidden bg-surface"
+                  aria-label={`${project.title} — rasmlar`}
+                >
                   <img
-                    src={project.image}
+                    src={cover}
                     alt={project.title}
                     loading="lazy"
                     className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                   />
-                ) : (
+                  {images.length > 1 && (
+                    <span className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-full bg-background/90 px-3 py-1 text-xs font-semibold shadow-card backdrop-blur">
+                      <Images className="h-3.5 w-3.5" /> {images.length}
+                    </span>
+                  )}
+                  <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-background/90 px-3 py-1 text-xs font-semibold text-accent shadow-card backdrop-blur">
+                    {project.category}
+                  </span>
+                </button>
+              ) : (
+                <a
+                  href={project.url || TG_CHANNEL}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="relative block aspect-video overflow-hidden bg-surface"
+                  aria-label={project.title}
+                >
                   <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/5 via-accent/5 to-sky/10">
                     <span className="font-display text-2xl font-bold text-muted-foreground/40">
                       {project.title}
                     </span>
                   </div>
-                )}
-                <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-background/90 px-3 py-1 text-xs font-semibold text-accent shadow-card backdrop-blur">
-                  {project.category}
-                </span>
-              </a>
+                  <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-background/90 px-3 py-1 text-xs font-semibold text-accent shadow-card backdrop-blur">
+                    {project.category}
+                  </span>
+                </a>
+              )}
 
               <div className="flex flex-1 flex-col p-6">
                 <div className="flex items-start justify-between gap-4">
@@ -814,7 +886,8 @@ function Projects({ projects }) {
                 </div>
               </div>
             </Reveal>
-          ))}
+            );
+          })}
         </div>
 
         {hasMore && (
@@ -830,6 +903,15 @@ function Projects({ projects }) {
           </div>
         )}
       </div>
+
+      {lightbox && (
+        <Lightbox
+          images={lightbox.images}
+          index={lightbox.index}
+          onClose={() => setLightbox(null)}
+          onIndex={(next) => setLightbox((current) => ({ ...current, index: next }))}
+        />
+      )}
     </section>
   );
 }
@@ -1005,18 +1087,38 @@ function Blog({ posts }) {
   );
 }
 
-function FAQ() {
-  const { t } = useLang();
+function FAQ({ faqs }) {
+  const { t, lang } = useLang();
+  const items = (faqs || []).map((f) => ({
+    q: (lang === "ru" && f.qRu) || f.q,
+    a: (lang === "ru" && f.aRu) || f.a,
+  })).filter((f) => f.q);
+
+  if (!items.length) return null;
+
+  // Structured data for Google rich results (uses default-language questions).
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: (faqs || [])
+      .filter((f) => f.q)
+      .map((f) => ({
+        "@type": "Question",
+        name: f.q,
+        acceptedAnswer: { "@type": "Answer", text: f.a },
+      })),
+  };
 
   return (
     <section id="savollar" className="border-y bg-surface/60 py-24 md:py-32">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
       <div className="mx-auto max-w-4xl px-4 md:px-6">
         <SectionHeading label={t.faq.label} title={t.faq.title} center />
 
         <Accordion type="single" collapsible className="mt-14 space-y-3">
-          {t.faq.items.map((f, i) => (
+          {items.map((f, i) => (
             <AccordionItem
-              key={f.q}
+              key={i}
               value={`faq-${i}`}
               className="rounded-xl border bg-card px-6 shadow-card transition data-[state=open]:shadow-elevated"
             >
@@ -1226,6 +1328,25 @@ function Contact({ services }) {
         </div>
       </div>
     </section>
+  );
+}
+
+function FloatingTelegram() {
+  const { t } = useLang();
+  return (
+    <a
+      href={TG}
+      target="_blank"
+      rel="noreferrer"
+      aria-label="Telegram"
+      className="group fixed bottom-5 right-5 z-50 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-4 text-accent-foreground shadow-elevated transition hover:px-5 hover:opacity-95"
+    >
+      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-30" />
+      <MessageCircle className="relative h-6 w-6" />
+      <span className="relative hidden max-w-0 overflow-hidden whitespace-nowrap text-sm font-semibold transition-all group-hover:block group-hover:max-w-[160px] md:group-hover:inline">
+        {t.contact.ctaTelegram}
+      </span>
+    </a>
   );
 }
 

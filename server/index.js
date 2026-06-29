@@ -27,6 +27,7 @@ const dataDir = path.dirname(dataFilePath);
 const seedDataFilePath = path.resolve(rootDir, "server/data/site-data.json");
 const leadsFilePath = path.resolve(dataDir, "leads.json");
 const workspaceFilePath = path.resolve(dataDir, "workspace.json");
+const reminderFilePath = path.resolve(dataDir, "reminder.json");
 const adminCredsFilePath = path.resolve(dataDir, "admin.json");
 const uploadsDir = path.resolve(dataDir, "uploads");
 const distDir = path.resolve(rootDir, "dist");
@@ -237,6 +238,72 @@ async function sendLeadToTelegram(lead) {
   return response.ok;
 }
 
+function amountToNumber(value) {
+  return Number(String(value ?? "").replace(/[^\d.-]/g, "")) || 0;
+}
+
+async function sendDailySummary() {
+  if (!telegramBotToken || !telegramChatId) return;
+
+  const ws = await readWorkspace();
+  const leads = normalizeLeads(await readLeads());
+  const newLeads = leads.filter((lead) => lead.status === "new").length;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const soon = ws.works.filter((work) => {
+    if (work.status === "done" || !work.deadline) return false;
+    const due = new Date(work.deadline);
+    if (Number.isNaN(due.getTime())) return false;
+    return Math.round((due - today) / 86400000) <= 2;
+  });
+  const pending = ws.payments
+    .filter((payment) => payment.status !== "paid")
+    .reduce((sum, payment) => sum + amountToNumber(payment.amount), 0);
+
+  if (!newLeads && soon.length === 0 && !pending) return;
+
+  const lines = ["📊 *OzodFlow — kunlik xulosa*", ""];
+  if (newLeads) lines.push(`🆕 Yangi arizalar: ${newLeads} ta`);
+  if (soon.length) {
+    lines.push("", "⏰ *Yaqin deadline:*");
+    soon.forEach((work) => {
+      const left = Math.round((new Date(work.deadline) - today) / 86400000);
+      const label = left < 0 ? `${-left} kun kechikdi` : left === 0 ? "bugun" : `${left} kun qoldi`;
+      lines.push(`• ${work.title} — ${label}`);
+    });
+  }
+  if (pending) lines.push("", `💰 Kutilayotgan to'lov: ${pending.toLocaleString("ru-RU")} so'm`);
+
+  await fetch(`https://api.telegram.org/bot${telegramBotToken}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: telegramChatId, text: lines.join("\n"), parse_mode: "Markdown" }),
+  });
+}
+
+async function maybeSendSummary() {
+  try {
+    const now = new Date();
+    if (now.getUTCHours() < 4) return; // ~09:00 Toshkent vaqti
+
+    const todayStr = now.toISOString().slice(0, 10);
+    let last = "";
+    try {
+      last = JSON.parse(await readFile(reminderFilePath, "utf8")).lastDate || "";
+    } catch {
+      last = "";
+    }
+    if (last === todayStr) return;
+
+    await sendDailySummary();
+    await mkdir(dataDir, { recursive: true });
+    await writeFile(reminderFilePath, JSON.stringify({ lastDate: todayStr }), "utf8");
+  } catch (error) {
+    console.error("Daily summary failed:", error);
+  }
+}
+
 app.get("/api/health", (req, res) => {
   noStore(res);
   res.json({ ok: true });
@@ -437,3 +504,7 @@ app.listen(port, () => {
   console.log(`OzodFlow server running on http://localhost:${port}`);
   console.log(`Site data file: ${dataFilePath}`);
 });
+
+// Daily Telegram summary (deadlines, pending payments, new leads).
+setInterval(maybeSendSummary, 60 * 60 * 1000);
+maybeSendSummary();

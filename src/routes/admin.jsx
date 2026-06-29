@@ -8,7 +8,9 @@ import {
   Copy,
   FileText,
   FolderKanban,
+  Download,
   GripVertical,
+  HelpCircle,
   ImagePlus,
   Inbox,
   ListTodo,
@@ -19,6 +21,7 @@ import {
   Newspaper,
   Phone,
   Plus,
+  Printer,
   Save,
   Settings,
   Sparkles,
@@ -30,7 +33,8 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+const IncomeChart = lazy(() => import("@/components/IncomeChart"));
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   DEFAULT_SITE_DATA,
@@ -214,6 +218,7 @@ const SITE_TABS = [
   { id: "services", label: "Xizmatlar", icon: Sparkles },
   { id: "projects", label: "Loyihalar", icon: BriefcaseBusiness },
   { id: "testimonials", label: "Fikrlar", icon: MessageSquareQuote },
+  { id: "faq", label: "Savollar", icon: HelpCircle },
   { id: "blog", label: "Blog", icon: Newspaper },
   { id: "settings", label: "Sozlamalar", icon: Settings },
 ];
@@ -230,7 +235,7 @@ const WORK_TABS = [
 ];
 
 // Tabs that save into the public site-data store.
-const SITE_DATA_TABS = new Set(["services", "projects", "testimonials", "blog"]);
+const SITE_DATA_TABS = new Set(["services", "projects", "testimonials", "faq", "blog"]);
 // Tabs that save into the private workspace store.
 const WORKSPACE_TABS = new Set(["clients", "works", "payments", "tasks", "notes"]);
 // Tabs that have nothing to persist (tools / own save button).
@@ -329,6 +334,7 @@ function Dashboard({ adminPassword, onPasswordChange, onLogout }) {
     services: data.services?.length || 0,
     projects: data.projects?.length || 0,
     testimonials: (data.testimonials || []).length,
+    faq: (data.faqs || []).length,
     blog: (data.posts || []).length,
     settings: null,
     leads: newLeads || null,
@@ -432,6 +438,7 @@ function Dashboard({ adminPassword, onPasswordChange, onLogout }) {
             <ProjectsEditor data={data} setData={setData} adminPassword={adminPassword} />
           )}
           {tab === "testimonials" && <TestimonialsEditor data={data} setData={setData} />}
+          {tab === "faq" && <FaqEditor data={data} setData={setData} />}
           {tab === "blog" && (
             <PostsEditor data={data} setData={setData} adminPassword={adminPassword} />
           )}
@@ -784,6 +791,69 @@ function ImageField({ value, onChange, adminPassword, alt }) {
   );
 }
 
+function GalleryField({ images, onChange, adminPassword }) {
+  const inputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleFiles(event) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (!files.length) return;
+
+    setError("");
+    setUploading(true);
+    try {
+      const urls = [];
+      for (const file of files) {
+        const dataUrl = await resizeImage(file);
+        urls.push(await uploadImage(dataUrl, { password: adminPassword }));
+      }
+      onChange([...(images || []), ...urls]);
+    } catch (uploadError) {
+      setError(uploadError.message || "Yuklab bo'lmadi");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function removeAt(index) {
+    onChange((images || []).filter((_, i) => i !== index));
+  }
+
+  return (
+    <div className="mt-4 space-y-2">
+      <span className={labelClass}>Qo'shimcha rasmlar (galereya)</span>
+      <div className="flex flex-wrap gap-3">
+        {(images || []).map((url, index) => (
+          <div key={url + index} className="relative h-20 w-28 overflow-hidden rounded-lg border bg-surface">
+            <img src={url} alt="" className="h-full w-full object-cover" />
+            <button
+              type="button"
+              onClick={() => removeAt(index)}
+              className="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-md bg-background/90 text-destructive shadow-card transition hover:bg-destructive hover:text-destructive-foreground"
+              aria-label="O'chirish"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+        <input ref={inputRef} type="file" accept="image/*" multiple onChange={handleFiles} className="hidden" />
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="inline-flex h-20 w-28 flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-muted-foreground transition hover:border-accent hover:text-accent disabled:opacity-60"
+        >
+          {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
+          <span className="text-xs">Rasm qo'shish</span>
+        </button>
+      </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
 function ProjectsEditor({ data, setData, adminPassword }) {
   function updateProject(id, patch) {
     setData((current) => ({
@@ -806,6 +876,7 @@ function ProjectsEditor({ data, setData, adminPassword }) {
           stack: ["React"],
           url: "https://t.me/OzodFlow",
           image: "",
+          gallery: [],
         },
       ],
     }));
@@ -844,6 +915,12 @@ function ProjectsEditor({ data, setData, adminPassword }) {
               onChange={(url) => updateProject(project.id, { image: url })}
               adminPassword={adminPassword}
               alt={project.title}
+            />
+
+            <GalleryField
+              images={project.gallery || []}
+              onChange={(gallery) => updateProject(project.id, { gallery })}
+              adminPassword={adminPassword}
             />
 
             <div className="mt-4 grid gap-4 md:grid-cols-3">
@@ -1191,6 +1268,74 @@ function PostsEditor({ data, setData, adminPassword }) {
   );
 }
 
+function FaqEditor({ data, setData }) {
+  const faqs = data.faqs || [];
+  const reorder = useReorder(faqs, (next) => setData((current) => ({ ...current, faqs: next })));
+
+  function update(id, patch) {
+    setData((current) => ({
+      ...current,
+      faqs: (current.faqs || []).map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    }));
+  }
+  function add() {
+    setData((current) => ({
+      ...current,
+      faqs: [...(current.faqs || []), { id: `faq-${Date.now()}`, q: "Yangi savol?", a: "Javob", qRu: "", aRu: "" }],
+    }));
+  }
+  function remove(id) {
+    setData((current) => ({ ...current, faqs: (current.faqs || []).filter((item) => item.id !== id) }));
+  }
+
+  return (
+    <SectionShell
+      icon={HelpCircle}
+      label="Savollar"
+      title="Tez-tez beriladigan savollar"
+      action={<AddButton onClick={add}>Savol qo'shish</AddButton>}
+    >
+      <p className="mt-2 text-sm text-muted-foreground">
+        Ruscha maydonlar bo'sh bo'lsa, ruscha tilда ham o'zbekcha matn ko'rsatiladi.
+      </p>
+      <div className="mt-6 grid gap-5">
+        {faqs.map((faq, index) => (
+          <div
+            key={faq.id}
+            {...reorder.rowProps(index)}
+            className="rounded-xl border bg-card p-4 transition data-[over=true]:border-accent data-[over=true]:ring-2 data-[over=true]:ring-accent/30"
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <ReorderControls index={index} count={faqs.length} move={reorder.move} handleProps={reorder.handleProps(index)} />
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block space-y-2">
+                <span className={labelClass}>Savol (UZ)</span>
+                <input value={faq.q} onChange={(e) => update(faq.id, { q: e.target.value })} className={fieldClass} />
+              </label>
+              <label className="block space-y-2">
+                <span className={labelClass}>Savol (RU)</span>
+                <input value={faq.qRu} onChange={(e) => update(faq.id, { qRu: e.target.value })} className={fieldClass} />
+              </label>
+              <label className="block space-y-2">
+                <span className={labelClass}>Javob (UZ)</span>
+                <textarea value={faq.a} onChange={(e) => update(faq.id, { a: e.target.value })} className={`${fieldClass} min-h-24`} />
+              </label>
+              <label className="block space-y-2">
+                <span className={labelClass}>Javob (RU)</span>
+                <textarea value={faq.aRu} onChange={(e) => update(faq.id, { aRu: e.target.value })} className={`${fieldClass} min-h-24`} />
+              </label>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <DeleteButton onClick={() => remove(faq.id)} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </SectionShell>
+  );
+}
+
 function SettingsEditor({ adminPassword, onPasswordChange }) {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
@@ -1314,6 +1459,38 @@ function toNumber(value) {
   return Number(String(value ?? "").replace(/[^\d.-]/g, "")) || 0;
 }
 
+function downloadCsv(filename, rows) {
+  const csv = rows
+    .map((row) =>
+      row
+        .map((cell) => {
+          const value = String(cell ?? "");
+          return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+        })
+        .join(",")
+    )
+    .join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function ExportButton({ onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex w-fit items-center gap-2 rounded-xl border bg-card px-4 py-2.5 text-sm font-semibold transition hover:border-accent hover:text-accent"
+    >
+      <Download className="h-4 w-4" /> Excel (CSV)
+    </button>
+  );
+}
+
 function daysLeft(dateStr) {
   if (!dateStr) return null;
   const target = new Date(dateStr);
@@ -1362,8 +1539,20 @@ function LeadsManager({ leads, setLeads, workspace, setWorkspace, adminPassword 
 
   const sorted = [...leads].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 
+  function exportCsv() {
+    downloadCsv("arizalar.csv", [
+      ["Ism", "Telefon", "Xizmat", "Holat", "Sana", "Xabar"],
+      ...sorted.map((l) => [l.name, l.phone, l.service, l.status, l.createdAt, l.message]),
+    ]);
+  }
+
   return (
-    <SectionShell icon={Inbox} label="Arizalar" title="Saytdan kelgan murojaatlar">
+    <SectionShell
+      icon={Inbox}
+      label="Arizalar"
+      title="Saytdan kelgan murojaatlar"
+      action={leads.length > 0 ? <ExportButton onClick={exportCsv} /> : null}
+    >
       {message && <div className="mt-4 rounded-lg bg-accent/10 px-4 py-2 text-sm text-accent">{message}</div>}
       <p className="mt-2 text-sm text-muted-foreground">
         Holatni o'zgartirgach yuqoridagi "Saqlash" tugmasini bosing.
@@ -1459,8 +1648,25 @@ function ClientsEditor({ workspace, setWorkspace }) {
     setWorkspace((current) => ({ ...current, clients: current.clients.filter((item) => item.id !== id) }));
   }
 
+  function exportCsv() {
+    downloadCsv("mijozlar.csv", [
+      ["Ism", "Aloqa", "Manba", "Holat", "Izoh"],
+      ...clients.map((c) => [c.name, c.contact, c.source, c.status, c.note]),
+    ]);
+  }
+
   return (
-    <SectionShell icon={Users} label="Mijozlar" title="Mijozlar bazasi" action={<AddButton onClick={add}>Mijoz qo'shish</AddButton>}>
+    <SectionShell
+      icon={Users}
+      label="Mijozlar"
+      title="Mijozlar bazasi"
+      action={
+        <div className="flex flex-wrap gap-2">
+          {clients.length > 0 && <ExportButton onClick={exportCsv} />}
+          <AddButton onClick={add}>Mijoz qo'shish</AddButton>
+        </div>
+      }
+    >
       {clients.length === 0 ? (
         <p className="mt-6 text-muted-foreground">Hozircha mijoz yo'q. Ariza kelганда "Mijozga aylantirish" bilan qo'shing.</p>
       ) : (
@@ -1637,6 +1843,20 @@ function PaymentsEditor({ workspace, setWorkspace }) {
     () => payments.filter((p) => p.status !== "paid").reduce((sum, p) => sum + toNumber(p.amount), 0),
     [payments]
   );
+  const monthly = useMemo(() => {
+    const map = {};
+    payments
+      .filter((p) => p.status === "paid")
+      .forEach((p) => {
+        const month = (p.date || "").slice(0, 7);
+        if (!month) return;
+        map[month] = (map[month] || 0) + toNumber(p.amount);
+      });
+    return Object.entries(map)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-6)
+      .map(([month, total]) => ({ month, total }));
+  }, [payments]);
 
   function update(id, patch) {
     setWorkspace((current) => ({
@@ -1657,8 +1877,25 @@ function PaymentsEditor({ workspace, setWorkspace }) {
     setWorkspace((current) => ({ ...current, payments: current.payments.filter((item) => item.id !== id) }));
   }
 
+  function exportCsv() {
+    downloadCsv("tolovlar.csv", [
+      ["Mijoz", "Ish", "Summa", "Sana", "Holat"],
+      ...payments.map((p) => [p.client, p.work, p.amount, p.date, p.status === "paid" ? "To'langan" : "Kutilmoqda"]),
+    ]);
+  }
+
   return (
-    <SectionShell icon={Wallet} label="To'lovlar" title="Daromad va to'lovlar" action={<AddButton onClick={add}>To'lov qo'shish</AddButton>}>
+    <SectionShell
+      icon={Wallet}
+      label="To'lovlar"
+      title="Daromad va to'lovlar"
+      action={
+        <div className="flex flex-wrap gap-2">
+          {payments.length > 0 && <ExportButton onClick={exportCsv} />}
+          <AddButton onClick={add}>To'lov qo'shish</AddButton>
+        </div>
+      }
+    >
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border bg-accent/5 p-5">
           <div className="text-xs font-semibold uppercase tracking-wider text-accent">To'langan</div>
@@ -1669,6 +1906,17 @@ function PaymentsEditor({ workspace, setWorkspace }) {
           <div className="mt-1 font-display text-2xl font-bold">{formatSom(totalPending)} so'm</div>
         </div>
       </div>
+
+      {monthly.length > 0 && (
+        <div className="mt-4 rounded-xl border bg-card p-4">
+          <div className={labelClass}>Oylik daromad (so'm)</div>
+          <div className="mt-3">
+            <Suspense fallback={<div className="h-56 animate-pulse rounded-lg bg-muted" />}>
+              <IncomeChart data={monthly} />
+            </Suspense>
+          </div>
+        </div>
+      )}
 
       {payments.length === 0 ? (
         <p className="mt-6 text-muted-foreground">Hozircha to'lov yozuvi yo'q.</p>
@@ -2001,6 +2249,29 @@ function DocGenerator({ workspace }) {
     });
   }
 
+  function printDoc() {
+    const win = window.open("", "_blank", "width=820,height=1000");
+    if (!win) return;
+    const title = type === "invoice" ? "Hisob-faktura" : "Shartnoma";
+    const escape = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const body = docText()
+      .split("\n")
+      .map((line) => (line.trim() === "" ? "<br/>" : `<div>${escape(line)}</div>`))
+      .join("");
+    win.document.write(
+      `<!doctype html><html lang="uz"><head><meta charset="utf-8"><title>${title} — OzodFlow</title>` +
+        `<style>body{font-family:Arial,Helvetica,sans-serif;color:#0b1530;max-width:680px;margin:40px auto;padding:0 24px;line-height:1.7}` +
+        `.brand{display:flex;align-items:center;gap:12px;border-bottom:2px solid #2563eb;padding-bottom:16px;margin-bottom:24px}` +
+        `.brand img{width:44px;height:44px;border-radius:10px}.brand b{font-size:22px}` +
+        `.doc div{font-size:15px}@media print{body{margin:0}}</style></head><body>` +
+        `<div class="brand"><img src="${window.location.origin}/logo-mark.png"/><b>OzodFlow</b></div>` +
+        `<div class="doc">${body}</div></body></html>`
+    );
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 400);
+  }
+
   return (
     <SectionShell icon={FileText} label="Hujjatlar" title="Hisob-faktura / Shartnoma">
       <div className="mt-6 grid gap-6 md:grid-cols-2">
@@ -2045,10 +2316,15 @@ function DocGenerator({ workspace }) {
 
         <div className="flex flex-col rounded-2xl border bg-surface/50 p-6">
           <pre className="flex-1 whitespace-pre-wrap rounded-xl bg-background p-4 text-sm">{docText()}</pre>
-          <button type="button" onClick={copy} className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-accent">
-            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            {copied ? "Nusxalandi" : "Matnni nusxalash"}
-          </button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" onClick={copy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-accent">
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {copied ? "Nusxalandi" : "Nusxalash"}
+            </button>
+            <button type="button" onClick={printDoc} className="inline-flex items-center justify-center gap-2 rounded-xl border bg-card px-5 py-3 text-sm font-semibold transition hover:border-accent hover:text-accent">
+              <Printer className="h-4 w-4" /> PDF / Chop etish
+            </button>
+          </div>
         </div>
       </div>
     </SectionShell>

@@ -5,7 +5,12 @@ import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { DEFAULT_SITE_DATA, normalizeSiteData } from "../src/lib/site-data.js";
+import {
+  DEFAULT_SITE_DATA,
+  normalizeSiteData,
+  normalizeWorkspace,
+  normalizeLeads,
+} from "../src/lib/site-data.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -21,6 +26,7 @@ const dataFilePath = path.resolve(
 const dataDir = path.dirname(dataFilePath);
 const seedDataFilePath = path.resolve(rootDir, "server/data/site-data.json");
 const leadsFilePath = path.resolve(dataDir, "leads.json");
+const workspaceFilePath = path.resolve(dataDir, "workspace.json");
 const adminCredsFilePath = path.resolve(dataDir, "admin.json");
 const uploadsDir = path.resolve(dataDir, "uploads");
 const distDir = path.resolve(rootDir, "dist");
@@ -164,22 +170,43 @@ async function saveUpload(dataUrl) {
   return `/uploads/${fileName}`;
 }
 
-async function appendLead(lead) {
-  await mkdir(path.dirname(leadsFilePath), { recursive: true });
-
-  let leads = [];
+async function readLeads() {
   try {
-    leads = JSON.parse(await readFile(leadsFilePath, "utf8"));
-    if (!Array.isArray(leads)) leads = [];
+    const leads = JSON.parse(await readFile(leadsFilePath, "utf8"));
+    return Array.isArray(leads) ? leads : [];
   } catch {
-    leads = [];
+    return [];
   }
+}
 
-  leads.push(lead);
-
+async function writeLeads(leads) {
+  await mkdir(dataDir, { recursive: true });
   const tempFilePath = `${leadsFilePath}.${process.pid}.tmp`;
   await writeFile(tempFilePath, `${JSON.stringify(leads, null, 2)}\n`, "utf8");
   await rename(tempFilePath, leadsFilePath);
+}
+
+async function appendLead(lead) {
+  const leads = await readLeads();
+  leads.push(lead);
+  await writeLeads(leads);
+}
+
+async function readWorkspace() {
+  try {
+    return normalizeWorkspace(JSON.parse(await readFile(workspaceFilePath, "utf8")));
+  } catch {
+    return normalizeWorkspace(null);
+  }
+}
+
+async function writeWorkspace(data) {
+  const normalized = normalizeWorkspace(data);
+  await mkdir(dataDir, { recursive: true });
+  const tempFilePath = `${workspaceFilePath}.${process.pid}.tmp`;
+  await writeFile(tempFilePath, `${JSON.stringify(normalized, null, 2)}\n`, "utf8");
+  await rename(tempFilePath, workspaceFilePath);
+  return normalized;
 }
 
 async function sendLeadToTelegram(lead) {
@@ -239,7 +266,15 @@ app.post("/api/lead", async (req, res) => {
     return;
   }
 
-  const lead = { name, phone, service, message, createdAt: new Date().toISOString() };
+  const lead = {
+    id: `lead-${Date.now()}-${randomBytes(3).toString("hex")}`,
+    status: "new",
+    name,
+    phone,
+    service,
+    message,
+    createdAt: new Date().toISOString(),
+  };
 
   try {
     await appendLead(lead);
@@ -303,6 +338,54 @@ app.post("/api/upload", async (req, res) => {
   } catch (error) {
     console.error("Upload failed:", error);
     res.status(400).json({ error: error.message || "Upload failed" });
+  }
+});
+
+app.get("/api/leads", async (req, res) => {
+  noStore(res);
+  if (!(await isAdminRequest(req))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  res.json(normalizeLeads(await readLeads()));
+});
+
+app.put("/api/leads", async (req, res) => {
+  noStore(res);
+  if (!(await isAdminRequest(req))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  try {
+    const leads = normalizeLeads(req.body);
+    await writeLeads(leads);
+    res.json(leads);
+  } catch (error) {
+    console.error("Leads save failed:", error);
+    res.status(500).json({ error: "Leads could not be saved" });
+  }
+});
+
+app.get("/api/workspace", async (req, res) => {
+  noStore(res);
+  if (!(await isAdminRequest(req))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  res.json(await readWorkspace());
+});
+
+app.put("/api/workspace", async (req, res) => {
+  noStore(res);
+  if (!(await isAdminRequest(req))) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  try {
+    res.json(await writeWorkspace(req.body));
+  } catch (error) {
+    console.error("Workspace save failed:", error);
+    res.status(500).json({ error: "Workspace could not be saved" });
   }
 });
 

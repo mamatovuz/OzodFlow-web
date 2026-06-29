@@ -1,32 +1,47 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
   BriefcaseBusiness,
+  Calculator as CalculatorIcon,
   Check,
   ChevronDown,
   ChevronUp,
+  Copy,
+  FileText,
+  FolderKanban,
   GripVertical,
   ImagePlus,
+  Inbox,
+  ListTodo,
   Loader2,
   LogOut,
   MessageSquareQuote,
   Moon,
   Newspaper,
+  Phone,
   Plus,
   Save,
   Settings,
   Sparkles,
+  StickyNote,
   Sun,
   Trash2,
   Upload,
+  Users,
+  Wallet,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   DEFAULT_SITE_DATA,
+  DEFAULT_WORKSPACE,
+  fetchLeads,
   fetchSiteData,
+  fetchWorkspace,
   getStoredSiteData,
+  saveLeads,
   saveSiteData,
+  saveWorkspace,
   storeSiteData,
   updateAdminCredentials,
   uploadImage,
@@ -195,13 +210,31 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-const TABS = [
+const SITE_TABS = [
   { id: "services", label: "Xizmatlar", icon: Sparkles },
   { id: "projects", label: "Loyihalar", icon: BriefcaseBusiness },
   { id: "testimonials", label: "Fikrlar", icon: MessageSquareQuote },
   { id: "blog", label: "Blog", icon: Newspaper },
   { id: "settings", label: "Sozlamalar", icon: Settings },
 ];
+
+const WORK_TABS = [
+  { id: "leads", label: "Arizalar", icon: Inbox },
+  { id: "clients", label: "Mijozlar", icon: Users },
+  { id: "works", label: "Ishlar", icon: FolderKanban },
+  { id: "payments", label: "To'lovlar", icon: Wallet },
+  { id: "tasks", label: "Vazifalar", icon: ListTodo },
+  { id: "notes", label: "Eslatmalar", icon: StickyNote },
+  { id: "calculator", label: "Kalkulyator", icon: CalculatorIcon },
+  { id: "docs", label: "Hujjatlar", icon: FileText },
+];
+
+// Tabs that save into the public site-data store.
+const SITE_DATA_TABS = new Set(["services", "projects", "testimonials", "blog"]);
+// Tabs that save into the private workspace store.
+const WORKSPACE_TABS = new Set(["clients", "works", "payments", "tasks", "notes"]);
+// Tabs that have nothing to persist (tools / own save button).
+const NO_SAVE_TABS = new Set(["settings", "calculator", "docs"]);
 
 function ThemeToggle({ className = "" }) {
   const [theme, setTheme] = useState("light");
@@ -230,6 +263,8 @@ function ThemeToggle({ className = "" }) {
 
 function Dashboard({ adminPassword, onPasswordChange, onLogout }) {
   const [data, setData] = useState(DEFAULT_SITE_DATA);
+  const [workspace, setWorkspace] = useState(DEFAULT_WORKSPACE);
+  const [leads, setLeads] = useState([]);
   const [status, setStatus] = useState("Ma'lumotlar yuklanmoqda...");
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState("services");
@@ -250,17 +285,34 @@ function Dashboard({ adminPassword, onPasswordChange, onLogout }) {
         }
       });
 
+    fetchWorkspace({ signal: controller.signal, password: adminPassword })
+      .then(setWorkspace)
+      .catch(() => {});
+    fetchLeads({ signal: controller.signal, password: adminPassword })
+      .then(setLeads)
+      .catch(() => {});
+
     return () => controller.abort();
-  }, []);
+  }, [adminPassword]);
 
   async function persist() {
     setSaving(true);
     try {
-      const saved = await saveSiteData(data, { password: adminPassword });
-      setData(saved);
-      setStatus("Global saqlandi. Hamma qurilmada ko'rinadi.");
+      if (SITE_DATA_TABS.has(tab)) {
+        const saved = await saveSiteData(data, { password: adminPassword });
+        setData(saved);
+        setStatus("Sayt ma'lumotlari saqlandi.");
+      } else if (tab === "leads") {
+        const saved = await saveLeads(leads, { password: adminPassword });
+        setLeads(saved);
+        setStatus("Arizalar saqlandi.");
+      } else if (WORKSPACE_TABS.has(tab)) {
+        const saved = await saveWorkspace(workspace, { password: adminPassword });
+        setWorkspace(saved);
+        setStatus("Ish ma'lumotlari saqlandi.");
+      }
     } catch {
-      setStatus("Server saqlay olmadi. Sozlamalarni tekshiring.");
+      setStatus("Server saqlay olmadi. Internet/sozlamalarni tekshiring.");
     } finally {
       setSaving(false);
     }
@@ -272,13 +324,51 @@ function Dashboard({ adminPassword, onPasswordChange, onLogout }) {
     onLogout();
   }
 
+  const newLeads = leads.filter((lead) => lead.status === "new").length;
   const counts = {
     services: data.services?.length || 0,
     projects: data.projects?.length || 0,
     testimonials: (data.testimonials || []).length,
     blog: (data.posts || []).length,
     settings: null,
+    leads: newLeads || null,
+    clients: workspace.clients.length || null,
+    works: workspace.works.length || null,
+    payments: workspace.payments.length || null,
+    tasks: workspace.tasks.filter((task) => task.status !== "done").length || null,
+    notes: workspace.notes.length || null,
+    calculator: null,
+    docs: null,
   };
+
+  function renderTab(item) {
+    const Icon = item.icon;
+    const active = tab === item.id;
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() => setTab(item.id)}
+        className={`inline-flex shrink-0 items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold transition md:w-full ${
+          active
+            ? "bg-primary text-primary-foreground shadow-card"
+            : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
+        }`}
+      >
+        <Icon className="h-4 w-4" />
+        <span className="flex-1 text-left">{item.label}</span>
+        {counts[item.id] != null && (
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs ${
+              active ? "bg-primary-foreground/20" : "bg-accent/15 text-accent"
+            }`}
+          >
+            {counts[item.id]}
+          </span>
+        )}
+      </button>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-surface/40 text-foreground">
@@ -293,7 +383,7 @@ function Dashboard({ adminPassword, onPasswordChange, onLogout }) {
           </div>
           <div className="flex flex-wrap gap-2">
             <ThemeToggle />
-            {tab !== "settings" && (
+            {!NO_SAVE_TABS.has(tab) && (
               <button
                 type="button"
                 onClick={persist}
@@ -326,34 +416,14 @@ function Dashboard({ adminPassword, onPasswordChange, onLogout }) {
       <div className="mx-auto max-w-7xl gap-8 px-4 py-8 md:grid md:grid-cols-[220px_1fr] md:px-6">
         {/* Tabs / sidebar */}
         <nav className="mb-6 flex gap-2 overflow-x-auto md:mb-0 md:flex-col md:overflow-visible">
-          {TABS.map((item) => {
-            const Icon = item.icon;
-            const active = tab === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setTab(item.id)}
-                className={`inline-flex shrink-0 items-center gap-2.5 rounded-xl px-4 py-3 text-sm font-semibold transition md:w-full ${
-                  active
-                    ? "bg-primary text-primary-foreground shadow-card"
-                    : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                <span className="flex-1 text-left">{item.label}</span>
-                {counts[item.id] != null && (
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${
-                      active ? "bg-primary-foreground/20" : "bg-secondary"
-                    }`}
-                  >
-                    {counts[item.id]}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+          <div className="hidden px-2 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 md:block">
+            Sayt
+          </div>
+          {SITE_TABS.map(renderTab)}
+          <div className="mt-2 hidden px-2 pb-1 pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/60 md:block">
+            Ish boshqaruvi
+          </div>
+          {WORK_TABS.map(renderTab)}
         </nav>
 
         <div className="min-w-0">
@@ -368,6 +438,23 @@ function Dashboard({ adminPassword, onPasswordChange, onLogout }) {
           {tab === "settings" && (
             <SettingsEditor adminPassword={adminPassword} onPasswordChange={onPasswordChange} />
           )}
+
+          {tab === "leads" && (
+            <LeadsManager
+              leads={leads}
+              setLeads={setLeads}
+              workspace={workspace}
+              setWorkspace={setWorkspace}
+              adminPassword={adminPassword}
+            />
+          )}
+          {tab === "clients" && <ClientsEditor workspace={workspace} setWorkspace={setWorkspace} />}
+          {tab === "works" && <WorksEditor workspace={workspace} setWorkspace={setWorkspace} />}
+          {tab === "payments" && <PaymentsEditor workspace={workspace} setWorkspace={setWorkspace} />}
+          {tab === "tasks" && <TasksBoard workspace={workspace} setWorkspace={setWorkspace} />}
+          {tab === "notes" && <NotesEditor workspace={workspace} setWorkspace={setWorkspace} />}
+          {tab === "calculator" && <Calculator services={data.services || []} />}
+          {tab === "docs" && <DocGenerator workspace={workspace} />}
         </div>
       </div>
     </main>

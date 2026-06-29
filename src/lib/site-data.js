@@ -6,6 +6,8 @@ export const LEAD_API_URL = import.meta.env?.VITE_LEAD_API_URL || "/api/lead";
 export const API_BASE = SITE_DATA_API_URL.replace(/\/site-data$/, "");
 export const UPLOAD_API_URL = `${API_BASE}/upload`;
 export const ADMIN_CREDENTIALS_API_URL = `${API_BASE}/admin-credentials`;
+export const WORKSPACE_API_URL = `${API_BASE}/workspace`;
+export const LEADS_API_URL = `${API_BASE}/leads`;
 
 export const DEFAULT_SITE_DATA = {
   services: [
@@ -186,6 +188,94 @@ export function normalizeSiteData(data) {
       : DEFAULT_SITE_DATA.testimonials,
     posts: Array.isArray(data?.posts) ? data.posts.map(normalizePost) : DEFAULT_SITE_DATA.posts,
   };
+}
+
+/* ------------------------- private workspace (admin) ---------------------- */
+
+export const DEFAULT_WORKSPACE = {
+  clients: [],
+  works: [],
+  payments: [],
+  tasks: [],
+  notes: [],
+};
+
+export function normalizeWorkspace(data) {
+  return {
+    clients: Array.isArray(data?.clients) ? data.clients : [],
+    works: Array.isArray(data?.works) ? data.works : [],
+    payments: Array.isArray(data?.payments) ? data.payments : [],
+    tasks: Array.isArray(data?.tasks) ? data.tasks : [],
+    notes: Array.isArray(data?.notes) ? data.notes : [],
+  };
+}
+
+export function normalizeLead(lead, index = 0) {
+  return {
+    id: lead.id || `lead-${lead.createdAt || index}`,
+    status: lead.status || "new",
+    name: lead.name || "",
+    phone: lead.phone || "",
+    service: lead.service || "",
+    message: lead.message || "",
+    createdAt: lead.createdAt || "",
+  };
+}
+
+export function normalizeLeads(data) {
+  return Array.isArray(data) ? data.map(normalizeLead) : [];
+}
+
+export async function fetchWorkspace(options = {}) {
+  const response = await fetch(WORKSPACE_API_URL, {
+    signal: options.signal,
+    cache: "no-store",
+    headers: { Accept: "application/json", "X-Admin-Password": options.password ?? "" },
+  });
+  if (!response.ok) throw new Error("Workspace could not be loaded");
+  return normalizeWorkspace(await response.json());
+}
+
+export async function saveWorkspace(data, options = {}) {
+  const normalized = normalizeWorkspace(data);
+  const response = await fetch(WORKSPACE_API_URL, {
+    method: "PUT",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "X-Admin-Password": options.password ?? "",
+    },
+    body: JSON.stringify(normalized),
+  });
+  if (!response.ok) throw new Error("Workspace could not be saved");
+  return normalizeWorkspace(await response.json());
+}
+
+export async function fetchLeads(options = {}) {
+  const response = await fetch(LEADS_API_URL, {
+    signal: options.signal,
+    cache: "no-store",
+    headers: { Accept: "application/json", "X-Admin-Password": options.password ?? "" },
+  });
+  if (!response.ok) throw new Error("Leads could not be loaded");
+  return normalizeLeads(await response.json());
+}
+
+export async function saveLeads(leads, options = {}) {
+  const normalized = normalizeLeads(leads);
+  const response = await fetch(LEADS_API_URL, {
+    method: "PUT",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "X-Admin-Password": options.password ?? "",
+    },
+    body: JSON.stringify(normalized),
+  });
+  if (!response.ok) throw new Error("Leads could not be saved");
+  return normalizeLeads(await response.json());
 }
 
 export function getStoredSiteData() {

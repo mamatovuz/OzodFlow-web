@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
+  BarChart3,
   BriefcaseBusiness,
   Calculator as CalculatorIcon,
   CalendarClock,
+  CalendarDays,
   Check,
   ChevronDown,
   ChevronUp,
@@ -55,6 +57,7 @@ import {
   verifyAdminLogin,
 } from "@/lib/site-data";
 import { getInitialTheme, setStoredTheme } from "@/lib/theme";
+import { downloadDocImage } from "@/lib/doc-image";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -227,10 +230,12 @@ const SITE_TABS = [
 ];
 
 const WORK_TABS = [
+  { id: "reports", label: "Hisobot", icon: BarChart3 },
   { id: "leads", label: "Arizalar", icon: Inbox },
   { id: "clients", label: "Mijozlar", icon: Users },
   { id: "works", label: "Ishlar", icon: FolderKanban },
   { id: "payments", label: "To'lovlar", icon: Wallet },
+  { id: "calendar", label: "Kalendar", icon: CalendarDays },
   { id: "tasks", label: "Vazifalar", icon: ListTodo },
   { id: "notes", label: "Eslatmalar", icon: StickyNote },
   { id: "calculator", label: "Kalkulyator", icon: CalculatorIcon },
@@ -238,11 +243,11 @@ const WORK_TABS = [
 ];
 
 // Tabs that save into the public site-data store.
-const SITE_DATA_TABS = new Set(["services", "projects", "testimonials", "faq", "blog"]);
+const SITE_DATA_TABS = new Set(["services", "projects", "testimonials", "faq", "blog", "calculator"]);
 // Tabs that save into the private workspace store.
 const WORKSPACE_TABS = new Set(["clients", "works", "payments", "tasks", "notes"]);
 // Tabs that have nothing to persist (tools / own save button).
-const NO_SAVE_TABS = new Set(["settings", "calculator", "docs"]);
+const NO_SAVE_TABS = new Set(["settings", "docs", "reports", "calendar"]);
 
 function ThemeToggle({ className = "" }) {
   const [theme, setTheme] = useState("light");
@@ -275,7 +280,22 @@ function Dashboard({ adminPassword, onPasswordChange, onLogout }) {
   const [leads, setLeads] = useState([]);
   const [status, setStatus] = useState("Ma'lumotlar yuklanmoqda...");
   const [saving, setSaving] = useState(false);
-  const [tab, setTab] = useState("services");
+  const [tab, setTab] = useState("reports");
+
+  // Auto-save: wrapped setters mark a store "dirty"; debounced effects persist it.
+  const dirty = useRef({ data: false, workspace: false, leads: false });
+  const editData = (updater) => {
+    dirty.current.data = true;
+    setData(updater);
+  };
+  const editWorkspace = (updater) => {
+    dirty.current.workspace = true;
+    setWorkspace(updater);
+  };
+  const editLeads = (updater) => {
+    dirty.current.leads = true;
+    setLeads(updater);
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -302,6 +322,55 @@ function Dashboard({ adminPassword, onPasswordChange, onLogout }) {
 
     return () => controller.abort();
   }, [adminPassword]);
+
+  // Debounced auto-save per store.
+  useEffect(() => {
+    if (!dirty.current.data) return undefined;
+    const timer = setTimeout(async () => {
+      dirty.current.data = false;
+      setStatus("Saqlanmoqda...");
+      try {
+        await saveSiteData(data, { password: adminPassword });
+        setStatus("Avtomatik saqlandi ✓");
+      } catch {
+        setStatus("Saqlab bo'lmadi — qayta urinilmoqda");
+        dirty.current.data = true;
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [data, adminPassword]);
+
+  useEffect(() => {
+    if (!dirty.current.workspace) return undefined;
+    const timer = setTimeout(async () => {
+      dirty.current.workspace = false;
+      setStatus("Saqlanmoqda...");
+      try {
+        await saveWorkspace(workspace, { password: adminPassword });
+        setStatus("Avtomatik saqlandi ✓");
+      } catch {
+        setStatus("Saqlab bo'lmadi — qayta urinilmoqda");
+        dirty.current.workspace = true;
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [workspace, adminPassword]);
+
+  useEffect(() => {
+    if (!dirty.current.leads) return undefined;
+    const timer = setTimeout(async () => {
+      dirty.current.leads = false;
+      setStatus("Saqlanmoqda...");
+      try {
+        await saveLeads(leads, { password: adminPassword });
+        setStatus("Avtomatik saqlandi ✓");
+      } catch {
+        setStatus("Saqlab bo'lmadi — qayta urinilmoqda");
+        dirty.current.leads = true;
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [leads, adminPassword]);
 
   async function persist() {
     setSaving(true);
@@ -436,34 +505,36 @@ function Dashboard({ adminPassword, onPasswordChange, onLogout }) {
         </nav>
 
         <div className="min-w-0">
-          {tab === "services" && <ServicesEditor data={data} setData={setData} />}
+          {tab === "services" && <ServicesEditor data={data} setData={editData} />}
           {tab === "projects" && (
-            <ProjectsEditor data={data} setData={setData} adminPassword={adminPassword} />
+            <ProjectsEditor data={data} setData={editData} adminPassword={adminPassword} />
           )}
-          {tab === "testimonials" && <TestimonialsEditor data={data} setData={setData} />}
-          {tab === "faq" && <FaqEditor data={data} setData={setData} />}
+          {tab === "testimonials" && <TestimonialsEditor data={data} setData={editData} />}
+          {tab === "faq" && <FaqEditor data={data} setData={editData} />}
           {tab === "blog" && (
-            <PostsEditor data={data} setData={setData} adminPassword={adminPassword} />
+            <PostsEditor data={data} setData={editData} adminPassword={adminPassword} />
           )}
           {tab === "settings" && (
             <SettingsEditor adminPassword={adminPassword} onPasswordChange={onPasswordChange} />
           )}
 
+          {tab === "reports" && <Reports workspace={workspace} leads={leads} />}
           {tab === "leads" && (
             <LeadsManager
               leads={leads}
-              setLeads={setLeads}
+              setLeads={editLeads}
               workspace={workspace}
-              setWorkspace={setWorkspace}
+              setWorkspace={editWorkspace}
               adminPassword={adminPassword}
             />
           )}
-          {tab === "clients" && <ClientsEditor workspace={workspace} setWorkspace={setWorkspace} />}
-          {tab === "works" && <WorksEditor workspace={workspace} setWorkspace={setWorkspace} />}
-          {tab === "payments" && <PaymentsEditor workspace={workspace} setWorkspace={setWorkspace} />}
-          {tab === "tasks" && <TasksBoard workspace={workspace} setWorkspace={setWorkspace} />}
-          {tab === "notes" && <NotesEditor workspace={workspace} setWorkspace={setWorkspace} />}
-          {tab === "calculator" && <Calculator services={data.services || []} />}
+          {tab === "clients" && <ClientsEditor workspace={workspace} setWorkspace={editWorkspace} />}
+          {tab === "works" && <WorksEditor workspace={workspace} setWorkspace={editWorkspace} />}
+          {tab === "payments" && <PaymentsEditor workspace={workspace} setWorkspace={editWorkspace} />}
+          {tab === "calendar" && <CalendarView workspace={workspace} />}
+          {tab === "tasks" && <TasksBoard workspace={workspace} setWorkspace={editWorkspace} />}
+          {tab === "notes" && <NotesEditor workspace={workspace} setWorkspace={editWorkspace} />}
+          {tab === "calculator" && <Calculator data={data} setData={editData} />}
           {tab === "docs" && <DocGenerator workspace={workspace} />}
         </div>
       </div>
@@ -864,13 +935,20 @@ function GalleryField({ images, onChange, adminPassword }) {
     onChange((images || []).filter((_, i) => i !== index));
   }
 
+  const reorder = useReorder(images || [], onChange);
+
   return (
     <div className="mt-4 space-y-2">
-      <span className={labelClass}>Qo'shimcha rasmlar (galereya)</span>
+      <span className={labelClass}>Qo'shimcha rasmlar (galereya) — sudrab tartiblang</span>
       <div className="flex flex-wrap gap-3">
         {(images || []).map((url, index) => (
-          <div key={url + index} className="relative h-20 w-28 overflow-hidden rounded-lg border bg-surface">
-            <img src={url} alt="" className="h-full w-full object-cover" />
+          <div
+            key={url + index}
+            {...reorder.rowProps(index)}
+            {...reorder.handleProps(index)}
+            className="relative h-20 w-28 cursor-move overflow-hidden rounded-lg border bg-surface transition data-[over=true]:ring-2 data-[over=true]:ring-accent"
+          >
+            <img src={url} alt="" className="pointer-events-none h-full w-full object-cover" />
             <button
               type="button"
               onClick={() => removeAt(index)}
@@ -1522,6 +1600,15 @@ function downloadCsv(filename, rows) {
   URL.revokeObjectURL(url);
 }
 
+function contactLink(contact) {
+  const value = String(contact || "").trim();
+  if (!value) return null;
+  if (value.startsWith("@")) return `https://t.me/${value.slice(1)}`;
+  if (value.startsWith("http")) return value;
+  if (/^[+\d][\d\s()-]*$/.test(value)) return `tel:${value.replace(/[\s()-]/g, "")}`;
+  return null;
+}
+
 function ExportButton({ onClick }) {
   return (
     <button
@@ -1642,6 +1729,20 @@ function SearchBox({ value, onChange, placeholder }) {
 function LeadsManager({ leads, setLeads, workspace, setWorkspace, adminPassword }) {
   const [message, setMessage] = useState("");
   const [filter, setFilter] = useState("all");
+  const [picked, setPicked] = useState([]);
+
+  const isPicked = (id) => picked.includes(id);
+  function togglePick(id) {
+    setPicked((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
+  }
+  function bulkStatus(status) {
+    setLeads((current) => current.map((lead) => (picked.includes(lead.id) ? { ...lead, status } : lead)));
+    setPicked([]);
+  }
+  function bulkDelete() {
+    setLeads((current) => current.filter((lead) => !picked.includes(lead.id)));
+    setPicked([]);
+  }
 
   function updateLead(id, patch) {
     setLeads((current) => current.map((lead) => (lead.id === id ? { ...lead, ...patch } : lead)));
@@ -1716,15 +1817,31 @@ function LeadsManager({ leads, setLeads, workspace, setWorkspace, adminPassword 
             />
           </div>
 
+          {picked.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-accent/30 bg-accent/5 px-4 py-2.5">
+              <span className="text-sm font-semibold">{picked.length} ta tanlandi:</span>
+              <button type="button" onClick={() => bulkStatus("seen")} className="rounded-lg border bg-card px-3 py-1.5 text-sm transition hover:border-accent hover:text-accent">👀 Ko'rilgan</button>
+              <button type="button" onClick={() => bulkStatus("done")} className="rounded-lg border bg-card px-3 py-1.5 text-sm transition hover:border-accent hover:text-accent">✅ Yakunlangan</button>
+              <button type="button" onClick={bulkDelete} className="rounded-lg border border-destructive/20 px-3 py-1.5 text-sm text-destructive transition hover:bg-destructive hover:text-destructive-foreground">🗑 O'chirish</button>
+              <button type="button" onClick={() => setPicked([])} className="ml-auto text-sm text-muted-foreground hover:text-foreground">Bekor qilish</button>
+            </div>
+          )}
+
           <div className="mt-5 grid gap-3">
             {visible.map((lead) => {
               const [statusLabel, statusTone] = LEAD_STATUS[lead.status] || LEAD_STATUS.new;
               return (
                 <div
                   key={lead.id}
-                  className={`rounded-2xl border p-4 transition ${lead.status === "new" ? "border-accent/40 bg-accent/[0.04]" : "bg-card"}`}
+                  className={`rounded-2xl border p-4 transition ${isPicked(lead.id) ? "border-accent ring-2 ring-accent/30" : lead.status === "new" ? "border-accent/40 bg-accent/[0.04]" : "bg-card"}`}
                 >
                   <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={isPicked(lead.id)}
+                      onChange={() => togglePick(lead.id)}
+                      className="mt-3.5 h-4 w-4 accent-[var(--color-accent)]"
+                    />
                     <Avatar name={lead.name} />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -1886,6 +2003,16 @@ function ClientsEditor({ workspace, setWorkspace }) {
                         <div className="truncate font-display text-lg font-bold">{client.name || "—"}</div>
                         {client.contact && <div className="truncate text-sm text-muted-foreground">{client.contact}</div>}
                       </div>
+                      {contactLink(client.contact) && (
+                        <a
+                          href={contactLink(client.contact)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-2 text-sm font-semibold transition hover:border-accent hover:text-accent"
+                        >
+                          <MessageSquareQuote className="h-4 w-4" /> Bog'lanish
+                        </a>
+                      )}
                       <Pill tone={statusTone}>{statusLabel}</Pill>
                     </div>
                     <div className="grid gap-4 md:grid-cols-4">
@@ -1961,9 +2088,11 @@ function WorksEditor({ workspace, setWorkspace }) {
     setWorkspace((current) => ({ ...current, works: current.works.filter((item) => item.id !== id) }));
   }
 
+  const reorder = useReorder(works, (next) => setWorkspace((c) => ({ ...c, works: next })));
   const activeCount = works.filter((w) => w.status !== "done").length;
   const totalValue = works.reduce((sum, w) => sum + toNumber(w.price), 0);
   const received = works.reduce((sum, w) => sum + toNumber(w.prepaid), 0);
+  const canReorder = statusFilter === "all";
   const visible = statusFilter === "all" ? works : works.filter((w) => w.status === statusFilter);
 
   return (
@@ -1987,13 +2116,22 @@ function WorksEditor({ workspace, setWorkspace }) {
           </div>
 
           <div className="mt-5 grid gap-4">
-            {visible.map((work) => {
+            {visible.map((work, index) => {
               const left = daysLeft(work.deadline);
               const remaining = toNumber(work.price) - toNumber(work.prepaid);
               const [statusLabel, statusTone] = WORK_STATUS_MAP[work.status] || WORK_STATUS_MAP.plan;
               const progress = Math.max(0, Math.min(100, Number(work.progress) || 0));
               return (
-                <div key={work.id} className="rounded-2xl border bg-card p-4">
+                <div
+                  key={work.id}
+                  {...(canReorder ? reorder.rowProps(index) : {})}
+                  className="rounded-2xl border bg-card p-4 transition data-[over=true]:border-accent data-[over=true]:ring-2 data-[over=true]:ring-accent/30"
+                >
+                  {canReorder && (
+                    <div className="mb-3">
+                      <ReorderControls index={index} count={works.length} move={reorder.move} handleProps={reorder.handleProps(index)} />
+                    </div>
+                  )}
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -2122,6 +2260,9 @@ function PaymentsEditor({ workspace, setWorkspace }) {
       .map(([month, total]) => ({ month, total }));
   }, [payments]);
 
+  const reorder = useReorder(payments, (next) => setWorkspace((c) => ({ ...c, payments: next })));
+  const canReorder = statusFilter === "all";
+
   function update(id, patch) {
     setWorkspace((current) => ({
       ...current,
@@ -2212,8 +2353,17 @@ function PaymentsEditor({ workspace, setWorkspace }) {
           <div className="mt-5 grid gap-4">
             {payments
               .filter((p) => statusFilter === "all" || (statusFilter === "paid" ? p.status === "paid" : p.status !== "paid"))
-              .map((payment) => (
-                <div key={payment.id} className="rounded-2xl border bg-card p-4">
+              .map((payment, index) => (
+                <div
+                  key={payment.id}
+                  {...(canReorder ? reorder.rowProps(index) : {})}
+                  className="rounded-2xl border bg-card p-4 transition data-[over=true]:border-accent data-[over=true]:ring-2 data-[over=true]:ring-accent/30"
+                >
+                  {canReorder && (
+                    <div className="mb-3">
+                      <ReorderControls index={index} count={payments.length} move={reorder.move} handleProps={reorder.handleProps(index)} />
+                    </div>
+                  )}
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="font-display text-lg font-bold">{formatSom(payment.amount)} <span className="text-xs font-normal text-muted-foreground">so'm</span></div>
@@ -2415,40 +2565,35 @@ function NotesEditor({ workspace, setWorkspace }) {
 
 /* ------------------------------ Kalkulyator ------------------------------ */
 
-const CALC_ADDONS = [
-  { key: "multilang", label: "Ko'p tillilik (UZ/RU)", price: 700000 },
-  { key: "payment", label: "To'lov integratsiyasi", price: 900000 },
-  { key: "admin", label: "Admin panel", price: 1200000 },
-  { key: "seo", label: "Kengaytirilgan SEO", price: 500000 },
-];
-
-function Calculator({ services }) {
+function Calculator({ data, setData }) {
+  const services = data.services || [];
+  const addons = data.settings?.calcAddons || [];
   const [baseId, setBaseId] = useState(services[0]?.id || "");
   const [selected, setSelected] = useState({});
   const [rush, setRush] = useState(false);
   const [discount, setDiscount] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
-  const base = services.find((service) => service.id === baseId);
+  const base = services.find((service) => service.id === baseId) || services[0];
   const basePrice = base ? toNumber(base.price) : 0;
-  const addonsSum = CALC_ADDONS.reduce((sum, addon) => (selected[addon.key] ? sum + addon.price : sum), 0);
+  const addonsSum = addons.reduce((sum, addon) => (selected[addon.key] ? sum + toNumber(addon.price) : sum), 0);
   let subtotal = basePrice + addonsSum;
   if (rush) subtotal = Math.round(subtotal * 1.3);
   const total = Math.round(subtotal * (1 - (Number(discount) || 0) / 100));
 
-  function quoteText() {
-    const lines = [
-      "OzodFlow — taxminiy hisob",
-      "",
-      `Asosiy xizmat: ${base?.title || "-"} — ${formatSom(basePrice)} so'm`,
-    ];
-    CALC_ADDONS.forEach((addon) => {
+  function buildLines() {
+    const lines = [`Asosiy xizmat: ${base?.title || "—"} — ${formatSom(basePrice)} so'm`];
+    addons.forEach((addon) => {
       if (selected[addon.key]) lines.push(`+ ${addon.label}: ${formatSom(addon.price)} so'm`);
     });
     if (rush) lines.push("+ Tezkor bajarish: +30%");
     if (Number(discount) > 0) lines.push(`Chegirma: -${discount}%`);
-    lines.push("", `Jami: ${formatSom(total)} so'm`);
-    return lines.join("\n");
+    return lines;
+  }
+
+  function quoteText() {
+    return ["OzodFlow — taxminiy hisob", "", ...buildLines(), "", `Jami: ${formatSom(total)} so'm`].join("\n");
   }
 
   function copy() {
@@ -2458,9 +2603,33 @@ function Calculator({ services }) {
     });
   }
 
+  async function downloadImage() {
+    setDownloading(true);
+    try {
+      await downloadDocImage({
+        fileName: "ozodflow-hisob.png",
+        heading: "Taxminiy hisob",
+        lines: buildLines(),
+        highlight: { label: "Jami narx", value: `${formatSom(total)} so'm` },
+      });
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  function updateAddon(key, patch) {
+    setData((current) => ({
+      ...current,
+      settings: {
+        ...current.settings,
+        calcAddons: (current.settings?.calcAddons || []).map((a) => (a.key === key ? { ...a, ...patch } : a)),
+      },
+    }));
+  }
+
   return (
     <SectionShell icon={CalculatorIcon} label="Kalkulyator" title="Narx kalkulyatori">
-      <div className="mt-6 grid gap-6 md:grid-cols-2">
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="space-y-4">
           <label className="block space-y-2">
             <span className={labelClass}>Asosiy xizmat</span>
@@ -2475,9 +2644,9 @@ function Calculator({ services }) {
 
           <div className="space-y-2">
             <span className={labelClass}>Qo'shimchalar</span>
-            {CALC_ADDONS.map((addon) => (
-              <label key={addon.key} className="flex items-center justify-between rounded-lg border bg-card px-3 py-2 text-sm">
-                <span className="flex items-center gap-2">
+            {addons.map((addon) => (
+              <label key={addon.key} className="flex items-center justify-between rounded-xl border bg-card px-3 py-2.5 text-sm transition hover:border-accent/40">
+                <span className="flex items-center gap-2.5">
                   <input
                     type="checkbox"
                     checked={Boolean(selected[addon.key])}
@@ -2486,10 +2655,10 @@ function Calculator({ services }) {
                   />
                   {addon.label}
                 </span>
-                <span className="text-muted-foreground">+{formatSom(addon.price)}</span>
+                <span className="font-semibold text-muted-foreground">+{formatSom(addon.price)}</span>
               </label>
             ))}
-            <label className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm">
+            <label className="flex items-center gap-2.5 rounded-xl border bg-card px-3 py-2.5 text-sm transition hover:border-accent/40">
               <input type="checkbox" checked={rush} onChange={(e) => setRush(e.target.checked)} className="h-4 w-4 accent-[var(--color-accent)]" />
               Tezkor bajarish (+30%)
             </label>
@@ -2499,16 +2668,53 @@ function Calculator({ services }) {
             <span className={labelClass}>Chegirma (%)</span>
             <input type="number" min="0" max="100" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} className={fieldClass} />
           </label>
+
+          <details className="rounded-xl border bg-card p-4">
+            <summary className="cursor-pointer text-sm font-semibold">⚙️ Qo'shimcha narxlarni tahrirlash</summary>
+            <p className="mt-2 text-xs text-muted-foreground">O'zgartirib, yuqoridagi "Saqlash" tugmasini bosing.</p>
+            <div className="mt-3 grid gap-2">
+              {addons.map((addon) => (
+                <div key={addon.key} className="flex items-center gap-2">
+                  <input value={addon.label} onChange={(e) => updateAddon(addon.key, { label: e.target.value })} className={`${fieldClass} flex-1`} />
+                  <input type="number" value={addon.price} onChange={(e) => updateAddon(addon.key, { price: Number(e.target.value) })} className={`${fieldClass} w-36`} />
+                </div>
+              ))}
+            </div>
+          </details>
         </div>
 
-        <div className="flex flex-col rounded-2xl border bg-surface/50 p-6">
-          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Jami narx</div>
-          <div className="mt-2 font-display text-4xl font-bold">{formatSom(total)} <span className="text-lg font-normal text-muted-foreground">so'm</span></div>
-          <pre className="mt-4 flex-1 whitespace-pre-wrap rounded-xl bg-background p-4 text-sm text-muted-foreground">{quoteText()}</pre>
-          <button type="button" onClick={copy} className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-accent">
-            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            {copied ? "Nusxalandi" : "Hisobni nusxalash"}
-          </button>
+        <div className="flex flex-col rounded-2xl border bg-gradient-to-br from-primary/[0.03] to-accent/[0.05] p-6">
+          <div className="flex items-center gap-2.5">
+            <img src="/logo-mark.png" alt="" className="h-9 w-9 rounded-lg" />
+            <div>
+              <div className="font-display font-bold leading-tight">OzodFlow</div>
+              <div className="text-xs text-muted-foreground">Taxminiy hisob</div>
+            </div>
+          </div>
+
+          <div className="mt-4 flex-1 space-y-1.5 border-y py-4 text-sm">
+            {buildLines().map((line, i) => (
+              <div key={i} className="flex justify-between gap-4 text-muted-foreground">
+                <span>{line}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 rounded-xl bg-primary px-5 py-4 text-primary-foreground">
+            <div className="text-xs uppercase tracking-wider opacity-70">Jami narx</div>
+            <div className="font-display text-3xl font-bold">{formatSom(total)} <span className="text-base font-normal opacity-70">so'm</span></div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" onClick={copy} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border bg-card px-4 py-3 text-sm font-semibold transition hover:border-accent hover:text-accent">
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {copied ? "Nusxalandi" : "Nusxalash"}
+            </button>
+            <button type="button" onClick={downloadImage} disabled={downloading} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-accent disabled:opacity-60">
+              {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Rasm (PNG)
+            </button>
+          </div>
         </div>
       </div>
     </SectionShell>
@@ -2526,39 +2732,40 @@ function DocGenerator({ workspace }) {
   const [date, setDate] = useState(today);
   const [deadline, setDeadline] = useState("");
   const [copied, setCopied] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  const isInvoice = type === "invoice";
+  const heading = isInvoice ? "Hisob-faktura" : "Shartnoma";
+  const docNo = date.replace(/-/g, "");
+
+  const rows = [
+    ["Hujjat", `${heading} № ${docNo}`],
+    ["Sana", formatDate(date)],
+    [isInvoice ? "Mijoz" : "Buyurtmachi", client || "—"],
+    [isInvoice ? "Xizmat" : "Ish", service || "—"],
+    ...(!isInvoice && deadline ? [["Topshirish muddati", formatDate(deadline)]] : []),
+  ];
+
+  const conditions = isInvoice
+    ? ["To'lov: 50% oldindan, 50% topshirilganda."]
+    : [
+        "1. To'lov: 50% oldindan, 50% topshirilganda.",
+        "2. 30 kun bepul texnik yordam va kafolat.",
+        "3. Texnik topshiriq kelishilgach ish boshlanadi.",
+      ];
 
   function docText() {
-    if (type === "invoice") {
-      return [
-        "HISOB-FAKTURA",
-        "OzodFlow — raqamli yechimlar",
-        "",
-        `Sana: ${date}`,
-        `Mijoz: ${client || "-"}`,
-        `Xizmat: ${service || "-"}`,
-        `Summa: ${formatSom(amount)} so'm`,
-        "",
-        "To'lov: 50% oldindan, 50% topshirilganda.",
-        "Aloqa: +998 93 230 34 10 | @OzodFlow_uz",
-      ].join("\n");
-    }
     return [
-      "SHARTNOMA (qisqacha)",
+      heading.toUpperCase() + ` № ${docNo}`,
       "OzodFlow — raqamli yechimlar",
       "",
-      `Sana: ${date}`,
-      `Buyurtmachi: ${client || "-"}`,
-      `Ish: ${service || "-"}`,
-      `Narx: ${formatSom(amount)} so'm`,
-      deadline ? `Topshirish muddati: ${deadline}` : "",
+      ...rows.slice(1).map(([k, v]) => `${k}: ${v}`),
+      `Summa: ${formatSom(amount)} so'm`,
       "",
-      "Shartlar:",
-      "1. To'lov: 50% oldindan, 50% topshirilganda.",
-      "2. 30 kun bepul texnik yordam va kafolat.",
-      "3. Texnik topshiriq kelishilgach ish boshlanadi.",
+      ...conditions,
       "",
-      "Ijrochi: OzodFlow — +998 93 230 34 10 | @OzodFlow_uz",
-    ].filter(Boolean).join("\n");
+      "Aloqa: +998 93 230 34 10 | @OzodFlow_uz",
+    ].join("\n");
   }
 
   function copy() {
@@ -2568,32 +2775,64 @@ function DocGenerator({ workspace }) {
     });
   }
 
+  async function downloadImage() {
+    setDownloading(true);
+    try {
+      await downloadDocImage({
+        fileName: `${isInvoice ? "hisob-faktura" : "shartnoma"}-${docNo}.png`,
+        heading: `${heading} № ${docNo}`,
+        lines: [...rows.slice(1).map(([k, v]) => `${k}: ${v}`), "", ...conditions],
+        highlight: { label: "Summa", value: `${formatSom(amount)} so'm` },
+      });
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   function printDoc() {
     const win = window.open("", "_blank", "width=820,height=1000");
     if (!win) return;
-    const title = type === "invoice" ? "Hisob-faktura" : "Shartnoma";
-    const escape = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const body = docText()
-      .split("\n")
-      .map((line) => (line.trim() === "" ? "<br/>" : `<div>${escape(line)}</div>`))
+    const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const rowsHtml = rows
+      .map(([k, v]) => `<tr><td class="k">${esc(k)}</td><td class="v">${esc(v)}</td></tr>`)
       .join("");
+    const condHtml = conditions.map((c) => `<li>${esc(c)}</li>`).join("");
     win.document.write(
-      `<!doctype html><html lang="uz"><head><meta charset="utf-8"><title>${title} — OzodFlow</title>` +
-        `<style>body{font-family:Arial,Helvetica,sans-serif;color:#0b1530;max-width:680px;margin:40px auto;padding:0 24px;line-height:1.7}` +
-        `.brand{display:flex;align-items:center;gap:12px;border-bottom:2px solid #2563eb;padding-bottom:16px;margin-bottom:24px}` +
-        `.brand img{width:44px;height:44px;border-radius:10px}.brand b{font-size:22px}` +
-        `.doc div{font-size:15px}@media print{body{margin:0}}</style></head><body>` +
-        `<div class="brand"><img src="${window.location.origin}/logo-mark.png"/><b>OzodFlow</b></div>` +
-        `<div class="doc">${body}</div></body></html>`
+      `<!doctype html><html lang="uz"><head><meta charset="utf-8"><title>${esc(heading)} — OzodFlow</title>` +
+        `<style>` +
+        `*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#0b1530;margin:0;background:#f1f5f9}` +
+        `.page{max-width:720px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.08)}` +
+        `.bar{height:10px;background:#2563eb}` +
+        `.inner{padding:40px}` +
+        `.brand{display:flex;align-items:center;gap:14px;margin-bottom:8px}` +
+        `.brand img{width:56px;height:56px;border-radius:14px}.brand b{font-size:26px}.brand span{color:#64748b;font-size:14px;display:block}` +
+        `h1{font-size:20px;color:#2563eb;margin:24px 0 16px;letter-spacing:.5px}` +
+        `table{width:100%;border-collapse:collapse;margin-bottom:20px}` +
+        `td{padding:11px 0;border-bottom:1px solid #eef2f7;font-size:15px;vertical-align:top}` +
+        `.k{color:#64748b;width:42%}.v{font-weight:600;text-align:right}` +
+        `.total{display:flex;justify-content:space-between;align-items:center;background:#2563eb;color:#fff;border-radius:14px;padding:18px 22px;margin:8px 0 22px}` +
+        `.total .lbl{opacity:.8;font-size:14px}.total .amt{font-size:28px;font-weight:700}` +
+        `ul{padding-left:18px;color:#475569;font-size:14px;line-height:1.8;margin:0 0 22px}` +
+        `.foot{border-top:1px solid #eef2f7;padding-top:16px;color:#94a3b8;font-size:13px;text-align:center}` +
+        `@media print{body{background:#fff}.page{box-shadow:none;margin:0;border-radius:0}}` +
+        `</style></head><body>` +
+        `<div class="page"><div class="bar"></div><div class="inner">` +
+        `<div class="brand"><img src="${window.location.origin}/logo-mark.png"/><div><b>OzodFlow</b><span>Raqamli yechimlar — sayt, bot, CRM</span></div></div>` +
+        `<h1>${esc(heading.toUpperCase())} № ${esc(docNo)}</h1>` +
+        `<table>${rowsHtml}</table>` +
+        `<div class="total"><span class="lbl">Summa</span><span class="amt">${esc(formatSom(amount))} so'm</span></div>` +
+        `<ul>${condHtml}</ul>` +
+        `<div class="foot">+998 93 230 34 10 &nbsp;|&nbsp; @OzodFlow_uz &nbsp;|&nbsp; ozodflow.uz</div>` +
+        `</div></div></body></html>`
     );
     win.document.close();
     win.focus();
-    setTimeout(() => win.print(), 400);
+    setTimeout(() => win.print(), 500);
   }
 
   return (
     <SectionShell icon={FileText} label="Hujjatlar" title="Hisob-faktura / Shartnoma">
-      <div className="mt-6 grid gap-6 md:grid-cols-2">
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="space-y-4">
           <label className="block space-y-2">
             <span className={labelClass}>Hujjat turi</span>
@@ -2625,7 +2864,7 @@ function DocGenerator({ workspace }) {
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={fieldClass} />
             </label>
           </div>
-          {type === "contract" && (
+          {!isInvoice && (
             <label className="block space-y-2">
               <span className={labelClass}>Topshirish muddati</span>
               <input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} className={fieldClass} />
@@ -2633,18 +2872,280 @@ function DocGenerator({ workspace }) {
           )}
         </div>
 
-        <div className="flex flex-col rounded-2xl border bg-surface/50 p-6">
-          <pre className="flex-1 whitespace-pre-wrap rounded-xl bg-background p-4 text-sm">{docText()}</pre>
+        {/* Live preview — looks like the real document */}
+        <div className="flex flex-col">
+          <div className="overflow-hidden rounded-2xl border bg-white text-[#0b1530] shadow-card">
+            <div className="h-2 bg-accent" />
+            <div className="p-6">
+              <div className="flex items-center gap-3">
+                <img src="/logo-mark.png" alt="" className="h-12 w-12 rounded-xl" />
+                <div>
+                  <div className="font-display text-xl font-bold">OzodFlow</div>
+                  <div className="text-xs text-slate-500">Raqamli yechimlar</div>
+                </div>
+              </div>
+              <div className="mt-5 text-sm font-bold uppercase tracking-wide text-accent">{heading} № {docNo}</div>
+              <div className="mt-3 divide-y">
+                {rows.slice(1).map(([k, v]) => (
+                  <div key={k} className="flex justify-between gap-4 py-2.5 text-sm">
+                    <span className="text-slate-500">{k}</span>
+                    <span className="text-right font-semibold">{v}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex items-center justify-between rounded-xl bg-primary px-5 py-4 text-primary-foreground">
+                <span className="text-sm opacity-80">Summa</span>
+                <span className="font-display text-2xl font-bold">{formatSom(amount)} so'm</span>
+              </div>
+              <ul className="mt-4 list-disc space-y-1 pl-5 text-xs text-slate-500">
+                {conditions.map((c) => (
+                  <li key={c}>{c}</li>
+                ))}
+              </ul>
+              <div className="mt-4 border-t pt-3 text-center text-xs text-slate-400">
+                +998 93 230 34 10 | @OzodFlow_uz | ozodflow.uz
+              </div>
+            </div>
+          </div>
+
           <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" onClick={copy} className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-accent">
+            <button type="button" onClick={copy} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border bg-card px-4 py-3 text-sm font-semibold transition hover:border-accent hover:text-accent">
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               {copied ? "Nusxalandi" : "Nusxalash"}
             </button>
-            <button type="button" onClick={printDoc} className="inline-flex items-center justify-center gap-2 rounded-xl border bg-card px-5 py-3 text-sm font-semibold transition hover:border-accent hover:text-accent">
-              <Printer className="h-4 w-4" /> PDF / Chop etish
+            <button type="button" onClick={downloadImage} disabled={downloading} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-accent disabled:opacity-60">
+              {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Rasm (PNG)
+            </button>
+            <button type="button" onClick={printDoc} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border bg-card px-4 py-3 text-sm font-semibold transition hover:border-accent hover:text-accent">
+              <Printer className="h-4 w-4" /> PDF
             </button>
           </div>
         </div>
+      </div>
+    </SectionShell>
+  );
+}
+
+/* ------------------------------- Hisobotlar ------------------------------ */
+
+function Reports({ workspace, leads }) {
+  const paid = workspace.payments.filter((p) => p.status === "paid").reduce((s, p) => s + toNumber(p.amount), 0);
+  const pending = workspace.payments.filter((p) => p.status !== "paid").reduce((s, p) => s + toNumber(p.amount), 0);
+  const newLeads = leads.filter((l) => l.status === "new").length;
+  const activeWorks = workspace.works.filter((w) => w.status !== "done").length;
+
+  const monthly = useMemo(() => {
+    const map = {};
+    workspace.payments
+      .filter((p) => p.status === "paid")
+      .forEach((p) => {
+        const month = (p.date || "").slice(0, 7);
+        if (!month) return;
+        map[month] = (map[month] || 0) + toNumber(p.amount);
+      });
+    return Object.entries(map).sort((a, b) => a[0].localeCompare(b[0])).slice(-6).map(([month, total]) => ({ month, total }));
+  }, [workspace.payments]);
+
+  const byType = useMemo(() => {
+    const map = {};
+    workspace.works.forEach((w) => {
+      const key = w.type?.trim() || "Boshqa";
+      map[key] = (map[key] || 0) + toNumber(w.price);
+    });
+    const total = Object.values(map).reduce((s, v) => s + v, 0) || 1;
+    return Object.entries(map)
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, value]) => ({ type, value, percent: Math.round((value / total) * 100) }));
+  }, [workspace.works]);
+
+  const topClients = useMemo(() => {
+    const map = {};
+    workspace.payments
+      .filter((p) => p.status === "paid")
+      .forEach((p) => {
+        const key = p.client?.trim() || "—";
+        map[key] = (map[key] || 0) + toNumber(p.amount);
+      });
+    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, value]) => ({ name, value }));
+  }, [workspace.payments]);
+
+  return (
+    <SectionShell icon={BarChart3} label="Hisobot" title="Umumiy ko'rsatkichlar">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatChip label="Jami daromad" value={`${formatSom(paid)} so'm`} tone="text-emerald-600" />
+        <StatChip label="Kutilayotgan" value={`${formatSom(pending)} so'm`} tone="text-amber-600" />
+        <StatChip label="Faol ishlar" value={activeWorks} tone="text-sky" />
+        <StatChip label="Yangi arizalar" value={newLeads} tone="text-accent" />
+      </div>
+
+      {monthly.length > 0 && (
+        <div className="mt-5 rounded-2xl border bg-card p-4">
+          <div className={labelClass}>Oylik daromad (so'm)</div>
+          <div className="mt-3">
+            <Suspense fallback={<div className="h-56 animate-pulse rounded-lg bg-muted" />}>
+              <IncomeChart data={monthly} />
+            </Suspense>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-5 grid gap-5 lg:grid-cols-2">
+        <div className="rounded-2xl border bg-card p-5">
+          <div className={labelClass}>Ish turlari bo'yicha qiymat</div>
+          {byType.length === 0 ? (
+            <p className="mt-3 text-sm text-muted-foreground">Ma'lumot yo'q.</p>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {byType.map((row) => (
+                <div key={row.type}>
+                  <div className="mb-1 flex justify-between text-sm">
+                    <span className="font-medium">{row.type}</span>
+                    <span className="text-muted-foreground">{formatSom(row.value)} so'm · {row.percent}%</span>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-secondary">
+                    <div className="h-full rounded-full bg-accent" style={{ width: `${row.percent}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-2xl border bg-card p-5">
+          <div className={labelClass}>Eng ko'p daromad keltirgan mijozlar</div>
+          {topClients.length === 0 ? (
+            <p className="mt-3 text-sm text-muted-foreground">Ma'lumot yo'q.</p>
+          ) : (
+            <div className="mt-4 space-y-2">
+              {topClients.map((row, i) => (
+                <div key={row.name} className="flex items-center justify-between rounded-lg bg-surface px-3 py-2.5 text-sm">
+                  <span className="flex items-center gap-2.5">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/15 text-xs font-bold text-accent">{i + 1}</span>
+                    {row.name}
+                  </span>
+                  <span className="font-semibold">{formatSom(row.value)} so'm</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </SectionShell>
+  );
+}
+
+/* -------------------------------- Kalendar ------------------------------- */
+
+const MONTHS_UZ = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr"];
+const WEEKDAYS_UZ = ["Du", "Se", "Cho", "Pa", "Ju", "Sha", "Ya"];
+
+function CalendarView({ workspace }) {
+  const [view, setView] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
+
+  const events = useMemo(() => {
+    const map = {};
+    workspace.works.forEach((w) => {
+      if (w.deadline && w.status !== "done") {
+        (map[w.deadline] = map[w.deadline] || []).push({ type: "deadline", label: `⏰ ${w.title}` });
+      }
+    });
+    workspace.payments.forEach((p) => {
+      if (p.date && p.status !== "paid") {
+        (map[p.date] = map[p.date] || []).push({ type: "payment", label: `💰 ${p.client || "To'lov"} — ${formatSom(p.amount)}` });
+      }
+    });
+    return map;
+  }, [workspace.works, workspace.payments]);
+
+  const first = new Date(view.year, view.month, 1);
+  const startOffset = (first.getDay() + 6) % 7; // Monday-first
+  const daysInMonth = new Date(view.year, view.month + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < startOffset; i += 1) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d += 1) cells.push(d);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const pad = (n) => String(n).padStart(2, "0");
+  const dateStr = (d) => `${view.year}-${pad(view.month + 1)}-${pad(d)}`;
+
+  function shift(delta) {
+    setView((current) => {
+      const m = current.month + delta;
+      return { year: current.year + Math.floor(m / 12), month: ((m % 12) + 12) % 12 };
+    });
+  }
+
+  const upcoming = Object.entries(events)
+    .filter(([d]) => d >= todayStr)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(0, 8);
+
+  return (
+    <SectionShell icon={CalendarDays} label="Kalendar" title="Deadline va to'lovlar">
+      <div className="mt-5 flex items-center justify-between">
+        <button type="button" onClick={() => shift(-1)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-card transition hover:border-accent hover:text-accent">
+          <ChevronUp className="h-4 w-4 -rotate-90" />
+        </button>
+        <div className="font-display text-lg font-bold">{MONTHS_UZ[view.month]} {view.year}</div>
+        <button type="button" onClick={() => shift(1)} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border bg-card transition hover:border-accent hover:text-accent">
+          <ChevronDown className="h-4 w-4 -rotate-90" />
+        </button>
+      </div>
+
+      <div className="mt-4 grid grid-cols-7 gap-1 text-center text-xs font-semibold text-muted-foreground">
+        {WEEKDAYS_UZ.map((d) => (
+          <div key={d} className="py-1">{d}</div>
+        ))}
+      </div>
+      <div className="mt-1 grid grid-cols-7 gap-1">
+        {cells.map((d, i) => {
+          if (!d) return <div key={`e-${i}`} />;
+          const ds = dateStr(d);
+          const dayEvents = events[ds] || [];
+          const isToday = ds === todayStr;
+          return (
+            <div
+              key={ds}
+              className={`min-h-16 rounded-lg border p-1.5 text-left ${isToday ? "border-accent bg-accent/5" : "bg-card"}`}
+            >
+              <div className={`text-xs font-semibold ${isToday ? "text-accent" : "text-muted-foreground"}`}>{d}</div>
+              <div className="mt-1 space-y-1">
+                {dayEvents.slice(0, 2).map((ev, idx) => (
+                  <div
+                    key={idx}
+                    title={ev.label}
+                    className={`truncate rounded px-1 py-0.5 text-[10px] font-medium ${ev.type === "deadline" ? "bg-amber-500/15 text-amber-600" : "bg-emerald-500/15 text-emerald-600"}`}
+                  >
+                    {ev.label}
+                  </div>
+                ))}
+                {dayEvents.length > 2 && <div className="text-[10px] text-muted-foreground">+{dayEvents.length - 2}</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-6">
+        <div className={labelClass}>Yaqin sanalar</div>
+        {upcoming.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">Yaqin deadline yoki to'lov yo'q.</p>
+        ) : (
+          <div className="mt-3 space-y-2">
+            {upcoming.flatMap(([d, evs]) =>
+              evs.map((ev, idx) => (
+                <div key={`${d}-${idx}`} className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2 text-sm">
+                  <span className="font-medium text-muted-foreground">{formatDate(d)}</span>
+                  <span>{ev.label}</span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </SectionShell>
   );

@@ -207,6 +207,12 @@ export const DEFAULT_SITE_DATA = {
       "Assalomu alaykum! 👋 Sayt orqali yozyapman.\nMenga «{title}» xizmati kerak edi. Narxi va muddati haqida batafsil ma'lumot bera olasizmi?",
     orderMessageRu:
       "Здравствуйте! 👋 Пишу с вашего сайта.\nМеня интересует услуга «{title}». Подскажите, пожалуйста, цену и сроки?",
+    calcAddons: [
+      { key: "multilang", label: "Ko'p tillilik (UZ/RU)", price: 300000 },
+      { key: "payment", label: "To'lov integratsiyasi (Click/Payme)", price: 500000 },
+      { key: "admin", label: "Admin panel", price: 800000 },
+      { key: "seo", label: "Kengaytirilgan SEO", price: 300000 },
+    ],
   },
 };
 

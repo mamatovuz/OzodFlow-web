@@ -23,7 +23,7 @@ export async function downloadDocImage({ fileName, heading, lines = [], highligh
   const W = 1080;
   const pad = 80;
   const lineH = 48;
-  const headerH = 240;
+  const headerH = 280;
   const highlightH = highlight ? 150 : 0;
   const footerH = 110;
   const H = headerH + lines.length * lineH + highlightH + footerH;
@@ -41,28 +41,29 @@ export async function downloadDocImage({ fileName, heading, lines = [], highligh
   ctx.fillStyle = accent;
   ctx.fillRect(0, 0, W, 12);
 
-  // logo + brand (centered at top)
+  // logo + brand (centered at top, with clear vertical spacing)
   const logo = await loadImage("/logo-mark.png");
-  const logoSize = 96;
+  const logoSize = 84;
   if (logo) {
-    roundRect(ctx, (W - logoSize) / 2, 56, logoSize, logoSize, 22);
+    roundRect(ctx, (W - logoSize) / 2, 40, logoSize, logoSize, 20);
     ctx.save();
     ctx.clip();
-    ctx.drawImage(logo, (W - logoSize) / 2, 56, logoSize, logoSize);
+    ctx.drawImage(logo, (W - logoSize) / 2, 40, logoSize, logoSize);
     ctx.restore();
   }
   ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
   ctx.fillStyle = "#0b1530";
-  ctx.font = "700 42px Arial";
-  ctx.fillText("OzodFlow", W / 2, 196);
+  ctx.font = "700 40px Arial";
+  ctx.fillText("OzodFlow", W / 2, 168); // below logo (logo ends at 124)
   ctx.fillStyle = "#64748b";
   ctx.font = "400 20px Arial";
-  ctx.fillText("Raqamli yechimlar — sayt, bot, CRM", W / 2, 224);
+  ctx.fillText("Raqamli yechimlar — sayt, bot, CRM", W / 2, 198);
 
   // heading
   ctx.fillStyle = accent;
   ctx.font = "700 26px Arial";
-  ctx.fillText(heading.toUpperCase(), W / 2, headerH - 4);
+  ctx.fillText(heading.toUpperCase(), W / 2, 244);
 
   // body lines (left aligned)
   ctx.textAlign = "left";

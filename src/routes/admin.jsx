@@ -2970,8 +2970,63 @@ function Reports({ workspace, leads }) {
     return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([name, value]) => ({ name, value }));
   }, [workspace.payments]);
 
+  function printReport() {
+    const win = window.open("", "_blank", "width=820,height=1000");
+    if (!win) return;
+    const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const section = (title, rows) =>
+      `<h2>${esc(title)}</h2><table>${rows || '<tr><td class="muted">Ma\'lumot yo\'q</td></tr>'}</table>`;
+    const monthRows = monthly.map((m) => `<tr><td>${esc(m.month)}</td><td class="r">${esc(formatSom(m.total))} so'm</td></tr>`).join("");
+    const typeRows = byType.map((t) => `<tr><td>${esc(t.type)}</td><td class="r">${esc(formatSom(t.value))} so'm · ${t.percent}%</td></tr>`).join("");
+    const clientRows = topClients.map((c, i) => `<tr><td>${i + 1}. ${esc(c.name)}</td><td class="r">${esc(formatSom(c.value))} so'm</td></tr>`).join("");
+    win.document.write(
+      `<!doctype html><html lang="uz"><head><meta charset="utf-8"><title>Hisobot — OzodFlow</title><style>` +
+        `*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#0b1530;margin:0;background:#f1f5f9}` +
+        `.page{max-width:760px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.08)}` +
+        `.bar{height:10px;background:#2563eb}.inner{padding:40px}` +
+        `.brand{display:flex;align-items:center;gap:14px}.brand img{width:52px;height:52px;border-radius:13px}.brand b{font-size:24px}.brand span{display:block;color:#64748b;font-size:13px}` +
+        `.stats{display:flex;flex-wrap:wrap;gap:12px;margin:24px 0}` +
+        `.stat{flex:1;min-width:150px;border:1px solid #eef2f7;border-radius:12px;padding:14px}` +
+        `.stat .l{font-size:12px;color:#64748b}.stat .v{font-size:20px;font-weight:700;margin-top:4px}` +
+        `h2{font-size:15px;color:#2563eb;margin:22px 0 8px}` +
+        `table{width:100%;border-collapse:collapse}td{padding:9px 0;border-bottom:1px solid #eef2f7;font-size:14px}` +
+        `.r{text-align:right;font-weight:600}.muted{color:#94a3b8}` +
+        `.foot{margin-top:24px;border-top:1px solid #eef2f7;padding-top:14px;color:#94a3b8;font-size:13px;text-align:center}` +
+        `@media print{body{background:#fff}.page{box-shadow:none;margin:0;border-radius:0}}` +
+        `</style></head><body><div class="page"><div class="bar"></div><div class="inner">` +
+        `<div class="brand"><img src="${window.location.origin}/logo-mark.png"/><div><b>OzodFlow</b><span>Hisobot — ${esc(formatDate(new Date().toISOString().slice(0, 10)))}</span></div></div>` +
+        `<div class="stats">` +
+        `<div class="stat"><div class="l">Jami daromad</div><div class="v">${esc(formatSom(paid))} so'm</div></div>` +
+        `<div class="stat"><div class="l">Kutilayotgan</div><div class="v">${esc(formatSom(pending))} so'm</div></div>` +
+        `<div class="stat"><div class="l">Faol ishlar</div><div class="v">${activeWorks}</div></div>` +
+        `<div class="stat"><div class="l">Yangi arizalar</div><div class="v">${newLeads}</div></div>` +
+        `</div>` +
+        section("Oylik daromad", monthRows) +
+        section("Ish turlari bo'yicha", typeRows) +
+        section("Eng ko'p daromad keltirgan mijozlar", clientRows) +
+        `<div class="foot">+998 93 230 34 10 &nbsp;|&nbsp; @OzodFlow_uz &nbsp;|&nbsp; ozodflow.uz</div>` +
+        `</div></div></body></html>`
+    );
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 500);
+  }
+
   return (
-    <SectionShell icon={BarChart3} label="Hisobot" title="Umumiy ko'rsatkichlar">
+    <SectionShell
+      icon={BarChart3}
+      label="Hisobot"
+      title="Umumiy ko'rsatkichlar"
+      action={
+        <button
+          type="button"
+          onClick={printReport}
+          className="inline-flex w-fit items-center gap-2 rounded-xl border bg-card px-4 py-2.5 text-sm font-semibold transition hover:border-accent hover:text-accent"
+        >
+          <Printer className="h-4 w-4" /> PDF hisobot
+        </button>
+      }
+    >
       <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatChip label="Jami daromad" value={`${formatSom(paid)} so'm`} tone="text-emerald-600" />
         <StatChip label="Kutilayotgan" value={`${formatSom(pending)} so'm`} tone="text-amber-600" />

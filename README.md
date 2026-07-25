@@ -191,8 +191,35 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 
 `PORT` ni qo'lda kiritish kerak emas — Railway o'zi beradi.
 
-**3. Deploy.** Migratsiyalar konteyner ishga tushganda avtomatik qo'llanadi,
-super admin esa birinchi startda yaratiladi.
+**3. Build va Start buyruqlarini BO'SH qoldiring.**
+
+Railway service → **Settings → Build** va **Settings → Deploy**:
+
+| Sozlama | Qiymat |
+| --- | --- |
+| Builder | `Dockerfile` |
+| Build Command | **bo'sh** |
+| Custom Start Command | **bo'sh** |
+| Pre-deploy Command | **bo'sh** |
+
+> **Bu eng ko'p uchraydigan xato.** Custom Start Command'ga `npm start`
+> yozilgan bo'lsa, Railway Dockerfile'dagi `ENTRYPOINT` ni **chetlab
+> o'tadi** — natijada migratsiyalar qo'llanmaydi va konteyner
+> `sh: 1: next: not found` bilan yiqiladi (`next` binarysi standalone
+> image'da yo'q, u faqat runtime bog'liqliklarini oladi).
+>
+> Dockerfile o'zi hamma narsani biladi: migratsiya → server.
+>
+> Agar biror sababdan start command kerak bo'lsa, u entrypoint'dan
+> o'tishi shart:
+>
+> ```
+> ./docker/entrypoint.sh node server.js
+> ```
+
+**4. Deploy.** Migratsiyalar konteyner ishga tushganda avtomatik qo'llanadi
+(`docker/entrypoint.sh`), super admin esa birinchi startda yaratiladi
+(`src/instrumentation.ts`).
 
 Admin yaratilgandan keyin `OZODFLOW_ADMIN_PASSWORD` ni Variables'dan
 o'chirib qo'yish tavsiya etiladi — u boshqa kerak bo'lmaydi.

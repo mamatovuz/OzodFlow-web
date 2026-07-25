@@ -141,6 +141,31 @@ COPY --from=builder --chown=node:node /app/node_modules/.prisma ./node_modules/.
 COPY --chown=node:node docker/entrypoint.sh ./docker/entrypoint.sh
 RUN chmod +x ./docker/entrypoint.sh
 
+# ── `npm start` ni ham ishlaydigan qilamiz ─────────────────────────────────
+#
+# MUAMMO: deploy platformalari (Railway, Render) konteynerni ko'pincha o'z
+# "Custom Start Command" bilan ishga tushiradi — masalan `npm start`. Bu
+# Dockerfile'dagi ENTRYPOINT'ni CHETLAB O'TADI, ya'ni:
+#
+#   • migratsiyalar qo'llanmaydi
+#   • `npm start` standalone bundle ichidagi package.json'ni o'qiydi, u yerda
+#     `start` hamon `next start` — lekin `next` binarysi bu image'da YO'Q
+#     (standalone faqat runtime bog'liqliklarini oladi)
+#
+# Natija: `sh: 1: next: not found`.
+#
+# YECHIM: image ichidagi `start` skriptini qayta yozamiz, shunda `npm start`
+# ham entrypoint orqali o'tadi va migratsiyalar bajariladi. Endi konteyner
+# platformaning sozlamasi qanday bo'lishidan qat'i nazar to'g'ri ishga tushadi.
+#
+# Eng to'g'ri yo'l — platformada custom start command'ni BO'SH qoldirish,
+# lekin bu himoya eski sozlama qolib ketgan holatni ham qutqaradi.
+RUN node -e "const fs=require('node:fs'); \
+const manifest=JSON.parse(fs.readFileSync('package.json','utf8')); \
+manifest.scripts={start:'sh ./docker/entrypoint.sh node server.js'}; \
+fs.writeFileSync('package.json', JSON.stringify(manifest,null,2)+'\n');" \
+  && chown node:node package.json
+
 USER node
 
 EXPOSE 3000

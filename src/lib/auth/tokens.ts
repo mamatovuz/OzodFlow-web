@@ -58,7 +58,10 @@ export function parseDuration(value: string): number {
   return amount * multiplier;
 }
 
-function readSecret(name: "JWT_ACCESS_SECRET" | "JWT_REFRESH_SECRET"): Uint8Array {
+type SecretName = "JWT_ACCESS_SECRET" | "JWT_REFRESH_SECRET";
+
+/** Maxfiy kalitni o'qiydi va uzunligini tekshiradi. */
+function requireSecretValue(name: SecretName): string {
   const value = process.env[name];
 
   if (!value || value.length < 32) {
@@ -68,7 +71,12 @@ function readSecret(name: "JWT_ACCESS_SECRET" | "JWT_REFRESH_SECRET"): Uint8Arra
     );
   }
 
-  return new TextEncoder().encode(value);
+  return value;
+}
+
+/** jose uchun kalit — bayt ko'rinishida. */
+function readSecret(name: SecretName): Uint8Array {
+  return new TextEncoder().encode(requireSecretValue(name));
 }
 
 export const ACCESS_TOKEN_TTL_SECONDS = parseDuration(
@@ -180,20 +188,32 @@ export function generateRefreshToken(): string {
  *
  * `crypto.subtle` ishlatiladi — u Node'da ham, Edge'da ham bor.
  */
+/**
+ * Matnni `crypto.subtle` qabul qiladigan baytlar ko'rinishiga o'giradi.
+ *
+ * Nega oddiy `TextEncoder().encode()` yetarli emas: TypeScript 5.7'dan
+ * boshlab `Uint8Array` o'zining buffer turi bo'yicha generic bo'ldi va
+ * `encode()` `Uint8Array<ArrayBufferLike>` qaytaradi. `ArrayBufferLike`
+ * ichida `SharedArrayBuffer` ham bor, `crypto.subtle` esa uni qabul
+ * qilmaydi (bir vaqtda o'zgarishi mumkin bo'lgan xotira bilan kriptografiya
+ * qilish xavfli).
+ *
+ * `new Uint8Array(...)` yangi, oddiy `ArrayBuffer` ustida nusxa yasaydi.
+ */
+function toBytes(text: string): Uint8Array<ArrayBuffer> {
+  return new Uint8Array(new TextEncoder().encode(text));
+}
+
 export async function hashRefreshToken(token: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
-    readSecret("JWT_REFRESH_SECRET"),
+    toBytes(requireSecretValue("JWT_REFRESH_SECRET")),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
   );
 
-  const signature = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    new TextEncoder().encode(token)
-  );
+  const signature = await crypto.subtle.sign("HMAC", key, toBytes(token));
 
   return [...new Uint8Array(signature)]
     .map((byte) => byte.toString(16).padStart(2, "0"))

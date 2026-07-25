@@ -42,6 +42,82 @@
     "LEGEND": "Legenda"
   },
 
+  "projectStatus": {
+    "DRAFT": "Qoralama",
+    "PENDING_REVIEW": "Tekshiruvda",
+    "OPEN": "Ochiq",
+    "IN_PROGRESS": "Ishlanmoqda",
+    "DELIVERED": "Topshirildi",
+    "IN_REVISION": "Tuzatishda",
+    "COMPLETED": "Yakunlandi",
+    "CANCELLED": "Bekor qilindi",
+    "DISPUTED": "Nizoda"
+  },
+
+  "dashboard": {
+    "greeting": "Salom, {name}",
+    "customerSubtitle": "Loyihalaringiz va hisobingiz holati.",
+    "developerSubtitle": "Ishlaringiz, daromadingiz va yangi imkoniyatlar.",
+
+    "customer": {
+      "balance": "Hamyon balansi",
+      "balanceHint": "Loyihalarga to'lash uchun",
+      "locked": "Escrow'da bloklangan",
+      "lockedHint": "Ish qabul qilingach taqsimlanadi",
+      "activeProjects": "Faol loyihalar",
+      "completedProjects": "Yakunlangan loyihalar",
+      "totalSpent": "Umumiy sarflangan",
+      "proposalsToReview": "Ko'rib chiqilishi kerak",
+      "proposalsHint": "Yangi takliflar sizni kutmoqda",
+      "recentTitle": "Oxirgi loyihalar",
+      "recentDescription": "Eng yangi buyurtmalaringiz",
+      "viewAll": "Barchasi",
+      "emptyTitle": "Hali loyiha joylashtirmagansiz",
+      "emptyDescription": "Birinchi loyihangizni tasvirlab bering — tekshirilgan mutaxassislardan takliflar odatda bir kun ichida keladi.",
+      "emptyCta": "Loyiha joylashtirish",
+      "draftNotice": "{count, plural, one {# qoralama loyihangiz bor} other {# qoralama loyihangiz bor}} — ularni yakunlab joylashtiring.",
+      "draftCta": "Qoralamalarni ko'rish"
+    },
+
+    "developer": {
+      "balance": "Hamyon balansi",
+      "balanceHint": "Yechib olish uchun mavjud",
+      "pending": "Kutilayotgan daromad",
+      "pendingHint": "Escrow'da, ish tugagach keladi",
+      "totalEarned": "Umumiy daromad",
+      "activeWork": "Faol ishlar",
+      "completedProjects": "Yakunlangan loyihalar",
+      "rating": "O'rtacha reyting",
+      "ratingHint": "{count, plural, =0 {Hali sharh yo'q} one {# sharh asosida} other {# sharh asosida}}",
+      "successRate": "Muvaffaqiyat darajasi",
+      "level": "Daraja",
+      "xpToNext": "{next} darajasiga {remaining} XP qoldi",
+      "maxLevel": "Eng yuqori daraja",
+      "pendingProposals": "Yuborilgan takliflar",
+      "availableProjects": "Ochiq loyihalar",
+      "availableHint": "Taklif yuborish mumkin",
+      "recentTitle": "Oxirgi ishlar",
+      "recentDescription": "Siz bajaryotgan va bajargan loyihalar",
+      "browseProjects": "Loyihalarni ko'rish",
+      "emptyTitle": "Hali loyiha qabul qilmagansiz",
+      "emptyDescription": "Ochiq loyihalarni ko'rib chiqing va o'zingizga mos ishga taklif yuboring.",
+      "emptyCta": "Ochiq loyihalarni ko'rish",
+      "notVerifiedTitle": "Profilingiz hali tasdiqlanmagan",
+      "notVerifiedBody": "Ariza ko'rikdan o'tgach loyihalarga taklif yuborish imkoni ochiladi.",
+      "notVerifiedCta": "Ariza holatini ko'rish"
+    },
+
+    "project": {
+      "budget": "Byudjet",
+      "agreed": "Kelishilgan",
+      "deadline": "Muddat",
+      "noDeadline": "Muddat belgilanmagan",
+      "proposals": "{count, plural, =0 {Taklif yo'q} one {# taklif} other {# taklif}}",
+      "overdue": "{days, plural, one {# kun kechikdi} other {# kun kechikdi}}",
+      "daysLeft": "{days, plural, =0 {Bugun tugaydi} one {# kun qoldi} other {# kun qoldi}}"
+    }
+  },
+
   "appNav": {
     "dashboard": "Kabinet",
     "myProjects": "Loyihalarim",

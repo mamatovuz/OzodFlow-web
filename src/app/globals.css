@@ -373,8 +373,16 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    /* Raqamlar bir xil kenglikda — jadvaldagi summalar ustun bo'lib turadi */
-    font-variant-numeric: tabular-nums;
+
+    /* DIQQAT: `tabular-nums` bu yerda ATAYLAB YO'Q.
+     *
+     * Tabular raqamlar har bir raqamga `0` ning kengligini beradi. Bu
+     * ustunlarda zarur (jadval qatorlari, o'q belgilari) — raqamlar
+     * vertikal tekislanadi. Lekin KATTA yakka son uchun zararli:
+     * "121" kabi qiymat yoyilib, bo'sh joyli ko'rinadi.
+     *
+     * Shuning uchun standart holat — proporsional raqamlar, tabular esa
+     * `.tabular` yoki `.amount` sinfi bilan ATAYLAB qo'shiladi. */
   }
 
   /* Sarlavhalar display shriftda va zich harf oralig'i bilan.

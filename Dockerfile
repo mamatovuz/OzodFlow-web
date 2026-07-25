@@ -19,6 +19,19 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
+# npm versiyasini QADAB QO'YAMIZ.
+#
+# `node:22-slim` image'i npm 10.x bilan keladi, lekin package-lock.json npm 11
+# bilan yasalgan. Ikki versiya platformaga bog'liq optional paketlarni
+# (@emnapi/*, @img/sharp-*, @swc/helpers) turlicha yozadi va `npm ci`
+# "Missing from lock file" xatosi bilan yiqiladi.
+#
+# Lock faylni yasagan npm bilan bir xil versiya ishlatilsa bu muammo
+# butunlay yo'qoladi. Versiyani o'zgartirsangiz — lock faylni ham
+# o'sha npm bilan qayta yasang.
+ARG NPM_VERSION=11.6.2
+RUN npm install -g "npm@${NPM_VERSION}"
+
 # Faqat manifest fayllar ko'chiriladi: kod o'zgarganda bu qatlam
 # keshdan olinadi va `npm ci` qayta ishlamaydi.
 COPY package.json package-lock.json ./
@@ -33,6 +46,19 @@ WORKDIR /app
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
+
+# npm versiyasini QADAB QO'YAMIZ.
+#
+# `node:22-slim` image'i npm 10.x bilan keladi, lekin package-lock.json npm 11
+# bilan yasalgan. Ikki versiya platformaga bog'liq optional paketlarni
+# (@emnapi/*, @img/sharp-*, @swc/helpers) turlicha yozadi va `npm ci`
+# "Missing from lock file" xatosi bilan yiqiladi.
+#
+# Lock faylni yasagan npm bilan bir xil versiya ishlatilsa bu muammo
+# butunlay yo'qoladi. Versiyani o'zgartirsangiz — lock faylni ham
+# o'sha npm bilan qayta yasang.
+ARG NPM_VERSION=11.6.2
+RUN npm install -g "npm@${NPM_VERSION}"
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -60,6 +86,9 @@ WORKDIR /app
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
+
+# Bu bosqichda npm ISHLATILMAYDI (server `node server.js` bilan turadi),
+# shuning uchun npm qadab qo'yilmaydi — image bekorga kattalashmasin.
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

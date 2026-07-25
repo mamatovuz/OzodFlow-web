@@ -1,0 +1,143 @@
+/**
+ * Muhit o'zgaruvchilarini tekshirish.
+ *
+ * Ilova ishga tushganda `.env` to'g'ri to'ldirilganini SHU YERDA bir marta
+ * tekshiramiz. Sababi: `process.env.JWT_ACCESS_SECRET` bo'sh bo'lsa, xato
+ * to'lov oqimining o'rtasida chiqishidan ko'ra ishga tushishda chiqsin.
+ *
+ * Bu modul FAQAT serverda ishlaydi. Klientga kerakli qiymatlar
+ * `src/lib/env.client.ts` da, `NEXT_PUBLIC_` prefiksi bilan.
+ */
+
+import { z } from "zod";
+
+if (typeof window !== "undefined") {
+  throw new Error(
+    "src/lib/env.ts brauzerda import qilindi. Bu fayl maxfiy kalitlarni o'qiydi — " +
+      "klient kodida env.client.ts dan foydalaning."
+  );
+}
+
+/** Bo'sh matnni `undefined` ga aylantiradi — `.env` da `KEY=` yozilgan holat. */
+const optionalString = z
+  .string()
+  .trim()
+  .transform((value) => (value === "" ? undefined : value))
+  .optional();
+
+/** "15m", "30d", "3600s" ko'rinishidagi muddat. */
+const duration = z
+  .string()
+  .regex(/^\d+[smhd]$/, "Muddat formati: 30s, 15m, 12h, 30d");
+
+const envSchema = z.object({
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+
+  NEXT_PUBLIC_APP_URL: z.url("NEXT_PUBLIC_APP_URL to'liq URL bo'lishi kerak"),
+
+  // ── Database ───────────────────────────────────────────────────────────────
+  DATABASE_URL: z.string().min(1, "DATABASE_URL to'ldirilishi shart"),
+
+  // ── Auth ───────────────────────────────────────────────────────────────────
+  // 32 belgi — HS256 uchun minimal maqbul uzunlik.
+  JWT_ACCESS_SECRET: z
+    .string()
+    .min(32, "JWT_ACCESS_SECRET kamida 32 belgi bo'lishi kerak"),
+  JWT_REFRESH_SECRET: z
+    .string()
+    .min(32, "JWT_REFRESH_SECRET kamida 32 belgi bo'lishi kerak"),
+  ACCESS_TOKEN_TTL: duration.default("15m"),
+  REFRESH_TOKEN_TTL: duration.default("30d"),
+
+  // ── Birinchi admin ─────────────────────────────────────────────────────────
+  // Bo'sh bo'lishi mumkin: admin allaqachon yaratilgan bo'lsa kerak emas.
+  OZODFLOW_ADMIN_EMAIL: z.union([z.email(), z.literal("")]).optional(),
+  OZODFLOW_ADMIN_PASSWORD: optionalString,
+  OZODFLOW_ADMIN_NAME: z.string().default("OzodFlow Admin"),
+
+  // ── OTP ────────────────────────────────────────────────────────────────────
+  OTP_LENGTH: z.coerce.number().int().min(4).max(8).default(6),
+  OTP_TTL_SECONDS: z.coerce.number().int().min(60).max(1800).default(300),
+  OTP_MAX_ATTEMPTS: z.coerce.number().int().min(3).max(10).default(5),
+
+  // ── Telegram ───────────────────────────────────────────────────────────────
+  TELEGRAM_BOT_TOKEN: optionalString,
+  TELEGRAM_ADMIN_CHAT_ID: optionalString,
+  TELEGRAM_LOGIN_BOT_USERNAME: optionalString,
+
+  // ── Email ──────────────────────────────────────────────────────────────────
+  SMTP_HOST: optionalString,
+  SMTP_PORT: z.coerce.number().int().default(587),
+  SMTP_SECURE: z
+    .string()
+    .default("false")
+    .transform((value) => value === "true"),
+  SMTP_USER: optionalString,
+  SMTP_PASSWORD: optionalString,
+  MAIL_FROM: z.string().default("OzodFlow <noreply@ozodflow.uz>"),
+
+  // ── S3 ─────────────────────────────────────────────────────────────────────
+  S3_ENDPOINT: optionalString,
+  S3_REGION: z.string().default("auto"),
+  S3_BUCKET: z.string().default("ozodflow"),
+  S3_ACCESS_KEY_ID: optionalString,
+  S3_SECRET_ACCESS_KEY: optionalString,
+  S3_PUBLIC_URL: optionalString,
+
+  // ── Platforma ──────────────────────────────────────────────────────────────
+  PLATFORM_COMMISSION_PERCENT: z.coerce.number().min(0).max(50).default(15),
+  MIN_WITHDRAWAL_AMOUNT: z.coerce.number().int().min(0).default(100_000),
+  DEFAULT_CURRENCY: z.string().default("UZS"),
+
+  // ── AI ─────────────────────────────────────────────────────────────────────
+  ANTHROPIC_API_KEY: optionalString,
+  AI_MODEL: z.string().default("claude-sonnet-5"),
+
+  // ── Redis ──────────────────────────────────────────────────────────────────
+  REDIS_URL: optionalString,
+});
+
+export type Env = z.infer<typeof envSchema>;
+
+function loadEnv(): Env {
+  // Docker image yasashda maxfiy kalitlar hali berilmagan bo'ladi —
+  // build vaqtida tekshiruvni o'tkazib yuborish uchun.
+  if (process.env.SKIP_ENV_VALIDATION === "1") {
+    return process.env as unknown as Env;
+  }
+
+  const parsed = envSchema.safeParse(process.env);
+
+  if (!parsed.success) {
+    const problems = parsed.error.issues
+      .map((issue) => `  • ${issue.path.join(".")}: ${issue.message}`)
+      .join("\n");
+
+    throw new Error(
+      `\n╭─ Muhit sozlamalarida xato ─────────────────────────────────\n` +
+        `${problems}\n` +
+        `╰─ .env faylni tekshiring (namuna: .env.example)\n`
+    );
+  }
+
+  return parsed.data;
+}
+
+export const env = loadEnv();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Qulaylik uchun hisoblangan qiymatlar
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const isProduction = env.NODE_ENV === "production";
+export const isDevelopment = env.NODE_ENV === "development";
+
+/** Xizmat sozlanganmi — sozlanmagan bo'lsa jimgina o'chirib qo'yamiz. */
+export const features = {
+  email: Boolean(env.SMTP_HOST && env.SMTP_USER),
+  telegram: Boolean(env.TELEGRAM_BOT_TOKEN),
+  telegramLogin: Boolean(env.TELEGRAM_LOGIN_BOT_USERNAME && env.TELEGRAM_BOT_TOKEN),
+  s3: Boolean(env.S3_ENDPOINT && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY),
+  ai: Boolean(env.ANTHROPIC_API_KEY),
+  redis: Boolean(env.REDIS_URL),
+} as const;

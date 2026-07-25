@@ -1,0 +1,281 @@
+{
+  "common": {
+    "loading": "Yuklanmoqda…",
+    "save": "Saqlash",
+    "cancel": "Bekor qilish",
+    "delete": "O'chirish",
+    "edit": "Tahrirlash",
+    "close": "Yopish",
+    "back": "Orqaga",
+    "next": "Keyingi",
+    "search": "Qidirish",
+    "filter": "Filtr",
+    "all": "Barchasi",
+    "more": "Batafsil",
+    "send": "Yuborish",
+    "confirm": "Tasdiqlash",
+    "retry": "Qayta urinish",
+    "copy": "Nusxalash",
+    "copied": "Nusxalandi",
+    "required": "Majburiy maydon",
+    "optional": "ixtiyoriy",
+    "empty": "Hozircha bo'sh",
+    "error": "Xatolik yuz berdi",
+    "somm": "so'm",
+    "skipToContent": "Asosiy kontentga o'tish"
+  },
+
+  "theme": {
+    "toggle": "Yorqin va qorong'i rejimni almashtirish",
+    "light": "Yorqin",
+    "dark": "Qorong'i",
+    "system": "Tizim sozlamasi"
+  },
+
+  "levels": {
+    "BEGINNER": "Boshlovchi",
+    "JUNIOR": "Junior",
+    "MIDDLE": "Middle",
+    "SENIOR": "Senior",
+    "EXPERT": "Ekspert",
+    "ELITE": "Elita",
+    "LEGEND": "Legenda"
+  },
+
+  "nav": {
+    "services": "Xizmatlar",
+    "developers": "Mutaxassislar",
+    "howItWorks": "Qanday ishlaydi",
+    "pricing": "Narxlar",
+    "blog": "Blog",
+    "login": "Kirish",
+    "register": "Ro'yxatdan o'tish",
+    "dashboard": "Kabinet",
+    "postProject": "Loyiha joylashtirish",
+    "becomeDeveloper": "Mutaxassis bo'lish",
+    "openMenu": "Menyuni ochish",
+    "closeMenu": "Menyuni yopish",
+    "logo": "OzodFlow — bosh sahifa"
+  },
+
+  "home": {
+    "hero": {
+      "badge": "Escrow himoyasi bilan",
+      "title": "Raqamli ishingizni tekshirilgan mutaxassisga topshiring",
+      "subtitle": "Sayt, Telegram bot, mobil ilova yoki dizayn kerakmi — loyihangizni joylashtiring va tajribasi tasdiqlangan mutaxassislardan taklif oling. Pulingiz ishni qabul qilmaguningizcha bloklangan turadi.",
+      "ctaPrimary": "Loyiha joylashtirish",
+      "ctaSecondary": "Mutaxassislarni ko'rish",
+      "note": "Loyiha joylashtirish bepul. To'lov faqat mutaxassis tanlaganingizdan keyin.",
+      "mock": {
+        "escrowBadge": "Escrow faol",
+        "projectTitle": "Restoran uchun yetkazib berish sayti",
+        "lockedLabel": "Bloklangan summa",
+        "stepPosted": "Loyiha joylashtirildi",
+        "stepChosen": "Mutaxassis tanlandi",
+        "stepWorking": "Ish jarayonida",
+        "stepAccept": "Qabul qilish va to'lov",
+        "now": "hozir",
+        "devName": "Jahongir T.",
+        "devRole": "Full-stack developer"
+      }
+    },
+
+    "howItWorks": {
+      "label": "Qanday ishlaydi",
+      "title": "To'rt qadam — g'oyadan tayyor ishgacha",
+      "subtitle": "Har bosqichda nima bo'layotganini ko'rib turasiz. Yashirin to'lov ham, kutilmagan hisob ham yo'q.",
+      "steps": {
+        "brief": {
+          "title": "Loyihani tasvirlab bering",
+          "body": "Nima kerakligini yozing, misol fayllarni biriktiring, byudjet oralig'i va muddatni belgilang. Aniq tasvir bermoqchi bo'lmasangiz — AI yordamchisi savollar berib to'ldirishga yordam beradi."
+        },
+        "choose": {
+          "title": "Mutaxassis tanlang",
+          "body": "Tekshirilgan developerlar taklif yuboradi: narx, muddat va yondashuv. Portfolio, reyting, bajarilgan loyihalar va javob berish tezligini ko'rib qaror qilasiz."
+        },
+        "track": {
+          "title": "Jarayonni kuzatib turing",
+          "body": "Shaxsiy chat, bosqichlar jadvali va fayllar bitta oynada. Mutaxassis oraliq natijani yuklaydi, siz izoh yozasiz — hech narsa ko'zdan qolmaydi."
+        },
+        "accept": {
+          "title": "Qabul qiling va to'lang",
+          "body": "Tayyor ishni tekshirasiz. Kamchilik bo'lsa tuzatish so'raysiz. Faqat siz tasdiqlaganingizdan keyin pul mutaxassisga o'tadi."
+        }
+      }
+    },
+
+    "escrow": {
+      "label": "Ishonch",
+      "title": "Pulingiz kelishuv bajarilmaguncha bloklangan turadi",
+      "subtitle": "Frilans bozoridagi eng katta qo'rquv — oldindan to'lab, natija olmaslik. OzodFlow'da pul to'g'ridan-to'g'ri mutaxassisga o'tmaydi.",
+      "points": {
+        "hold": {
+          "title": "Escrow hisobida saqlanadi",
+          "body": "To'lovingiz platformada bloklanadi. Mutaxassis uni ish tugagunicha ko'rmaydi ham, olmaydi ham."
+        },
+        "release": {
+          "title": "Faqat sizning tasdig'ingiz bilan",
+          "body": "Ishni qabul qilganingizdan keyin tizim pulni avtomatik taqsimlaydi: mutaxassis ulushi va platforma komissiyasi."
+        },
+        "dispute": {
+          "title": "Nizo bo'lsa — betaraf ko'rik",
+          "body": "Kelishmovchilikda admin ikki tomonning dalillari va chat tarixini ko'rib chiqadi, adolatli qaror chiqaradi."
+        },
+        "refund": {
+          "title": "Qaytarish imkoni",
+          "body": "Ish bajarilmasa pul to'liq qaytariladi. Qismli bajarilgan bo'lsa — kelishilgan ulush bo'yicha bo'linadi."
+        }
+      },
+      "commissionNote": "Platforma komissiyasi mutaxassis ulushidan ushlanadi — mijoz kelishilgan summadan ortiq to'lamaydi.",
+      "diagram": {
+        "customerPays": "Mijoz to'laydi",
+        "locked": "Escrow'da bloklanadi",
+        "lockedNote": "Ish qabul qilinmaguncha",
+        "developerShare": "Mutaxassis — {percent}%",
+        "platformShare": "Platforma — {percent}",
+        "example": "Misol {amount} summa uchun. Taqsimlash tizim ishlatadigan aynan shu hisob-kitob bilan ko'rsatilgan."
+      }
+    },
+
+    "categories": {
+      "label": "Xizmatlar",
+      "title": "Nima buyurtma qilish mumkin",
+      "subtitle": "Har bir yo'nalishda o'sha sohaga ixtisoslashgan mutaxassislar ishlaydi.",
+      "viewAll": "Barcha xizmatlar",
+      "projectsCount": "{count, plural, one {# loyiha} other {# loyiha}}",
+      "empty": "Xizmat yo'nalishlari hozircha sozlanmagan."
+    },
+
+    "developers": {
+      "label": "Mutaxassislar",
+      "title": "Ishni kim bajaradi",
+      "subtitle": "Har bir mutaxassis portfolio, texnik test va shaxs tasdig'idan o'tgan.",
+      "viewAll": "Barcha mutaxassislar",
+      "empty": "Mutaxassislar ro'yxati hozircha bo'sh. Birinchi bo'lib qo'shilishni xohlaysizmi?",
+      "projectsDone": "{count, plural, =0 {Yangi} one {# loyiha} other {# loyiha}}",
+      "rating": "Reyting",
+      "hire": "Taklif qilish",
+      "viewProfile": "Profilni ko'rish",
+      "available": "Bo'sh",
+      "applyCta": "Ariza topshirish"
+    },
+
+    "stats": {
+      "projects": "Bajarilgan loyiha",
+      "developers": "Tekshirilgan mutaxassis",
+      "rating": "O'rtacha reyting",
+      "onTime": "Muddatda topshirilgan"
+    },
+
+    "forDevelopers": {
+      "label": "Mutaxassislar uchun",
+      "title": "Bu yerga kirish oson emas — shuning uchun mijozlar ishonadi",
+      "subtitle": "Har bir arizani odam ko'rib chiqadi. Portfolio, texnik test va shaxs tasdig'idan o'tgandan keyingina profil ochiladi.",
+      "benefits": {
+        "payment": {
+          "title": "To'lov kafolati",
+          "body": "Ish boshlanishidan avval mijoz puli escrow'da bloklanadi. Bajarganingizdan keyin to'lov olmaslik holati yo'q."
+        },
+        "profile": {
+          "title": "Ommaviy profil",
+          "body": "ozodflow.uz/dev/ismingiz — portfolio, sharhlar va statistikangiz Google'da indekslanadigan sahifada."
+        },
+        "growth": {
+          "title": "Daraja va nishonlar",
+          "body": "Bajarilgan ish, reyting va muddatga rioya darajangizni oshiradi. Yuqori darajali mutaxassislar ro'yxatda oldinda turadi."
+        },
+        "flow": {
+          "title": "Oqim boshqarish",
+          "body": "Bandlik holatini o'zingiz belgilaysiz. Kalendar, deadline va vazifalar bitta kabinetda."
+        }
+      },
+      "cta": "Ariza topshirish",
+      "requirements": "Talablar bilan tanishish"
+    },
+
+    "faq": {
+      "label": "Savol-javob",
+      "title": "Ko'p beriladigan savollar",
+      "items": {
+        "cost": {
+          "q": "Loyiha joylashtirish pullikmi?",
+          "a": "Yo'q. Loyihani joylashtirish, takliflarni ko'rish va mutaxassis bilan gaplashish bepul. To'lov faqat mutaxassisni tanlab, kelishuvni boshlaganingizda amalga oshiriladi."
+        },
+        "commission": {
+          "q": "Platforma qancha komissiya oladi?",
+          "a": "Komissiya kelishilgan summadan ushlanadi va mutaxassis ulushidan chiqadi — siz kelishilgan narxdan ortiq to'lamaysiz. Aniq foiz loyiha yaratilgan paytda ko'rsatiladi va keyin o'zgarmaydi."
+        },
+        "notSatisfied": {
+          "q": "Natija menga yoqmasa nima bo'ladi?",
+          "a": "Tuzatish so'rashingiz mumkin — mutaxassis kamchilikni bartaraf etadi. Kelishuv bajarilmagan deb hisoblasangiz nizo ochasiz: admin chat tarixi va yuklangan fayllarni ko'rib, pulni qaytarish yoki bo'lish haqida qaror chiqaradi."
+        },
+        "howVerified": {
+          "q": "Mutaxassislar qanday tekshiriladi?",
+          "a": "Ariza bosqichlari: portfolio va tajriba hujjatlari, texnik test (kod va mantiq savollari), amaliy topshiriq, hamda shaxsni tasdiqlash. Har bir arizani admin qo'lda ko'rib chiqadi."
+        },
+        "timeline": {
+          "q": "Mutaxassis muddatni buzsa?",
+          "a": "Deadline yaqinlashganda ikki tomonga eslatma boradi. Muddat buzilsa siz nizo ochishingiz mumkin. Kechikish mutaxassis statistikasiga yozilib, uning darajasiga ta'sir qiladi."
+        },
+        "payment": {
+          "q": "To'lovni qanday amalga oshiraman?",
+          "a": "Hozircha to'lov hamyon orqali: admin tasdiqlagan bank o'tkazmasi bilan hamyonni to'ldirasiz. Click, Payme va Uzum Bank integratsiyasi ishlab chiqilmoqda."
+        }
+      }
+    },
+
+    "cta": {
+      "title": "Loyihangizni bugun boshlaymizmi?",
+      "subtitle": "Tasvirlab berish 5 daqiqa vaqt oladi. Birinchi takliflar odatda bir kun ichida keladi.",
+      "primary": "Loyiha joylashtirish",
+      "secondary": "Avval mutaxassislarni ko'raman"
+    }
+  },
+
+  "footer": {
+    "tagline": "Tekshirilgan mutaxassislar bilan raqamli loyihalar. Escrow himoyasi bilan.",
+    "sections": {
+      "platform": "Platforma",
+      "forCustomers": "Mijozlar uchun",
+      "forDevelopers": "Mutaxassislar uchun",
+      "company": "Kompaniya",
+      "legal": "Huquqiy"
+    },
+    "links": {
+      "services": "Xizmatlar",
+      "developers": "Mutaxassislar",
+      "howItWorks": "Qanday ishlaydi",
+      "postProject": "Loyiha joylashtirish",
+      "pricing": "Narxlar",
+      "escrow": "Escrow qanday ishlaydi",
+      "support": "Yordam markazi",
+      "apply": "Ariza topshirish",
+      "requirements": "Talablar",
+      "levels": "Darajalar tizimi",
+      "blog": "Blog",
+      "about": "Loyiha haqida",
+      "contact": "Aloqa",
+      "terms": "Foydalanish shartlari",
+      "privacy": "Maxfiylik siyosati",
+      "offer": "Ommaviy oferta"
+    },
+    "contact": "Aloqa",
+    "rights": "Barcha huquqlar himoyalangan.",
+    "madeIn": "Andijonda ishlab chiqilgan"
+  },
+
+  "errors": {
+    "notFound": {
+      "title": "Sahifa topilmadi",
+      "body": "Bu manzilda hech narsa yo'q. Havola eskirgan yoki noto'g'ri yozilgan bo'lishi mumkin.",
+      "home": "Bosh sahifaga qaytish",
+      "browse": "Mutaxassislarni ko'rish"
+    },
+    "server": {
+      "title": "Nimadir ishlamadi",
+      "body": "Xatolik bizning tomonda. Sahifani yangilab ko'ring — muammo qolsa, yordam xizmatiga yozing.",
+      "retry": "Qayta urinish",
+      "home": "Bosh sahifa"
+    }
+  }
+}

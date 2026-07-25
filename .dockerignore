@@ -1,0 +1,47 @@
+# Build kontekstini kichik saqlaymiz — bu image yasash tezligiga
+# bevosita ta'sir qiladi.
+
+node_modules
+.next
+out
+dist
+
+# Eski Vite ilovasi — production image'ga kirmasligi kerak
+legacy
+
+# Database fayllari: konteynerda volume'dan keladi, kontekstga tushmaydi
+data
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Maxfiy ma'lumotlar HECH QACHON image'ga tushmasligi kerak.
+# Qiymatlar runtime'da environment orqali beriladi.
+.env
+.env*.local
+.env.production
+
+.git
+.gitignore
+.github
+
+# Deploy platformalari
+.vercel
+.wrangler
+.turbo
+
+# Hujjatlar va editor fayllari
+README.md
+*.md
+!prisma/**/*.md
+.vscode
+.idea
+.DS_Store
+
+# Loglar va vaqtinchalik fayllar
+*.log
+npm-debug.log*
+coverage
+.nyc_output
+*.tsbuildinfo

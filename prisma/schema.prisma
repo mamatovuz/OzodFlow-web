@@ -1,0 +1,1570 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// OzodFlow — ma'lumotlar modeli
+//
+// PORTATIVLIK QOIDALARI (Postgres'ga o'tishni oson qilish uchun)
+//
+//   1. `enum` ishlatilmaydi — SQLite'da Prisma enum'ni qo'llamaydi.
+//      Buning o'rniga `String` + `src/lib/enums.ts` dagi TS konstantalari.
+//      Yagona haqiqat manbasi — o'sha fayl, Zod validatorlar ham shundan oladi.
+//
+//   2. Skalyar massiv (`String[]`) ishlatilmaydi — SQLite'da yo'q.
+//      Ro'yxatlar uchun: alohida jadval (afzal) yoki `...Json String` maydoni.
+//
+//   3. `Json` tipi ishlatilmaydi — `String` ichida JSON matn.
+//      Maydon nomi `Json` bilan tugaydi, o'qish/yozish `src/lib/json-field.ts`
+//      orqali bo'ladi.
+//
+//   4. PUL — hamma joyda `BigInt`, birlik: TIYIN (1 so'm = 100 tiyin).
+//      Float ISHLATILMAYDI. Barcha hisob-kitob `src/lib/money.ts` orqali.
+//
+//   5. FOIZ — `Int`, birlik: BASIS POINT (100 bps = 1%, 1500 bps = 15%).
+//      Butun sonli matematika, yaxlitlash xatosi yo'q.
+//
+//   6. Float faqat statistik o'rtachalar uchun (reyting, muvaffaqiyat foizi) —
+//      ular pul emas, faqat ko'rsatish uchun keshlangan qiymatlar.
+//
+// Postgres'ga o'tish: `provider` ni o'zgartirish + DATABASE_URL. Xolos.
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// AUTH — foydalanuvchilar, sessiyalar, tasdiqlash
+// ═════════════════════════════════════════════════════════════════════════════
+
+model User {
+  id String @id @default(cuid())
+
+  // Kirish identifikatorlari. Kamida bittasi bo'lishi shart (app darajasida
+  // tekshiriladi — SQLite CHECK constraint'ni Prisma boshqarmaydi).
+  email    String? @unique
+  phone    String? @unique
+  // Ommaviy profil manzili: ozodflow.uz/dev/{username}
+  username String? @unique
+
+  // OTP yoki Telegram bilan kirgan foydalanuvchida parol bo'lmasligi mumkin.
+  passwordHash String?
+
+  role   String @default("CUSTOMER") // enums.ts → UserRole
+  status String @default("ACTIVE") // enums.ts → UserStatus
+
+  name      String
+  avatarUrl String?
+  locale    String  @default("uz")
+  timezone  String  @default("Asia/Tashkent")
+
+  emailVerifiedAt DateTime?
+  phoneVerifiedAt DateTime?
+
+  twoFactorEnabled Boolean @default(false)
+  // TOTP secret — shifrlangan holda saqlanadi (src/lib/crypto.ts)
+  twoFactorSecret  String?
+
+  // Ketma-ket muvaffaqiyatsiz kirishlar. Limitdan oshsa lockedUntil qo'yiladi.
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+  lastLoginAt      DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  // Yumshoq o'chirish — moliyaviy tarix saqlanishi kerak.
+  deletedAt DateTime?
+
+  customerProfile  CustomerProfile?
+  developerProfile DeveloperProfile?
+  wallet           Wallet?
+  notificationPref NotificationPreference?
+  streak           DailyStreak?
+  identityDocs     IdentityVerification[]  @relation("IdentityOwner")
+  identityReviews  IdentityVerification[]  @relation("IdentityReviewer")
+
+  accounts          Account[]
+  sessions          Session[]
+  pushSubscriptions PushSubscription[]
+
+  application       DeveloperApplication?  @relation("ApplicationOwner")
+  reviewedApps      DeveloperApplication[] @relation("ApplicationReviewer")
+
+  projectsOrdered   Project[] @relation("ProjectCustomer")
+  projectsAssigned  Project[] @relation("ProjectDeveloper")
+  proposals         Proposal[]
+  uploadedFiles     ProjectFile[]
+  projectEvents     ProjectEvent[]
+  revisionRequests  Revision[]
+
+  escrowsAsCustomer  Escrow[] @relation("EscrowCustomer")
+  escrowsAsDeveloper Escrow[] @relation("EscrowDeveloper")
+  withdrawals        Withdrawal[] @relation("WithdrawalOwner")
+  reviewedWithdrawals Withdrawal[] @relation("WithdrawalReviewer")
+  payments           Payment[]
+  invoices           Invoice[]
+  disputesOpened     Dispute[] @relation("DisputeOpener")
+  disputesResolved   Dispute[] @relation("DisputeResolver")
+
+  conversations ConversationParticipant[]
+  messages      Message[]
+
+  reviewsWritten  Review[] @relation("ReviewAuthor")
+  reviewsReceived Review[] @relation("ReviewTarget")
+
+  badges     UserBadge[]
+  xpEvents   XpEvent[]
+  favorites  Favorite[]
+  following  Follow[] @relation("Follower")
+  followers  Follow[] @relation("FollowedDeveloper")
+
+  referralsMade Referral[] @relation("Referrer")
+  referredBy    Referral?  @relation("Referee")
+  promoUses     PromoRedemption[]
+  promoCreated  PromoCode[] @relation("PromoCreator")
+
+  notifications  Notification[]
+  tickets        SupportTicket[] @relation("TicketOwner")
+  assignedTickets SupportTicket[] @relation("TicketAssignee")
+  ticketMessages TicketMessage[]
+
+  auditLogs     AuditLog[]
+  blogPosts     BlogPost[]
+  settingsSaved Setting[]
+
+  @@index([role, status])
+  @@index([createdAt])
+  @@index([deletedAt])
+}
+
+/// Ijtimoiy tarmoq orqali kirish (Telegram, Google, GitHub).
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  provider          String // enums.ts → AuthProvider
+  providerAccountId String
+  // Provider qaytargan xom ma'lumot (debug va profil to'ldirish uchun)
+  profileJson       String?
+  accessToken       String?
+  refreshToken      String?
+  expiresAt         DateTime?
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+/// Bir qurilmadagi bitta sessiya = bitta refresh token zanjiri.
+/// Token yangilanganda yangi yozuv yaratiladi, eskisi `replacedById` bilan
+/// bog'lanadi — o'g'irlangan tokenni qayta ishlatish shu orqali aniqlanadi.
+model Session {
+  id String @id @default(cuid())
+
+  userId String
+  // Refresh token XOM holda saqlanmaydi — faqat SHA-256 hash.
+  refreshTokenHash String @unique
+
+  userAgent   String?
+  ip          String?
+  deviceLabel String?
+
+  expiresAt  DateTime
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  // Bekor qilingan sabab: LOGOUT / ROTATED / REUSE_DETECTED / ADMIN / EXPIRED
+  revokedAt     DateTime?
+  revokedReason String?
+
+  // Rotatsiya zanjiri
+  replacedById String?  @unique
+  replacedBy   Session? @relation("SessionRotation", fields: [replacedById], references: [id], onDelete: SetNull)
+  replaces     Session? @relation("SessionRotation")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+/// Bir martalik kod: OTP bilan kirish, telefon/email tasdiqlash.
+model OtpCode {
+  id String @id @default(cuid())
+
+  // Email yoki telefon raqami (normalizatsiya qilingan holda)
+  identifier String
+  channel    String // enums.ts → OtpChannel: EMAIL | SMS | TELEGRAM
+  purpose    String // enums.ts → OtpPurpose
+
+  // Kod ham xom holda saqlanmaydi.
+  codeHash String
+
+  attempts    Int @default(0)
+  maxAttempts Int @default(5)
+
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  ip String?
+
+  @@index([identifier, purpose, consumedAt])
+  @@index([expiresAt])
+}
+
+/// Havola orqali ishlaydigan tasdiqlashlar (email tasdiqlash, parol tiklash).
+model VerificationToken {
+  id         String    @id @default(cuid())
+  identifier String
+  tokenHash  String    @unique
+  purpose    String // enums.ts → OtpPurpose
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([identifier, purpose])
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// PROFILLAR
+// ═════════════════════════════════════════════════════════════════════════════
+
+model CustomerProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  companyName String?
+  about       String?
+  website     String?
+
+  // Keshlangan statistika (tranzaksiyalar ichida yangilanadi)
+  totalSpent      BigInt @default(0) // tiyin
+  projectsPosted  Int    @default(0)
+  projectsDone    Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DeveloperProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  headline String?
+  bio      String?
+  coverUrl String?
+  location String?
+
+  githubUrl        String?
+  linkedinUrl      String?
+  portfolioUrl     String?
+  telegramUsername String?
+
+  yearsExperience Int    @default(0)
+  hourlyRate      BigInt @default(0) // tiyin/soat
+
+  // Obro' tizimi
+  level String @default("BEGINNER") // enums.ts → DeveloperLevel
+  xp    Int    @default(0)
+
+  // Keshlangan ko'rsatkichlar — Float, chunki bu pul emas, o'rtacha qiymat
+  ratingAvg   Float @default(0)
+  ratingCount Int   @default(0)
+  successRate Float @default(0)
+
+  completedProjects Int    @default(0)
+  cancelledProjects Int    @default(0)
+  totalEarned       BigInt @default(0) // tiyin
+
+  avgResponseMinutes Int? // xabarga javob berish o'rtacha vaqti
+  avgDeliveryDays    Int? // topshirish o'rtacha muddati
+
+  // Ish qabul qilish holati
+  availability  String  @default("AVAILABLE") // enums.ts → Availability
+  acceptingWork Boolean @default(true)
+
+  // Admin tasdiqlagan sana. null = hali tasdiqlanmagan, profil ochiq emas.
+  verifiedAt DateTime?
+  isFeatured Boolean   @default(false)
+
+  // Ommaviy profil SEO
+  seoTitle       String?
+  seoDescription String?
+  profileViews   Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  skills       DeveloperSkill[]
+  portfolio    PortfolioItem[]
+  certificates Certificate[]
+  languages    DeveloperLanguage[]
+
+  @@index([verifiedAt, acceptingWork])
+  @@index([level])
+  @@index([ratingAvg])
+  @@index([isFeatured])
+}
+
+model Skill {
+  id       String  @id @default(cuid())
+  slug     String  @unique
+  name     String
+  // Guruh: LANGUAGE | FRAMEWORK | DATABASE | DEVOPS | DESIGN | OTHER
+  kind     String  @default("OTHER")
+  icon     String?
+  isActive Boolean @default(true)
+
+  developers DeveloperSkill[]
+
+  @@index([kind, isActive])
+}
+
+model DeveloperSkill {
+  id                 String @id @default(cuid())
+  developerProfileId String
+  skillId            String
+
+  // 1..5 — o'zini baholashi, admin test natijasi bilan tuzatilishi mumkin
+  level           Int @default(3)
+  yearsExperience Int @default(0)
+
+  developerProfile DeveloperProfile @relation(fields: [developerProfileId], references: [id], onDelete: Cascade)
+  skill            Skill            @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([developerProfileId, skillId])
+  @@index([skillId])
+}
+
+/// Developer biladigan tillar (o'zbek, rus, ingliz...) — mijoz uchun muhim.
+model DeveloperLanguage {
+  id                 String @id @default(cuid())
+  developerProfileId String
+  // ISO kodi: uz, ru, en...
+  code               String
+  // NATIVE | FLUENT | INTERMEDIATE | BASIC
+  proficiency        String @default("INTERMEDIATE")
+
+  developerProfile DeveloperProfile @relation(fields: [developerProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([developerProfileId, code])
+}
+
+model PortfolioItem {
+  id                 String @id @default(cuid())
+  developerProfileId String
+
+  title       String
+  description String?
+  coverUrl    String?
+  url         String?
+  // Ishlatilgan texnologiyalar: JSON massiv (SQLite'da String[] yo'q)
+  techJson    String  @default("[]")
+  year        Int?
+
+  // Loyiha tugaganda avtomatik qo'shilgan bo'lsa — manba loyiha
+  sourceProjectId String? @unique
+
+  sortOrder Int      @default(0)
+  isVisible Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  developerProfile DeveloperProfile @relation(fields: [developerProfileId], references: [id], onDelete: Cascade)
+  sourceProject    Project?         @relation(fields: [sourceProjectId], references: [id], onDelete: SetNull)
+
+  @@index([developerProfileId, sortOrder])
+}
+
+model Certificate {
+  id                 String @id @default(cuid())
+  developerProfileId String
+
+  title    String
+  issuer   String?
+  fileUrl  String?
+  url      String?
+  issuedAt DateTime?
+
+  // Admin haqiqiyligini tekshirgan
+  verifiedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  developerProfile DeveloperProfile @relation(fields: [developerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([developerProfileId])
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// DEVELOPER ARIZASI — ataylab qiyin qilingan onboarding
+// ═════════════════════════════════════════════════════════════════════════════
+
+model DeveloperApplication {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  status String @default("DRAFT") // enums.ts → ApplicationStatus
+
+  // Shaxsiy ma'lumotlar (User'dan alohida — ariza tarixi o'zgarmas qolishi kerak)
+  fullName String
+  phone    String
+  email    String
+  telegram String?
+  github   String?
+  linkedin String?
+  portfolio String?
+
+  yearsExperience Int     @default(0)
+  motivation      String?
+
+  // Ko'nikmalar — ariza paytidagi holat, JSON massiv sifatida muzlatilgan
+  skillsJson    String @default("[]")
+  languagesJson String @default("[]")
+  frameworksJson String @default("[]")
+  databasesJson String @default("[]")
+  devopsJson    String @default("[]")
+
+  resumeUrl      String?
+  portfolioFileUrl String?
+
+  // Test natijasi
+  score       Int? // 0..100
+  passedTest  Boolean?
+  testStartedAt DateTime?
+  testEndsAt    DateTime?
+
+  reviewerId      String?
+  reviewNotes     String?
+  rejectionReason String?
+
+  submittedAt DateTime?
+  reviewedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user     User  @relation("ApplicationOwner", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer User? @relation("ApplicationReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  answers ApplicationAnswer[]
+
+  @@index([status, submittedAt])
+  @@index([reviewerId])
+}
+
+model ApplicationQuestion {
+  id String @id @default(cuid())
+
+  kind   String // CODING | LOGIC | MULTIPLE_CHOICE | PRACTICAL | OPEN
+  prompt String
+  // Variantli savol uchun: JSON massiv [{id, text}]
+  optionsJson String?
+  // To'g'ri javob (MULTIPLE_CHOICE uchun option id, boshqasi uchun null →
+  // qo'lda baholanadi)
+  correctAnswer String?
+  explanation   String?
+
+  points    Int     @default(10)
+  // Kod savollari uchun til: js, py, sql...
+  language  String?
+  // Javob berish uchun tavsiya etilgan vaqt (daqiqa)
+  timeLimit Int?
+
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  answers ApplicationAnswer[]
+
+  @@index([isActive, sortOrder])
+}
+
+model ApplicationAnswer {
+  id            String @id @default(cuid())
+  applicationId String
+  questionId    String
+
+  answer String
+
+  // Avtomatik yoki qo'lda baholash natijasi
+  isCorrect     Boolean?
+  points        Int      @default(0)
+  reviewerNote  String?
+
+  createdAt DateTime @default(now())
+
+  application DeveloperApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  question    ApplicationQuestion  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, questionId])
+  @@index([questionId])
+}
+
+/// Shaxsni tasdiqlash (passport / ID karta + selfie).
+model IdentityVerification {
+  id     String @id @default(cuid())
+  userId String
+
+  docType   String // PASSPORT | ID_CARD | DRIVER_LICENSE
+  docNumber String?
+
+  frontUrl  String?
+  backUrl   String?
+  selfieUrl String?
+
+  status          String  @default("PENDING") // enums.ts → VerificationStatus
+  reviewerId      String?
+  rejectionReason String?
+
+  createdAt  DateTime  @default(now())
+  reviewedAt DateTime?
+
+  user     User  @relation("IdentityOwner", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer User? @relation("IdentityReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status, createdAt])
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// KATALOG
+// ═════════════════════════════════════════════════════════════════════════════
+
+model Category {
+  id   String @id @default(cuid())
+  slug String @unique
+
+  name        String
+  description String?
+  icon        String?
+  coverUrl    String?
+  // Kartochka gradienti uchun (dizayn tizimi kalitlaridan biri)
+  accent      String?
+
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryTree")
+
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+  isFeatured Boolean @default(false)
+
+  seoTitle       String?
+  seoDescription String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  services Service[]
+  projects Project[]
+
+  @@index([parentId, sortOrder])
+  @@index([isActive, isFeatured])
+}
+
+model Service {
+  id         String @id @default(cuid())
+  slug       String @unique
+  categoryId String
+
+  title       String
+  description String?
+  // Nima kiradi: JSON massiv ["Dizayn", "3 ta tuzatish", ...]
+  includesJson String @default("[]")
+
+  basePrice    BigInt @default(0) // tiyin — "boshlang'ich narx"
+  deliveryDays Int    @default(7)
+
+  coverUrl String?
+  icon     String?
+
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  seoTitle       String?
+  seoDescription String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  category Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  projects Project[]
+
+  @@index([categoryId, sortOrder])
+  @@index([isActive])
+}
+
+model Tag {
+  id   String @id @default(cuid())
+  slug String @unique
+  name String
+
+  projects ProjectTag[]
+}
+
+model ProjectTag {
+  projectId String
+  tagId     String
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, tagId])
+  @@index([tagId])
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// LOYIHALAR
+// ═════════════════════════════════════════════════════════════════════════════
+
+model Project {
+  id String @id @default(cuid())
+  /// Inson o'qiy oladigan qisqa kod: OZF-4F2A91. Chat va invoice'larda ishlatiladi.
+  publicId String @unique
+
+  customerId String
+  categoryId String
+  serviceId  String?
+
+  /// Loyihani qabul qilgan developer. OPEN holatida null.
+  assignedDeveloperId String?
+
+  title       String
+  slug        String
+  description String
+  /// Batafsil texnik talablar (markdown)
+  requirements String?
+
+  // Byudjet oralig'i — mijoz kiritadi
+  budgetMin BigInt // tiyin
+  budgetMax BigInt // tiyin
+  /// Kelishilgan yakuniy summa. Taklif qabul qilinganda o'rnatiladi.
+  agreedAmount BigInt?
+  currency     String  @default("UZS")
+
+  /// Escrow bo'linishida ishlatiladigan komissiya. Loyiha yaratilganda
+  /// Setting'dan ko'chiriladi va MUZLATILADI — keyin admin foizni
+  /// o'zgartirsa, eski loyihalar ta'sirlanmaydi.
+  commissionBps Int
+
+  deadlineAt DateTime?
+  status     String    @default("DRAFT") // enums.ts → ProjectStatus
+  visibility String    @default("PUBLIC") // PUBLIC | INVITE_ONLY | PRIVATE
+
+  isUrgent  Boolean @default(false)
+  isFeatured Boolean @default(false)
+
+  viewCount     Int @default(0)
+  proposalCount Int @default(0)
+  revisionCount Int @default(0)
+
+  /// AI tahlili natijasi (taxminiy byudjet, muddat, murakkablik) — JSON
+  aiAnalysisJson String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+  startedAt   DateTime?
+  deliveredAt DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+
+  cancelReason String?
+
+  customer  User      @relation("ProjectCustomer", fields: [customerId], references: [id])
+  developer User?     @relation("ProjectDeveloper", fields: [assignedDeveloperId], references: [id], onDelete: SetNull)
+  category  Category  @relation(fields: [categoryId], references: [id])
+  service   Service?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  files        ProjectFile[]
+  milestones   Milestone[]
+  events       ProjectEvent[]
+  proposals    Proposal[]
+  revisions    Revision[]
+  tags         ProjectTag[]
+  escrow       Escrow?
+  dispute      Dispute?
+  conversation Conversation?
+  reviews      Review[]
+  invoices     Invoice[]
+  transactions WalletTransaction[]
+  promoUse     PromoRedemption?
+  portfolioItem PortfolioItem?
+
+  @@index([status, publishedAt])
+  @@index([customerId, status])
+  @@index([assignedDeveloperId, status])
+  @@index([categoryId, status])
+  @@index([slug])
+}
+
+model ProjectFile {
+  id         String @id @default(cuid())
+  projectId  String
+  uploaderId String
+
+  name     String
+  url      String
+  size     Int
+  mimeType String
+  /// BRIEF (mijoz yuklagan) | PROGRESS (jarayon) | DELIVERABLE (tayyor ish)
+  kind     String @default("BRIEF")
+
+  createdAt DateTime @default(now())
+
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploader User    @relation(fields: [uploaderId], references: [id])
+
+  @@index([projectId, kind])
+  @@index([uploaderId])
+}
+
+/// Loyihani bosqichlarga bo'lish. Har bosqich alohida to'lanishi mumkin.
+model Milestone {
+  id        String @id @default(cuid())
+  projectId String
+
+  title       String
+  description String?
+  amount      BigInt // tiyin
+  dueAt       DateTime?
+
+  status String @default("PENDING") // PENDING | IN_PROGRESS | DELIVERED | APPROVED | PAID
+
+  sortOrder   Int       @default(0)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, sortOrder])
+}
+
+/// Loyiha timeline'i. Mijoz jarayonni shu orqali kuzatadi.
+model ProjectEvent {
+  id        String  @id @default(cuid())
+  projectId String
+  actorId   String?
+
+  type    String // enums.ts → ProjectEventType
+  message String?
+  metaJson String?
+
+  /// Mijozga ko'rinadimi (ba'zi hodisalar faqat admin uchun)
+  isPublic Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  actor   User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+}
+
+/// Developer'ning loyihaga taklifi.
+model Proposal {
+  id          String @id @default(cuid())
+  projectId   String
+  developerId String
+
+  coverLetter  String
+  amount       BigInt // tiyin
+  deliveryDays Int
+
+  status String @default("PENDING") // PENDING | ACCEPTED | REJECTED | WITHDRAWN
+
+  createdAt  DateTime  @default(now())
+  respondedAt DateTime?
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  developer User    @relation(fields: [developerId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, developerId])
+  @@index([developerId, status])
+  @@index([projectId, status])
+}
+
+/// Mijozning tuzatish so'rovi.
+model Revision {
+  id            String @id @default(cuid())
+  projectId     String
+  requestedById String
+
+  reason String
+  status String @default("OPEN") // OPEN | RESOLVED | REJECTED
+
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  requestedBy User    @relation(fields: [requestedById], references: [id])
+
+  @@index([projectId, status])
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// PUL — hamyon, escrow, tranzaksiyalar
+//
+// MUHIM: hamyon balansi FAQAT WalletTransaction yaratish bilan birga,
+// bitta DB tranzaksiyasi ichida o'zgaradi. `src/lib/wallet.ts` dagi
+// funksiyalardan tashqari hech qayerda `balance` to'g'ridan-to'g'ri
+// yozilmasligi kerak.
+// ═════════════════════════════════════════════════════════════════════════════
+
+model Wallet {
+  id String @id @default(cuid())
+
+  /// Foydalanuvchi hamyoni. Tizim hamyonlari uchun null.
+  userId String? @unique
+  /// Tizim hamyonlari: PLATFORM_REVENUE, ESCROW_HOLDING. Foydalanuvchi
+  /// hamyonlarida null. Ikkalasidan aynan bittasi to'ldiriladi.
+  systemKey String? @unique
+
+  /// Ishlatishga tayyor balans (tiyin). Yechib olish yoki loyihaga
+  /// to'lash uchun ishlatiladi.
+  balance BigInt @default(0)
+
+  /// Escrow'da bloklangan summa. Mijozning puli loyiha tugaguncha shu yerda.
+  /// `balance` ga kirmaydi — ikki marta sarflab bo'lmaydi.
+  lockedBalance BigInt @default(0)
+
+  /// Tasdiqlanishini kutayotgan summa (masalan, tekshiruvdagi depozit).
+  pendingBalance BigInt @default(0)
+
+  /// Umrbod aylanma — audit va statistika uchun. Tranzaksiyalar yig'indisiga
+  /// teng bo'lishi kerak; mos kelmasa buxgalteriya xatosi bor.
+  totalIn  BigInt @default(0)
+  totalOut BigInt @default(0)
+
+  currency String @default("UZS")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+  withdrawals  Withdrawal[]
+}
+
+model WalletTransaction {
+  id       String @id @default(cuid())
+  walletId String
+
+  type      String // enums.ts → TransactionType
+  direction String // IN | OUT
+
+  amount       BigInt // tiyin, har doim musbat — yo'nalish `direction` da
+  balanceAfter BigInt // audit uchun: tranzaksiyadan keyingi balans
+
+  status String @default("COMPLETED") // PENDING | COMPLETED | FAILED | REVERSED
+
+  /// Idempotentlik kaliti. Bir xil `reference` bilan ikkinchi marta yozib
+  /// bo'lmaydi — takroriy so'rov pulni ikki marta o'tkazmaydi.
+  reference String @unique
+
+  projectId String?
+  escrowId  String?
+
+  description String?
+  metaJson    String?
+
+  createdAt DateTime @default(now())
+
+  wallet  Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  escrow  Escrow?  @relation(fields: [escrowId], references: [id], onDelete: SetNull)
+
+  @@index([walletId, createdAt])
+  @@index([type, status])
+  @@index([projectId])
+}
+
+/// Escrow: mijoz puli loyiha tugaguncha bloklanadi.
+///
+/// amount = developerAmount + commissionAmount  (har doim aniq teng)
+model Escrow {
+  id        String @id @default(cuid())
+  projectId String @unique
+
+  customerId  String
+  developerId String?
+
+  amount BigInt // tiyin — mijoz to'lagan umumiy summa
+
+  commissionBps    Int
+  commissionAmount BigInt // platforma ushlab qoladi
+  developerAmount  BigInt // developer oladi
+
+  status String @default("CREATED") // enums.ts → EscrowStatus
+
+  /// Qaytarilgan summa (to'liq yoki qismli refund)
+  refundedAmount BigInt @default(0)
+
+  fundedAt   DateTime?
+  releasedAt DateTime?
+  refundedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  customer  User    @relation("EscrowCustomer", fields: [customerId], references: [id])
+  developer User?   @relation("EscrowDeveloper", fields: [developerId], references: [id], onDelete: SetNull)
+
+  transactions WalletTransaction[]
+
+  @@index([status])
+  @@index([customerId])
+  @@index([developerId])
+}
+
+model Withdrawal {
+  id       String @id @default(cuid())
+  userId   String
+  walletId String
+
+  amount    BigInt // so'ralgan summa (tiyin)
+  feeAmount BigInt @default(0)
+  netAmount BigInt // qo'lga tegadigan summa
+
+  method String // CARD | BANK | CLICK | PAYME | UZUM | CRYPTO
+  /// Karta raqami / hisob raqami — shifrlangan JSON
+  destinationJson String
+
+  status String @default("REQUESTED") // enums.ts → WithdrawalStatus
+
+  reviewerId  String?
+  reviewNotes String?
+  /// To'lov tizimidan qaytgan tranzaksiya raqami
+  externalRef String?
+
+  requestedAt DateTime  @default(now())
+  processedAt DateTime?
+
+  user     User   @relation("WithdrawalOwner", fields: [userId], references: [id])
+  reviewer User?  @relation("WithdrawalReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  wallet   Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([status, requestedAt])
+  @@index([userId, status])
+}
+
+/// Tashqi to'lov tizimidan kelgan pul (hamyonni to'ldirish).
+model Payment {
+  id     String @id @default(cuid())
+  userId String
+
+  provider    String // CLICK | PAYME | UZUM | CARD | MANUAL
+  providerRef String?
+
+  amount BigInt // tiyin
+  status String @default("PENDING") // PENDING | PAID | FAILED | CANCELLED | REFUNDED
+
+  /// To'lov tizimi qaytargan xom javob — nizo bo'lsa dalil
+  rawJson String?
+
+  createdAt DateTime  @default(now())
+  paidAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([provider, providerRef])
+  @@index([userId, status])
+  @@index([status, createdAt])
+}
+
+model Invoice {
+  id     String @id @default(cuid())
+  number String @unique
+
+  userId    String
+  projectId String?
+
+  amount BigInt // tiyin
+  status String @default("ISSUED") // ISSUED | PAID | VOID
+
+  pdfUrl String?
+
+  issuedAt DateTime  @default(now())
+  paidAt   DateTime?
+
+  user    User     @relation(fields: [userId], references: [id])
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
+}
+
+model Dispute {
+  id        String @id @default(cuid())
+  projectId String @unique
+
+  openedById  String
+  reason      String
+  description String
+
+  status String @default("OPEN") // OPEN | UNDER_REVIEW | RESOLVED | CLOSED
+
+  /// Admin qarori: REFUND_CUSTOMER | PAY_DEVELOPER | SPLIT
+  resolution       String?
+  /// SPLIT bo'lsa — mijozga qaytadigan ulush (bps)
+  customerShareBps Int?
+  resolutionNote   String?
+
+  resolvedById String?
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  openedBy   User    @relation("DisputeOpener", fields: [openedById], references: [id])
+  resolvedBy User?   @relation("DisputeResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// CHAT
+// ═════════════════════════════════════════════════════════════════════════════
+
+model Conversation {
+  id String @id @default(cuid())
+
+  kind String @default("PROJECT") // PROJECT | DIRECT | SUPPORT
+
+  /// Loyiha chati uchun. DIRECT/SUPPORT'da null.
+  projectId String? @unique
+
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+
+  project      Project?                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@index([lastMessageAt])
+}
+
+model ConversationParticipant {
+  id             String @id @default(cuid())
+  conversationId String
+  userId         String
+
+  /// O'qilmagan xabarlarni shu sanadan hisoblaymiz ("Seen" holati)
+  lastReadAt DateTime?
+  isMuted    Boolean   @default(false)
+  /// Foydalanuvchi yozib turgani — real-time, DB'ga faqat oxirgi holat
+  typingAt   DateTime?
+
+  joinedAt DateTime  @default(now())
+  leftAt   DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId, lastReadAt])
+}
+
+model Message {
+  id             String @id @default(cuid())
+  conversationId String
+  senderId       String
+
+  body String?
+  kind String @default("TEXT") // TEXT | IMAGE | FILE | AUDIO | VIDEO | CODE | SYSTEM
+
+  /// CODE turi uchun til
+  codeLanguage String?
+
+  replyToId String?
+  replyTo   Message?  @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   Message[] @relation("MessageReply")
+
+  isPinned Boolean @default(false)
+
+  editedAt  DateTime?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  conversation Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User                @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  attachments  MessageAttachment[]
+
+  @@index([conversationId, createdAt])
+  @@index([conversationId, isPinned])
+  @@index([senderId])
+}
+
+model MessageAttachment {
+  id        String @id @default(cuid())
+  messageId String
+
+  url      String
+  name     String
+  size     Int
+  mimeType String
+
+  width           Int?
+  height          Int?
+  durationSeconds Int?
+  thumbnailUrl    String?
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// OBRO' — sharhlar, nishonlar, XP
+// ═════════════════════════════════════════════════════════════════════════════
+
+model Review {
+  id        String @id @default(cuid())
+  projectId String
+
+  authorId     String
+  targetUserId String
+
+  /// 1..5
+  rating  Int
+  comment String?
+
+  // Batafsil baholar
+  communicationRating Int?
+  qualityRating       Int?
+  deadlineRating      Int?
+
+  isPublic Boolean @default(true)
+
+  /// Baholangan tomonning javobi
+  reply     String?
+  repliedAt DateTime?
+
+  /// Admin moderatsiyasi
+  isHidden   Boolean @default(false)
+  hideReason String?
+
+  createdAt DateTime @default(now())
+
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author     User    @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  targetUser User    @relation("ReviewTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, authorId])
+  @@index([targetUserId, isPublic, isHidden])
+  @@index([rating])
+}
+
+model Badge {
+  id   String @id @default(cuid())
+  slug String @unique
+
+  name        String
+  description String
+  icon        String?
+  /// BRONZE | SILVER | GOLD | PLATINUM — ko'rinishi uchun
+  tier        String  @default("BRONZE")
+
+  /// Avtomatik berish shartlari (JSON). null = faqat qo'lda beriladi.
+  criteriaJson String?
+
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  users UserBadge[]
+}
+
+model UserBadge {
+  id      String @id @default(cuid())
+  userId  String
+  badgeId String
+
+  awardedAt DateTime @default(now())
+  /// Qo'lda berilgan bo'lsa — kim bergani
+  awardedBy String?
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([badgeId])
+}
+
+model XpEvent {
+  id     String @id @default(cuid())
+  userId String
+
+  amount Int
+  reason String // PROJECT_COMPLETED | REVIEW_RECEIVED | STREAK | ...
+
+  refType String?
+  refId   String?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model DailyStreak {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  current Int @default(0)
+  longest Int @default(0)
+  /// Faqat sana muhim (YYYY-MM-DD), vaqt emas
+  lastActiveDate String?
+
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Follow {
+  id          String @id @default(cuid())
+  followerId  String
+  developerId String
+
+  createdAt DateTime @default(now())
+
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  developer User @relation("FollowedDeveloper", fields: [developerId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, developerId])
+  @@index([developerId])
+}
+
+model Favorite {
+  id     String @id @default(cuid())
+  userId String
+
+  /// DEVELOPER | PROJECT | SERVICE
+  targetType String
+  targetId   String
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetType, targetId])
+  @@index([targetType, targetId])
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// O'SISH — promo kodlar, referal
+// ═════════════════════════════════════════════════════════════════════════════
+
+model PromoCode {
+  id   String @id @default(cuid())
+  code String @unique
+
+  description String?
+  kind        String // PERCENT | FIXED
+  /// PERCENT uchun bps (1000 = 10%), FIXED uchun tiyin
+  value       Int
+
+  /// Chegirma qo'llanadigan minimal summa (tiyin)
+  minAmount BigInt @default(0)
+  /// PERCENT uchun maksimal chegirma (tiyin). 0 = cheklanmagan.
+  maxDiscount BigInt @default(0)
+
+  maxUses      Int? // null = cheksiz
+  maxUsesPerUser Int  @default(1)
+  usedCount    Int  @default(0)
+
+  startsAt  DateTime?
+  expiresAt DateTime?
+  isActive  Boolean   @default(true)
+
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  createdBy   User?             @relation("PromoCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  redemptions PromoRedemption[]
+
+  @@index([isActive, expiresAt])
+}
+
+model PromoRedemption {
+  id          String @id @default(cuid())
+  promoCodeId String
+  userId      String
+  projectId   String? @unique
+
+  discountAmount BigInt // tiyin
+  redeemedAt     DateTime @default(now())
+
+  promoCode PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([promoCodeId, userId])
+  @@index([userId])
+}
+
+model Referral {
+  id         String @id @default(cuid())
+  referrerId String
+  /// Taklif qilingan foydalanuvchi — bir marta va bir kishi tomonidan
+  refereeId  String @unique
+
+  code String
+
+  rewardAmount BigInt   @default(0) // tiyin
+  status       String   @default("PENDING") // PENDING | QUALIFIED | REWARDED | VOID
+  rewardedAt   DateTime?
+  createdAt    DateTime @default(now())
+
+  referrer User @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referee  User @relation("Referee", fields: [refereeId], references: [id], onDelete: Cascade)
+
+  @@index([referrerId, status])
+  @@index([code])
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// PLATFORMA — xabarnomalar, support, sozlamalar, audit
+// ═════════════════════════════════════════════════════════════════════════════
+
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+
+  type  String // enums.ts → NotificationType
+  title String
+  body  String?
+  url   String?
+  icon  String?
+
+  /// Qaysi kanallarga yuborilgani: JSON ["IN_APP","EMAIL","TELEGRAM"]
+  channelsJson String @default("[\"IN_APP\"]")
+  metaJson     String?
+
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@index([createdAt])
+}
+
+model NotificationPreference {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  emailEnabled    Boolean @default(true)
+  telegramEnabled Boolean @default(true)
+  pushEnabled     Boolean @default(true)
+  smsEnabled      Boolean @default(false)
+
+  /// Tur bo'yicha nozik sozlamalar: {"PROJECT_MESSAGE":{"email":false}}
+  prefsJson String @default("{}")
+
+  /// Bezovta qilmaslik oralig'i (mahalliy vaqt, "22:00")
+  quietHoursStart String?
+  quietHoursEnd   String?
+
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PushSubscription {
+  id     String @id @default(cuid())
+  userId String
+
+  endpoint String @unique
+  p256dh   String
+  auth     String
+
+  userAgent String?
+  createdAt DateTime @default(now())
+  lastUsedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model SupportTicket {
+  id     String @id @default(cuid())
+  number String @unique
+
+  userId String
+
+  subject  String
+  category String @default("OTHER")
+  priority String @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  status   String @default("OPEN") // OPEN | PENDING | ANSWERED | CLOSED
+
+  assignedToId String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  closedAt  DateTime?
+
+  user       User  @relation("TicketOwner", fields: [userId], references: [id], onDelete: Cascade)
+  assignedTo User? @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  messages TicketMessage[]
+
+  @@index([status, priority, createdAt])
+  @@index([userId])
+}
+
+model TicketMessage {
+  id       String @id @default(cuid())
+  ticketId String
+  authorId String
+
+  body            String
+  attachmentsJson String @default("[]")
+  /// Faqat adminlar ko'radigan ichki izoh
+  isInternal      Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User          @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId, createdAt])
+}
+
+/// Tizim sozlamalari. Kod ichida hech qanday sozlama qattiq yozilmaydi —
+/// hammasi shu jadvaldan o'qiladi va admin panelda o'zgartiriladi.
+model Setting {
+  key   String @id
+  /// Qiymat JSON matn sifatida — tip `group`/kalitga qarab aniqlanadi
+  value String
+
+  group       String  @default("general")
+  label       String?
+  description String?
+  /// SUPER_ADMIN dan boshqa hech kim o'zgartira olmaydigan sozlamalar
+  isProtected Boolean @default(false)
+
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([group])
+}
+
+/// O'zgarishlar tarixi. Pul, rol va sozlamalarga tegadigan har bir amal
+/// shu jadvalga yoziladi.
+model AuditLog {
+  id      String  @id @default(cuid())
+  actorId String?
+
+  action     String // user.role_changed | escrow.released | setting.updated ...
+  entityType String
+  entityId   String?
+
+  beforeJson String?
+  afterJson  String?
+
+  ip        String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// KONTENT (CMS)
+// ═════════════════════════════════════════════════════════════════════════════
+
+model BlogPost {
+  id   String @id @default(cuid())
+  slug String @unique
+
+  title    String
+  excerpt  String?
+  body     String
+  coverUrl String?
+
+  authorId String?
+
+  status   String @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED
+  tagsJson String @default("[]")
+
+  seoTitle       String?
+  seoDescription String?
+  ogImageUrl     String?
+
+  views       Int       @default(0)
+  readMinutes Int?
+
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([status, publishedAt])
+}
+
+model Faq {
+  id       String  @id @default(cuid())
+  question String
+  answer   String
+  category String  @default("general")
+  sortOrder Int    @default(0)
+  isActive Boolean @default(true)
+
+  @@index([category, sortOrder])
+}
+
+model Testimonial {
+  id String @id @default(cuid())
+
+  authorName String
+  authorRole String?
+  avatarUrl  String?
+  body       String
+  rating     Int     @default(5)
+
+  isFeatured Boolean @default(false)
+  isActive   Boolean @default(true)
+  sortOrder  Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([isActive, sortOrder])
+}
+
+model Announcement {
+  id String @id @default(cuid())
+
+  title String
+  body  String
+  kind  String @default("INFO") // INFO | WARNING | SUCCESS | MAINTENANCE
+  /// Kimga ko'rinadi: ALL | CUSTOMERS | DEVELOPERS | ADMINS
+  audience String @default("ALL")
+
+  isDismissible Boolean @default(true)
+  isActive      Boolean @default(true)
+
+  startsAt DateTime?
+  endsAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([isActive, startsAt, endsAt])
+}

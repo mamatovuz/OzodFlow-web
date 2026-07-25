@@ -1,4 +1,33 @@
-# Logs
+# dependencies
+node_modules
+.pnp
+.pnp.js
+
+# next.js
+.next/
+out/
+build/
+dist/
+dist-ssr
+next-env.d.ts
+
+# database — SQLite fayl doimiy volume'da turadi, git'ga tushmaydi
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# uploads (S3 ulanmaganda dev uchun zaxira yo'l)
+public/uploads/
+
+# env — faqat .env.example commit qilinadi
+.env
+.env*.local
+.env.production
+!.env.example
+
+# logs
 logs
 *.log
 npm-debug.log*
@@ -7,25 +36,30 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# testing / coverage
+coverage/
+.nyc_output/
+
+# deploy platformalari
+.vercel
 .output
 .vinxi
-.tanstack/**
 .nitro
-.vercel
-*.local
-
-# Wrangler / Cloudflare
 .wrangler/
 .dev.vars
 
-# Editor directories and files
+# misc
+*.local
+.DS_Store
+*.pem
+.tanstack/**
+.turbo/
+*.tsbuildinfo
+
+# editors
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj

@@ -118,7 +118,8 @@ ENV HOSTNAME=0.0.0.0
 
 # Root'dan ishlatmaymiz. `node` foydalanuvchisi node:22 image'da mavjud.
 # SQLite fayl turadigan katalog shu foydalanuvchiga tegishli bo'lishi kerak.
-RUN mkdir -p /data && chown -R node:node /data
+RUN mkdir -p /data \
+    && chmod 777 /data
 
 # `output: "standalone"` faqat kerakli node_modules'ni o'z ichiga oladi.
 COPY --from=builder --chown=node:node /app/.next/standalone ./
@@ -188,7 +189,6 @@ manifest.scripts={start:'sh ./docker/entrypoint.sh node server.js'}; \
 fs.writeFileSync('package.json', JSON.stringify(manifest,null,2)+'\n');" \
   && chown node:node package.json
 
-USER node
 
 EXPOSE 3000
 

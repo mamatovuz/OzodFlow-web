@@ -42,6 +42,102 @@
     "LEGEND": "Legenda"
   },
 
+  "appNav": {
+    "dashboard": "Kabinet",
+    "myProjects": "Loyihalarim",
+    "myWork": "Ishlarim",
+    "openProjects": "Ochiq loyihalar",
+    "proposals": "Takliflarim",
+    "messages": "Xabarlar",
+    "discover": "Izlash",
+    "findDevelopers": "Mutaxassislar",
+    "favorites": "Sevimlilar",
+    "finance": "Moliya",
+    "wallet": "Hamyon",
+    "invoices": "Hisob-fakturalar",
+    "profile": "Profil",
+    "portfolio": "Portfolio",
+    "reviews": "Sharhlar",
+    "achievements": "Yutuqlar",
+    "planning": "Reja",
+    "calendar": "Kalendar",
+    "account": "Hisob",
+    "settings": "Sozlamalar"
+  },
+
+  "app": {
+    "openSidebar": "Menyuni ochish",
+    "closeSidebar": "Menyuni yopish",
+    "notifications": "Xabarnomalar",
+    "noNotifications": "Yangi xabarnoma yo'q",
+    "viewAllNotifications": "Barchasini ko'rish",
+    "newProject": "Yangi loyiha",
+    "adminPanel": "Admin panel",
+    "myProfile": "Mening profilim",
+    "accountSettings": "Hisob sozlamalari",
+    "userMenu": "Foydalanuvchi menyusi",
+    "dashboard": "Kabinet",
+    "logout": "Chiqish",
+    "unverifiedEmail": "Emailingiz tasdiqlanmagan.",
+    "verifyNow": "Hozir tasdiqlash",
+    "roleCustomer": "Mijoz",
+    "roleDeveloper": "Mutaxassis",
+    "roleAdmin": "Administrator",
+    "roleSuperAdmin": "Super administrator"
+  },
+
+  "auth": {
+    "login": {
+      "title": "Hisobingizga kiring",
+      "subtitle": "Loyihalaringiz, xabarlar va hamyoningiz bir joyda.",
+      "identifier": "Email yoki telefon",
+      "identifierPlaceholder": "ism@mail.uz yoki +998 90 123 45 67",
+      "password": "Parol",
+      "forgot": "Parolni unutdingizmi?",
+      "submit": "Kirish",
+      "submitting": "Kirilmoqda…",
+      "remember": "Meni eslab qol",
+      "noAccount": "Hisobingiz yo'qmi?",
+      "registerLink": "Ro'yxatdan o'tish",
+      "orDivider": "yoki",
+      "reasonSecurity": "Xavfsizlik sababli barcha qurilmalardan chiqarildingiz. Parolingizni o'zgartirishni tavsiya qilamiz.",
+      "reasonBlocked": "Hisobingizga kirish to'xtatilgan. Yordam xizmatiga murojaat qiling.",
+      "reasonExpired": "Sessiya muddati tugadi. Qaytadan kiring."
+    },
+
+    "register": {
+      "title": "OzodFlow'ga qo'shiling",
+      "subtitle": "Bir daqiqada hisob yarating va ishni boshlang.",
+      "name": "To'liq ism",
+      "namePlaceholder": "Ozodbek Mamatov",
+      "email": "Email",
+      "emailPlaceholder": "ism@mail.uz",
+      "password": "Parol",
+      "passwordConfirm": "Parolni tasdiqlash",
+      "roleLabel": "Nima qilmoqchisiz?",
+      "roleCustomer": "Ish buyurtma qilaman",
+      "roleCustomerHint": "Sayt, bot, ilova yoki dizayn kerak",
+      "roleDeveloper": "Ish bajarmoqchiman",
+      "roleDeveloperHint": "Ariza va texnik testdan o'tish kerak",
+      "acceptTerms": "Foydalanish shartlari va maxfiylik siyosatiga qo'shilaman",
+      "submit": "Hisob yaratish",
+      "submitting": "Yaratilmoqda…",
+      "haveAccount": "Hisobingiz bormi?",
+      "loginLink": "Kirish",
+      "developerNote": "Mutaxassis profili admin tasdig'idan keyin ochiladi. Ariza jarayoni: portfolio, texnik test va shaxsni tasdiqlash."
+    },
+
+    "logout": "Chiqish",
+    "backToSite": "Saytga qaytish"
+  },
+
+  "forbidden": {
+    "title": "Bu sahifaga kirish huquqingiz yo'q",
+    "body": "Hisobingiz bu bo'limga kirish uchun yetarli huquqqa ega emas. Agar bu xato bo'lsa deb hisoblasangiz, yordam xizmatiga yozing.",
+    "dashboard": "Kabinetga o'tish",
+    "home": "Bosh sahifa"
+  },
+
   "nav": {
     "services": "Xizmatlar",
     "developers": "Mutaxassislar",

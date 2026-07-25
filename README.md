@@ -148,12 +148,60 @@ SQLite **doimiy diskni** talab qiladi, shuning uchun:
 
 | Platforma | Ishlaydimi | Izoh |
 | --- | --- | --- |
-| Railway | ✅ | Volume'ni `/data` ga ulang, `DATABASE_URL=file:/data/ozodflow.db` |
+| Railway | ✅ | Volume kerak (pastga qarang) |
 | VPS + Docker | ✅ | `docker compose up -d` |
 | Fly.io | ✅ | Fly Volume |
 | **Vercel** | ❌ | Fayl tizimi vaqtinchalik — SQLite saqlanmaydi |
 
 Vercel'da ishlatish kerak bo'lsa Postgres'ga o'tish shart (pastga qarang).
+
+### Railway
+
+**1. Volume ulash — bu qadam MAJBURIY.**
+
+Railway service → **Settings → Volumes → New Volume**, mount path:
+
+```
+/data
+```
+
+> Volume ulanmasa har deploy'da database noldan yaratiladi: barcha
+> foydalanuvchi, loyiha va to'lov tarixi yo'qoladi. SQLite fayl konteyner
+> ichida turadi, konteyner esa har deploy'da yangidan yasaladi.
+
+**2. O'zgaruvchilarni kiritish** — Railway service → **Variables**.
+Fayl orqali emas, aynan shu bo'limda:
+
+```bash
+DATABASE_URL=file:/data/ozodflow.db      # ← volume mount path'iga mos bo'lsin
+NEXT_PUBLIC_APP_URL=https://ozodflow.uz  # https, http emas
+
+JWT_ACCESS_SECRET=<48 baytlik tasodifiy qiymat>
+JWT_REFRESH_SECRET=<boshqa 48 baytlik qiymat>
+
+OZODFLOW_ADMIN_EMAIL=<email>
+OZODFLOW_ADMIN_PASSWORD=<kuchli parol>
+```
+
+Kalitlarni yasash:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+```
+
+`PORT` ni qo'lda kiritish kerak emas — Railway o'zi beradi.
+
+**3. Deploy.** Migratsiyalar konteyner ishga tushganda avtomatik qo'llanadi,
+super admin esa birinchi startda yaratiladi.
+
+Admin yaratilgandan keyin `OZODFLOW_ADMIN_PASSWORD` ni Variables'dan
+o'chirib qo'yish tavsiya etiladi — u boshqa kerak bo'lmaydi.
+
+> **Diqqat:** `npm ci` lock fayl `package.json` bilan aynan mos bo'lishini
+> talab qiladi. `package.json` ni qo'lda tahrirlagandan keyin albatta
+> `npm install` ni ishga tushiring va `package-lock.json` ni ham commit
+> qiling — aks holda Railway build'i "Missing ... from lock file" xatosi
+> bilan yiqiladi.
 
 ---
 

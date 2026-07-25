@@ -128,15 +128,37 @@ COPY --from=builder --chown=node:node /app/public ./public
 # Migratsiyalar va schema — konteyner ichida `prisma migrate deploy` uchun.
 COPY --from=builder --chown=node:node /app/prisma ./prisma
 
-# Prisma CLI va engine. Standalone bundle faqat klientni oladi, CLI'ni emas —
-# migratsiyalarni qo'llash uchun CLI kerak.
-#
-# `node_modules/.bin/prisma` ATAYLAB ko'chirilmaydi: u symlink, Docker COPY
-# uni oddiy faylga aylantiradi va bajarish huquqi yo'qolib qolishi mumkin.
-# Buning o'rniga entrypoint CLI'ni to'g'ridan-to'g'ri `node` bilan chaqiradi.
-COPY --from=builder --chown=node:node /app/node_modules/prisma ./node_modules/prisma
+# Prisma KLIENTI va query engine — ilova so'rovlari uchun.
+# `serverExternalPackages` tufayli u bundle'ga kirmaydi, shuning uchun
+# node_modules'da mavjud bo'lishi shart.
 COPY --from=builder --chown=node:node /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder --chown=node:node /app/node_modules/.prisma ./node_modules/.prisma
+
+# ── Prisma CLI — migratsiyalar uchun, ALOHIDA katalogda ────────────────────
+#
+# MUAMMO: `COPY node_modules/prisma` YETARLI EMAS. CLI'ning o'zi boshqa
+# paketlarga tayanadi (`effect`, `@prisma/config` va h.k.), ular esa
+# `node_modules` ning YUQORI QATLAMIDA turadi. Next'ning standalone bundle'i
+# faqat ilova ishlatadigan modullarni oladi, CLI'ning bog'liqliklarini emas.
+# Natija: `Error: Cannot find module 'effect'`.
+#
+# YECHIM: CLI'ni toza katalogga o'z bog'liqliklari bilan o'rnatamiz.
+# `/app` dagi package.json'ga tegmaydi — aks holda `npm install` butun
+# dependency daraxtini tortib kelardi va standalone'ning ma'nosi qolmasdi.
+#
+# Versiya package.json'dan O'QILADI, qo'lda yozilmaydi: aks holda Prisma
+# yangilanganda ikkita joyni tuzatish kerak bo'lardi va biri esdan chiqardi.
+RUN PRISMA_VERSION="$(node -p "const p=require('/app/package.json'); (p.devDependencies?.prisma || p.dependencies?.prisma || '').replace(/[^0-9.]/g,'')")" \
+  && if [ -z "$PRISMA_VERSION" ]; then \
+       echo "package.json'da prisma versiyasi topilmadi" >&2; exit 1; \
+     fi \
+  && echo "Prisma CLI o'rnatilmoqda: ${PRISMA_VERSION}" \
+  && mkdir -p /opt/prisma-cli \
+  && cd /opt/prisma-cli \
+  && npm init -y > /dev/null \
+  && npm install --omit=dev --no-audit --no-fund "prisma@${PRISMA_VERSION}" \
+  && npm cache clean --force \
+  && chown -R node:node /opt/prisma-cli
 
 COPY --chown=node:node docker/entrypoint.sh ./docker/entrypoint.sh
 RUN chmod +x ./docker/entrypoint.sh

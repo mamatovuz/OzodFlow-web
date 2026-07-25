@@ -16,7 +16,10 @@ echo "→ Migratsiyalar qo'llanmoqda..."
 # yangi migratsiya yaratmaydi va ma'lumotni o'chirmaydi.
 # `migrate dev` ni production'da ishlatish MUMKIN EMAS — u schema mos
 # kelmasa databaseni tozalab tashlashi mumkin.
-./node_modules/.bin/prisma migrate deploy
+#
+# CLI to'g'ridan-to'g'ri `node` bilan chaqiriladi, `.bin/prisma` symlink'i
+# orqali emas — Dockerfile'dagi izohga qarang.
+node ./node_modules/prisma/build/index.js migrate deploy
 
 echo "→ Server ishga tushmoqda (port ${PORT:-3000})"
 

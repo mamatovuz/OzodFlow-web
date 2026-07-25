@@ -71,6 +71,15 @@ ENV SKIP_ENV_VALIDATION=1
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
+# Build vaqtidagi SOXTA database manzili.
+#
+# `prisma generate` va bosh sahifani prerender qilish `DATABASE_URL` ni
+# o'qiydi. Build'da haqiqiy database yo'q, lekin o'zgaruvchi UMUMAN
+# berilmasa Prisma "Environment variable not found" xatosini log'ga
+# to'ldiradi. Bu qiymat faqat build'da yashaydi va runtime'da
+# docker-compose / Railway bergan haqiqiy manzil bilan almashadi.
+ENV DATABASE_URL="file:/tmp/build-placeholder.db"
+
 # `output: "standalone"` ni yoqadi (next.config.ts'ga qarang). Faqat shu
 # yerda: lokal va Railway `next start` ishlatadi, u standalone bilan mos emas.
 ENV DOCKER_BUILD=1
@@ -107,11 +116,15 @@ COPY --from=builder --chown=node:node /app/public ./public
 # Migratsiyalar va schema — konteyner ichida `prisma migrate deploy` uchun.
 COPY --from=builder --chown=node:node /app/prisma ./prisma
 
-# Prisma CLI va engine. Standalone bundle faqat klientni oladi, CLI'ni emas.
+# Prisma CLI va engine. Standalone bundle faqat klientni oladi, CLI'ni emas —
+# migratsiyalarni qo'llash uchun CLI kerak.
+#
+# `node_modules/.bin/prisma` ATAYLAB ko'chirilmaydi: u symlink, Docker COPY
+# uni oddiy faylga aylantiradi va bajarish huquqi yo'qolib qolishi mumkin.
+# Buning o'rniga entrypoint CLI'ni to'g'ridan-to'g'ri `node` bilan chaqiradi.
 COPY --from=builder --chown=node:node /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder --chown=node:node /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder --chown=node:node /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=node:node /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 
 COPY --chown=node:node docker/entrypoint.sh ./docker/entrypoint.sh
 RUN chmod +x ./docker/entrypoint.sh

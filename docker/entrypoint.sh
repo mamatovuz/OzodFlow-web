@@ -2,75 +2,85 @@
 set -e
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  Konteyner ishga tushganda:
-#    1. sozlamalarni tekshirish
-#    2. database migratsiyalarini qo'llash
-#    3. serverni ishga tushirish
+# OzodFlow Entrypoint
 #
-#  Super admin yaratish BU YERDA EMAS — u `src/instrumentation.ts` da,
-#  server start bo'lganda bajariladi (`tsx` va devDependencies kerak emas).
+# 1. DATABASE_URL tekshirish
+# 2. SQLite katalogini tayyorlash
+# 3. Migratsiyalarni qo'llash
+# 4. Serverni ishga tushirish
 # ═══════════════════════════════════════════════════════════════════════════
 
-# ── DATABASE_URL bormi ────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────
+# DATABASE_URL tekshirish
+# ──────────────────────────────────────────────────────────────────────────
 if [ -z "${DATABASE_URL}" ]; then
-  echo "" >&2
-  echo "XATO: DATABASE_URL berilmagan." >&2
-  echo "" >&2
-  echo "Railway/Docker sozlamalarida quyidagini qo'shing:" >&2
-  echo "  DATABASE_URL=file:/data/ozodflow.db" >&2
-  echo "" >&2
+  echo ""
+  echo "❌ XATO: DATABASE_URL topilmadi."
+  echo ""
+  echo "Misol:"
+  echo "DATABASE_URL=file:/data/ozodflow.db"
+  echo ""
   exit 1
 fi
 
-# ── SQLite fayl uchun katalog yoziladigan holatdami ───────────────────────
-#
-# Nega bu tekshiruv kerak: konteyner `node` foydalanuvchisi sifatida
-# ishlaydi, tashqi volume esa (Railway, Docker `-v`) ko'pincha root'ga
-# tegishli bo'lib mount qilinadi. Bunda SQLite "unable to open database
-# file" degan tushunarsiz xato beradi va sabab uzoq izlanadi.
-#
-# Faqat `file:` manzillarida tekshiramiz — Postgres'ga o'tilganda bu
-# blok o'zi chetlab o'tiladi.
+# ──────────────────────────────────────────────────────────────────────────
+# SQLite bo'lsa katalogni tekshirish
+# ──────────────────────────────────────────────────────────────────────────
 case "${DATABASE_URL}" in
   file:*)
     DB_PATH="${DATABASE_URL#file:}"
     DB_DIR="$(dirname "${DB_PATH}")"
 
-    if [ ! -d "${DB_DIR}" ]; then
-      mkdir -p "${DB_DIR}" 2>/dev/null || true
-    fi
+    echo "SQLite database:"
+    echo "  ${DB_PATH}"
 
-    if [ ! -w "${DB_DIR}" ]; then
-      echo "" >&2
-      echo "XATO: ${DB_DIR} katalogiga yozib bo'lmaydi." >&2
-      echo "" >&2
-      echo "Konteyner '$(id -un)' foydalanuvchisi sifatida ishlamoqda," >&2
-      echo "katalog esa boshqa egaga tegishli:" >&2
-      ls -ld "${DB_DIR}" >&2 2>/dev/null || true
-      echo "" >&2
-      echo "Yechim variantlari:" >&2
-      echo "  1. Volume mount yo'lini tekshiring (kutilgan: /data)" >&2
-      echo "  2. Hosting sozlamasida volume egasini o'zgartiring" >&2
-      echo "" >&2
+    mkdir -p "${DB_DIR}" 2>/dev/null || true
+
+    # Test fayl yaratib ko'ramiz
+    if touch "${DB_DIR}/.permission_test" 2>/dev/null; then
+      rm -f "${DB_DIR}/.permission_test"
+      echo "✓ ${DB_DIR} ga yozish mumkin."
+    else
+      echo ""
+      echo "══════════════════════════════════════════════"
+      echo "❌ XATO: ${DB_DIR} katalogiga yozib bo'lmadi."
+      echo "══════════════════════════════════════════════"
+      echo ""
+
+      echo "Current user:"
+      id
+
+      echo ""
+      echo "Directory:"
+      ls -ld "${DB_DIR}" 2>/dev/null || true
+
+      echo ""
+      echo "DATABASE_URL=${DATABASE_URL}"
+      echo ""
+
+      echo "Bu Dockerfile xatosi emas."
+      echo "Bu Railway Volume permission muammosi."
+      echo ""
+
       exit 1
     fi
     ;;
 esac
 
-# ── Migratsiyalar ─────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────
+# Prisma migratsiyalari
+# ──────────────────────────────────────────────────────────────────────────
+echo ""
 echo "→ Migratsiyalar qo'llanmoqda..."
+echo ""
 
-# `migrate deploy` — production uchun: faqat mavjud migratsiyalarni qo'llaydi,
-# yangi migratsiya yaratmaydi va ma'lumotni o'chirmaydi.
-# `migrate dev` ni production'da ishlatish MUMKIN EMAS — u schema mos
-# kelmasa databaseni tozalab tashlashi mumkin.
-#
-# CLI `/opt/prisma-cli` da turadi, ilova node_modules'ida emas: uning o'z
-# bog'liqliklari bor va ular standalone bundle'ga sig'maydi (Dockerfile'dagi
-# izohga qarang). `--schema` aniq ko'rsatiladi, chunki CLI boshqa katalogda.
 node /opt/prisma-cli/node_modules/prisma/build/index.js migrate deploy \
   --schema /app/prisma/schema.prisma
 
-echo "→ Server ishga tushmoqda (port ${PORT:-3000})"
+echo ""
+echo "✓ Migratsiyalar muvaffaqiyatli tugadi."
+echo ""
+
+echo "→ Server ishga tushmoqda (PORT=${PORT:-3000})"
 
 exec "$@"

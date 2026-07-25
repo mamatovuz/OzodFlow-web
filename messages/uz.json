@@ -203,6 +203,36 @@
       "developerNote": "Mutaxassis profili admin tasdig'idan keyin ochiladi. Ariza jarayoni: portfolio, texnik test va shaxsni tasdiqlash."
     },
 
+    "forgot": {
+      "title": "Parolni tiklash",
+      "subtitle": "Hisobingiz emailini kiriting — tiklash havolasini yuboramiz.",
+      "email": "Email",
+      "emailPlaceholder": "ism@mail.uz",
+      "submit": "Havola yuborish",
+      "submitting": "Yuborilmoqda…",
+      "sentTitle": "Havola yuborildi",
+      "sentBody": "Agar bu email ro'yxatdan o'tgan bo'lsa, tiklash havolasi yuborildi. Pochtangizni tekshiring — havola {minutes} daqiqa amal qiladi.",
+      "notConfiguredNote": "Diqqat: email yuborish hali sozlanmagan. Havola server log'iga yozildi — administrator undan olishi mumkin.",
+      "backToLogin": "Kirishga qaytish"
+    },
+
+    "reset": {
+      "title": "Yangi parol o'rnatish",
+      "subtitle": "Yangi parolni kiriting. Barcha qurilmalardan chiqarilasiz.",
+      "password": "Yangi parol",
+      "passwordConfirm": "Parolni tasdiqlash",
+      "submit": "Parolni o'zgartirish",
+      "submitting": "Saqlanmoqda…",
+      "invalidTitle": "Havola yaroqsiz",
+      "invalidExpired": "Havola muddati tugagan. Yangi havola so'rang.",
+      "invalidUsed": "Bu havola allaqachon ishlatilgan. Yangi havola so'rang.",
+      "invalidNotFound": "Havola topilmadi yoki noto'g'ri. Yangi havola so'rang.",
+      "requestNew": "Yangi havola so'rash",
+      "successTitle": "Parol o'zgartirildi",
+      "successBody": "Yangi parol bilan kirishingiz mumkin. Xavfsizlik uchun barcha qurilmalardan chiqarildingiz.",
+      "loginNow": "Kirish"
+    },
+
     "logout": "Chiqish",
     "backToSite": "Saytga qaytish"
   },

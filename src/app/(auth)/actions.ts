@@ -7,15 +7,37 @@ import { clearAuthCookies, setAuthCookies } from "@/lib/auth/cookies";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { defaultLandingForRole, safeRedirectPath } from "@/lib/auth/redirects";
-import { createSession, revokeSession } from "@/lib/auth/session";
+import {
+  createSession,
+  revokeAllUserSessions,
+  revokeSession,
+} from "@/lib/auth/session";
+import {
+  PASSWORD_RESET_TTL_MINUTES,
+  TOKEN_PURPOSE,
+  consumeToken,
+  issueToken,
+  passwordResetLink,
+} from "@/lib/auth/verification";
 import { db } from "@/lib/db";
 import { SessionRevokeReason, UserRole, UserStatus } from "@/lib/enums";
 import { env } from "@/lib/env";
+import { passwordResetMail, sendMail } from "@/lib/mail";
 import { RULES, consume, rateLimitKey, rateLimitMessage, reset } from "@/lib/rate-limit";
 import { getRequestInfo } from "@/lib/request-info";
 import { isRegistrationOpen } from "@/lib/settings";
-import { loginSchema, registerSchema } from "@/lib/validators/auth";
-import { formError, parseFormData, type FormState } from "@/lib/validators/form";
+import {
+  forgotPasswordSchema,
+  loginSchema,
+  registerSchema,
+  resetPasswordSchema,
+} from "@/lib/validators/auth";
+import {
+  formError,
+  formSuccess,
+  parseFormData,
+  type FormState,
+} from "@/lib/validators/form";
 
 /**
  * AUTH SERVER ACTION'LARI
@@ -315,6 +337,171 @@ export async function registerAction(
    * tasdiqlanmagan, ko'rsatadigan narsa yo'q.
    */
   redirect(role === UserRole.DEVELOPER ? "/apply" : "/dashboard");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Parolni tiklash — havola so'rash
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Tiklash havolasini yuboradi.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  MUHIM: JAVOB HAR DOIM BIR XIL
+ *
+ *  Email ro'yxatdan o'tgan bo'lsa ham, o'tmagan bo'lsa ham "havola
+ *  yuborildi" deyiladi. Aks holda bu forma hisob sanash vositasiga
+ *  aylanadi: hujumchi minglab email kiritib, qaysilari platformada
+ *  borligini aniqlab oladi.
+ *
+ *  Shu sababli `formSuccess` HAR IKKI holatda qaytariladi va farq faqat
+ *  serverda (xat yuborildi yoki yo'q) qoladi.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+export async function forgotPasswordAction(
+  _prevState: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const info = await getRequestInfo();
+  const parsed = parseFormData(forgotPasswordSchema, formData);
+
+  if (!parsed.ok) {
+    return { status: "error", fieldErrors: parsed.fieldErrors };
+  }
+
+  const { email, website } = parsed.data;
+
+  // Honeypot — botga muvaffaqiyat qaytaramiz.
+  if (website && website.trim().length > 0) {
+    return formSuccess();
+  }
+
+  const limit = consume(
+    rateLimitKey("password_reset", { ip: info.ip, identifier: email }),
+    RULES.PASSWORD_RESET
+  );
+
+  if (!limit.ok) {
+    return formError(rateLimitMessage(limit));
+  }
+
+  const user = await db.user.findUnique({
+    where: { email },
+    select: { id: true, name: true, email: true, deletedAt: true, status: true },
+  });
+
+  // Foydalanuvchi bor va faol bo'lsa — havola yuboramiz.
+  if (user && !user.deletedAt && user.status !== UserStatus.BANNED) {
+    const issued = await issueToken({
+      identifier: email,
+      purpose: TOKEN_PURPOSE.RESET_PASSWORD,
+      ttlMinutes: PASSWORD_RESET_TTL_MINUTES,
+    });
+
+    await sendMail(
+      passwordResetMail({
+        to: email,
+        name: user.name,
+        link: passwordResetLink(issued.token),
+        expiresInMinutes: PASSWORD_RESET_TTL_MINUTES,
+      })
+    );
+
+    await auditSafely({
+      actorId: user.id,
+      action: AUDIT.PASSWORD_RESET,
+      entityType: "User",
+      entityId: user.id,
+      after: { stage: "link_requested" },
+    });
+  }
+
+  return formSuccess();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Parolni tiklash — yangi parol o'rnatish
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function resetPasswordAction(
+  _prevState: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const info = await getRequestInfo();
+  const parsed = parseFormData(resetPasswordSchema, formData);
+
+  if (!parsed.ok) {
+    return { status: "error", fieldErrors: parsed.fieldErrors };
+  }
+
+  const { token, password } = parsed.data;
+
+  const limit = consume(
+    rateLimitKey("password_reset_submit", { ip: info.ip }),
+    RULES.PASSWORD_RESET
+  );
+
+  if (!limit.ok) {
+    return formError(rateLimitMessage(limit));
+  }
+
+  // Token shu yerda ISHLATILADI (bir martalik bo'lib qoladi).
+  const check = await consumeToken(token, TOKEN_PURPOSE.RESET_PASSWORD);
+
+  if (!check.ok) {
+    return formError(
+      check.reason === "expired"
+        ? "Havola muddati tugagan. Yangi havola so'rang."
+        : check.reason === "used"
+          ? "Bu havola allaqachon ishlatilgan. Yangi havola so'rang."
+          : "Havola yaroqsiz. Yangi havola so'rang."
+    );
+  }
+
+  const user = await db.user.findUnique({
+    where: { email: check.identifier },
+    select: { id: true },
+  });
+
+  if (!user) {
+    // Token amal qilardi, lekin foydalanuvchi o'chirilgan.
+    return formError("Hisob topilmadi.");
+  }
+
+  const passwordHash = await hashPassword(password);
+
+  await db.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash,
+      // Parol tiklangach hisob qulfi ham ochiladi — foydalanuvchi
+      // aynan shu sababdan parolni tiklagan bo'lishi mumkin.
+      failedLoginCount: 0,
+      lockedUntil: null,
+    },
+  });
+
+  /**
+   * BARCHA sessiyalar yopiladi.
+   *
+   * Bu majburiy: parol tiklanishining sababi ko'pincha uni birov bilib
+   * qolgani. Eski sessiyalar tirik qolsa, hujumchi parol o'zgargandan
+   * keyin ham hisobda qolib turardi.
+   */
+  const revoked = await revokeAllUserSessions(
+    user.id,
+    SessionRevokeReason.PASSWORD_CHANGED
+  );
+
+  await auditSafely({
+    actorId: user.id,
+    action: AUDIT.PASSWORD_RESET,
+    entityType: "User",
+    entityId: user.id,
+    after: { stage: "completed", sessionsRevoked: revoked },
+  });
+
+  return formSuccess("Parol o'zgartirildi.");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

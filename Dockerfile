@@ -32,9 +32,21 @@ RUN apt-get update \
 ARG NPM_VERSION=11.6.2
 RUN npm install -g "npm@${NPM_VERSION}"
 
-# Faqat manifest fayllar ko'chiriladi: kod o'zgarganda bu qatlam
-# keshdan olinadi va `npm ci` qayta ishlamaydi.
+# Manifest fayllar VA Prisma schema.
+#
+# Schema shu yerda kerak, chunki `package.json` da `postinstall` skripti bor
+# va u `prisma generate` ni chaqiradi. Schema bo'lmasa `npm ci` shu joyda
+# "Could not find Prisma Schema" xatosi bilan yiqiladi.
+#
+# Ilova kodi ATAYLAB ko'chirilmaydi: kod o'zgarganda bu qatlam keshdan
+# olinadi va `npm ci` qayta ishlamaydi (bu build vaqtining eng katta qismi).
 COPY package.json package-lock.json ./
+COPY prisma ./prisma
+
+# `postinstall` → `prisma generate` uchun soxta manzil. Generatsiya
+# databasega ULANMAYDI, lekin o'zgaruvchi mavjud bo'lishini kutadi.
+ENV DATABASE_URL="file:/tmp/build-placeholder.db"
+
 RUN npm ci
 
 

@@ -310,9 +310,25 @@ Railway service → **Settings → Build** va **Settings → Deploy**:
 > ./docker/entrypoint.sh node server.js
 > ```
 
-**4. Deploy.** Migratsiyalar konteyner ishga tushganda avtomatik qo'llanadi
-(`docker/entrypoint.sh`), super admin esa birinchi startda yaratiladi
-(`src/instrumentation.ts`).
+**4. Deploy.** Konteyner ishga tushganda ketma-ketlik shunday:
+
+| Qadam | Qayerda | Nima qiladi |
+| --- | --- | --- |
+| 1 | `docker/entrypoint.sh` | `prisma migrate deploy` — jadvallar yasaladi |
+| 2 | `src/instrumentation.ts` | Ma'lumotnoma yoziladi: katalog, ko'nikmalar, sozlamalar, nishonlar, savollar |
+| 3 | `src/instrumentation.ts` | Super admin va tizim hamyonlari yaratiladi |
+
+Ikkinchi qadam **majburiy**: Railway'da database bo'sh volume'da
+yaratiladi. Migratsiyalar jadval yasaydi, lekin jadvallar bo'sh bo'ladi —
+seed ishlamasa sayt ochiladi-yu, xizmatlar katalogi bo'm-bo'sh chiqadi va
+komissiya sozlamasi topilmaydi.
+
+Birinchi start ~2.5 sekund uzoq davom etadi. Keyingi startlarda seed
+o'tkazib yuboriladi (`system.reference_data_version` belgisi bo'yicha).
+
+> Seed ma'lumotini o'zgartirsangiz — `src/lib/seed/index.ts` dagi
+> `REFERENCE_DATA_VERSION` ni oshiring, aks holda yangi kategoriya
+> production'ga tushmaydi.
 
 Admin yaratilgandan keyin `OZODFLOW_ADMIN_PASSWORD` ni Variables'dan
 o'chirib qo'yish tavsiya etiladi — u boshqa kerak bo'lmaydi.

@@ -81,5 +81,16 @@ export const attachmentListSchema = z.array(
   })
 );
 
+/**
+ * Xabarnoma turini kanal bo'yicha o'chirish.
+ *
+ * Shakl: `{"PROJECT_MESSAGE": {"email": false}}` — "loyiha xabarlari
+ * uchun email kerak emas, qolgan kanallar ishlasin".
+ */
+export const typeOverridesSchema = z.record(
+  z.string(),
+  z.record(z.string(), z.boolean())
+);
+
 /** Ixtiyoriy kalit-qiymat metadata. */
 export const metaSchema = z.record(z.string(), z.unknown());

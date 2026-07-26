@@ -16,6 +16,16 @@ import { formatPhone } from "@/lib/utils";
 export async function SiteFooter() {
   const t = await getTranslations("footer");
 
+  /**
+   * FAQAT MAVJUD SAHIFALAR.
+   *
+   * Hali yozilmagan bo'limlar (`/pricing`, `/support`, `/apply`,
+   * `/levels`, `/blog`, `/about`) ATAYLAB olib tashlangan. Footer'dagi
+   * ishlamaydigan havola — foydalanuvchi uchun 404, qidiruv tizimi
+   * uchun esa sayt sifatining pasayishi.
+   *
+   * Sahifa yozilgach shu yerga qaytariladi.
+   */
   const columns = [
     {
       title: t("sections.platform"),
@@ -23,7 +33,6 @@ export async function SiteFooter() {
         { href: "/services", label: t("links.services") },
         { href: "/developers", label: t("links.developers") },
         { href: "/how-it-works", label: t("links.howItWorks") },
-        { href: "/pricing", label: t("links.pricing") },
       ],
     },
     {
@@ -31,24 +40,18 @@ export async function SiteFooter() {
       links: [
         { href: "/projects/new", label: t("links.postProject") },
         { href: "/how-it-works#escrow", label: t("links.escrow") },
-        { href: "/support", label: t("links.support") },
       ],
     },
     {
       title: t("sections.forDevelopers"),
       links: [
-        { href: "/apply", label: t("links.apply") },
-        { href: "/apply/requirements", label: t("links.requirements") },
-        { href: "/levels", label: t("links.levels") },
+        { href: "/register?role=developer", label: t("links.apply") },
+        { href: "/how-it-works", label: t("links.howItWorks") },
       ],
     },
     {
       title: t("sections.company"),
-      links: [
-        { href: "/blog", label: t("links.blog") },
-        { href: "/about", label: t("links.about") },
-        { href: "/contact", label: t("links.contact") },
-      ],
+      links: [{ href: "/contact", label: t("links.contact") }],
     },
   ];
 

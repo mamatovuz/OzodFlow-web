@@ -255,3 +255,13 @@ export async function getFreeRevisionCount(): Promise<number> {
 export async function getMaxProposals(): Promise<number> {
   return getSetting(SETTING_KEYS.MAX_PROPOSALS, z.number().int().min(1), 20);
 }
+
+/**
+ * Yangi loyiha admin tekshiruvidan o'tishi kerakmi.
+ *
+ * Yoqilgan bo'lsa loyiha PENDING_REVIEW holatida turadi — spam va
+ * firibgarlikdan himoya. Standart holat: YOQILGAN.
+ */
+export async function isProjectModerationEnabled(): Promise<boolean> {
+  return getSetting(SETTING_KEYS.MODERATE_PROJECTS, z.boolean(), true);
+}

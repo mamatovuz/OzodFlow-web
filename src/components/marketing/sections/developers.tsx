@@ -162,7 +162,7 @@ function EmptyState({ message, ctaLabel }: { message: string; ctaLabel: string }
       </p>
 
       <Button asChild variant="brand" className="mt-6">
-        <Link href="/apply">
+        <Link href="/register?role=developer">
           {ctaLabel}
           <ArrowRight className="size-4" strokeWidth={2} aria-hidden />
         </Link>

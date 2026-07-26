@@ -3,7 +3,9 @@ import {
   ACTIVE_PROJECT_STATUSES,
   ProjectStatus,
   ProposalStatus,
+  UserRole,
 } from "@/lib/enums";
+import { listMyProjects, type ProjectSummary } from "@/lib/queries/projects";
 
 /**
  * KABINET MA'LUMOTLARI
@@ -32,20 +34,15 @@ export type CustomerDashboard = {
   recentProjects: RecentProject[];
 };
 
-export type RecentProject = {
-  id: string;
-  publicId: string;
-  title: string;
-  status: string;
-  budgetMin: bigint;
-  budgetMax: bigint;
-  agreedAmount: bigint | null;
-  deadlineAt: Date | null;
-  createdAt: Date;
-  categoryName: string;
-  proposalCount: number;
-  developer: { name: string; avatarUrl: string | null; username: string | null } | null;
-};
+/**
+ * Ro'yxat elementi tipi `queries/projects.ts` dan olinadi.
+ *
+ * Nega qayta e'lon qilinmaydi: kabinetdagi "oxirgi loyihalar" va
+ * "loyihalarim" ro'yxati BIR XIL komponentda chiziladi. Ikki alohida tip
+ * bo'lsa, biri o'zgarganda ikkinchisi ortda qolib, komponent ikkalasiga
+ * ham to'liq mos kelmay qoladi.
+ */
+export type RecentProject = ProjectSummary;
 
 export async function getCustomerDashboard(userId: string): Promise<CustomerDashboard> {
   const [wallet, profile, counts, proposalsToReview, recentProjects] =
@@ -75,27 +72,10 @@ export async function getCustomerDashboard(userId: string): Promise<CustomerDash
         },
       }),
 
-      db.project.findMany({
-        where: { customerId: userId },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        select: {
-          id: true,
-          publicId: true,
-          title: true,
-          status: true,
-          budgetMin: true,
-          budgetMax: true,
-          agreedAmount: true,
-          deadlineAt: true,
-          createdAt: true,
-          proposalCount: true,
-          category: { select: { name: true } },
-          developer: {
-            select: { name: true, avatarUrl: true, username: true },
-          },
-        },
-      }),
+      // Ro'yxat so'rovi TAKRORLANMAYDI — `listMyProjects` ishlatiladi.
+      // Shu tufayli kabinetdagi va "loyihalarim" sahifasidagi ro'yxat
+      // aynan bir xil ma'lumot va bir xil shaklda bo'ladi.
+      listMyProjects({ userId, role: UserRole.CUSTOMER, take: 5 }),
     ]);
 
   /** `groupBy` natijasini holat → son xaritasiga aylantiradi. */
@@ -111,20 +91,7 @@ export async function getCustomerDashboard(userId: string): Promise<CustomerDash
     completedProjects: byStatus.get(ProjectStatus.COMPLETED) ?? 0,
     draftProjects: byStatus.get(ProjectStatus.DRAFT) ?? 0,
     proposalsToReview,
-    recentProjects: recentProjects.map((project) => ({
-      id: project.id,
-      publicId: project.publicId,
-      title: project.title,
-      status: project.status,
-      budgetMin: project.budgetMin,
-      budgetMax: project.budgetMax,
-      agreedAmount: project.agreedAmount,
-      deadlineAt: project.deadlineAt,
-      createdAt: project.createdAt,
-      categoryName: project.category.name,
-      proposalCount: project.proposalCount,
-      developer: project.developer,
-    })),
+    recentProjects,
   };
 }
 
@@ -201,25 +168,7 @@ export async function getDeveloperDashboard(
         _sum: { developerAmount: true },
       }),
 
-      db.project.findMany({
-        where: { assignedDeveloperId: userId },
-        orderBy: { updatedAt: "desc" },
-        take: 5,
-        select: {
-          id: true,
-          publicId: true,
-          title: true,
-          status: true,
-          budgetMin: true,
-          budgetMax: true,
-          agreedAmount: true,
-          deadlineAt: true,
-          createdAt: true,
-          proposalCount: true,
-          category: { select: { name: true } },
-          customer: { select: { name: true, avatarUrl: true, username: true } },
-        },
-      }),
+      listMyProjects({ userId, role: UserRole.DEVELOPER, take: 5 }),
     ]);
 
   return {
@@ -236,20 +185,6 @@ export async function getDeveloperDashboard(
     pendingProposals,
     availableProjects,
     verified: profile?.verifiedAt !== null && profile?.verifiedAt !== undefined,
-    recentWork: recentWork.map((project) => ({
-      id: project.id,
-      publicId: project.publicId,
-      title: project.title,
-      status: project.status,
-      budgetMin: project.budgetMin,
-      budgetMax: project.budgetMax,
-      agreedAmount: project.agreedAmount,
-      deadlineAt: project.deadlineAt,
-      createdAt: project.createdAt,
-      categoryName: project.category.name,
-      proposalCount: project.proposalCount,
-      // Developer ko'rinishida "boshqa tomon" — mijoz.
-      developer: project.customer,
-    })),
+    recentWork,
   };
 }

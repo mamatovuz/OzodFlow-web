@@ -28,16 +28,25 @@ import { ROLE_RANK, UserRole } from "@/lib/enums";
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-/** Kirish talab qilinadigan yo'l boshlanmalari. */
+/**
+ * Kirish talab qilinadigan yo'l boshlanmalari.
+ *
+ * MUHIM: himoyalangan yo'l shu ro'yxatda BO'LISHI kerak, garchi sahifa
+ * o'zi `requireUser()` chaqirsa ham. Sababi: `(app)` qobig'i layout'da
+ * `requireUser()` ni ARGUMENTSIZ chaqiradi (layout hozirgi manzilni
+ * bilmaydi), shuning uchun `?next=` parametri yo'qoladi va foydalanuvchi
+ * kirgandan keyin o'zi turgan sahifaga qaytmaydi.
+ *
+ * Middleware esa manzilni biladi va uni to'g'ri qo'shadi.
+ */
 const PROTECTED_PREFIXES = [
   "/dashboard",
   "/wallet",
-  "/messages",
-  "/settings",
+  "/projects",
   "/my-projects",
   "/proposals",
-  "/apply/test",
-  "/apply/status",
+  "/messages",
+  "/settings",
 ];
 
 /** Admin roli talab qilinadigan yo'llar. */

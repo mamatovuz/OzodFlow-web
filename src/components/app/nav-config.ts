@@ -1,15 +1,9 @@
 import {
   Banknote,
   Briefcase,
-  Calendar,
   FileText,
-  Heart,
   LayoutDashboard,
-  MessageSquare,
   Search,
-  Settings,
-  Star,
-  Trophy,
   type LucideIcon,
 } from "lucide-react";
 
@@ -18,12 +12,25 @@ import { UserRole } from "@/lib/enums";
 /**
  * KABINET NAVIGATSIYASI
  *
- * Nega alohida konfiguratsiya fayli: navigatsiya uch joyda kerak bo'ladi —
- * yon panel (desktop), mobil menyu va tezkor qidiruv (⌘K). Uchtasida
- * qo'lda yozilsa vaqt o'tib ular bir-biriga mos kelmay qoladi.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  QOIDA: FAQAT MAVJUD SAHIFALAR
  *
- * `messages/uz.json` dagi `appNav` bo'limi bilan bog'langan: bu yerda
- * faqat kalit turadi, matn tarjima faylida.
+ *  Bu ro'yxatga hali yozilmagan sahifa QO'SHILMAYDI. Ishlamaydigan havola
+ *  foydalanuvchini 404 ga olib boradi va mahsulot buzuq degan taassurot
+ *  qoldiradi — bo'lmagan bo'limdan ko'ra yomonroq.
+ *
+ *  Yangi sahifa yozilgach shu yerga qo'shiladi.
+ *
+ *  Rejalashtirilgan, LEKIN HALI YO'Q bo'lgani uchun kiritilmagan:
+ *    • /messages          — chat
+ *    • /settings          — profil va xavfsizlik sozlamalari
+ *    • /favorites         — sevimli mutaxassislar
+ *    • /calendar          — muddatlar kalendari
+ *    • /wallet/invoices   — hisob-fakturalar
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Matnlar `messages/uz.json` dagi `appNav` bo'limidan olinadi — bu yerda
+ * faqat kalit turadi.
  */
 
 export type NavItem = {
@@ -32,12 +39,10 @@ export type NavItem = {
   href: string;
   icon: LucideIcon;
   /**
-   * Yonida raqam ko'rsatiladigan bo'lim (o'qilmagan xabarlar,
-   * yangi takliflar). Server tomonda hisoblanadi.
+   * Yonida raqam ko'rsatiladigan bo'lim. Server tomonda hisoblanadi
+   * (`lib/queries/nav-badges.ts`).
    */
   badge?: "unreadMessages" | "activeProjects" | "pendingProposals";
-  /** Ichki bo'limlar — ochilib turadigan guruh */
-  children?: Array<{ key: string; href: string }>;
 };
 
 export type NavGroup = {
@@ -58,26 +63,11 @@ const CUSTOMER_NAV: NavGroup[] = [
         icon: Briefcase,
         badge: "activeProjects",
       },
-      { key: "messages", href: "/messages", icon: MessageSquare, badge: "unreadMessages" },
-    ],
-  },
-  {
-    key: "discover",
-    items: [
-      { key: "findDevelopers", href: "/developers", icon: Search },
-      { key: "favorites", href: "/favorites", icon: Heart },
     ],
   },
   {
     key: "finance",
-    items: [
-      { key: "wallet", href: "/wallet", icon: Banknote },
-      { key: "invoices", href: "/wallet/invoices", icon: FileText },
-    ],
-  },
-  {
-    key: "account",
-    items: [{ key: "settings", href: "/settings", icon: Settings }],
+    items: [{ key: "wallet", href: "/wallet", icon: Banknote }],
   },
 ];
 
@@ -100,28 +90,11 @@ const DEVELOPER_NAV: NavGroup[] = [
         icon: Briefcase,
         badge: "activeProjects",
       },
-      { key: "messages", href: "/messages", icon: MessageSquare, badge: "unreadMessages" },
-    ],
-  },
-  {
-    key: "profile",
-    items: [
-      { key: "portfolio", href: "/settings/portfolio", icon: Star },
-      { key: "reviews", href: "/settings/reviews", icon: Star },
-      { key: "achievements", href: "/settings/achievements", icon: Trophy },
     ],
   },
   {
     key: "finance",
     items: [{ key: "wallet", href: "/wallet", icon: Banknote }],
-  },
-  {
-    key: "planning",
-    items: [{ key: "calendar", href: "/calendar", icon: Calendar }],
-  },
-  {
-    key: "account",
-    items: [{ key: "settings", href: "/settings", icon: Settings }],
   },
 ];
 
@@ -129,7 +102,8 @@ const DEVELOPER_NAV: NavGroup[] = [
  * Rolga mos navigatsiyani qaytaradi.
  *
  * Admin uchun alohida qobiq bor (`/admin`), shuning uchun bu yerda admin
- * ham mijoz navigatsiyasini oladi — u admin panelga topbar orqali o'tadi.
+ * ham mijoz navigatsiyasini oladi — u admin panelga foydalanuvchi
+ * menyusidan o'tadi.
  */
 export function navForRole(role: string): NavGroup[] {
   return role === UserRole.DEVELOPER ? DEVELOPER_NAV : CUSTOMER_NAV;
@@ -138,10 +112,9 @@ export function navForRole(role: string): NavGroup[] {
 /**
  * Hozirgi yo'l shu havolaga mos keladimi.
  *
- * Aniq moslik VA ichki yo'llar hisobga olinadi: `/wallet/invoices` sahifasida
- * `/wallet` ham faol ko'rinishi kerak. Lekin `/dashboard` uchun faqat aniq
- * moslik — aks holda u har doim faol bo'lib qolardi (barcha yo'llar `/`
- * bilan boshlanadi).
+ * Aniq moslik VA ichki yo'llar hisobga olinadi: `/wallet/invoices`
+ * sahifasida `/wallet` ham faol ko'rinishi kerak. Lekin `/dashboard`
+ * uchun faqat aniq moslik — aks holda u har doim faol bo'lib qolardi.
  */
 export function isNavItemActive(pathname: string, href: string): boolean {
   if (href === "/dashboard") return pathname === href;

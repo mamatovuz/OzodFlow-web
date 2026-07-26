@@ -11,11 +11,17 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+/**
+ * Faqat MAVJUD sahifalar.
+ *
+ * `/blog` va `/pricing` bu yerda ATAYLAB yo'q — ular hali yozilmagan.
+ * Ishlamaydigan havola foydalanuvchini 404 ga olib boradi; bo'lmagan
+ * bo'limdan ko'ra yomonroq. Sahifa yozilgach shu yerga qo'shiladi.
+ */
 const NAV_ITEMS = [
   { href: "/services", key: "services" },
   { href: "/developers", key: "developers" },
   { href: "/how-it-works", key: "howItWorks" },
-  { href: "/blog", key: "blog" },
 ] as const;
 
 /**

@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 
 import { ProjectStatusBadge } from "@/components/app/project-status-badge";
 import { Avatar } from "@/components/ui/avatar";
-import type { RecentProject } from "@/lib/queries/dashboard";
+import type { ProjectSummary } from "@/lib/queries/projects";
 import { formatMoney, formatMoneyRange } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
@@ -15,14 +15,14 @@ import { cn } from "@/lib/utils";
  * tugaydigan SARIQ. Bu shunchaki bezak emas — kechikish escrow va
  * reyting bilan bog'liq, foydalanuvchi uni birinchi qarashda ko'rishi kerak.
  */
-export function ProjectListItem({ project }: { project: RecentProject }) {
+export function ProjectListItem({ project }: { project: ProjectSummary }) {
   const t = useTranslations("dashboard.project");
 
   const deadline = describeDeadline(project.deadlineAt, project.status);
 
   return (
     <Link
-      href={`/my-projects/${project.publicId}`}
+      href={`/projects/${project.publicId}`}
       className="group flex flex-col gap-3 px-5 py-4 transition-colors hover:bg-surface-1 sm:px-6"
     >
       <div className="flex items-start justify-between gap-3">
@@ -91,14 +91,14 @@ export function ProjectListItem({ project }: { project: RecentProject }) {
         )}
 
         {/* Ikkinchi tomon (developer yoki mijoz) */}
-        {project.developer && (
+        {project.counterparty && (
           <span className="inline-flex items-center gap-2 text-muted-foreground">
             <Avatar
-              name={project.developer.name}
-              src={project.developer.avatarUrl}
+              name={project.counterparty.name}
+              src={project.counterparty.avatarUrl}
               size="xs"
             />
-            <span className="truncate">{project.developer.name}</span>
+            <span className="truncate">{project.counterparty.name}</span>
           </span>
         )}
       </div>

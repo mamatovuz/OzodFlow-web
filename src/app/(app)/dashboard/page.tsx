@@ -173,8 +173,11 @@ async function DeveloperView({ userId }: { userId: string }) {
         <Alert variant="warning" title={t("notVerifiedTitle")}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span>{t("notVerifiedBody")}</span>
+            {/* Ariza oqimi (test, portfolio yuklash) hali yozilmagan —
+                shu sababli havola aloqa sahifasiga boradi. Tasdiqlashni
+                hozircha admin panel orqali admin bajaradi. */}
             <Button asChild variant="secondary" size="sm">
-              <Link href="/apply/status">{t("notVerifiedCta")}</Link>
+              <Link href="/contact">{t("notVerifiedCta")}</Link>
             </Button>
           </div>
         </Alert>

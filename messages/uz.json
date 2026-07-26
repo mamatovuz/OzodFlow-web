@@ -42,6 +42,266 @@
     "LEGEND": "Legenda"
   },
 
+  "developers": {
+    "title": "Mutaxassislar",
+    "subtitle": "Har biri portfolio, texnik test va shaxs tasdig'idan o'tgan.",
+    "empty": "Mutaxassislar ro'yxati hozircha bo'sh.",
+    "emptyBody": "Birinchi mutaxassislar tasdiqlanishi bilan shu yerda ko'rinadi.",
+    "becomeOne": "Mutaxassis bo'lish",
+    "available": "Bo'sh",
+    "busy": "Band",
+    "projects": "{count, plural, =0 {Yangi} one {# loyiha} other {# loyiha}}",
+    "reviews": "{count, plural, =0 {Sharh yo'q} one {# sharh} other {# sharh}}",
+    "filterAll": "Barchasi",
+    "filterAvailable": "Faqat bo'shlar",
+    "hourlyRate": "Soatiga"
+  },
+
+  "profile": {
+    "hire": "Ish taklif qilish",
+    "contact": "Bog'lanish",
+    "about": "Haqida",
+    "skills": "Ko'nikmalar",
+    "portfolio": "Portfolio",
+    "certificates": "Sertifikatlar",
+    "reviews": "Sharhlar",
+    "badges": "Nishonlar",
+    "languages": "Tillar",
+    "noReviews": "Hali sharh yo'q.",
+    "noPortfolio": "Portfolio hali to'ldirilmagan.",
+    "verified": "Tasdiqlangan",
+    "memberSince": "Ro'yxatdan o'tgan",
+    "stats": {
+      "rating": "Reyting",
+      "projects": "Bajarilgan loyiha",
+      "successRate": "Muvaffaqiyat",
+      "responseTime": "Javob vaqti",
+      "experience": "Tajriba",
+      "yearsShort": "{years, plural, one {# yil} other {# yil}}",
+      "minutesShort": "{minutes, plural, one {# daqiqa} other {# daqiqa}}",
+      "hoursShort": "{hours, plural, one {# soat} other {# soat}}"
+    },
+    "reply": "Mutaxassis javobi",
+    "skillKind": {
+      "LANGUAGE": "Dasturlash tillari",
+      "FRAMEWORK": "Freymvorklar",
+      "DATABASE": "Ma'lumotlar bazasi",
+      "DEVOPS": "DevOps",
+      "DESIGN": "Dizayn",
+      "OTHER": "Boshqa"
+    }
+  },
+
+  "admin": {
+    "title": "Admin panel",
+    "backToApp": "Kabinetga qaytish",
+
+    "nav": {
+      "overview": "Umumiy ko'rinish",
+      "payments": "To'lovlar",
+      "moderation": "Moderatsiya",
+      "users": "Foydalanuvchilar",
+      "projects": "Loyihalar",
+      "settings": "Sozlamalar",
+      "audit": "Audit jurnali"
+    },
+
+    "overview": {
+      "title": "Umumiy ko'rinish",
+      "subtitle": "Platforma holati va e'tibor talab qiladigan ishlar.",
+      "pendingPayments": "Kutilayotgan to'lovlar",
+      "pendingProjects": "Moderatsiyada",
+      "activeProjects": "Faol loyihalar",
+      "totalUsers": "Foydalanuvchilar",
+      "platformRevenue": "Platforma daromadi",
+      "escrowHeld": "Escrow'da bloklangan",
+      "reconcileOk": "Buxgalteriya to'g'ri",
+      "reconcileOkBody": "Bloklangan summa escrow yozuvlariga mos keladi.",
+      "reconcileFail": "BUXGALTERIYA FARQI ANIQLANDI",
+      "reconcileFailBody": "Bloklangan summa ({actual}) escrow yozuvlariga ({expected}) mos kelmayapti. Farq: {difference}. Bu kodda xato borligini bildiradi — tekshirish zarur.",
+      "nothingToDo": "Hozircha e'tibor talab qiladigan ish yo'q."
+    },
+
+    "payments": {
+      "title": "To'lovlarni tasdiqlash",
+      "subtitle": "O'tkazmani tekshirib, hamyonni to'ldiring.",
+      "empty": "Kutilayotgan to'lov yo'q.",
+      "code": "To'lov kodi",
+      "user": "Foydalanuvchi",
+      "amount": "Summa",
+      "requestedAt": "So'ralgan vaqt",
+      "confirm": "Tasdiqlash",
+      "reject": "Rad etish",
+      "rejectReason": "Rad etish sababi",
+      "confirmWarning": "Tasdiqlashdan oldin o'tkazma haqiqatan kelganiga ishonch hosil qiling. Bu amal hamyonga PUL QO'SHADI va uni orqaga qaytarish uchun alohida tuzatish kerak bo'ladi."
+    },
+
+    "users": {
+      "title": "Foydalanuvchilar",
+      "subtitle": "Mutaxassislarni tasdiqlash va hisoblarni boshqarish.",
+      "empty": "Foydalanuvchi topilmadi.",
+      "filterAll": "Barchasi",
+      "filterUnverified": "Tasdiqlanmagan mutaxassislar",
+      "filterDevelopers": "Mutaxassislar",
+      "filterCustomers": "Mijozlar",
+      "verify": "Tasdiqlash",
+      "unverify": "Tasdiqni bekor qilish",
+      "unverifyReason": "Sabab",
+      "verified": "Tasdiqlangan",
+      "notVerified": "Tasdiqlanmagan",
+      "profile": "Profil",
+      "registeredAt": "Ro'yxatdan o'tgan",
+      "verifyNote": "Tasdiqlashdan oldin mutaxassis bilan bog'laning: portfolio, tajriba va shaxsini tekshiring. Tasdiqlangach uning profili ommaviy bo'ladi va u loyihalarga taklif yubora oladi.",
+      "roleLabel": {
+        "CUSTOMER": "Mijoz",
+        "DEVELOPER": "Mutaxassis",
+        "ADMIN": "Admin",
+        "SUPER_ADMIN": "Super admin"
+      }
+    },
+
+    "moderation": {
+      "title": "Loyihalar moderatsiyasi",
+      "subtitle": "Yangi loyihalarni tekshirib, ochiq ro'yxatga chiqaring.",
+      "empty": "Tekshiruvni kutayotgan loyiha yo'q.",
+      "approve": "Tasdiqlash va ochish",
+      "reject": "Rad etish",
+      "rejectReason": "Rad etish sababi",
+      "budget": "Byudjet",
+      "customer": "Mijoz"
+    }
+  },
+
+  "wallet": {
+    "title": "Hamyon",
+    "subtitle": "Balans, tranzaksiyalar va to'ldirish.",
+    "balance": "Ishlatsa bo'ladigan balans",
+    "balanceHint": "Loyihalarga to'lash va yechib olish uchun",
+    "locked": "Escrow'da bloklangan",
+    "lockedHint": "Loyihalar tugagach taqsimlanadi",
+    "totalIn": "Umumiy tushum",
+    "totalOut": "Umumiy chiqim",
+
+    "topUpTitle": "Hamyonni to'ldirish",
+    "topUpSubtitle": "Summani kiriting — to'lov kodi beriladi.",
+    "amountLabel": "Summa",
+    "amountPlaceholder": "1 000 000",
+    "methodLabel": "To'lov usuli",
+    "topUpSubmit": "So'rov yaratish",
+    "topUpSubmitting": "Yaratilmoqda…",
+
+    "instructionsTitle": "To'lov ko'rsatmasi",
+    "instructionsBody": "Quyidagi kodni o'tkazma izohiga yozing. Admin o'tkazmani tekshirib tasdiqlagach, pul hamyoningizga tushadi.",
+    "codeLabel": "To'lov kodi",
+    "amountToPay": "To'lanadigan summa",
+    "manualNote": "Diqqat: Click, Payme va Uzum integratsiyasi ishlab chiqilmoqda. Hozircha to'ldirish qo'lda tasdiqlanadi — odatda bir necha soat ichida.",
+    "pendingTitle": "Kutilayotgan to'lovlar",
+    "pendingHint": "Admin tasdig'ini kutmoqda",
+
+    "historyTitle": "Tranzaksiyalar",
+    "historyEmpty": "Hali tranzaksiya yo'q.",
+    "loadMore": "Ko'proq ko'rsatish",
+
+    "type": {
+      "DEPOSIT": "Hamyon to'ldirildi",
+      "WITHDRAWAL": "Yechib olindi",
+      "ESCROW_HOLD": "Escrow'da bloklandi",
+      "ESCROW_RELEASE": "Escrow taqsimlandi",
+      "COMMISSION": "Platforma komissiyasi",
+      "REFUND": "Qaytarildi",
+      "BONUS": "Bonus",
+      "ADJUSTMENT": "Tuzatish"
+    }
+  },
+
+  "projects": {
+    "new": {
+      "title": "Yangi loyiha",
+      "subtitle": "Nima kerakligini aniq tasvirlab bering — taklif sifati shunga bog'liq.",
+      "titleLabel": "Loyiha sarlavhasi",
+      "titlePlaceholder": "Restoran uchun yetkazib berish sayti",
+      "titleHint": "Qisqa va aniq. Mutaxassislar ro'yxatda birinchi shuni ko'radi.",
+      "categoryLabel": "Yo'nalish",
+      "categoryPlaceholder": "Tanlang",
+      "descriptionLabel": "Loyiha tavsifi",
+      "descriptionPlaceholder": "Nima kerak, kim uchun, qanday natija kutyapsiz. Misollar va havolalar bo'lsa yozing.",
+      "descriptionHint": "Batafsil tavsif aniqroq taklif va to'g'ri narx demakdir.",
+      "requirementsLabel": "Texnik talablar",
+      "requirementsHint": "Ixtiyoriy. Aniq texnologiya, integratsiya yoki cheklovlar bo'lsa.",
+      "budgetLabel": "Byudjet oralig'i",
+      "budgetMinLabel": "Eng kam",
+      "budgetMaxLabel": "Eng ko'p",
+      "budgetHint": "Oraliq bering — mutaxassislar shunga qarab taklif yuboradi.",
+      "deadlineLabel": "Muddat",
+      "deadlineHint": "Ish qachongacha tayyor bo'lishi kerak.",
+      "urgentLabel": "Shoshilinch loyiha",
+      "urgentHint": "Ro'yxatda ajratib ko'rsatiladi va mutaxassislarga alohida bildiriladi.",
+      "submit": "Loyihani joylashtirish",
+      "submitting": "Joylashtirilmoqda…",
+      "moderationNote": "Loyiha joylashtirilgach admin tekshiruvidan o'tadi. Odatda bu bir necha soat oladi.",
+      "freeNote": "Joylashtirish bepul. To'lov faqat mutaxassis tanlaganingizdan keyin."
+    },
+
+    "browse": {
+      "title": "Ochiq loyihalar",
+      "subtitle": "O'zingizga mos ishni tanlang va taklif yuboring.",
+      "empty": "Hozircha ochiq loyiha yo'q. Keyinroq qayta kiring.",
+      "emptyFiltered": "Bu filtr bo'yicha loyiha topilmadi.",
+      "allCategories": "Barcha yo'nalishlar",
+      "alreadyProposed": "Taklif yuborilgan",
+      "sendProposal": "Taklif yuborish",
+      "urgent": "Shoshilinch",
+      "postedAt": "Joylashtirildi"
+    },
+
+    "detail": {
+      "backToList": "Loyihalarga qaytish",
+      "description": "Tavsif",
+      "requirements": "Texnik talablar",
+      "timeline": "Jarayon",
+      "proposals": "Takliflar",
+      "noProposals": "Hali taklif yo'q. Mutaxassislar odatda bir kun ichida javob beradi.",
+      "developer": "Mutaxassis",
+      "customer": "Mijoz",
+      "acceptProposal": "Tanlash",
+      "deliveryDays": "{days, plural, one {# kun} other {# kun}}",
+
+      "fundTitle": "To'lovni bloklash",
+      "fundBody": "Mutaxassis tanlandi. Ish boshlanishi uchun {amount} escrow'da bloklanishi kerak. Pul mutaxassisga siz ishni qabul qilgandan keyingina o'tadi.",
+      "fundCta": "Escrow'ga to'lash",
+      "fundInsufficient": "Hamyoningizda mablag' yetarli emas. Avval hamyonni to'ldiring.",
+      "topUp": "Hamyonni to'ldirish",
+
+      "deliverTitle": "Ishni topshirish",
+      "deliverPlaceholder": "Nima bajarilgani, qayerda ko'rish mumkinligi, qanday ishga tushirish kerakligi.",
+      "deliverCta": "Topshirish",
+
+      "reviewTitle": "Ishni tekshiring",
+      "reviewBody": "Mutaxassis ishni topshirdi. Tekshirib chiqing: hammasi joyida bo'lsa qabul qiling, kamchilik bo'lsa tuzatish so'rang.",
+      "approveCta": "Qabul qilish va to'lash",
+      "revisionCta": "Tuzatish so'rash",
+      "revisionPlaceholder": "Nimani tuzatish kerakligini aniq yozing.",
+      "revisionsLeft": "{count, plural, =0 {Bepul tuzatishlar tugadi} one {Yana # ta bepul tuzatish} other {Yana # ta bepul tuzatish}}",
+
+      "proposalFormTitle": "Taklif yuborish",
+      "proposalAmount": "Taklif summangiz",
+      "proposalAmountHint": "Mijoz byudjeti: {range}",
+      "proposalDays": "Necha kunda bajarasiz",
+      "proposalLetter": "Xat",
+      "proposalLetterPlaceholder": "Nima qilishingizni, qanday yondashishingizni va nega aynan siz mos ekaningizni yozing. Shunga o'xshash ishlaringiz bo'lsa havola qoldiring.",
+      "proposalSubmit": "Taklifni yuborish",
+      "proposalSubmitting": "Yuborilmoqda…",
+      "proposalSent": "Taklif yuborildi",
+      "proposalAlreadySent": "Siz bu loyihaga allaqachon taklif yuborgansiz. Mijoz javobini kuting.",
+
+      "escrowActive": "Escrow faol",
+      "escrowAmount": "Bloklangan summa",
+      "waitingDeveloper": "Mutaxassis ishlamoqda",
+      "completedTitle": "Loyiha yakunlandi",
+      "completedBody": "To'lov taqsimlandi. Mutaxassisni baholashni unutmang."
+    }
+  },
+
   "projectStatus": {
     "DRAFT": "Qoralama",
     "PENDING_REVIEW": "Tekshiruvda",
@@ -103,8 +363,8 @@
       "emptyDescription": "Ochiq loyihalarni ko'rib chiqing va o'zingizga mos ishga taklif yuboring.",
       "emptyCta": "Ochiq loyihalarni ko'rish",
       "notVerifiedTitle": "Profilingiz hali tasdiqlanmagan",
-      "notVerifiedBody": "Ariza ko'rikdan o'tgach loyihalarga taklif yuborish imkoni ochiladi.",
-      "notVerifiedCta": "Ariza holatini ko'rish"
+      "notVerifiedBody": "Tasdiqlangandan keyin loyihalarga taklif yuborish va ommaviy profil ochiladi. Tekshiruvni tezlashtirish uchun portfolio va tajribangiz haqida bizga yozing.",
+      "notVerifiedCta": "Bog'lanish"
     },
 
     "project": {

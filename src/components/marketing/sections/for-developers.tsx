@@ -65,7 +65,7 @@ export async function ForDevelopers() {
                   size="lg"
                   className="border-transparent bg-background text-foreground shadow-lg hover:bg-background/90"
                 >
-                  <Link href="/apply">
+                  <Link href="/register?role=developer">
                     {t("cta")}
                     <ArrowRight className="size-[18px]" strokeWidth={2} aria-hidden />
                   </Link>
@@ -77,7 +77,7 @@ export async function ForDevelopers() {
                   variant="outline"
                   className="border-background/25 text-background hover:bg-background/10"
                 >
-                  <Link href="/apply/requirements">{t("requirements")}</Link>
+                  <Link href="/how-it-works">{t("requirements")}</Link>
                 </Button>
               </div>
             </div>

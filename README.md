@@ -11,18 +11,28 @@ mutaxassislar bajaradi, pul escrow orqali himoyalanadi.
 
 Loyiha fazalar bilan quriladi. Quyida nima tayyor va nima yo'q — ochiq holat.
 
-### Tayyor
+### Tayyor va ishlaydi
 
 | Qism | Izoh |
 | --- | --- |
 | Poydevor | Next.js 16 (App Router), TypeScript, Tailwind v4 |
 | Dizayn tizimi | OKLCH palitra, yorqin/qorong'i rejim, tipografiya, soyalar |
-| Domen modeli | 40+ Prisma modeli — foydalanuvchi, loyiha, escrow, chat, obro' |
-| Pul matematikasi | `src/lib/money.ts` — tiyin + basis point, 42 test bilan qoplangan |
-| Sozlamalar tizimi | Biznes qoidalari databaseda, kodda emas |
+| Domen modeli | 40+ Prisma modeli |
+| **Pul matematikasi** | `src/lib/money.ts` — tiyin + basis point, **42 test** |
+| **Hamyon dvigateli** | `src/lib/wallet.ts` — idempotent tranzaksiyalar, bloklash |
+| **Escrow** | To'ldirish, taqsimlash, qaytarish, nizo bo'linishi — **12 test** |
+| **Loyiha oqimi** | Yaratish → moderatsiya → taklif → escrow → topshirish → qabul, **6 test** |
+| **Auth** | JWT + rotatsiyali refresh, o'g'irlik aniqlash, rate limit, CSP |
 | Parol xavfsizligi | bcrypt (cost 12), mustahkamlik tekshiruvi, timing himoyasi |
+| Parolni tiklash | Bir martalik token (HMAC), barcha sessiyalar yopiladi |
 | Birinchi admin | `.env` dan avtomatik yaratiladi, kodda parol yo'q |
-| Bosh sahifa | SSR, haqiqiy ma'lumot bilan, to'liq SEO + schema.org |
+| **Kabinetlar** | Mijoz va mutaxassis uchun rolga qarab |
+| **Hamyon sahifasi** | Balans, tranzaksiyalar tarixi, to'ldirish so'rovi |
+| **Admin panel** | Buxgalteriya tekshiruvi, to'lovlar, moderatsiya, foydalanuvchilar |
+| **Ommaviy profillar** | `/dev/username` — SSG, `Person` schema.org bilan |
+| Xizmatlar katalogi | `/services` va kategoriya sahifalari, SSG |
+| Bosh sahifa | SSR, haqiqiy ma'lumot, `Organization` + `FAQPage` schema |
+| SEO | Dinamik sitemap va robots, canonical, Open Graph |
 | i18n | Barcha matn `messages/uz.json` da — `ru`/`en` faqat tarjima ishi |
 | Docker | Ko'p bosqichli image, doimiy volume, healthcheck |
 
@@ -30,14 +40,16 @@ Loyiha fazalar bilan quriladi. Quyida nima tayyor va nima yo'q — ochiq holat.
 
 | Qism | Izoh |
 | --- | --- |
-| JWT sessiyalar | Token yaratish/yangilash, kirish-chiqish, rol guardlari |
-| Kabinetlar | Mijoz va developer dashboardlari |
-| Admin panel | Barcha bo'limlar |
-| Loyiha oqimi | Yaratish, taklif, qabul qilish, topshirish |
-| Escrow amaliyoti | Model bor, tranzaksiya mantig'i yo'q |
-| Chat | Real vaqt xabar almashish |
-| To'lov tizimlari | Click, Payme, Uzum integratsiyasi |
+| Chat | Real vaqt xabar almashish (`Conversation` modeli tayyor) |
+| Developer arizasi | Texnik test, portfolio yuklash, shaxs tasdig'i. **Hozircha** tasdiqlashni admin panelda admin bajaradi |
+| To'lov shlyuzlari | Click, Payme, Uzum. **Hozircha** to'ldirish admin tasdig'i bilan |
+| Email yuborish | `src/lib/mail.ts` tayyor, SMTP transport ulanmagan — xat log'ga yoziladi |
+| Fayl yuklash | S3/MinIO integratsiyasi |
+| Sharh va reyting | Model tayyor, forma va hisoblash yo'q |
+| Sozlamalar sahifalari | Profil, xavfsizlik, qurilmalar |
 | AI funksiyalari | Tavsif generatori, byudjet taxmini, spam filtri |
+| Blog / CMS | Model tayyor, sahifalar yo'q |
+| Huquqiy hujjatlar | Sahifalar bor, matn yuridik ko'rikni kutmoqda |
 
 ---
 

@@ -1,8 +1,10 @@
-import { Bell, ShieldCheck, User } from "lucide-react";
+import { Bell, Briefcase, ShieldCheck, User } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { SettingsNav, type SettingsTab } from "@/app/(app)/settings/settings-nav";
+import { getCurrentUser } from "@/lib/auth/current-user";
+import { UserRole } from "@/lib/enums";
 
 export const metadata: Metadata = {
   title: "Sozlamalar",
@@ -22,12 +24,33 @@ export default async function SettingsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const t = await getTranslations("settings");
+  const [t, user] = await Promise.all([
+    getTranslations("settings"),
+    // `(app)/layout.tsx` allaqachon kirishni talab qiladi, ya'ni bu
+    // yerda foydalanuvchi bor. `getCurrentUser` keshlangan — qo'shimcha
+    // so'rov bo'lmaydi.
+    getCurrentUser(),
+  ]);
+
+  const isDeveloper = user?.role === UserRole.DEVELOPER;
 
   // Matnlar SERVERDA tarjima qilinadi va tayyor holda uzatiladi —
   // klient komponentga `next-intl` konteksti kerak bo'lmaydi.
   const tabs: SettingsTab[] = [
     { href: "/settings/profile", label: t("tabProfile"), icon: User },
+
+    // Portfolio faqat mutaxassisda bor. Mijozga ko'rsatish uni bo'sh
+    // sahifaga olib borardi.
+    ...(isDeveloper
+      ? [
+          {
+            href: "/settings/portfolio",
+            label: t("tabPortfolio"),
+            icon: Briefcase,
+          },
+        ]
+      : []),
+
     { href: "/settings/security", label: t("tabSecurity"), icon: ShieldCheck },
     {
       href: "/settings/notifications",

@@ -69,14 +69,11 @@ describe("env sxemasi — bo'sh qiymatlar", () => {
     const parsed = envSchemaForTests.parse({
       ...BASE,
       INPAY_MERCHANT_ID: "  1353  ",
-      INPAY_MERCHANT_TOKEN: "  6a7bf375b302cfcda6692e6f60402cb3  ",
+      INPAY_MERCHANT_TOKEN: "  namuna-token-emas-haqiqiy  ",
     });
 
     assert.equal(parsed.INPAY_MERCHANT_ID, 1353);
-    assert.equal(
-      parsed.INPAY_MERCHANT_TOKEN,
-      "6a7bf375b302cfcda6692e6f60402cb3"
-    );
+    assert.equal(parsed.INPAY_MERCHANT_TOKEN, "namuna-token-emas-haqiqiy");
   });
 
   it("son bo'lmagan INPAY_MERCHANT_ID rad etiladi", () => {

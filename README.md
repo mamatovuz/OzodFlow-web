@@ -28,7 +28,9 @@ Loyiha fazalar bilan quriladi. Quyida nima tayyor va nima yo'q — ochiq holat.
 | Birinchi admin | `.env` dan avtomatik yaratiladi, kodda parol yo'q |
 | **Kabinetlar** | Mijoz va mutaxassis uchun rolga qarab |
 | **Hamyon sahifasi** | Balans, tranzaksiyalar tarixi, to'ldirish so'rovi |
-| **To'lov shlyuzi** | CHECKOUT.UZ — karta orqali to'ldirish, **17 test** |
+| **To'lov shlyuzi** | inPAY — Click/Payme/Plum orqali to'ldirish, **19 test** |
+| **Sozlamalar** | Profil, xavfsizlik (parol/email), kirgan qurilmalar, xabarnomalar |
+| **Portfolio va ko'nikmalar** | Developer o'z ishlarini va ko'nikmalarini boshqaradi, **19 test** |
 | **Admin panel** | Buxgalteriya tekshiruvi, to'lovlar, moderatsiya, foydalanuvchilar |
 | **Ommaviy profillar** | `/dev/username` — SSG, `Person` schema.org bilan |
 | Xizmatlar katalogi | `/services` va kategoriya sahifalari, SSG |
@@ -43,12 +45,11 @@ Loyiha fazalar bilan quriladi. Quyida nima tayyor va nima yo'q — ochiq holat.
 | --- | --- |
 | Chat | Real vaqt xabar almashish (`Conversation` modeli tayyor) |
 | Developer arizasi | Texnik test, portfolio yuklash, shaxs tasdig'i. **Hozircha** tasdiqlashni admin panelda admin bajaradi |
-| Boshqa to'lov shlyuzlari | Click, Payme, Uzum to'g'ridan-to'g'ri (hozir CHECKOUT.UZ orqali) |
+| Boshqa to'lov shlyuzlari | Click, Payme to'g'ridan-to'g'ri (hozir inPAY orqali) |
 | Pul yechib olish | Model va admin ko'rinishi tayyor, avtomatik o'tkazma yo'q |
 | Email yuborish | `src/lib/mail.ts` tayyor, SMTP transport ulanmagan — xat log'ga yoziladi |
 | Fayl yuklash | S3/MinIO integratsiyasi |
 | Sharh va reyting | Model tayyor, forma va hisoblash yo'q |
-| Sozlamalar sahifalari | Profil, xavfsizlik, qurilmalar |
 | AI funksiyalari | Tavsif generatori, byudjet taxmini, spam filtri |
 | Blog / CMS | Model tayyor, sahifalar yo'q |
 | Huquqiy hujjatlar | Sahifalar bor, matn yuridik ko'rikni kutmoqda |
@@ -126,9 +127,11 @@ Sayt: <http://localhost:3000>
 | `npm run db:migrate` | Yangi migratsiya yaratish va qo'llash |
 | `npm run db:deploy` | Migratsiyalarni qo'llash (production) |
 | `npm run db:seed` | Boshlang'ich ma'lumot (idempotent) |
+| `npm run db:seed:reference` | Faqat katalog va ko'nikmalar (admin yaratmaydi) |
 | `npm run db:studio` | Databaseni brauzerda ko'rish |
 | `npm run db:reset` | Databaseni tozalab qayta yasash |
 | `npm run bootstrap` | Super adminni qo'lda yaratish |
+| `npm run inpay:check` | To'lov shlyuzi ulanishini tekshirish (faqat o'qish) |
 
 ---
 
@@ -162,73 +165,95 @@ Hamyonni to'ldirishning **ikki yo'li** bor va ikkalasi ham ishlab turadi.
 
 | Yo'l | Provayder | Qachon |
 | --- | --- | --- |
-| Karta orqali | CHECKOUT.UZ | Asosiy yo'l. 1 000 – 10 000 000 so'm |
-| Bank o'tkazmasi | `MANUAL` | Shlyuz sozlanmaganda, limitdan katta summada, yoki mijoz tanlaganda |
+| Karta orqali | **inPAY** (Click, Payme, Plum) | Asosiy yo'l. Minimal 1 000 so'm |
+| Bank o'tkazmasi | `MANUAL` | Shlyuz sozlanmaganda, juda katta summada, yoki mijoz tanlaganda |
 
-Kod: `src/lib/payments/checkout-uz.ts` (shlyuz klienti),
+Kod: `src/lib/payments/inpay.ts` (shlyuz klienti),
 `src/lib/payments/deposits.ts` (biznes mantiq),
 `src/app/webhook/tolov/route.ts` (webhook).
 
+> **Ism qoidasi:** `src/lib/payments/index.ts` shlyuzdan mustaqil nomlar
+> beradi (`isGatewayConfigured`, `GATEWAY_MIN_SUM`, `settleGatewayPayment`).
+> UI va action'lar shu nomlarni ishlatadi, shuning uchun shlyuz almashsa
+> faqat barrel faylning oxirgi to'rt qatori o'zgaradi. Bu CHECKOUT.UZ →
+> inPAY o'tishida amalda tekshirildi.
+
 ### Sozlash
 
-1. [checkout.uz](https://checkout.uz) panelida kassa yarating.
-2. **API Secret Key** ni oling → `CHECKOUT_API_KEY`.
-3. **Kassa ID** ni oling → `CHECKOUT_SHOP_ID`.
-4. Webhook manzilini kiriting: `https://ozodflow.uz/webhook/tolov`
+1. [inpay.uz](https://inpay.uz) da ro'yxatdan o'tib kassa yarating.
+2. **Merchant ID** ni oling → `INPAY_MERCHANT_ID`
+3. **Merchant token** (32 belgi) ni oling → `INPAY_MERCHANT_TOKEN`
+4. Callback domenini whitelist'ga qo'shing: `ozodflow.uz`
 
-`CHECKOUT_API_KEY` bo'sh qoldirilsa karta orqali to'lov **jimgina
-o'chadi** va hamyon sahifasida faqat bank o'tkazmasi ko'rinadi. Ilova
-yiqilmaydi — bu ataylab shunday.
+Tekshirish (pul harakatlanmaydi, faqat o'qish):
+
+```bash
+npm run inpay:check
+```
+
+O'zgaruvchilar bo'sh qoldirilsa karta orqali to'lov **jimgina o'chadi** va
+hamyon sahifasida faqat bank o'tkazmasi ko'rinadi. Ilova yiqilmaydi — bu
+ataylab shunday.
+
+### Token keshi — ixtiyoriy optimizatsiya emas
+
+inPAY'da har IP uchun **soatiga 100 so'rov** limiti bor. Bearer token 24
+soat amal qiladi.
+
+Agar har to'lov uchun avval token olsak, keyin to'lov yaratsak — bitta
+to'lov 2 so'rov yeydi va soatiga faqat 50 to'lov qabul qilardik. Shu
+sababli token modul xotirasida 23 soat keshlanadi (bir soatlik zaxira
+bilan) va bir vaqtda ketayotgan token so'rovi bitta bilan chegaralanadi.
 
 ### Webhook'ga ISHONILMAYDI
 
 Bu qismning eng muhim qarori.
 
-CHECKOUT.UZ webhook'ida **imzo yo'q** — hujjatda signature, HMAC yoki
-umumiy maxfiy kalit ko'rsatilmagan. Manzil esa ochiq. Ya'ni istalgan
-odam bizga quyidagini yuborishi mumkin:
+inPAY webhook'ida **imzo yo'q** — hujjatda signature, HMAC yoki umumiy
+maxfiy kalit ko'rsatilmagan. Manzil esa ochiq. Ya'ni istalgan odam bizga
+quyidagini yuborishi mumkin:
 
 ```json
-{ "event": "payment_confirmed",
-  "data": { "order_id": 45180, "amount": 10000000, "status": "paid" } }
+{ "status": "success", "order_id": "1ff2f5a6d66f6e9c",
+  "amount": "100000000.00", "transaction_id": 149 }
 ```
 
 Shu sababli webhook **faqat signal** sifatida qabul qilinadi:
 
-1. Tanadan **faqat `data.order_id`** olinadi. Summa, holat, valyuta —
+1. Tanadan **faqat `order_id`** olinadi. Summa, holat, tranzaksiya id —
    hammasi e'tiborga olinmaydi.
-2. Shlyuzning o'zidan `/status_payment` orqali **mustaqil tasdiq**
-   olinadi.
-3. Shlyuz aytgan summa **lokal yozuv bilan solishtiriladi**. Mos
-   kelmasa: audit yoziladi va pul qo'shilmaydi.
-4. `reference` unique — bir to'lov ikki marta hisoblanmaydi.
+2. Shlyuzning o'zidan `/transactions/` orqali **mustaqil tasdiq** olinadi.
+3. Faqat `status: "success"` to'langan hisoblanadi.
+4. Shlyuz aytgan summa **lokal yozuv bilan solishtiriladi** — bir tiyinlik
+   farq ham o'tmaydi. Mos kelmasa: audit yoziladi va pul qo'shilmaydi.
+5. `reference` unique — bir to'lov ikki marta hisoblanmaydi.
 
-Natijada soxta webhook hech narsa qilmaydi. Bu `src/lib/payments/deposits.test.ts`
-da qulflangan: `"shlyuz 'to'langan' demasa pul qo'shilmaydi"`.
+Natijada soxta webhook hech narsa qilmaydi. Bu
+`src/lib/payments/deposits.test.ts` da qulflangan — 19 test, jumladan
+`"shlyuz 'success' demasa pul qo'shilmaydi"`.
 
 > Shu tartibni buzmaslik kerak. Webhook tanasidagi summaga ishonish —
 > bepul pul ishlab chiqaruvchi teshik.
 
 ### Webhook yo'qolsa
 
-Hujjatda: *"Hozircha muvaffaqiyatsiz urinish avtomatik qayta
-yuborilmaydi."* Ya'ni webhook bir marta keladi va yo'qolsa — yo'qoladi
-(deploy paytidagi to'xtash, tarmoq).
+inPAY 200 dan boshqa kod kelsa webhook'ni **qayta yuboradi**. Shuning
+uchun kutilmagan xatoda `500` qaytaramiz — to'lov yo'qolmaydi. Soxta
+webhook va boshqa "normal" natijalar esa `200` oladi: ularni qayta
+yuborish hech narsani o'zgartirmaydi.
 
-Shuning uchun mijoz hamyon sahifasida **"Holatni tekshirish"** tugmasini
-bosib holatni shlyuzdan qayta so'rashi mumkin
-(`recheckPendingGatewayPayments`). Mijoz yordam xizmatini kutib
-qolmasligi kerak.
-
-Webhook har doim `200` qaytaradi — xato kod qaytarish foydasiz (qayta
-yuborilmaydi), lekin panelda "webhook ishlamayapti" degan xato chiqaradi.
+Zaxira yo'l ham bor: mijoz hamyon sahifasida **"Holatni tekshirish"**
+tugmasini bosib holatni shlyuzdan qayta so'rashi mumkin
+(`recheckPendingGatewayPayments`, bir bosishda maksimum 10 ta so'rov —
+soatlik limitni bekorga yemasligi uchun).
 
 ### Butun so'm cheklovi
 
 Shlyuz **so'mda** ishlaydi, bizda hisob **tiyinda**. Shu sababli shlyuz
 orqali faqat butun so'mlik summa yuboriladi (`amount % 100n === 0n`),
-aks holda qaytarilgan summa lokal yozuvga hech qachon teng bo'lmasdi.
-Butun bo'lmagan summa avtomatik bank yo'liga o'tadi.
+aks holda `/transactions/` qaytargan summa lokal yozuvga hech qachon teng
+bo'lmasdi va har to'lov "summa mos kelmadi" bo'lib qolardi. Butun
+bo'lmagan summa avtomatik bank yo'liga o'tadi.
 
 ---
 
@@ -272,8 +297,8 @@ JWT_REFRESH_SECRET=<boshqa 48 baytlik qiymat>
 OZODFLOW_ADMIN_EMAIL=<email>
 OZODFLOW_ADMIN_PASSWORD=<kuchli parol>
 
-CHECKOUT_API_KEY=<checkout.uz kassa API kaliti>
-CHECKOUT_SHOP_ID=<kassa raqami, masalan 102>
+INPAY_MERCHANT_ID=<inpay.uz merchant raqami>
+INPAY_MERCHANT_TOKEN=<32 belgili merchant token>
 ```
 
 Kalitlarni yasash:
@@ -456,8 +481,9 @@ npm test money        # nomida "money" bo'lgan fayllar
 Node.js'ning o'zining test runneri ishlatiladi (`node:test`) — qo'shimcha
 kutubxona yo'q. Test fayllari `*.test.ts`, kod bilan yonma-yon turadi.
 
-Hozir **119 test**. Pul bilan ishlaydigan qismlar (money, wallet, escrow,
-deposits) haqiqiy SQLite databaseda tekshiriladi — mock bilan emas, chunki
+Hozir **149 test**. Pul bilan ishlaydigan qismlar (money, wallet, escrow,
+deposits) va egalik tekshiruvi talab qiladigan qismlar (portfolio)
+haqiqiy SQLite databaseda tekshiriladi — mock bilan emas, chunki
 mock tranzaksiyani rollback qilmaydi va unique cheklovni bilmaydi.
 
 Testlar **tashqi tarmoqqa chiqmaydi**. Shlyuz javobi `verify` parametri

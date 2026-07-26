@@ -333,17 +333,25 @@ export type WithdrawalStatus = ValueOf<typeof WithdrawalStatus>;
 
 export const PaymentProvider = {
   /**
-   * CHECKOUT.UZ — asosiy shlyuz.
+   * inPAY — asosiy shlyuz.
    *
-   * U o'z ichida Click, Payme va boshqa tizimlarni birlashtiradi, ya'ni
-   * biz bitta integratsiya bilan bir necha to'lov usulini olamiz.
-   * Aynan qaysi tizim ishlatilgani webhook'dagi `payment_system`
-   * maydonida keladi va `Payment.rawJson` ga saqlanadi.
+   * U o'z ichida Click, Payme, Plum va boshqa tizimlarni birlashtiradi,
+   * ya'ni biz bitta integratsiya bilan bir necha to'lov usulini olamiz.
+   * Aynan qaysi tizim ishlatilgani `/transactions/` javobidagi
+   * `payment_method` maydonida keladi va `Payment.rawJson` ga saqlanadi.
    */
-  CHECKOUT: "CHECKOUT",
+  INPAY: "INPAY",
   /** Admin qo'lda kiritdi (bank o'tkazmasi) */
   MANUAL: "MANUAL",
-  // Quyidagilar CHECKOUT.UZ orqali o'tadi, alohida integratsiya emas —
+  /**
+   * CHECKOUT.UZ — ESKI shlyuz, endi ishlatilmaydi.
+   *
+   * Qiymat OLIB TASHLANMAYDI: databasedagi eski `Payment` yozuvlari shu
+   * qiymatga ega va ularni o'qish kerak (hamyon tarixi, buxgalteriya).
+   * Yangi to'lov bu provayder bilan YARATILMAYDI.
+   */
+  CHECKOUT: "CHECKOUT",
+  // Quyidagilar shlyuz orqali o'tadi, alohida integratsiya emas —
   // eski yozuvlar mosligi uchun qoldirilgan.
   CLICK: "CLICK",
   PAYME: "PAYME",

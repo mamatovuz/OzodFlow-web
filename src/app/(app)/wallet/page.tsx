@@ -13,9 +13,9 @@ import { requireUser } from "@/lib/auth/current-user";
 import { PaymentProvider, TransactionDirection } from "@/lib/enums";
 import { formatMoney, sumToTiyin } from "@/lib/money";
 import {
-  CHECKOUT_MAX_SUM,
-  CHECKOUT_MIN_SUM,
-  isCheckoutConfigured,
+  GATEWAY_MAX_SUM,
+  GATEWAY_MIN_SUM,
+  isGatewayConfigured,
   listPendingDeposits,
 } from "@/lib/payments";
 import { getLedgerPage, getWalletSummary } from "@/lib/wallet";
@@ -38,18 +38,20 @@ export default async function WalletPage() {
     ? await Promise.all([getLedgerPage(wallet.id, { take: 20 }), listPendingDeposits(user.id)])
     : [{ items: [], hasMore: false }, []];
 
-  const gatewayEnabled = isCheckoutConfigured();
+  const gatewayEnabled = isGatewayConfigured();
 
   // Limit matni SERVERDA yasaladi — `formatMoney` bigint bilan ishlaydi
   // va uni klientga uzatib bo'lmaydi.
   const gatewayLimitLabel = t("gatewayLimit", {
-    min: formatMoney(sumToTiyin(CHECKOUT_MIN_SUM)),
-    max: formatMoney(sumToTiyin(CHECKOUT_MAX_SUM)),
+    min: formatMoney(sumToTiyin(GATEWAY_MIN_SUM)),
+    max: formatMoney(sumToTiyin(GATEWAY_MAX_SUM)),
   });
 
   // Shlyuz to'lovi kutilayotgan bo'lsa "tekshirish" tugmasi ko'rsatiladi.
+  // Eski CHECKOUT yozuvlari ham hisobga olinadi — ular hali PENDING
+  // bo'lishi mumkin.
   const hasPendingGateway = pendingDeposits.some(
-    (deposit) => deposit.provider === PaymentProvider.CHECKOUT
+    (deposit) => deposit.provider !== PaymentProvider.MANUAL
   );
 
   return (

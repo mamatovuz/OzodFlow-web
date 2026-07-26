@@ -1,39 +1,38 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 
-import { env } from "@/lib/env";
-import { settleCheckoutPayment } from "@/lib/payments";
+import { settleGatewayPayment } from "@/lib/payments";
 import { consume, rateLimitKey } from "@/lib/rate-limit";
 import { getRequestInfo } from "@/lib/request-info";
 
 /**
- * CHECKOUT.UZ WEBHOOK — /webhook/tolov
+ * inPAY WEBHOOK — /webhook/tolov
  *
  * ═══════════════════════════════════════════════════════════════════════════
  *  ENG MUHIM NARSA: BU SO'ROVGA ISHONILMAYDI
  *
- *  CHECKOUT.UZ webhook'ida IMZO YO'Q — hujjatda signature, HMAC yoki
- *  umumiy maxfiy kalit ko'rsatilmagan. Manzil esa ochiq
+ *  inPAY webhook'ida IMZO YO'Q — hujjatda signature, HMAC yoki umumiy
+ *  maxfiy kalit ko'rsatilmagan. Manzil esa ochiq
  *  (https://ozodflow.uz/webhook/tolov).
  *
  *  Ya'ni istalgan odam quyidagini yuborishi mumkin:
  *
  *      POST /webhook/tolov
- *      { "event": "payment_confirmed", "data": { "order_id": 45180,
- *        "amount": 10000000, "status": "paid" } }
+ *      { "status": "success", "order_id": "1ff2f5a6d66f6e9c",
+ *        "amount": "100000000.00", "transaction_id": 149 }
  *
  *  Agar biz shu tanaga ishonib hamyonga pul qo'shsak — bu bepul pul
  *  ishlab chiqaruvchi teshik bo'lardi.
  *
  *  HIMOYA:
- *    1. Tanadan FAQAT `order_id` olinadi. Summa, holat, valyuta —
+ *    1. Tanadan FAQAT `order_id` olinadi. Summa, holat, tranzaksiya id —
  *       hammasi e'tiborga OLINMAYDI.
- *    2. `settleCheckoutPayment` shlyuzning o'zidan `/status_payment`
+ *    2. `settleGatewayPayment` shlyuzning o'zidan `/transactions/`
  *       orqali mustaqil tasdiq oladi.
  *    3. Summa lokal yozuv bilan solishtiriladi.
- *    4. `shop_id` sozlangan bo'lsa, u ham tekshiriladi.
- *    5. Rate limit — soxta so'rovlar bilan bizni shlyuzga so'rov
- *       yuborishga majburlab bo'lmaydi.
+ *    4. Rate limit — soxta so'rovlar bilan bizni shlyuzga so'rov
+ *       yuborishga majburlab bo'lmaydi (shlyuzda soatiga 100 so'rov
+ *       limiti bor, uni tugatib qo'yish mumkin edi).
  *
  *  Natijada soxta webhook hech narsa qilmaydi: shlyuz "pending" deb
  *  javob beradi va pul qo'shilmaydi.
@@ -47,17 +46,16 @@ export const dynamic = "force-dynamic";
 /**
  * Webhook tanasi.
  *
- * `passthrough` ATAYLAB: shlyuz yangi maydon qo'shsa so'rov rad
- * etilmasligi kerak. Bizga faqat `data.order_id` kerak, qolgani
- * o'zgarishi mumkin.
+ * `order_id` dan boshqa hamma maydon IXTIYORIY va ishlatilmaydi —
+ * ular faqat log uchun saqlanadi. Shlyuz yangi maydon qo'shsa so'rov
+ * rad etilmasligi kerak.
  */
 const webhookSchema = z.object({
-  event: z.string().optional(),
-  shop_id: z.number().int().optional(),
-  payment_system: z.string().optional(),
-  data: z.object({
-    order_id: z.number().int().positive(),
-  }),
+  order_id: z.string().min(1).max(128),
+  status: z.string().optional(),
+  amount: z.union([z.string(), z.number()]).optional(),
+  transaction_id: z.union([z.string(), z.number()]).optional(),
+  created_at: z.string().optional(),
 });
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -67,20 +65,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
    * Rate limit.
    *
    * Bu manzil ochiq, ya'ni uni bombardimon qilish mumkin. Har so'rov
-   * shlyuzga tashqi so'rov yuborishga olib keladi, shuning uchun
-   * cheklov shart — aks holda bizni shlyuz limitiga urib qo'yishadi.
+   * shlyuzga tashqi so'rov yuborishga olib keladi va shlyuzda soatiga
+   * 100 so'rov limiti bor — cheklovsiz bo'lsa hujumchi bizning
+   * limitimizni tugatib, haqiqiy to'lovlarni to'xtatib qo'yardi.
    *
    * Limit IP bo'yicha: haqiqiy webhook bitta manbadan keladi.
    */
   const limit = consume(
-    rateLimitKey("webhook_checkout", { ip: info.ip }),
+    rateLimitKey("webhook_inpay", { ip: info.ip }),
     // Oynada 60 so'rov — haqiqiy trafik uchun yetarli, hujum uchun kam.
     { windowMs: 60_000, max: 60, blockMs: 5 * 60_000 }
   );
 
   if (!limit.ok) {
-    // 429 — shlyuz keyinroq qayta yuborishi mumkin (hozircha yubormaydi,
-    // lekin to'g'ri kod qaytarish kerak).
+    // 429 — inPAY keyinroq qayta yuboradi, ya'ni haqiqiy webhook
+    // yo'qolmaydi.
     return NextResponse.json({ ok: false }, { status: 429 });
   }
 
@@ -101,32 +100,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       "[webhook/tolov] Tana kutilgan shaklda emas:",
       parsed.error.issues.map((issue) => issue.message).join(", ")
     );
+    // 400 — qayta yuborishning ma'nosi yo'q, tana o'zgarmaydi.
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 
-  const body = parsed.data;
-
-  // ── Kassa mosligi ──────────────────────────────────────────────────────
-  // Sozlangan bo'lsa tekshiramiz. Bu imzo o'rnini bosmaydi (soxta
-  // so'rovda ham to'g'ri shop_id yozish mumkin), lekin boshqa kassaning
-  // webhook'i tasodifan bizga tushib qolishini oldini oladi.
-  if (
-    env.CHECKOUT_SHOP_ID !== undefined &&
-    body.shop_id !== undefined &&
-    body.shop_id !== env.CHECKOUT_SHOP_ID
-  ) {
-    console.warn(
-      `[webhook/tolov] Boshqa kassa: ${body.shop_id} (kutilgan ${env.CHECKOUT_SHOP_ID})`
-    );
-    return NextResponse.json({ ok: true });
-  }
-
-  const invoiceId = body.data.order_id;
+  const orderId = parsed.data.order_id;
 
   // ── Yopish ─────────────────────────────────────────────────────────────
   try {
-    const result = await settleCheckoutPayment({
-      invoiceId,
+    const result = await settleGatewayPayment({
+      orderId,
       webhookPayload: payload,
     });
 
@@ -134,44 +117,48 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     switch (result.status) {
       case "credited":
         console.info(
-          `[webhook/tolov] Invoys ${invoiceId} yopildi, hamyon to'ldirildi`
+          `[webhook/tolov] Buyurtma ${orderId} yopildi, hamyon to'ldirildi`
         );
         break;
       case "already_settled":
-        console.info(`[webhook/tolov] Invoys ${invoiceId} allaqachon yopilgan`);
+        console.info(`[webhook/tolov] Buyurtma ${orderId} allaqachon yopilgan`);
         break;
-      case "unknown_invoice":
-        console.warn(`[webhook/tolov] Notanish invoys: ${invoiceId}`);
+      case "unknown_order":
+        console.warn(`[webhook/tolov] Notanish buyurtma: ${orderId}`);
         break;
       case "not_paid":
         // Eng muhim log: soxta webhook aynan shu yerga tushadi.
         console.warn(
-          `[webhook/tolov] Invoys ${invoiceId} shlyuzda to'langan emas ` +
+          `[webhook/tolov] Buyurtma ${orderId} shlyuzda to'langan emas ` +
             `(holat: ${result.gatewayStatus}) — pul qo'shilmadi`
         );
         break;
     }
   } catch (error) {
-    // Xato bo'lsa ham 200 qaytaramiz (pastdagi izohga qarang), lekin
-    // log'da to'liq sabab qoladi.
-    console.error(`[webhook/tolov] Invoys ${invoiceId} qayta ishlanmadi:`, error);
+    console.error(`[webhook/tolov] Buyurtma ${orderId} qayta ishlanmadi:`, error);
+
+    /**
+     * 500 QAYTARAMIZ — inPAY qayta yuborsin.
+     *
+     * Bu CHECKOUT.UZ'dan asosiy farq: inPAY hujjatida "HTTP 200
+     * qaytarmasa qayta urinib ko'radi" deb yozilgan. Ya'ni tarmoq
+     * uzilishi yoki database band bo'lgan holatda 500 qaytarish
+     * FOYDALI — to'lov yo'qolmaydi.
+     *
+     * Faqat KUTILMAGAN xatoda: yuqoridagi to'rt natija (soxta webhook
+     * ham shunda) 200 oladi, chunki ularni qayta yuborish hech narsani
+     * o'zgartirmaydi.
+     *
+     * Zaxira yo'l ham bor: mijoz hamyon sahifasida holatni qo'lda
+     * tekshirishi mumkin (`recheckPendingGatewayPayments`).
+     */
+    return NextResponse.json({ ok: false }, { status: 500 });
   }
 
   /**
-   * HAR DOIM 200.
-   *
-   * Hujjatda: "Serveringiz HTTP 200 kod bilan javob qaytarishi kifoya.
-   * Hozircha muvaffaqiyatsiz urinish avtomatik qayta yuborilmaydi."
-   *
-   * Ya'ni xato kod qaytarsak ham qayta yuborilmaydi — foyda yo'q, lekin
-   * shlyuz panelida "webhook ishlamayapti" degan xato ko'rinadi.
-   *
-   * Yo'qolgan webhook uchun ZAXIRA yo'l bor:
-   * `recheckPendingGatewayPayments` — mijoz hamyon sahifasida holatni
-   * qayta tekshirishi mumkin. Shu sababli 200 qaytarish xavfsiz.
-   *
    * Javob tanasi ATAYLAB bo'sh: webhook yuboruvchiga bizning ichki
-   * holatimiz haqida ma'lumot berilmaydi.
+   * holatimiz haqida ma'lumot berilmaydi. Soxta so'rov yuborgan odam
+   * "bu buyurtma bor" yoki "yo'q" degan javobni bilmasligi kerak.
    */
   return NextResponse.json({ ok: true });
 }
@@ -183,5 +170,5 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
  * Hech qanday amal bajarilmaydi.
  */
 export function GET(): NextResponse {
-  return NextResponse.json({ ok: true, endpoint: "checkout.uz webhook" });
+  return NextResponse.json({ ok: true, endpoint: "inpay webhook" });
 }

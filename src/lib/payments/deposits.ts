@@ -3,12 +3,12 @@ import { db } from "@/lib/db";
 import { PaymentProvider, TransactionType } from "@/lib/enums";
 import { formatMoney, type Tiyin } from "@/lib/money";
 import {
-  CheckoutError,
-  createCheckoutPayment,
-  getCheckoutPaymentStatus,
-  isCheckoutConfigured,
-  type CheckoutPaymentStatus,
-} from "@/lib/payments/checkout-uz";
+  InpayError,
+  createInpayPayment,
+  getInpayPaymentStatus,
+  isInpayConfigured,
+  type InpayPaymentStatus,
+} from "@/lib/payments/inpay";
 import { SITE } from "@/lib/site";
 import { credit, getOrCreateUserWallet } from "@/lib/wallet";
 
@@ -17,12 +17,13 @@ import { credit, getOrCreateUserWallet } from "@/lib/wallet";
  *
  * Ikki yo'l bor va ikkalasi ham ishlaydi:
  *
- *   1. SHLYUZ (CHECKOUT.UZ) — asosiy yo'l. Mijoz to'lov sahifasiga
- *      o'tadi, karta bilan to'laydi, webhook kelgach hamyon to'ldiriladi.
+ *   1. SHLYUZ (inPAY) — asosiy yo'l. Mijoz to'lov sahifasiga o'tadi,
+ *      Click/Payme/Plum bilan to'laydi, webhook kelgach hamyon
+ *      to'ldiriladi.
  *
  *   2. QO'LDA — zaxira yo'l. Mijoz to'lov kodi oladi, bank o'tkazmasi
- *      qiladi, admin tasdiqlaydi. Shlyuz sozlanmagan yoki katta summa
- *      uchun (shlyuz limiti 10 mln so'm) kerak bo'ladi.
+ *      qiladi, admin tasdiqlaydi. Shlyuz sozlanmagan, limitdan katta
+ *      summa yoki tiyin qoldig'i bo'lgan holatlarda kerak bo'ladi.
  */
 
 export class PaymentError extends Error {
@@ -79,12 +80,15 @@ export async function startGatewayDeposit(params: {
   userId: string;
   amount: Tiyin;
   userName: string;
+  /** Mijozning IP — inPAY server orqali ulanishda tavsiya qiladi. */
+  clientIp?: string | null;
+  phone?: string | null;
 }): Promise<GatewayDeposit> {
-  if (!isCheckoutConfigured()) {
-    throw new CheckoutError("Shlyuz sozlanmagan", "NOT_CONFIGURED");
+  if (!isInpayConfigured()) {
+    throw new InpayError("Shlyuz sozlanmagan", "NOT_CONFIGURED");
   }
 
-  const invoice = await createCheckoutPayment({
+  const invoice = await createInpayPayment({
     amount: params.amount,
     description: `OzodFlow hamyon — ${params.userName}`,
     /**
@@ -93,24 +97,29 @@ export async function startGatewayDeposit(params: {
      * Kassa sozlamalarida ham umumiy manzil bor, lekin uni bu yerda
      * aniq ko'rsatish muhim: shunda manzil KODDA turadi va deploy
      * paytida panel sozlamasiga bog'liq bo'lmaydi.
+     *
+     * DIQQAT: bu domen inPAY whitelist'ida bo'lishi kerak, aks holda
+     * `CALLBACK_NOT_WHITELISTED` xatosi keladi.
      */
-    webhookUrl: `${SITE.url}/webhook/tolov`,
+    callbackUrl: `${SITE.url}/webhook/tolov`,
+    clientIp: params.clientIp,
+    phone: params.phone,
   });
 
   const payment = await db.payment.create({
     data: {
       userId: params.userId,
-      provider: PaymentProvider.CHECKOUT,
-      // Webhook'dagi `data.order_id` aynan shu qiymat bo'ladi — lokal
+      provider: PaymentProvider.INPAY,
+      // Webhook'dagi `order_id` aynan shu qiymat bo'ladi — lokal
       // yozuvni topish kaliti.
-      providerRef: String(invoice.invoiceId),
+      providerRef: invoice.orderId,
       amount: params.amount,
       status: "PENDING",
       rawJson: JSON.stringify({
-        uuid: invoice.uuid,
-        paymentUrl: invoice.paymentUrl,
-        payVia: invoice.payVia,
-        expiresInSeconds: invoice.expiresInSeconds,
+        paymentUrl: invoice.payUrl,
+        // To'g'ridan havolalar saqlanadi: mijoz to'lovni tugatmasa
+        // unga usulni qayta tanlash imkoni beriladi.
+        payLinks: invoice.payLinks,
       }),
     },
     select: { id: true },
@@ -118,7 +127,7 @@ export async function startGatewayDeposit(params: {
 
   return {
     paymentId: payment.id,
-    paymentUrl: invoice.paymentUrl,
+    paymentUrl: invoice.payUrl,
     amount: params.amount,
   };
 }
@@ -127,10 +136,13 @@ export type SettleResult =
   | { status: "credited"; amount: Tiyin; userId: string }
   /** Allaqachon hisobga olingan — takroriy webhook */
   | { status: "already_settled" }
-  /** Lokal yozuv topilmadi — bizga tegishli bo'lmagan invoys */
-  | { status: "unknown_invoice" }
+  /** Lokal yozuv topilmadi — bizga tegishli bo'lmagan buyurtma */
+  | { status: "unknown_order" }
   /** Shlyuz "to'langan" demadi */
   | { status: "not_paid"; gatewayStatus: string };
+
+/** Shlyuzdan holat so'rovchi funksiya tipi (testlarda almashtiriladi). */
+export type VerifyFn = (orderId: string) => Promise<InpayPaymentStatus>;
 
 /**
  * Shlyuzdagi to'lovni yopadi va hamyonni to'ldiradi.
@@ -138,11 +150,12 @@ export type SettleResult =
  * ═══════════════════════════════════════════════════════════════════════════
  *  XAVFSIZLIK: WEBHOOK TANASIGA ISHONILMAYDI
  *
- *  CHECKOUT.UZ webhook'ida imzo yo'q. Shuning uchun bu funksiya
- *  webhook'dan FAQAT `invoiceId` ni oladi va qolgan hammasini
- *  shlyuzning o'zidan so'raydi:
+ *  inPAY webhook'ida imzo yo'q — hujjatda signature, HMAC yoki umumiy
+ *  maxfiy kalit ko'rsatilmagan. Shuning uchun bu funksiya webhook'dan
+ *  FAQAT `orderId` ni oladi va qolgan hammasini shlyuzning o'zidan
+ *  so'raydi:
  *
- *    • to'lov haqiqatan "paid" holatidami
+ *    • to'lov haqiqatan "success" holatidami
  *    • summa lokal yozuvdagi summaga tengmi
  *
  *  Shunda soxta webhook hech narsa qilmaydi: u faqat bizni shlyuzga
@@ -153,31 +166,31 @@ export type SettleResult =
  *  tugmasini bosganda, yoki reja bo'yicha) — natija bir xil bo'ladi.
  * ═══════════════════════════════════════════════════════════════════════════
  */
-export async function settleCheckoutPayment(params: {
-  invoiceId: number;
+export async function settleGatewayPayment(params: {
+  orderId: string;
   /** Webhook'dan kelgan qo'shimcha ma'lumot — faqat log uchun */
   webhookPayload?: unknown;
   /**
    * Shlyuzdan holat so'rovchi funksiya.
    *
    * ISHLAB CHIQARISHDA HECH QACHON BERILMAYDI — standart qiymat
-   * haqiqiy CHECKOUT.UZ so'rovi. Faqat testlarda almashtiriladi,
-   * chunki testlar tashqi tarmoqqa chiqmasligi kerak: aks holda
-   * "soxta webhook pul qo'shmaydi" degan xususiyatni tekshirish
-   * uchun haqiqiy to'lov qilish kerak bo'lardi.
+   * haqiqiy inPAY so'rovi. Faqat testlarda almashtiriladi, chunki
+   * testlar tashqi tarmoqqa chiqmasligi kerak: aks holda "soxta
+   * webhook pul qo'shmaydi" degan xususiyatni tekshirish uchun
+   * haqiqiy to'lov qilish kerak bo'lardi.
    */
-  verify?: (invoiceId: number) => Promise<CheckoutPaymentStatus>;
+  verify?: VerifyFn;
 }): Promise<SettleResult> {
-  const providerRef = String(params.invoiceId);
-  const verify = params.verify ?? getCheckoutPaymentStatus;
+  const providerRef = params.orderId;
+  const verify = params.verify ?? getInpayPaymentStatus;
 
   const payment = await db.payment.findFirst({
-    where: { provider: PaymentProvider.CHECKOUT, providerRef },
+    where: { provider: PaymentProvider.INPAY, providerRef },
     select: { id: true, userId: true, amount: true, status: true },
   });
 
   if (!payment) {
-    return { status: "unknown_invoice" };
+    return { status: "unknown_order" };
   }
 
   // Idempotentlik: takroriy webhook hech narsa qilmaydi.
@@ -191,7 +204,7 @@ export async function settleCheckoutPayment(params: {
   }
 
   // ── MUSTAQIL TASDIQ ────────────────────────────────────────────────────
-  const gateway = await verify(params.invoiceId);
+  const gateway = await verify(params.orderId);
 
   if (!gateway.isPaid) {
     return { status: "not_paid", gatewayStatus: gateway.status };
@@ -239,9 +252,10 @@ export async function settleCheckoutPayment(params: {
     await credit(tx, wallet.id, payment.amount, {
       type: TransactionType.DEPOSIT,
       // Idempotentlik kaliti — bir to'lov ikki marta hisoblanmaydi.
-      reference: `payment:checkout:${payment.id}`,
-      description: `Hamyon to'ldirildi — CHECKOUT.UZ #${params.invoiceId}`,
-      meta: { invoiceId: params.invoiceId },
+      // `payment.id` ishlatiladi, `orderId` emas: lokal id o'zgarmas.
+      reference: `payment:gateway:${payment.id}`,
+      description: `Hamyon to'ldirildi — ${gateway.method ?? "inPAY"}`,
+      meta: { orderId: params.orderId, method: gateway.method },
     });
 
     await tx.payment.update({
@@ -253,6 +267,7 @@ export async function settleCheckoutPayment(params: {
           gateway: {
             status: gateway.status,
             amountSum: gateway.amountSum,
+            method: gateway.method,
             paidAt: gateway.paidAt?.toISOString() ?? null,
           },
           webhook: params.webhookPayload ?? null,
@@ -270,8 +285,9 @@ export async function settleCheckoutPayment(params: {
         after: {
           status: "PAID",
           amount: payment.amount,
-          provider: PaymentProvider.CHECKOUT,
-          invoiceId: params.invoiceId,
+          provider: PaymentProvider.INPAY,
+          orderId: params.orderId,
+          method: gateway.method,
         },
       },
       tx
@@ -294,28 +310,36 @@ export async function settleCheckoutPayment(params: {
  */
 export async function recheckPendingGatewayPayments(
   userId: string,
-  /** Faqat testlar uchun — `settleCheckoutPayment` izohiga qarang. */
-  verify?: (invoiceId: number) => Promise<CheckoutPaymentStatus>
+  /** Faqat testlar uchun — `settleGatewayPayment` izohiga qarang. */
+  verify?: VerifyFn
 ): Promise<{ credited: number; total: Tiyin }> {
   const pending = await db.payment.findMany({
     where: {
       userId,
-      provider: PaymentProvider.CHECKOUT,
+      provider: PaymentProvider.INPAY,
       status: "PENDING",
     },
     select: { providerRef: true },
-    take: 20,
+    /**
+     * 10 ta bilan cheklaymiz.
+     *
+     * Har yozuv shlyuzga BITTA so'rov yuboradi, limit esa soatiga 100.
+     * Cheklovsiz bo'lsa bitta "tekshirish" bosishi butun limitni
+     * yeb qo'yishi mumkin edi.
+     */
+    take: 10,
+    orderBy: { createdAt: "desc" },
   });
 
   let credited = 0;
   let total = 0n;
 
   for (const payment of pending) {
-    const invoiceId = Number(payment.providerRef);
-    if (!Number.isInteger(invoiceId)) continue;
+    const orderId = payment.providerRef;
+    if (!orderId) continue;
 
     try {
-      const result = await settleCheckoutPayment({ invoiceId, verify });
+      const result = await settleGatewayPayment({ orderId, verify });
 
       if (result.status === "credited") {
         credited += 1;
@@ -323,7 +347,7 @@ export async function recheckPendingGatewayPayments(
       }
     } catch (error) {
       // Bitta to'lov xato bersa qolganlari tekshirilishda davom etadi.
-      console.error(`[payments] Invoys ${invoiceId} tekshirilmadi:`, error);
+      console.error(`[payments] Buyurtma ${orderId} tekshirilmadi:`, error);
     }
   }
 
@@ -510,7 +534,13 @@ export async function listPendingDeposits(
     // mijoz to'lovni tugatmagan bo'lsa unga qaytish imkoni bo'lishi kerak.
     let paymentUrl: string | null = null;
 
-    if (payment.provider === PaymentProvider.CHECKOUT && payment.rawJson) {
+    // Eski CHECKOUT yozuvlari ham qo'shiladi: ular hali PENDING bo'lishi
+    // mumkin va mijoz ularni ko'rishi kerak.
+    const isGateway =
+      payment.provider === PaymentProvider.INPAY ||
+      payment.provider === PaymentProvider.CHECKOUT;
+
+    if (isGateway && payment.rawJson) {
       try {
         const parsed = JSON.parse(payment.rawJson) as { paymentUrl?: string };
         paymentUrl = parsed.paymentUrl ?? null;

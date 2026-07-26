@@ -110,12 +110,12 @@ const envSchema = z.object({
   MIN_WITHDRAWAL_AMOUNT: z.coerce.number().int().min(0).default(100_000),
   DEFAULT_CURRENCY: z.string().default("UZS"),
 
-  // ── CHECKOUT.UZ to'lov shlyuzi ─────────────────────────────────────────────
-  // API kalit kassa sozlamalaridan olinadi. Bo'sh qoldirilsa shlyuz
-  // o'chirilgan holatda ishlaydi va to'ldirish qo'lda tasdiqlanadi.
-  CHECKOUT_API_KEY: optionalString,
-  // Kassa ID — webhook haqiqiyligini tekshirishda ishlatiladi.
-  CHECKOUT_SHOP_ID: optionalInt,
+  // ── inPAY to'lov shlyuzi ───────────────────────────────────────────────────
+  // Merchant ma'lumotlari inpay.uz kabinetidan olinadi. Ikkisi ham
+  // bo'lmasa shlyuz o'chirilgan holatda ishlaydi va to'ldirish qo'lda
+  // tasdiqlanadi — sayt yiqilmaydi.
+  INPAY_MERCHANT_ID: optionalString,
+  INPAY_MERCHANT_TOKEN: optionalString,
 
   // ── AI ─────────────────────────────────────────────────────────────────────
   ANTHROPIC_API_KEY: optionalString,
@@ -179,8 +179,8 @@ export const features = {
   ai: Boolean(env.ANTHROPIC_API_KEY),
   redis: Boolean(env.REDIS_URL),
   /**
-   * To'lov shlyuzi. O'chirilgan bo'lsa to'ldirish qo'lda tasdiqlanadi —
-   * ikkala yo'l ham ishlaydi, UI shunga qarab moslashadi.
+   * To'lov shlyuzi (inPAY). O'chirilgan bo'lsa to'ldirish qo'lda
+   * tasdiqlanadi — ikkala yo'l ham ishlaydi, UI shunga qarab moslashadi.
    */
-  checkout: Boolean(env.CHECKOUT_API_KEY),
+  inpay: Boolean(env.INPAY_MERCHANT_ID && env.INPAY_MERCHANT_TOKEN),
 } as const;

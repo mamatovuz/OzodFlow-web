@@ -350,9 +350,9 @@ export async function requestDepositAction(
   }
 
   const {
-    CHECKOUT_MAX_SUM,
-    checkoutErrorMessage,
-    isCheckoutConfigured,
+    GATEWAY_MAX_SUM,
+    gatewayErrorMessage,
+    isGatewayConfigured,
     requestManualDeposit,
     startGatewayDeposit,
   } = await import("@/lib/payments");
@@ -369,9 +369,9 @@ export async function requestDepositAction(
    */
   const useGateway =
     parsed.data.method === "GATEWAY" &&
-    isCheckoutConfigured() &&
+    isGatewayConfigured() &&
     amount % 100n === 0n &&
-    amountSum <= CHECKOUT_MAX_SUM;
+    amountSum <= GATEWAY_MAX_SUM;
 
   if (useGateway) {
     let paymentUrl: string;
@@ -381,12 +381,16 @@ export async function requestDepositAction(
         userId: auth.user.id,
         amount,
         userName: auth.user.name,
+        // inPAY haqiqiy to'lovchi IP'sini so'raydi: biz server orqali
+        // ulanamiz, ya'ni u bizning IP'ni ko'radi. Mijoz IP'si
+        // firibgarlikka qarshi tekshiruvda ishlatiladi.
+        clientIp: info.ip,
       });
 
       paymentUrl = deposit.paymentUrl;
     } catch (error) {
       console.error("[wallet.deposit.gateway]", error);
-      return formError(checkoutErrorMessage(error));
+      return formError(gatewayErrorMessage(error));
     }
 
     // `redirect` try/catch TASHQARISIDA: Next uni xato tashlash orqali

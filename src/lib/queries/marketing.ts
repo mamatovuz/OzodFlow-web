@@ -83,6 +83,81 @@ export async function getFeaturedCategories(limit = 8): Promise<MarketingCategor
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Xizmatlar katalogi
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type CatalogService = {
+  id: string;
+  title: string;
+  /** Tiyinda — "boshlang'ich narx". Sxemada majburiy, standart 0. */
+  basePrice: bigint;
+  deliveryDays: number;
+};
+
+export type CatalogCategory = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  services: CatalogService[];
+};
+
+/** `/services` — butun katalog, kategoriyalar bo'yicha guruhlangan. */
+export async function getServiceCatalog(): Promise<CatalogCategory[]> {
+  return safely(
+    "serviceCatalog",
+    () =>
+      db.category.findMany({
+        where: { isActive: true, parentId: null },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          description: true,
+          icon: true,
+          services: {
+            where: { isActive: true },
+            orderBy: { sortOrder: "asc" },
+            select: {
+              id: true,
+              title: true,
+              basePrice: true,
+              deliveryDays: true,
+            },
+          },
+        },
+      }),
+    []
+  );
+}
+
+/**
+ * `/services/[slug]` uchun statik yo'llar.
+ *
+ * `parentId` filtri ATAYLAB YO'Q: ichki kategoriyalarning ham o'z
+ * sahifasi bor va ular SEO uchun oldindan yasalishi kerak.
+ *
+ * Bo'sh massiv qaytsa Next sahifalarni SO'ROV KELGANDA yasaydi — ya'ni
+ * build vaqtida database bo'lmasa ham marshrut ishlaydi.
+ */
+export async function getCatalogSlugs(): Promise<string[]> {
+  return safely(
+    "catalogSlugs",
+    async () => {
+      const categories = await db.category.findMany({
+        where: { isActive: true },
+        select: { slug: true },
+      });
+
+      return categories.map((category) => category.slug);
+    },
+    []
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Mutaxassislar
 // ─────────────────────────────────────────────────────────────────────────────
 

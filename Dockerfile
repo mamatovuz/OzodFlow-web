@@ -75,26 +75,39 @@ RUN npm install -g "npm@${NPM_VERSION}"
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build vaqtida maxfiy kalitlar yo'q va database mavjud emas.
-# `src/lib/env.ts` shu bayroqni ko'rib tekshiruvni o'tkazib yuboradi;
-# marketing so'rovlari try/catch ichida, shuning uchun bosh sahifa
-# prerender qilinishi baribir muvaffaqiyatli bo'ladi.
+# Build vaqtida maxfiy kalitlar yo'q. `src/lib/env.ts` shu bayroqni
+# ko'rib tekshiruvni o'tkazib yuboradi.
 ENV SKIP_ENV_VALIDATION=1
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-# Build vaqtidagi SOXTA database manzili.
+# Build vaqtidagi VAQTINCHALIK database manzili.
 #
-# `prisma generate` va bosh sahifani prerender qilish `DATABASE_URL` ni
-# o'qiydi. Build'da haqiqiy database yo'q, lekin o'zgaruvchi UMUMAN
-# berilmasa Prisma "Environment variable not found" xatosini log'ga
-# to'ldiradi. Bu qiymat faqat build'da yashaydi va runtime'da
-# docker-compose / Railway bergan haqiqiy manzil bilan almashadi.
+# Bu qiymat faqat build'da yashaydi va runtime'da docker-compose /
+# Railway bergan haqiqiy manzil bilan almashadi.
 ENV DATABASE_URL="file:/tmp/build-placeholder.db"
 
 # `output: "standalone"` ni yoqadi (next.config.ts'ga qarang). Faqat shu
 # yerda: lokal va Railway `next start` ishlatadi, u standalone bilan mos emas.
 ENV DOCKER_BUILD=1
+
+# ── Build vaqtidagi databaseni TAYYORLASH ──────────────────────────────────
+#
+# NEGA BU KERAK: `/services` va `/services/[slug]` sahifalari statik
+# yasaladi (SSG), ya'ni build vaqtida katalogni DATABASEDAN o'qiydi.
+#
+# Bo'sh fayl yetarli emas — jadvallar bo'lmasa Prisma
+# `The table main.Category does not exist` deb build'ni yiqitadi.
+# (Sahifalar endi xatoga chidamli, lekin o'sha holda katalog BO'SH
+# prerender qilinardi va deploy'dan keyin 1 soat bo'm-bo'sh chiqardi.)
+#
+# YECHIM: migratsiya + seed vaqtinchalik faylga qo'llanadi. Katalog
+# KODDA turgani uchun (`src/lib/seed/catalog.ts`) natija deterministik:
+# build va runtime bir xil ma'lumotdan kelib chiqadi.
+#
+# Fayl image'ga TUSHMAYDI — bu bosqich runner'ga ko'chirilmaydi.
+RUN npx prisma migrate deploy \
+  && npm run db:seed:reference
 
 RUN npm run build
 

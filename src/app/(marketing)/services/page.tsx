@@ -5,8 +5,8 @@ import { getTranslations } from "next-intl/server";
 
 import { Icon } from "@/components/icon";
 import { Card, EmptyState } from "@/components/ui/card";
-import { db } from "@/lib/db";
 import { formatMoney } from "@/lib/money";
+import { getServiceCatalog } from "@/lib/queries/marketing";
 
 export const metadata: Metadata = {
   title: "Xizmatlar",
@@ -21,22 +21,9 @@ export const revalidate = 3600;
 export default async function ServicesPage() {
   const t = await getTranslations("home.categories");
 
-  const categories = await db.category.findMany({
-    where: { isActive: true, parentId: null },
-    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    select: {
-      id: true,
-      slug: true,
-      name: true,
-      description: true,
-      icon: true,
-      services: {
-        where: { isActive: true },
-        orderBy: { sortOrder: "asc" },
-        select: { id: true, title: true, basePrice: true, deliveryDays: true },
-      },
-    },
-  });
+  // `getServiceCatalog` xatoni yutadi va bo'sh ro'yxat qaytaradi —
+  // database tayyor bo'lmagani uchun build yiqilmasligi kerak.
+  const categories = await getServiceCatalog();
 
   return (
     <>

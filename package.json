@@ -19,6 +19,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "node --env-file=.env --import tsx prisma/seed.ts",
+    "db:seed:reference": "node --import tsx scripts/seed-reference.ts",
     "db:reset": "prisma migrate reset",
     "bootstrap": "node --env-file=.env --import tsx scripts/bootstrap-admin.ts",
     "checkout:check": "node --env-file=.env --import tsx scripts/checkout-check.ts"

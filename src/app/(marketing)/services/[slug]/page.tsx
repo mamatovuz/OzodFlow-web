@@ -7,25 +7,30 @@ import { Icon } from "@/components/icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { readStringList } from "@/lib/json-field";
-import { formatMoney } from "@/lib/money";
 import { db } from "@/lib/db";
+import { formatMoney } from "@/lib/money";
+import { getCatalogSlugs } from "@/lib/queries/marketing";
 import { SITE } from "@/lib/site";
 
 export const revalidate = 3600;
 
 /** Barcha faol kategoriyalar oldindan yasaladi — SEO uchun muhim. */
 export async function generateStaticParams() {
-  try {
-    const categories = await db.category.findMany({
-      where: { isActive: true },
-      select: { slug: true },
-    });
-    return categories.map((category) => ({ slug: category.slug }));
-  } catch {
-    return [];
-  }
+  // `getCatalogSlugs` xatoni yutadi VA log'ga yozadi. Avval bu yerda
+  // jimgina `catch { return [] }` turgan edi — database ishlamasa
+  // sahifalar sababsiz yo'qolib qolardi.
+  const slugs = await getCatalogSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
 
+/**
+ * Bitta kategoriyani o'qiydi.
+ *
+ * Bu SO'ROV ATAYLAB HIMOYALANMAGAN: database ishlamasa sahifa 500
+ * qaytarishi kerak, 404 emas. "Topilmadi" deb ko'rsatish yolg'on
+ * bo'lardi — kategoriya bor, shunchaki o'qib bo'lmadi. Qidiruv
+ * tizimlari 404'ni ko'rib sahifani indeksdan chiqarib tashlaydi.
+ */
 async function loadCategory(slug: string) {
   return db.category.findFirst({
     where: { slug, isActive: true },

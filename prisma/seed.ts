@@ -3,92 +3,37 @@
  *
  *   npm run db:seed
  *
+ * Bu fayl faqat CHIQISHNI chizadi. Mantiq `src/lib/seed/index.ts` da —
+ * chunki uni server ishga tushganda ham chaqirish kerak
+ * (`src/instrumentation.ts`). Ikki nusxa mantiq bo'lsa ular ertami-kechmi
+ * bir-biridan uzoqlashadi.
+ *
  * IDEMPOTENT: necha marta ishga tushirilsa ham dublikat yaratmaydi va
- * admin o'zgartirgan matnlarni tiklab yubormaydi. Shuning uchun uni har
- * deploy'dan keyin xavfsiz chaqirish mumkin.
- *
- * Tartib muhim: sozlamalar birinchi bo'ladi, chunki `bootstrapSystem`
- * valyuta kabi qiymatlarni ulardan oladi.
+ * admin o'zgartirgan sozlamalarni tiklab yubormaydi.
  */
 
-import { db } from "@/lib/db";
 import { bootstrapSystem } from "@/lib/auth/bootstrap";
-import { DEFAULT_SETTINGS } from "@/lib/settings";
-
-import { seedBadges } from "./seed/badges";
-import { seedCatalog } from "./seed/catalog";
-import { seedQuestions } from "./seed/questions";
-import { seedSkills } from "./seed/skills";
-
-/**
- * Tizim sozlamalari.
- *
- * MUHIM: mavjud sozlama QAYTA YOZILMAYDI. Admin komissiyani 12% qilgan
- * bo'lsa, seed uni 15% ga qaytarib yuborishi mumkin emas — bu jimgina
- * moliyaviy o'zgarish bo'lardi.
- */
-async function seedSettings(): Promise<{ created: number; kept: number }> {
-  let created = 0;
-  let kept = 0;
-
-  for (const setting of DEFAULT_SETTINGS) {
-    const existing = await db.setting.findUnique({
-      where: { key: setting.key },
-      select: { key: true },
-    });
-
-    if (existing) {
-      // Faqat tavsif va yorliqni yangilaymiz — qiymatga tegmaymiz.
-      await db.setting.update({
-        where: { key: setting.key },
-        data: {
-          label: setting.label,
-          description: setting.description,
-          group: setting.group,
-          isProtected: setting.isProtected,
-        },
-      });
-      kept += 1;
-      continue;
-    }
-
-    await db.setting.create({
-      data: {
-        key: setting.key,
-        value: JSON.stringify(setting.value),
-        group: setting.group,
-        label: setting.label,
-        description: setting.description,
-        isProtected: setting.isProtected,
-      },
-    });
-    created += 1;
-  }
-
-  return { created, kept };
-}
+import { db } from "@/lib/db";
+import { seedReferenceData } from "@/lib/seed";
 
 async function main() {
   console.log("\n  OzodFlow — seed boshlandi\n");
 
-  const settings = await seedSettings();
-  console.log(
-    `  ✓ Sozlamalar        ${settings.created} yangi, ${settings.kept} mavjud (o'zgarmadi)`
-  );
+  // `force`: qo'lda ishga tushirilganda versiya belgisiga qaramaymiz.
+  // Foydalanuvchi buyruq bergan bo'lsa, u bajarilishini kutadi.
+  const seed = await seedReferenceData({ force: true });
 
-  const skills = await seedSkills();
-  console.log(`  ✓ Ko'nikmalar       ${skills} ta`);
-
-  const catalog = await seedCatalog();
-  console.log(
-    `  ✓ Katalog           ${catalog.categories} kategoriya, ${catalog.services} xizmat`
-  );
-
-  const badges = await seedBadges();
-  console.log(`  ✓ Nishonlar         ${badges} ta`);
-
-  const questions = await seedQuestions();
-  console.log(`  ✓ Test savollari    ${questions} ta`);
+  if (seed.status === "applied") {
+    console.log(
+      `  ✓ Sozlamalar        ${seed.settings.created} yangi, ${seed.settings.kept} mavjud (o'zgarmadi)`
+    );
+    console.log(`  ✓ Ko'nikmalar       ${seed.skills} ta`);
+    console.log(
+      `  ✓ Katalog           ${seed.catalog.categories} kategoriya, ${seed.catalog.services} xizmat`
+    );
+    console.log(`  ✓ Nishonlar         ${seed.badges} ta`);
+    console.log(`  ✓ Test savollari    ${seed.questions} ta`);
+  }
 
   const bootstrap = await bootstrapSystem();
   console.log(`  ✓ Tizim hamyonlari  ${bootstrap.wallets} yangi`);

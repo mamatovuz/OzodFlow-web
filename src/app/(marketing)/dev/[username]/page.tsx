@@ -656,6 +656,22 @@ function groupSkills(
     else groups.set(skill.kind, [skill]);
   }
 
+  /**
+   * Guruh ichida ENG KUCHLI ko'nikma birinchi.
+   *
+   * Mijoz ro'yxatning boshiga qaraydi va mutaxassis nimada kuchli
+   * ekanini darhol bilishi kerak. Tasodifiy tartibda "React 2/5"
+   * tepada turib qolsa bu noto'g'ri taassurot qoldiradi.
+   *
+   * Teng darajada — alifbo bo'yicha, shunda tartib barqaror bo'ladi
+   * va sahifa qayta yasalganda o'zgarmaydi.
+   */
+  for (const list of groups.values()) {
+    list.sort(
+      (a, b) => b.level - a.level || a.name.localeCompare(b.name, "uz")
+    );
+  }
+
   return [...groups.entries()];
 }
 

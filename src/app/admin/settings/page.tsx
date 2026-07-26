@@ -70,8 +70,12 @@ export default async function AdminSettingsPage() {
               <li key={setting.key} className="px-5 py-4 sm:px-6">
                 <SettingRow
                   settingKey={setting.key}
-                  label={setting.label}
-                  description={setting.description}
+                  // `label` va `description` sxemada ixtiyoriy: seed
+                  // ishlamagan holatda ular bo'sh bo'ladi. Kalitning
+                  // o'zi zaxira sarlavha — admin nima sozlayotganini
+                  // baribir bilishi kerak.
+                  label={setting.label ?? setting.key}
+                  description={setting.description ?? ""}
                   // Qiymat JSON matn sifatida saqlanadi.
                   rawValue={setting.value}
                   isProtected={setting.isProtected}

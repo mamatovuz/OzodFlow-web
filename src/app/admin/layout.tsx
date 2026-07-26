@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   ScrollText,
   Settings,
+  UserCheck,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -16,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { requireAdmin } from "@/lib/auth/current-user";
 import { db } from "@/lib/db";
 import { countUnverifiedDevelopers } from "@/lib/developers";
-import { ProjectStatus } from "@/lib/enums";
+import { ApplicationStatus, ProjectStatus } from "@/lib/enums";
 
 /**
  * Admin panel qobig'i.
@@ -39,11 +40,25 @@ export default async function AdminLayout({
 
   // E'tibor talab qiladigan ishlar soni — navigatsiyada ko'rsatiladi,
   // shunda admin nimaga qarash kerakligini darhol biladi.
-  const [pendingPayments, pendingProjects, unverifiedDevelopers] = await Promise.all([
-    db.payment.count({ where: { status: "PENDING" } }),
-    db.project.count({ where: { status: ProjectStatus.PENDING_REVIEW } }),
-    countUnverifiedDevelopers(),
-  ]);
+  const [pendingPayments, pendingProjects, unverifiedDevelopers, pendingApplications] =
+    await Promise.all([
+      db.payment.count({ where: { status: "PENDING" } }),
+      db.project.count({ where: { status: ProjectStatus.PENDING_REVIEW } }),
+      countUnverifiedDevelopers(),
+      // Ko'rikni kutayotgan arizalar — admin nimaga qarash kerakligini
+      // darhol bilishi uchun.
+      db.developerApplication.count({
+        where: {
+          status: {
+            in: [
+              ApplicationStatus.SUBMITTED,
+              ApplicationStatus.UNDER_REVIEW,
+              ApplicationStatus.TEST_SUBMITTED,
+            ],
+          },
+        },
+      }),
+    ]);
 
   const navItems = [
     { href: "/admin", label: t("nav.overview"), icon: LayoutDashboard, badge: 0 },
@@ -58,6 +73,12 @@ export default async function AdminLayout({
       label: t("nav.moderation"),
       icon: FileSearch,
       badge: pendingProjects,
+    },
+    {
+      href: "/admin/applications",
+      label: t("nav.applications"),
+      icon: UserCheck,
+      badge: pendingApplications,
     },
     {
       href: "/admin/users",

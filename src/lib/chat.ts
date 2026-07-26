@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { ProjectStatus, UserRole, isAdminRole } from "@/lib/enums";
+import { ProjectStatus, isAdminRole } from "@/lib/enums";
 import type { DbClient } from "@/lib/db";
 
 /**
@@ -490,14 +490,4 @@ export async function findProjectConversation(params: {
     isAdminRole(params.userRole);
 
   return allowed ? conversation.id : null;
-}
-
-/**
- * Mijoz va mutaxassis o'rtasida suhbat bormi — profil sahifasi uchun.
- *
- * `UserRole` importi ishlatilishi uchun: rol tekshiruvi kelajakda
- * kengaytiriladi (masalan admin suhbat boshlashi).
- */
-export function canStartConversation(role: string): boolean {
-  return role === UserRole.CUSTOMER || role === UserRole.DEVELOPER;
 }

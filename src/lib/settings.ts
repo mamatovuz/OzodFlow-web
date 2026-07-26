@@ -208,6 +208,71 @@ export async function getSettingsByGroup(group: string) {
   });
 }
 
+/** Barcha sozlamalar, guruhlangan holda (admin paneli uchun). */
+export async function getAllSettings() {
+  return db.setting.findMany({
+    orderBy: [{ group: "asc" }, { key: "asc" }],
+    select: {
+      key: true,
+      value: true,
+      group: true,
+      label: true,
+      description: true,
+      isProtected: true,
+      updatedAt: true,
+    },
+  });
+}
+
+/**
+ * Sozlama qiymatini yozadi.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  QIYMAT SXEMA BILAN TEKSHIRILADI
+ *
+ *  Sozlamalar JSON matn sifatida saqlanadi, ya'ni `"abc"` ni komissiya
+ *  maydoniga yozib qo'yish mumkin. Keyin `getCommissionBps` zaxira
+ *  qiymatga qaytadi va admin foizni o'zgartirganini KO'RADI-yu, u
+ *  ishlamaydi — jimgina buziladigan xato.
+ *
+ *  Shu sababli yozishdan oldin sxema tekshiriladi va xato bo'lsa
+ *  RAD ETILADI.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+export async function setSetting<T>(params: {
+  key: SettingKey;
+  value: T;
+  schema: z.ZodType<T>;
+}): Promise<void> {
+  const parsed = params.schema.safeParse(params.value);
+
+  if (!parsed.success) {
+    throw new Error(
+      `Sozlama qiymati mos kelmadi (${params.key}): ` +
+        parsed.error.issues.map((issue) => issue.message).join(", ")
+    );
+  }
+
+  const existing = DEFAULT_SETTINGS.find((item) => item.key === params.key);
+
+  await db.setting.upsert({
+    where: { key: params.key },
+    update: { value: JSON.stringify(parsed.data) },
+    // Yozuv yo'q bo'lsa yaratamiz — seed ishlamagan holatda ham
+    // admin sozlamani o'zgartira olishi kerak.
+    create: {
+      key: params.key,
+      value: JSON.stringify(parsed.data),
+      group: existing?.group ?? "system",
+      label: existing?.label ?? params.key,
+      description: existing?.description ?? "",
+      isProtected: existing?.isProtected ?? false,
+    },
+  });
+}
+
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipli qulay o'quvchilar
 // ─────────────────────────────────────────────────────────────────────────────
@@ -264,4 +329,29 @@ export async function getMaxProposals(): Promise<number> {
  */
 export async function isProjectModerationEnabled(): Promise<boolean> {
   return getSetting(SETTING_KEYS.MODERATE_PROJECTS, z.boolean(), true);
+}
+
+/**
+ * Kalit bo'yicha sxema.
+ *
+ * Admin paneli ixtiyoriy kalitni yuborishi mumkin, shuning uchun har
+ * biri uchun sxema SHU YERDA qat'iy belgilanadi. Ro'yxatda yo'q kalit
+ * qabul qilinmaydi.
+ */
+export const SETTING_SCHEMAS: Record<SettingKey, z.ZodType<unknown>> = {
+  [SETTING_KEYS.COMMISSION_BPS]: bpsSchema,
+  [SETTING_KEYS.MIN_WITHDRAWAL]: amountSchema,
+  [SETTING_KEYS.WITHDRAWAL_FEE_BPS]: bpsSchema,
+  [SETTING_KEYS.MODERATE_PROJECTS]: z.boolean(),
+  [SETTING_KEYS.MAX_PROPOSALS]: z.number().int().min(1).max(500),
+  [SETTING_KEYS.FREE_REVISIONS]: z.number().int().min(0).max(20),
+  [SETTING_KEYS.MIN_TEST_SCORE]: z.number().int().min(0).max(100),
+  [SETTING_KEYS.MAINTENANCE_MODE]: z.boolean(),
+  [SETTING_KEYS.REGISTRATION_OPEN]: z.boolean(),
+  [SETTING_KEYS.REFERRAL_REWARD]: amountSchema,
+};
+
+/** Kalit bizga tanishmi. */
+export function isKnownSettingKey(key: string): key is SettingKey {
+  return key in SETTING_SCHEMAS;
 }

@@ -22,7 +22,8 @@
     "db:seed:reference": "node --import tsx scripts/seed-reference.ts",
     "db:reset": "prisma migrate reset",
     "bootstrap": "node --env-file=.env --import tsx scripts/bootstrap-admin.ts",
-    "inpay:check": "node --env-file=.env --import tsx scripts/inpay-check.ts"
+    "inpay:check": "node --env-file=.env --import tsx scripts/inpay-check.ts",
+    "smoke": "node --env-file=.env --import tsx scripts/smoke-routes.ts"
   },
   "prisma": {
     "seed": "node --env-file=.env --import tsx prisma/seed.ts"

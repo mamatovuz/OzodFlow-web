@@ -1,32 +1,54 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
+import { Bell, Briefcase, ShieldCheck, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
-export type SettingsTab = {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-};
-
 /**
- * Sozlamalar bo'limlari.
+ * SOZLAMALAR BO'LIMLARI
  *
- * Klient komponent, chunki faol bo'limni aniqlash uchun `usePathname`
- * kerak. Havolalar oddiy `<Link>` — prefetch bilan o'tish darhol
- * bo'ladi.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  IKONALAR SHU YERDA — SERVERDAN UZATILMAYDI
+ *
+ *  Lucide ikonasi — React komponenti, ya'ni FUNKSIYA. Funksiyani server
+ *  komponentdan klient komponentga prop sifatida uzatib bo'lmaydi:
+ *
+ *    Error: Functions cannot be passed directly to Client Components
+ *
+ *  Bu xato `next build` da KO'RINMAYDI — u faqat sahifa ishga
+ *  tushganda chiqadi va butun sahifa 500 qaytaradi. Aynan shu xato
+ *  tufayli sozlamalar sahifasi ochilmagan edi.
+ *
+ *  Yechim: ikonalarni klient tomonda ushlab turamiz, serverdan faqat
+ *  MATN keladi.
+ * ═══════════════════════════════════════════════════════════════════════════
  *
  * Kichik ekranda gorizontal aylanadi: bo'limlar sig'masa ularni
  * ustma-ust taxlashdan ko'ra surib ko'rish tabiiyroq.
  */
+
+/** Bo'lim kalitlari — serverdagi tartib bilan bir xil. */
+export type SettingsTabKey =
+  | "profile"
+  | "portfolio"
+  | "security"
+  | "notifications";
+
+const TABS: Record<SettingsTabKey, { href: string; icon: typeof User }> = {
+  profile: { href: "/settings/profile", icon: User },
+  portfolio: { href: "/settings/portfolio", icon: Briefcase },
+  security: { href: "/settings/security", icon: ShieldCheck },
+  notifications: { href: "/settings/notifications", icon: Bell },
+};
+
 export function SettingsNav({
   tabs,
   ariaLabel,
 }: {
-  tabs: SettingsTab[];
+  /** Ko'rsatiladigan bo'limlar va ularning tarjima qilingan nomlari. */
+  tabs: Array<{ key: SettingsTabKey; label: string }>;
   ariaLabel: string;
 }) {
   const pathname = usePathname();
@@ -38,13 +60,14 @@ export function SettingsNav({
       aria-label={ariaLabel}
     >
       {tabs.map((tab) => {
-        const isActive = pathname === tab.href;
-        const Icon = tab.icon;
+        const config = TABS[tab.key];
+        const isActive = pathname === config.href;
+        const Icon = config.icon;
 
         return (
           <Link
-            key={tab.href}
-            href={tab.href}
+            key={tab.key}
+            href={config.href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
               "inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",

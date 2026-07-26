@@ -85,6 +85,24 @@
       "DEVOPS": "DevOps",
       "DESIGN": "Dizayn",
       "OTHER": "Boshqa"
+    },
+    "noPortfolioBody": "Mutaxassis hali ish namunalarini qo'shmagan. Uning tajribasi va ko'nikmalari pastda ko'rsatilgan.",
+    "noReviewsBody": "Bu mutaxassis hali sharh olmagan. Yangi mutaxassis bo'lishi mumkin — portfolio va ko'nikmalariga qarang.",
+    "skillLevel": "Daraja {level} / 5",
+    "skillYears": "{years, plural, =0 {} one {# yil} other {# yil}}",
+    "viewWork": "Ko'rish",
+    "languageName": {
+      "uz": "O'zbek",
+      "ru": "Rus",
+      "en": "Ingliz",
+      "tr": "Turk",
+      "ar": "Arab"
+    },
+    "proficiency": {
+      "NATIVE": "ona tili",
+      "FLUENT": "erkin",
+      "INTERMEDIATE": "o'rta",
+      "BASIC": "boshlang'ich"
     }
   },
   "admin": {
@@ -451,7 +469,8 @@
     "planning": "Reja",
     "calendar": "Kalendar",
     "account": "Hisob",
-    "settings": "Sozlamalar"
+    "settings": "Sozlamalar",
+    "messagesBadge": "O'qilmagan xabarlar"
   },
   "app": {
     "openSidebar": "Menyuni ochish",
@@ -988,5 +1007,26 @@
     "kindMULTIPLE_CHOICE": "Variantli",
     "kindPRACTICAL": "Amaliy",
     "kindOPEN": "Ochiq savol"
+  },
+  "chat": {
+    "title": "Xabarlar",
+    "subtitle": "Loyihalar bo'yicha suhbatlar.",
+    "empty": "Hozircha suhbat yo'q.",
+    "emptyBody": "Taklif qabul qilingach mijoz va mutaxassis o'rtasida suhbat avtomatik ochiladi.",
+    "selectConversation": "Suhbatni tanlang",
+    "selectConversationBody": "Chapdagi ro'yxatdan suhbatni tanlab xabarlarni ko'ring.",
+    "noMessages": "Hali xabar yo'q. Birinchi bo'lib yozing.",
+    "placeholder": "Xabar yozing…",
+    "send": "Yuborish",
+    "sending": "Yuborilmoqda…",
+    "closed": "Loyiha tugagan — bu suhbatda yozish yopilgan. Tarix o'qish uchun qoladi.",
+    "readOnly": "Siz bu suhbatni faqat o'qiy olasiz.",
+    "backToList": "Suhbatlarga qaytish",
+    "openProject": "Loyihani ochish",
+    "attachment": "Fayl",
+    "edited": "tahrirlangan",
+    "unread": "{count, plural, one {# yangi} other {# yangi}}",
+    "today": "Bugun",
+    "yesterday": "Kecha"
   }
 }

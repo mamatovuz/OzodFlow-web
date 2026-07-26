@@ -1,8 +1,10 @@
-import { Bell, Briefcase, ShieldCheck, User } from "lucide-react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { SettingsNav, type SettingsTab } from "@/app/(app)/settings/settings-nav";
+import {
+  SettingsNav,
+  type SettingsTabKey,
+} from "@/app/(app)/settings/settings-nav";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { UserRole } from "@/lib/enums";
 
@@ -18,6 +20,10 @@ export const metadata: Metadata = {
  * havola berish mumkin ("xavfsizlik sozlamalariga o'ting" degan
  * xabarnoma ishlaydi), brauzer orqaga tugmasi kutilgandek ishlaydi va
  * har bo'lim faqat o'ziga kerakli ma'lumotni o'qiydi.
+ *
+ * DIQQAT: bu yerdan klient komponentga faqat MATN uzatiladi. Ikonalar
+ * `settings-nav.tsx` ichida — funksiyani chegaradan o'tkazib bo'lmaydi
+ * (batafsil izoh o'sha faylda).
  */
 export default async function SettingsLayout({
   children,
@@ -34,29 +40,17 @@ export default async function SettingsLayout({
 
   const isDeveloper = user?.role === UserRole.DEVELOPER;
 
-  // Matnlar SERVERDA tarjima qilinadi va tayyor holda uzatiladi —
-  // klient komponentga `next-intl` konteksti kerak bo'lmaydi.
-  const tabs: SettingsTab[] = [
-    { href: "/settings/profile", label: t("tabProfile"), icon: User },
+  const tabs: Array<{ key: SettingsTabKey; label: string }> = [
+    { key: "profile", label: t("tabProfile") },
 
     // Portfolio faqat mutaxassisda bor. Mijozga ko'rsatish uni bo'sh
     // sahifaga olib borardi.
     ...(isDeveloper
-      ? [
-          {
-            href: "/settings/portfolio",
-            label: t("tabPortfolio"),
-            icon: Briefcase,
-          },
-        ]
+      ? [{ key: "portfolio" as const, label: t("tabPortfolio") }]
       : []),
 
-    { href: "/settings/security", label: t("tabSecurity"), icon: ShieldCheck },
-    {
-      href: "/settings/notifications",
-      label: t("tabNotifications"),
-      icon: Bell,
-    },
+    { key: "security", label: t("tabSecurity") },
+    { key: "notifications", label: t("tabNotifications") },
   ];
 
   return (

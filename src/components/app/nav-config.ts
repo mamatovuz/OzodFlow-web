@@ -3,6 +3,7 @@ import {
   Briefcase,
   FileText,
   LayoutDashboard,
+  MessageSquare,
   Search,
   Settings,
   type LucideIcon,
@@ -23,7 +24,6 @@ import { UserRole } from "@/lib/enums";
  *  Yangi sahifa yozilgach shu yerga qo'shiladi.
  *
  *  Rejalashtirilgan, LEKIN HALI YO'Q bo'lgani uchun kiritilmagan:
- *    • /messages          — chat
  *    • /favorites         — sevimli mutaxassislar
  *    • /calendar          — muddatlar kalendari
  *    • /wallet/invoices   — hisob-fakturalar
@@ -63,6 +63,12 @@ const CUSTOMER_NAV: NavGroup[] = [
         icon: Briefcase,
         badge: "activeProjects",
       },
+      {
+        key: "messages",
+        href: "/messages",
+        icon: MessageSquare,
+        badge: "unreadMessages",
+      },
     ],
   },
   {
@@ -93,6 +99,12 @@ const DEVELOPER_NAV: NavGroup[] = [
         href: "/my-projects",
         icon: Briefcase,
         badge: "activeProjects",
+      },
+      {
+        key: "messages",
+        href: "/messages",
+        icon: MessageSquare,
+        badge: "unreadMessages",
       },
     ],
   },

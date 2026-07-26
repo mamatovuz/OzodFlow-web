@@ -1,3 +1,5 @@
+import { Prisma } from "@prisma/client";
+
 import { db } from "@/lib/db";
 import { ProjectStatus, isAdminRole } from "@/lib/enums";
 import type { DbClient } from "@/lib/db";
@@ -160,29 +162,40 @@ export async function listConversations(
   });
 
   /**
-   * O'qilmaganlar soni ALOHIDA so'rovda.
+   * O'qilmaganlar soni — BITTA xom SQL so'rovi.
    *
-   * Buni yuqoridagi so'rovga qo'shib bo'lmaydi: Prisma'da bog'langan
-   * yozuvlarni har qatorning O'Z `lastReadAt` iga qarab sanash mumkin
-   * emas. `groupBy` esa shartni ifoda qila olmaydi.
+   * ═══════════════════════════════════════════════════════════════════════
+   *  NEGA XOM SQL
    *
-   * Ro'yxat kichik (50), ya'ni bu arzon.
+   *  Prisma'da bog'langan yozuvlarni har qatorning O'Z `lastReadAt` iga
+   *  qarab sanash mumkin emas. ORM bilan yozilsa har suhbat uchun
+   *  alohida `count` kerak bo'ladi — 50 suhbatda 50 so'rov (N+1).
+   *
+   *  Identifikatorlar QO'SHTIRNOQ ichida: SQLite va PostgreSQL
+   *  ikkalasida ishlaydi, ya'ni Postgres'ga o'tishda tegilmaydi.
+   * ═══════════════════════════════════════════════════════════════════════
    */
-  const unread = await Promise.all(
-    rows.map((row) =>
-      db.message.count({
-        where: {
-          conversationId: row.conversation.id,
-          deletedAt: null,
-          // O'z xabarlari hisoblanmaydi.
-          senderId: { not: userId },
-          ...(row.lastReadAt ? { createdAt: { gt: row.lastReadAt } } : {}),
-        },
-      })
-    )
+  const unreadRows = await db.$queryRaw<
+    Array<{ conversationId: string; total: bigint | number }>
+  >(Prisma.sql`
+    SELECT p."conversationId" AS "conversationId", COUNT(m."id") AS total
+    FROM "ConversationParticipant" AS p
+    LEFT JOIN "Message" AS m
+      ON m."conversationId" = p."conversationId"
+      AND m."senderId" <> ${userId}
+      AND m."deletedAt" IS NULL
+      AND (p."lastReadAt" IS NULL OR m."createdAt" > p."lastReadAt")
+    WHERE p."userId" = ${userId}
+      AND p."leftAt" IS NULL
+    GROUP BY p."conversationId"
+  `);
+
+  // SQLite'da COUNT `BigInt` qaytarishi mumkin.
+  const unreadByConversation = new Map(
+    unreadRows.map((row) => [row.conversationId, Number(row.total)])
   );
 
-  return rows.map((row, index) => {
+  return rows.map((row) => {
     const conversation = row.conversation;
     const other = conversation.participants[0]?.user;
     const last = conversation.messages[0];
@@ -198,34 +211,9 @@ export async function listConversations(
       // Fayl xabarida `body` bo'sh bo'lishi mumkin.
       lastMessage: last?.body ?? (last ? "Fayl" : null),
       lastMessageAt: conversation.lastMessageAt,
-      unreadCount: unread[index] ?? 0,
+      unreadCount: unreadByConversation.get(conversation.id) ?? 0,
     };
   });
-}
-
-/** Navigatsiya nishoni uchun: umumiy o'qilmagan xabarlar. */
-export async function countUnreadMessages(userId: string): Promise<number> {
-  const rows = await db.conversationParticipant.findMany({
-    where: { userId, leftAt: null },
-    select: { conversationId: true, lastReadAt: true },
-  });
-
-  if (rows.length === 0) return 0;
-
-  const counts = await Promise.all(
-    rows.map((row) =>
-      db.message.count({
-        where: {
-          conversationId: row.conversationId,
-          deletedAt: null,
-          senderId: { not: userId },
-          ...(row.lastReadAt ? { createdAt: { gt: row.lastReadAt } } : {}),
-        },
-      })
-    )
-  );
-
-  return counts.reduce((sum, count) => sum + count, 0);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

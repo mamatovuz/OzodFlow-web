@@ -1,4 +1,5 @@
 import { AUDIT, writeAudit } from "@/lib/audit";
+import { ensureProjectConversation } from "@/lib/chat";
 import { db, type DbClient } from "@/lib/db";
 import {
   ProjectEventType,
@@ -337,6 +338,23 @@ export async function acceptProposal(params: {
         type: ProjectEventType.DEVELOPER_ASSIGNED,
         message: "Mutaxassis tanlandi. To'lov kutilmoqda.",
       },
+    });
+
+    /**
+     * Suhbat SHU YERDA yaratiladi — tranzaksiya ichida.
+     *
+     * Nega bu yerda: mijoz va mutaxassis tayinlanish bilanoq
+     * gaplashishi kerak. Alohida "chat boshlash" tugmasi keraksiz
+     * qadam bo'lardi.
+     *
+     * Nega tranzaksiya ichida: tayinlash bajarilib suhbat
+     * yaratilmasa, ikkalasi bir-biriga yozolmasdi va buni tuzatish
+     * uchun qo'l aralashuvi kerak bo'lardi.
+     */
+    await ensureProjectConversation(tx, {
+      projectId: proposal.project.id,
+      customerId: params.customerId,
+      developerId: proposal.developerId,
     });
 
     await writeAudit(

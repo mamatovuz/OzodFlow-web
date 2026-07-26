@@ -1,9 +1,12 @@
 import {
   BadgeCheck,
   ExternalLink,
+  FolderOpen,
   Github,
+  Languages,
   Linkedin,
   MapPin,
+  MessageSquareQuote,
   Send,
   Star,
 } from "lucide-react";
@@ -16,7 +19,13 @@ import { getTranslations } from "next-intl/server";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge, StatusDot } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  EmptyState,
+} from "@/components/ui/card";
 import { formatMoney } from "@/lib/money";
 import {
   getDeveloperProfile,
@@ -24,6 +33,7 @@ import {
   type DeveloperProfilePage,
 } from "@/lib/queries/developers";
 import { SITE, developerProfileUrl } from "@/lib/site";
+import { cn } from "@/lib/utils";
 
 /**
  * OMMAVIY MUTAXASSIS PROFILI — ozodflow.uz/dev/username
@@ -208,9 +218,11 @@ export default async function DeveloperProfilePageView({
               </CardHeader>
 
               {profile.portfolio.length === 0 ? (
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">{t("noPortfolio")}</p>
-                </CardContent>
+                <EmptyState
+                  icon={FolderOpen}
+                  title={t("noPortfolio")}
+                  description={t("noPortfolioBody")}
+                />
               ) : (
                 <CardContent className="grid gap-4 sm:grid-cols-2">
                   {profile.portfolio.map((item) => (
@@ -233,6 +245,13 @@ export default async function DeveloperProfilePageView({
                       <div className="flex flex-1 flex-col p-4">
                         <h3 className="font-display text-[15px] font-semibold leading-snug">
                           {item.title}
+                          {/* Yil — ish qanchalik yangi ekanini
+                              ko'rsatadi. Avval olinib ishlatilmagan. */}
+                          {item.year && (
+                            <span className="ml-1.5 font-sans text-[13px] font-normal text-muted-foreground">
+                              {item.year}
+                            </span>
+                          )}
                         </h3>
 
                         {item.description && (
@@ -260,7 +279,7 @@ export default async function DeveloperProfilePageView({
                             rel="noopener noreferrer nofollow"
                             className="mt-auto inline-flex items-center gap-1.5 pt-3 text-[13px] font-medium text-brand transition-colors hover:text-brand-hover"
                           >
-                            Ko&apos;rish
+                            {t("viewWork")}
                             <ExternalLink className="size-3.5" strokeWidth={2} aria-hidden />
                           </a>
                         )}
@@ -285,9 +304,11 @@ export default async function DeveloperProfilePageView({
               </CardHeader>
 
               {profile.reviews.length === 0 ? (
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">{t("noReviews")}</p>
-                </CardContent>
+                <EmptyState
+                  icon={MessageSquareQuote}
+                  title={t("noReviews")}
+                  description={t("noReviewsBody")}
+                />
               ) : (
                 <ul className="divide-y divide-border-subtle">
                   {profile.reviews.map((review) => (
@@ -356,17 +377,96 @@ export default async function DeveloperProfilePageView({
                           ? t(`skillKind.${kind}` as "skillKind.OTHER")
                           : kind}
                       </p>
-                      <ul className="mt-2 flex flex-wrap gap-1.5">
+
+                      {/* DARAJA KO'RSATILADI.
+                          Mutaxassis o'zini 1-5 ballda baholaydi va bu
+                          ma'lumot avval olinib, ishlatilmay tashlanardi.
+                          Mijoz uchun "React" va "React (5/5)" farqi
+                          katta — tanlashda aynan shu ma'lumot kerak. */}
+                      <ul className="mt-2 flex flex-col gap-1.5">
                         {skills.map((skill) => (
-                          <li key={skill.name}>
-                            <Badge variant="brand" size="sm">
+                          <li
+                            key={skill.name}
+                            className="flex items-center justify-between gap-3"
+                          >
+                            <span className="min-w-0 truncate text-sm">
                               {skill.name}
-                            </Badge>
+                            </span>
+
+                            <span
+                              className="flex shrink-0 gap-0.5"
+                              title={t("skillLevel", { level: skill.level })}
+                            >
+                              {[1, 2, 3, 4, 5].map((step) => (
+                                <span
+                                  key={step}
+                                  className={cn(
+                                    "size-1.5 rounded-full",
+                                    step <= skill.level
+                                      ? "bg-brand"
+                                      : "bg-border"
+                                  )}
+                                  aria-hidden
+                                />
+                              ))}
+                              <span className="sr-only">
+                                {t("skillLevel", { level: skill.level })}
+                              </span>
+                            </span>
                           </li>
                         ))}
                       </ul>
                     </div>
                   ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ── Tillar ──────────────────────────────────────────────────
+                Bu ma'lumot avval olinib, sahifada UMUMAN ko'rsatilmagan
+                edi. Mijoz uchun muhim: u mutaxassis bilan qaysi tilda
+                gaplashishini bilishi kerak. */}
+            {profile.languages.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Languages
+                      className="size-4 text-muted-foreground"
+                      strokeWidth={2}
+                      aria-hidden
+                    />
+                    {t("languages")}
+                  </CardTitle>
+                </CardHeader>
+
+                <CardContent>
+                  <ul className="flex flex-col gap-1.5">
+                    {profile.languages.map((language) => (
+                      <li
+                        key={language.code}
+                        className="flex items-baseline justify-between gap-3 text-sm"
+                      >
+                        <span>
+                          {/* Tarjima yo'q bo'lsa ISO kodi ko'rsatiladi —
+                              yangi til qo'shilsa sahifa yiqilmasligi
+                              kerak. */}
+                          {t.has(`languageName.${language.code}` as "languageName.uz")
+                            ? t(`languageName.${language.code}` as "languageName.uz")
+                            : language.code.toUpperCase()}
+                        </span>
+
+                        <span className="text-[13px] text-muted-foreground">
+                          {t.has(
+                            `proficiency.${language.proficiency}` as "proficiency.NATIVE"
+                          )
+                            ? t(
+                                `proficiency.${language.proficiency}` as "proficiency.NATIVE"
+                              )
+                            : language.proficiency.toLowerCase()}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </CardContent>
               </Card>
             )}

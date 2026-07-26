@@ -22,14 +22,20 @@ export type SettingsTab = {
  * Kichik ekranda gorizontal aylanadi: bo'limlar sig'masa ularni
  * ustma-ust taxlashdan ko'ra surib ko'rish tabiiyroq.
  */
-export function SettingsNav({ tabs }: { tabs: SettingsTab[] }) {
+export function SettingsNav({
+  tabs,
+  ariaLabel,
+}: {
+  tabs: SettingsTab[];
+  ariaLabel: string;
+}) {
   const pathname = usePathname();
 
   return (
     <nav
       // `-mx-1 px-1` — fokus halqasi kesilib qolmasligi uchun joy.
       className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1"
-      aria-label="Sozlamalar bo'limlari"
+      aria-label={ariaLabel}
     >
       {tabs.map((tab) => {
         const isActive = pathname === tab.href;

@@ -29,10 +29,11 @@ const optionalString = z
  * Bo'sh matnni `undefined` ga aylantiruvchi ixtiyoriy butun son.
  *
  * NEGA ALOHIDA: `z.coerce.number()` bo'sh matnni **0** ga aylantiradi.
- * Bu jimgina buziladigan xato manbai — masalan `CHECKOUT_SHOP_ID=`
- * yozilgan bo'lsa qiymat `0` bo'lib qoladi va webhook har bir haqiqiy
- * to'lovni "boshqa kassa" deb rad etadi. Shu sababli bo'shlikni
- * SONGA AYLANTIRISHDAN OLDIN ushlaymiz.
+ * Bu jimgina buziladigan xato manbai — masalan `INPAY_MERCHANT_ID=`
+ * yozilgan bo'lsa qiymat `0` bo'lib qoladi, `isInpayConfigured()`
+ * "sozlangan" deb qaytaradi va har to'lov shlyuzda
+ * MERCHANT_NOT_FOUND bilan yiqiladi. Shu sababli bo'shlikni SONGA
+ * AYLANTIRISHDAN OLDIN ushlaymiz.
  */
 const optionalInt = z
   .string()
@@ -114,7 +115,11 @@ const envSchema = z.object({
   // Merchant ma'lumotlari inpay.uz kabinetidan olinadi. Ikkisi ham
   // bo'lmasa shlyuz o'chirilgan holatda ishlaydi va to'ldirish qo'lda
   // tasdiqlanadi — sayt yiqilmaydi.
-  INPAY_MERCHANT_ID: optionalString,
+  //
+  // `INPAY_MERCHANT_ID` SON sifatida tekshiriladi: shlyuz uni integer
+  // kutadi. Panelga tasodifan matn yozilsa xato ISHGA TUSHISHDA
+  // chiqadi, to'lov o'rtasida "MERCHANT_NOT_FOUND" bo'lib emas.
+  INPAY_MERCHANT_ID: optionalInt,
   INPAY_MERCHANT_TOKEN: optionalString,
 
   // ── AI ─────────────────────────────────────────────────────────────────────

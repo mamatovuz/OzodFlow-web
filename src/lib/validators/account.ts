@@ -162,18 +162,43 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
  * Yuqori chegara 10 mln so'm/soat: bundan katta qiymat deyarli har doim
  * xato (qo'shimcha nol). Cheklov bo'lmasa profil kulguli ko'rinadi.
  */
+const MAX_HOURLY_RATE_SUM = 10_000_000;
+
 const hourlyRateField = z
   .string()
   .trim()
+  // Bo'sh maydon = 0 (narx ko'rsatilmaydi). Ming ajratuvchi bo'shliqlar
+  // olib tashlanadi: "50 000" ham qabul qilinadi.
   .transform((value) => (value === "" ? "0" : value.replace(/\s/g, "")))
-  .pipe(
-    z.coerce
-      .number()
-      .int("Narx butun son bo'lsin")
-      .min(0, "Narx manfiy bo'lmaydi")
-      .max(10_000_000, "Narx juda katta — qo'shimcha nol yozilmadimi?")
-  )
-  .transform((sum) => sumToTiyin(sum));
+  .superRefine((value, ctx) => {
+    // `z.coerce.number()` ATAYLAB ishlatilmadi: uning kirish tipi
+    // `unknown` va `.pipe()` bilan tiplar to'qnashadi. Qo'lda
+    // tekshirish esa xato xabarini ham aniqroq beradi.
+    const parsed = Number(value);
+
+    if (!Number.isFinite(parsed)) {
+      ctx.addIssue({ code: "custom", message: "Narxni raqam bilan kiriting" });
+      return;
+    }
+
+    if (!Number.isInteger(parsed)) {
+      ctx.addIssue({ code: "custom", message: "Narx butun son bo'lsin" });
+      return;
+    }
+
+    if (parsed < 0) {
+      ctx.addIssue({ code: "custom", message: "Narx manfiy bo'lmaydi" });
+      return;
+    }
+
+    if (parsed > MAX_HOURLY_RATE_SUM) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Narx juda katta — qo'shimcha nol yozilmadimi?",
+      });
+    }
+  })
+  .transform((value) => sumToTiyin(Number(value)));
 
 /** Tillar: ko'p tanlovli checkbox guruhi. */
 export const LANGUAGE_CODES = ["uz", "ru", "en", "tr", "ar"] as const;

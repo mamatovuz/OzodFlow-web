@@ -24,14 +24,12 @@
     "somm": "so'm",
     "skipToContent": "Asosiy kontentga o'tish"
   },
-
   "theme": {
     "toggle": "Yorqin va qorong'i rejimni almashtirish",
     "light": "Yorqin",
     "dark": "Qorong'i",
     "system": "Tizim sozlamasi"
   },
-
   "levels": {
     "BEGINNER": "Boshlovchi",
     "JUNIOR": "Junior",
@@ -41,7 +39,6 @@
     "ELITE": "Elita",
     "LEGEND": "Legenda"
   },
-
   "developers": {
     "title": "Mutaxassislar",
     "subtitle": "Har biri portfolio, texnik test va shaxs tasdig'idan o'tgan.",
@@ -56,7 +53,6 @@
     "filterAvailable": "Faqat bo'shlar",
     "hourlyRate": "Soatiga"
   },
-
   "profile": {
     "hire": "Ish taklif qilish",
     "contact": "Bog'lanish",
@@ -91,11 +87,9 @@
       "OTHER": "Boshqa"
     }
   },
-
   "admin": {
     "title": "Admin panel",
     "backToApp": "Kabinetga qaytish",
-
     "nav": {
       "overview": "Umumiy ko'rinish",
       "payments": "To'lovlar",
@@ -105,7 +99,6 @@
       "settings": "Sozlamalar",
       "audit": "Audit jurnali"
     },
-
     "overview": {
       "title": "Umumiy ko'rinish",
       "subtitle": "Platforma holati va e'tibor talab qiladigan ishlar.",
@@ -121,7 +114,6 @@
       "reconcileFailBody": "Bloklangan summa ({actual}) escrow yozuvlariga ({expected}) mos kelmayapti. Farq: {difference}. Bu kodda xato borligini bildiradi — tekshirish zarur.",
       "nothingToDo": "Hozircha e'tibor talab qiladigan ish yo'q."
     },
-
     "payments": {
       "title": "To'lovlarni tasdiqlash",
       "subtitle": "O'tkazmani tekshirib, hamyonni to'ldiring.",
@@ -135,7 +127,6 @@
       "rejectReason": "Rad etish sababi",
       "confirmWarning": "Tasdiqlashdan oldin o'tkazma haqiqatan kelganiga ishonch hosil qiling. Bu amal hamyonga PUL QO'SHADI va uni orqaga qaytarish uchun alohida tuzatish kerak bo'ladi."
     },
-
     "users": {
       "title": "Foydalanuvchilar",
       "subtitle": "Mutaxassislarni tasdiqlash va hisoblarni boshqarish.",
@@ -159,7 +150,6 @@
         "SUPER_ADMIN": "Super admin"
       }
     },
-
     "moderation": {
       "title": "Loyihalar moderatsiyasi",
       "subtitle": "Yangi loyihalarni tekshirib, ochiq ro'yxatga chiqaring.",
@@ -171,7 +161,6 @@
       "customer": "Mijoz"
     }
   },
-
   "wallet": {
     "title": "Hamyon",
     "subtitle": "Balans, tranzaksiyalar va to'ldirish.",
@@ -181,7 +170,6 @@
     "lockedHint": "Loyihalar tugagach taqsimlanadi",
     "totalIn": "Umumiy tushum",
     "totalOut": "Umumiy chiqim",
-
     "topUpTitle": "Hamyonni to'ldirish",
     "topUpSubtitle": "Summani kiriting va to'lov usulini tanlang.",
     "amountLabel": "Summa",
@@ -196,13 +184,11 @@
     "topUpSubmit": "To'lovga o'tish",
     "topUpSubmitBank": "So'rov yaratish",
     "topUpSubmitting": "Yaratilmoqda…",
-
     "recheckTitle": "To'lov tushmadimi?",
     "recheckBody": "To'lovni tugatgan bo'lsangiz-u, pul hamyonda ko'rinmasa — holatni qayta tekshiring.",
     "recheckCta": "Holatni tekshirish",
     "recheckChecking": "Tekshirilmoqda…",
     "continuePayment": "To'lovni davom ettirish",
-
     "instructionsTitle": "To'lov ko'rsatmasi",
     "instructionsBody": "Quyidagi kodni o'tkazma izohiga yozing. Admin o'tkazmani tekshirib tasdiqlagach, pul hamyoningizga tushadi.",
     "codeLabel": "To'lov kodi",
@@ -211,11 +197,9 @@
     "pendingTitle": "Kutilayotgan to'lovlar",
     "pendingHint": "Admin tasdig'ini kutmoqda",
     "pendingHintGateway": "To'lov tugatilishini kutmoqda",
-
     "historyTitle": "Tranzaksiyalar",
     "historyEmpty": "Hali tranzaksiya yo'q.",
     "loadMore": "Ko'proq ko'rsatish",
-
     "type": {
       "DEPOSIT": "Hamyon to'ldirildi",
       "WITHDRAWAL": "Yechib olindi",
@@ -227,7 +211,6 @@
       "ADJUSTMENT": "Tuzatish"
     }
   },
-
   "projects": {
     "new": {
       "title": "Yangi loyiha",
@@ -255,7 +238,6 @@
       "moderationNote": "Loyiha joylashtirilgach admin tekshiruvidan o'tadi. Odatda bu bir necha soat oladi.",
       "freeNote": "Joylashtirish bepul. To'lov faqat mutaxassis tanlaganingizdan keyin."
     },
-
     "browse": {
       "title": "Ochiq loyihalar",
       "subtitle": "O'zingizga mos ishni tanlang va taklif yuboring.",
@@ -267,7 +249,6 @@
       "urgent": "Shoshilinch",
       "postedAt": "Joylashtirildi"
     },
-
     "detail": {
       "backToList": "Loyihalarga qaytish",
       "description": "Tavsif",
@@ -279,24 +260,20 @@
       "customer": "Mijoz",
       "acceptProposal": "Tanlash",
       "deliveryDays": "{days, plural, one {# kun} other {# kun}}",
-
       "fundTitle": "To'lovni bloklash",
       "fundBody": "Mutaxassis tanlandi. Ish boshlanishi uchun {amount} escrow'da bloklanishi kerak. Pul mutaxassisga siz ishni qabul qilgandan keyingina o'tadi.",
       "fundCta": "Escrow'ga to'lash",
       "fundInsufficient": "Hamyoningizda mablag' yetarli emas. Avval hamyonni to'ldiring.",
       "topUp": "Hamyonni to'ldirish",
-
       "deliverTitle": "Ishni topshirish",
       "deliverPlaceholder": "Nima bajarilgani, qayerda ko'rish mumkinligi, qanday ishga tushirish kerakligi.",
       "deliverCta": "Topshirish",
-
       "reviewTitle": "Ishni tekshiring",
       "reviewBody": "Mutaxassis ishni topshirdi. Tekshirib chiqing: hammasi joyida bo'lsa qabul qiling, kamchilik bo'lsa tuzatish so'rang.",
       "approveCta": "Qabul qilish va to'lash",
       "revisionCta": "Tuzatish so'rash",
       "revisionPlaceholder": "Nimani tuzatish kerakligini aniq yozing.",
       "revisionsLeft": "{count, plural, =0 {Bepul tuzatishlar tugadi} one {Yana # ta bepul tuzatish} other {Yana # ta bepul tuzatish}}",
-
       "proposalFormTitle": "Taklif yuborish",
       "proposalAmount": "Taklif summangiz",
       "proposalAmountHint": "Mijoz byudjeti: {range}",
@@ -307,7 +284,6 @@
       "proposalSubmitting": "Yuborilmoqda…",
       "proposalSent": "Taklif yuborildi",
       "proposalAlreadySent": "Siz bu loyihaga allaqachon taklif yuborgansiz. Mijoz javobini kuting.",
-
       "escrowActive": "Escrow faol",
       "escrowAmount": "Bloklangan summa",
       "waitingDeveloper": "Mutaxassis ishlamoqda",
@@ -315,7 +291,6 @@
       "completedBody": "To'lov taqsimlandi. Mutaxassisni baholashni unutmang."
     }
   },
-
   "projectStatus": {
     "DRAFT": "Qoralama",
     "PENDING_REVIEW": "Tekshiruvda",
@@ -327,12 +302,10 @@
     "CANCELLED": "Bekor qilindi",
     "DISPUTED": "Nizoda"
   },
-
   "dashboard": {
     "greeting": "Salom, {name}",
     "customerSubtitle": "Loyihalaringiz va hisobingiz holati.",
     "developerSubtitle": "Ishlaringiz, daromadingiz va yangi imkoniyatlar.",
-
     "customer": {
       "balance": "Hamyon balansi",
       "balanceHint": "Loyihalarga to'lash uchun",
@@ -352,7 +325,6 @@
       "draftNotice": "{count, plural, one {# qoralama loyihangiz bor} other {# qoralama loyihangiz bor}} — ularni yakunlab joylashtiring.",
       "draftCta": "Qoralamalarni ko'rish"
     },
-
     "developer": {
       "balance": "Hamyon balansi",
       "balanceHint": "Yechib olish uchun mavjud",
@@ -380,7 +352,6 @@
       "notVerifiedBody": "Tasdiqlangandan keyin loyihalarga taklif yuborish va ommaviy profil ochiladi. Tekshiruvni tezlashtirish uchun portfolio va tajribangiz haqida bizga yozing.",
       "notVerifiedCta": "Bog'lanish"
     },
-
     "project": {
       "budget": "Byudjet",
       "agreed": "Kelishilgan",
@@ -391,7 +362,6 @@
       "daysLeft": "{days, plural, =0 {Bugun tugaydi} one {# kun qoldi} other {# kun qoldi}}"
     }
   },
-
   "appNav": {
     "dashboard": "Kabinet",
     "myProjects": "Loyihalarim",
@@ -414,7 +384,6 @@
     "account": "Hisob",
     "settings": "Sozlamalar"
   },
-
   "app": {
     "openSidebar": "Menyuni ochish",
     "closeSidebar": "Menyuni yopish",
@@ -435,7 +404,6 @@
     "roleAdmin": "Administrator",
     "roleSuperAdmin": "Super administrator"
   },
-
   "auth": {
     "login": {
       "title": "Hisobingizga kiring",
@@ -454,7 +422,6 @@
       "reasonBlocked": "Hisobingizga kirish to'xtatilgan. Yordam xizmatiga murojaat qiling.",
       "reasonExpired": "Sessiya muddati tugadi. Qaytadan kiring."
     },
-
     "register": {
       "title": "OzodFlow'ga qo'shiling",
       "subtitle": "Bir daqiqada hisob yarating va ishni boshlang.",
@@ -476,7 +443,6 @@
       "loginLink": "Kirish",
       "developerNote": "Mutaxassis profili admin tasdig'idan keyin ochiladi. Ariza jarayoni: portfolio, texnik test va shaxsni tasdiqlash."
     },
-
     "forgot": {
       "title": "Parolni tiklash",
       "subtitle": "Hisobingiz emailini kiriting — tiklash havolasini yuboramiz.",
@@ -489,7 +455,6 @@
       "notConfiguredNote": "Diqqat: email yuborish hali sozlanmagan. Havola server log'iga yozildi — administrator undan olishi mumkin.",
       "backToLogin": "Kirishga qaytish"
     },
-
     "reset": {
       "title": "Yangi parol o'rnatish",
       "subtitle": "Yangi parolni kiriting. Barcha qurilmalardan chiqarilasiz.",
@@ -506,18 +471,15 @@
       "successBody": "Yangi parol bilan kirishingiz mumkin. Xavfsizlik uchun barcha qurilmalardan chiqarildingiz.",
       "loginNow": "Kirish"
     },
-
     "logout": "Chiqish",
     "backToSite": "Saytga qaytish"
   },
-
   "forbidden": {
     "title": "Bu sahifaga kirish huquqingiz yo'q",
     "body": "Hisobingiz bu bo'limga kirish uchun yetarli huquqqa ega emas. Agar bu xato bo'lsa deb hisoblasangiz, yordam xizmatiga yozing.",
     "dashboard": "Kabinetga o'tish",
     "home": "Bosh sahifa"
   },
-
   "nav": {
     "services": "Xizmatlar",
     "developers": "Mutaxassislar",
@@ -533,7 +495,6 @@
     "closeMenu": "Menyuni yopish",
     "logo": "OzodFlow — bosh sahifa"
   },
-
   "home": {
     "hero": {
       "badge": "Escrow himoyasi bilan",
@@ -555,7 +516,6 @@
         "devRole": "Full-stack developer"
       }
     },
-
     "howItWorks": {
       "label": "Qanday ishlaydi",
       "title": "To'rt qadam — g'oyadan tayyor ishgacha",
@@ -579,7 +539,6 @@
         }
       }
     },
-
     "escrow": {
       "label": "Ishonch",
       "title": "Pulingiz kelishuv bajarilmaguncha bloklangan turadi",
@@ -612,7 +571,6 @@
         "example": "Misol {amount} summa uchun. Taqsimlash tizim ishlatadigan aynan shu hisob-kitob bilan ko'rsatilgan."
       }
     },
-
     "categories": {
       "label": "Xizmatlar",
       "title": "Nima buyurtma qilish mumkin",
@@ -621,7 +579,6 @@
       "projectsCount": "{count, plural, one {# loyiha} other {# loyiha}}",
       "empty": "Xizmat yo'nalishlari hozircha sozlanmagan."
     },
-
     "developers": {
       "label": "Mutaxassislar",
       "title": "Ishni kim bajaradi",
@@ -635,14 +592,12 @@
       "available": "Bo'sh",
       "applyCta": "Ariza topshirish"
     },
-
     "stats": {
       "projects": "Bajarilgan loyiha",
       "developers": "Tekshirilgan mutaxassis",
       "rating": "O'rtacha reyting",
       "onTime": "Muddatda topshirilgan"
     },
-
     "forDevelopers": {
       "label": "Mutaxassislar uchun",
       "title": "Bu yerga kirish oson emas — shuning uchun mijozlar ishonadi",
@@ -668,7 +623,6 @@
       "cta": "Ariza topshirish",
       "requirements": "Talablar bilan tanishish"
     },
-
     "faq": {
       "label": "Savol-javob",
       "title": "Ko'p beriladigan savollar",
@@ -699,7 +653,6 @@
         }
       }
     },
-
     "cta": {
       "title": "Loyihangizni bugun boshlaymizmi?",
       "subtitle": "Tasvirlab berish 5 daqiqa vaqt oladi. Birinchi takliflar odatda bir kun ichida keladi.",
@@ -707,7 +660,6 @@
       "secondary": "Avval mutaxassislarni ko'raman"
     }
   },
-
   "footer": {
     "tagline": "Tekshirilgan mutaxassislar bilan raqamli loyihalar. Escrow himoyasi bilan.",
     "sections": {
@@ -739,7 +691,6 @@
     "rights": "Barcha huquqlar himoyalangan.",
     "madeIn": "Andijonda ishlab chiqilgan"
   },
-
   "errors": {
     "notFound": {
       "title": "Sahifa topilmadi",
@@ -752,6 +703,102 @@
       "body": "Xatolik bizning tomonda. Sahifani yangilab ko'ring — muammo qolsa, yordam xizmatiga yozing.",
       "retry": "Qayta urinish",
       "home": "Bosh sahifa"
+    }
+  },
+  "settings": {
+    "title": "Sozlamalar",
+    "subtitle": "Hisobingiz, xavfsizlik va xabarnomalar.",
+    "navAria": "Sozlamalar bo'limlari",
+    "tabProfile": "Profil",
+    "tabSecurity": "Xavfsizlik",
+    "tabNotifications": "Xabarnomalar",
+    "loadFailed": "Ma'lumotni o'qib bo'lmadi. Sahifani yangilang.",
+    "profile": {
+      "basicTitle": "Asosiy ma'lumot",
+      "name": "Ism",
+      "username": "Ommaviy manzil",
+      "usernameHint": "Profilingiz {prefix}manzil ko'rinishida ochiladi. Keyinroq o'zgartirsangiz eski havola ishlamaydi.",
+      "usernamePlaceholder": "ismingiz",
+      "save": "Saqlash",
+      "developerTitle": "Mutaxassis profili",
+      "notVerified": "Profilingiz hali admin tomonidan tasdiqlanmagan — u ommaviy ro'yxatda ko'rinmaydi. Ma'lumotni to'ldirib qo'ying, tasdiqlangach darhol ochiladi.",
+      "publicUrl": "Ommaviy profilingiz:",
+      "headline": "Qisqa tavsif",
+      "headlineHint": "Profil sarlavhasida ko'rinadi. Masalan: Next.js va Telegram bot ishlab chiquvchi",
+      "headlinePlaceholder": "Nima ish qilasiz?",
+      "bio": "O'zingiz haqingizda",
+      "bioHint": "Qanday loyihalarda ishlaganingiz, qanday muammolarni hal qilganingiz.",
+      "location": "Joylashuv",
+      "locationPlaceholder": "Toshkent",
+      "experience": "Tajriba (yil)",
+      "hourlyRate": "Soatlik narx (so'm)",
+      "hourlyRateHint": "0 qoldirsangiz ko'rsatilmaydi. Bu taxminiy narx — har loyiha uchun alohida kelishiladi.",
+      "linksTitle": "Havolalar",
+      "github": "GitHub",
+      "linkedin": "LinkedIn",
+      "website": "Shaxsiy sayt",
+      "telegram": "Telegram",
+      "languagesTitle": "Bilgan tillaringiz",
+      "langUz": "O'zbek",
+      "langRu": "Rus",
+      "langEn": "Ingliz",
+      "langTr": "Turk",
+      "langAr": "Arab",
+      "availability": "Ish holati",
+      "availabilityHint": "Band yoki Ta'tilda bo'lsangiz profilingiz ko'rinadi, lekin yangi taklif so'ralmaydi.",
+      "availAvailable": "Ish qabul qilaman",
+      "availBusy": "Band — hozir yangi ish olmayapman",
+      "availAway": "Ta'tilda",
+      "acceptingWork": "Yangi loyiha takliflarini qabul qilaman",
+      "acceptingWorkHint": "O'chirilsa mijozlar sizga taklif yubora olmaydi."
+    },
+    "security": {
+      "passwordTitle": "Parol",
+      "noPassword": "Hisobingizda parol yo'q — siz bir martalik kod bilan kirasiz. Parol o'rnatmoqchi bo'lsangiz, chiqib “Parolni unutdim” orqali o'rnatasiz.",
+      "currentPassword": "Hozirgi parol",
+      "newPassword": "Yangi parol",
+      "newPasswordHint": "Kamida 8 belgi, katta va kichik harf, raqam.",
+      "confirmPassword": "Yangi parolni tasdiqlang",
+      "passwordWarning": "Parol o'zgargach boshqa barcha qurilmalar tizimdan chiqariladi — faqat shu qurilma qoladi.",
+      "changePassword": "Parolni o'zgartirish",
+      "emailTitle": "Email",
+      "emailVerified": "Tasdiqlangan",
+      "emailNotVerified": "Tasdiqlanmagan",
+      "emailNeedsPassword": "Emailni o'zgartirish uchun avval parol o'rnatishingiz kerak — bu hisobingizni himoya qiladi.",
+      "newEmail": "Yangi email",
+      "emailPlaceholder": "ism@mail.uz",
+      "passwordForEmail": "Parolingiz",
+      "passwordForEmailHint": "Xavfsizlik uchun: email parolni tiklash kanali.",
+      "changeEmail": "Emailni o'zgartirish",
+      "devicesTitle": "Kirgan qurilmalar",
+      "noDevices": "Faol sessiya topilmadi.",
+      "currentDevice": "Shu qurilma",
+      "unknownDevice": "Noma'lum qurilma",
+      "unknownIp": "IP noma'lum",
+      "revoke": "Chiqarish",
+      "justNow": "hozir",
+      "minutesAgo": "{count} daqiqa oldin",
+      "hoursAgo": "{count} soat oldin",
+      "daysAgo": "{count} kun oldin"
+    },
+    "notifications": {
+      "channelsTitle": "Xabarnoma kanallari",
+      "emailNotConfigured": "Email yuborish hozircha sozlanmagan — bu kanalni yoqsangiz ham xat kelmaydi. Sozlanishi bilan ishlab ketadi.",
+      "channelsLegend": "Kanallar",
+      "email": "Email",
+      "emailHint": "Loyiha holati, to'lovlar va muhim xabarlar.",
+      "telegram": "Telegram",
+      "telegramHint": "Eng tez kanal — bot orqali keladi.",
+      "telegramUnavailable": "Bot hozircha sozlanmagan.",
+      "push": "Brauzer bildirishnomalari",
+      "pushHint": "Sayt ochiq bo'lmasa ham keladi.",
+      "sms": "SMS",
+      "smsHint": "Faqat eng muhim xabarlar uchun — SMS pullik.",
+      "quietTitle": "Bezovta qilmaslik",
+      "quietHint": "Bu oraliqda xabarlar yig'iladi va ertalab yuboriladi. Ikkalasini bo'sh qoldirsangiz cheklov yo'q.",
+      "quietStart": "Boshlanishi",
+      "quietEnd": "Tugashi",
+      "save": "Saqlash"
     }
   }
 }

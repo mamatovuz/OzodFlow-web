@@ -9,6 +9,15 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { IDLE, type FormState } from "@/lib/validators/form";
 
+export type ProfileFormLabels = {
+  name: string;
+  username: string;
+  usernameHint: string;
+  usernamePlaceholder: string;
+  urlPrefix: string;
+  save: string;
+};
+
 /**
  * Ism va ommaviy manzil.
  *
@@ -18,13 +27,13 @@ import { IDLE, type FormState } from "@/lib/validators/form";
 export function ProfileForm({
   name,
   username,
-  profileUrlPrefix,
   showUsername,
+  labels,
 }: {
   name: string;
   username: string | null;
-  profileUrlPrefix: string;
   showUsername: boolean;
+  labels: ProfileFormLabels;
 }) {
   const [state, formAction, isPending] = useActionState<FormState, FormData>(
     updateProfileAction,
@@ -43,7 +52,7 @@ export function ProfileForm({
         <Alert variant="danger">{state.message}</Alert>
       )}
 
-      <Field name="name" label="Ism" errors={errors?.name} required>
+      <Field name="name" label={labels.name} errors={errors?.name} required>
         {(props) => (
           <Input
             {...props}
@@ -57,8 +66,8 @@ export function ProfileForm({
       {showUsername && (
         <Field
           name="username"
-          label="Ommaviy manzil"
-          hint={`Profilingiz ${profileUrlPrefix}manzil ko'rinishida ochiladi. Keyinroq o'zgartirsangiz eski havola ishlamaydi.`}
+          label={labels.username}
+          hint={labels.usernameHint}
           errors={errors?.username}
         >
           {(props) => (
@@ -66,12 +75,12 @@ export function ProfileForm({
               {/* Prefiks ko'rinadigan qism — foydalanuvchi to'liq
                   manzilni yozib yubormasligi uchun. */}
               <span className="inline-flex shrink-0 items-center rounded-l-lg border border-r-0 border-input bg-surface-2 px-3 text-[13px] text-muted-foreground">
-                {profileUrlPrefix}
+                {labels.urlPrefix}
               </span>
               <Input
                 {...props}
                 defaultValue={username ?? ""}
-                placeholder="ismingiz"
+                placeholder={labels.usernamePlaceholder}
                 autoComplete="off"
                 spellCheck={false}
                 maxLength={30}
@@ -84,7 +93,7 @@ export function ProfileForm({
 
       <div>
         <Button type="submit" loading={isPending}>
-          Saqlash
+          {labels.save}
         </Button>
       </div>
     </form>

@@ -56,6 +56,7 @@ export function CheckboxField({
   required,
   invalid,
   className,
+  value,
 }: {
   name: string;
   label: React.ReactNode;
@@ -64,8 +65,20 @@ export function CheckboxField({
   required?: boolean;
   invalid?: boolean;
   className?: string;
+  /**
+   * Yuboriladigan qiymat.
+   *
+   * KO'P TANLOVLI GURUH uchun kerak: bir xil `name` bilan bir necha
+   * checkbox qo'yilsa, belgilanganlari massiv bo'lib keladi. `value`
+   * berilmasa hammasi `"on"` yuboradi va qaysi biri belgilanganini
+   * ajratib bo'lmaydi.
+   */
+  value?: string;
 }) {
-  const id = `checkbox-${name}`;
+  // Guruhda `name` takrorlanadi, ya'ni `id` ham takrorlanardi — bu
+  // yorliqni noto'g'ri inputga bog'lab qo'yadi. Qiymat bo'lsa uni
+  // `id` ga qo'shamiz.
+  const id = value ? `checkbox-${name}-${value}` : `checkbox-${name}`;
   const describedBy = description ? `${id}-description` : undefined;
 
   return (
@@ -74,6 +87,7 @@ export function CheckboxField({
         id={id}
         name={name}
         type="checkbox"
+        value={value}
         defaultChecked={defaultChecked}
         required={required}
         aria-invalid={invalid || undefined}

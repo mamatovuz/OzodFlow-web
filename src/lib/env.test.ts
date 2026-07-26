@@ -8,9 +8,10 @@
  *  panelida o'zgaruvchi qo'shiladi, qiymat keyinroq to'ldiriladi.
  *
  *  Zod'ning `coerce.number()` bo'sh matnni **0** ga aylantiradi. Bu
- *  jimgina buziladigan xato: `CHECKOUT_SHOP_ID=0` bo'lsa webhook har bir
- *  HAQIQIY to'lovni "boshqa kassa" deb rad etadi va mijozlarning puli
- *  hamyonga tushmaydi. Xato hech qayerda ko'rinmaydi — faqat to'lov
+ *  jimgina buziladigan xato: `INPAY_MERCHANT_ID=0` bo'lsa
+ *  `isInpayConfigured()` "sozlangan" deb qaytaradi, UI karta orqali
+ *  to'lovni ko'rsatadi, lekin har to'lov shlyuzda MERCHANT_NOT_FOUND
+ *  bilan yiqiladi. Xato hech qayerda ko'rinmaydi — faqat to'lov
  *  ishlamaydi.
  *
  *  Shu sababli "bo'sh = sozlanmagan" qoidasi test bilan qulflanadi.
@@ -31,49 +32,68 @@ const BASE = {
 };
 
 describe("env sxemasi — bo'sh qiymatlar", () => {
-  it("CHECKOUT_SHOP_ID bo'sh bo'lsa undefined bo'ladi, 0 emas", () => {
-    const parsed = envSchemaForTests.parse({ ...BASE, CHECKOUT_SHOP_ID: "" });
+  it("INPAY_MERCHANT_ID bo'sh bo'lsa undefined bo'ladi, 0 emas", () => {
+    const parsed = envSchemaForTests.parse({ ...BASE, INPAY_MERCHANT_ID: "" });
 
     assert.equal(
-      parsed.CHECKOUT_SHOP_ID,
+      parsed.INPAY_MERCHANT_ID,
       undefined,
-      "Bo'sh CHECKOUT_SHOP_ID 0 ga aylandi — webhook barcha to'lovlarni rad etadi"
+      "Bo'sh INPAY_MERCHANT_ID 0 ga aylandi — shlyuz 'sozlangan' deb ko'rinadi"
+    );
+
+    // Muhim natija: bo'sh qiymat bilan shlyuz O'CHIQ hisoblanishi kerak.
+    // `0 && ...` ham `false` beradi, lekin `0` haqiqiy merchant id
+    // bo'lishi mumkin degan xato taxminni yopib qo'yadi.
+    assert.equal(
+      parsed.INPAY_MERCHANT_ID !== undefined,
+      false,
+      "Shlyuz sozlangan deb hisoblandi"
     );
   });
 
-  it("CHECKOUT_SHOP_ID butunlay yo'q bo'lsa ham undefined", () => {
+  it("INPAY_MERCHANT_ID butunlay yo'q bo'lsa ham undefined", () => {
     const parsed = envSchemaForTests.parse(BASE);
-    assert.equal(parsed.CHECKOUT_SHOP_ID, undefined);
+    assert.equal(parsed.INPAY_MERCHANT_ID, undefined);
   });
 
-  it("CHECKOUT_SHOP_ID berilgan bo'lsa songa aylanadi", () => {
-    const parsed = envSchemaForTests.parse({ ...BASE, CHECKOUT_SHOP_ID: "102" });
-    assert.equal(parsed.CHECKOUT_SHOP_ID, 102);
+  it("INPAY_MERCHANT_ID berilgan bo'lsa songa aylanadi", () => {
+    const parsed = envSchemaForTests.parse({
+      ...BASE,
+      INPAY_MERCHANT_ID: "1353",
+    });
+    assert.equal(parsed.INPAY_MERCHANT_ID, 1353);
   });
 
   it("bo'shliq bilan yozilgan qiymat ham tozalanadi", () => {
+    // Railway panelida qiymatni nusxalashda bo'shliq qo'shilib ketadi.
     const parsed = envSchemaForTests.parse({
       ...BASE,
-      CHECKOUT_SHOP_ID: "  102  ",
-      CHECKOUT_API_KEY: "  kalit  ",
+      INPAY_MERCHANT_ID: "  1353  ",
+      INPAY_MERCHANT_TOKEN: "  6a7bf375b302cfcda6692e6f60402cb3  ",
     });
 
-    assert.equal(parsed.CHECKOUT_SHOP_ID, 102);
-    assert.equal(parsed.CHECKOUT_API_KEY, "kalit");
+    assert.equal(parsed.INPAY_MERCHANT_ID, 1353);
+    assert.equal(
+      parsed.INPAY_MERCHANT_TOKEN,
+      "6a7bf375b302cfcda6692e6f60402cb3"
+    );
   });
 
-  it("son bo'lmagan CHECKOUT_SHOP_ID rad etiladi", () => {
-    // Panelga tasodifan matn yozilsa, ishga tushishda xato chiqishi kerak —
-    // to'lov o'rtasida emas.
-    assert.throws(() =>
-      envSchemaForTests.parse({ ...BASE, CHECKOUT_SHOP_ID: "kassa-102" })
-    );
+  it("son bo'lmagan INPAY_MERCHANT_ID rad etiladi", () => {
+    // Panelga tasodifan token yoki matn yozilsa, xato ISHGA TUSHISHDA
+    // chiqishi kerak — to'lov o'rtasida emas.
+    for (const bad of ["merchant-1353", "1353abc", "1.5", "abc"]) {
+      assert.throws(
+        () => envSchemaForTests.parse({ ...BASE, INPAY_MERCHANT_ID: bad }),
+        `"${bad}" qabul qilindi`
+      );
+    }
   });
 
   it("bo'sh matnli maxfiy kalitlar undefined bo'ladi", () => {
     const parsed = envSchemaForTests.parse({
       ...BASE,
-      CHECKOUT_API_KEY: "",
+      INPAY_MERCHANT_TOKEN: "",
       TELEGRAM_BOT_TOKEN: "",
       SMTP_HOST: "",
       S3_ENDPOINT: "",
@@ -84,7 +104,7 @@ describe("env sxemasi — bo'sh qiymatlar", () => {
     // Hammasi `undefined` bo'lishi kerak — `features` bayroqlari shunga
     // qarab xizmatni o'chiradi.
     for (const [key, value] of Object.entries({
-      CHECKOUT_API_KEY: parsed.CHECKOUT_API_KEY,
+      INPAY_MERCHANT_TOKEN: parsed.INPAY_MERCHANT_TOKEN,
       TELEGRAM_BOT_TOKEN: parsed.TELEGRAM_BOT_TOKEN,
       SMTP_HOST: parsed.SMTP_HOST,
       S3_ENDPOINT: parsed.S3_ENDPOINT,

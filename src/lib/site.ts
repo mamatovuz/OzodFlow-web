@@ -29,6 +29,18 @@ export const SITE = {
   ogImage: "/og-image.png",
 } as const;
 
+/**
+ * Domen — protokolsiz ko'rinish (`ozodflow.uz`).
+ *
+ * Formalarda va yorliqlarda ishlatiladi: `https://` prefiksi joyni
+ * bekorga egallaydi va foydalanuvchi uni o'qimaydi.
+ *
+ * `URL` konstruktori ishlatiladi, matn kesish emas: `url` da port yoki
+ * yo'l bo'lishi mumkin (`http://localhost:3000`) va uni qo'lda
+ * ajratish xatoga olib keladi.
+ */
+export const SITE_HOST = new URL(SITE.url).host;
+
 /** Ommaviy developer profili manzili: /dev/username */
 export function developerProfileUrl(username: string): string {
   return `${SITE.url}/dev/${username}`;

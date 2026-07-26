@@ -4,22 +4,22 @@
  * ═══════════════════════════════════════════════════════════════════════════
  *  NIMA UCHUN BU TESTLAR ENG MUHIMI
  *
- *  CHECKOUT.UZ webhook'ida IMZO YO'Q va manzil ochiq. Ya'ni istalgan
- *  odam bizga "to'lov muvaffaqiyatli" degan so'rov yuborishi mumkin.
+ *  inPAY webhook'ida IMZO YO'Q va manzil ochiq. Ya'ni istalgan odam
+ *  bizga "to'lov muvaffaqiyatli" degan so'rov yuborishi mumkin.
  *
- *  Agar `settleCheckoutPayment` webhook tanasiga ishonsa — bu bepul pul
+ *  Agar `settleGatewayPayment` webhook tanasiga ishonsa — bu bepul pul
  *  ishlab chiqaruvchi teshik bo'ladi. Shu sababli bu fayl aynan
  *  QO'SHILMAGANLIKNI tekshiradi:
  *
- *    • shlyuz "to'langan" demasa — hamyon o'zgarmaydi
+ *    • shlyuz "success" demasa — hamyon o'zgarmaydi
  *    • summa mos kelmasa — hamyon o'zgarmaydi va audit yoziladi
  *    • takroriy webhook ikkinchi marta pul qo'shmaydi
- *    • notanish invoys hech narsa qilmaydi
+ *    • notanish buyurtma hech narsa qilmaydi
  *
- *  Shlyuzga HAQIQIY so'rov yuborilmaydi: tasdiqlovchi funksiya
- *  `verify` parametri orqali almashtiriladi. Testlar tarmoqqa
- *  chiqmasligi kerak — aks holda ular CI'da tasodifiy yiqiladi va
- *  har ishga tushirish uchun haqiqiy pul kerak bo'lardi.
+ *  Shlyuzga HAQIQIY so'rov yuborilmaydi: tasdiqlovchi funksiya `verify`
+ *  parametri orqali almashtiriladi. Testlar tarmoqqa chiqmasligi kerak —
+ *  aks holda ular CI'da tasodifiy yiqiladi, har ishga tushirish uchun
+ *  haqiqiy pul kerak bo'ladi va shlyuzning soatlik limitini yeb qo'yadi.
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -32,7 +32,7 @@ import { setupTestDatabase, type TestDatabase } from "../testing/test-db";
 // Modullar DINAMIK import qilinadi — `DATABASE_URL` o'rnatilgandan KEYIN.
 type DbModule = typeof import("../db");
 type DepositsModule = typeof import("./deposits");
-type CheckoutModule = typeof import("./checkout-uz");
+type InpayModule = typeof import("./inpay");
 
 let dbModule: DbModule;
 let deposits: DepositsModule;
@@ -57,11 +57,22 @@ after(async () => {
 
 let counter = 0;
 
+/**
+ * inPAY uslubidagi buyurtma id.
+ *
+ * Haqiqiy shlyuz 16 belgili hex qaytaradi (`1ff2f5a6d66f6e9c`). Testda
+ * ham shu shakl ishlatiladi: son emasligiga ishonch kerak — kod
+ * `Number(orderId)` qilib qo'ysa test buni ushlashi kerak.
+ */
+function makeOrderId(index: number): string {
+  return `${index.toString(16).padStart(4, "0")}f5a6d66f6e9c`;
+}
+
 /** Toza foydalanuvchi + kutilayotgan shlyuz to'lovi yaratadi. */
 async function makePendingGatewayPayment(amountSum: number) {
   const { db } = dbModule;
   const id = ++counter;
-  const invoiceId = 45_000 + id;
+  const orderId = makeOrderId(id);
   const amount = sumToTiyin(amountSum);
 
   const user = await db.user.create({
@@ -78,18 +89,18 @@ async function makePendingGatewayPayment(amountSum: number) {
   const payment = await db.payment.create({
     data: {
       userId: user.id,
-      provider: "CHECKOUT",
-      providerRef: String(invoiceId),
+      provider: "INPAY",
+      providerRef: orderId,
       amount,
       status: "PENDING",
       rawJson: JSON.stringify({
-        paymentUrl: `https://checkout.uz/invoice/${invoiceId}`,
+        paymentUrl: `https://inpay.uz/checkout/${orderId}`,
       }),
     },
     select: { id: true },
   });
 
-  return { userId: user.id, paymentId: payment.id, invoiceId, amount };
+  return { userId: user.id, paymentId: payment.id, orderId, amount };
 }
 
 /** Foydalanuvchi hamyonidagi balans (hamyon bo'lmasa 0). */
@@ -104,23 +115,27 @@ async function balanceOf(userId: string): Promise<Tiyin> {
 /**
  * Shlyuz javobini yasaydi.
  *
- * Haqiqiy `getCheckoutPaymentStatus` o'rniga ishlatiladi.
+ * Haqiqiy `getInpayPaymentStatus` o'rniga ishlatiladi.
  */
 function fakeGateway(options: {
   status: string;
-  isPaid: boolean;
   amountSum: number;
-}): (invoiceId: number) => Promise<
-  Awaited<ReturnType<CheckoutModule["getCheckoutPaymentStatus"]>>
+  method?: string;
+}): (orderId: string) => Promise<
+  Awaited<ReturnType<InpayModule["getInpayPaymentStatus"]>>
 > {
-  return async (invoiceId) => ({
-    invoiceId,
-    uuid: `uuid-${invoiceId}`,
-    amountSum: options.amountSum,
-    currency: "UZS",
+  // `isPaid` ni QO'LDA bermaymiz — u statusdan kelib chiqadi, xuddi
+  // haqiqiy klientda bo'lgani kabi. Aks holda test "faqat success
+  // to'langan hisoblanadi" qoidasini chetlab o'tardi.
+  const isPaid = options.status === "success";
+
+  return async (orderId) => ({
+    orderId,
     status: options.status,
-    isPaid: options.isPaid,
-    paidAt: options.isPaid ? new Date() : null,
+    isPaid,
+    amountSum: options.amountSum,
+    method: options.method ?? "click",
+    paidAt: isPaid ? new Date() : null,
   });
 }
 
@@ -133,19 +148,21 @@ const neverCalled = async (): Promise<never> => {
 // Soxta webhook — eng muhim guruh
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("settleCheckoutPayment — soxta webhook", () => {
-  it("shlyuz 'to'langan' demasa pul qo'shilmaydi", async () => {
+describe("settleGatewayPayment — soxta webhook", () => {
+  it("shlyuz 'success' demasa pul qo'shilmaydi", async () => {
     const scenario = await makePendingGatewayPayment(50_000);
 
-    // Hujumchi bizga "payment_confirmed" yubordi. Lekin shlyuzda
-    // to'lov hali kutilmoqda.
-    const result = await deposits.settleCheckoutPayment({
-      invoiceId: scenario.invoiceId,
+    // Hujumchi bizga "status: success" yubordi. Lekin shlyuzda to'lov
+    // hali kutilmoqda.
+    const result = await deposits.settleGatewayPayment({
+      orderId: scenario.orderId,
       webhookPayload: {
-        event: "payment_confirmed",
-        data: { order_id: scenario.invoiceId, status: "paid", amount: 50_000 },
+        status: "success",
+        order_id: scenario.orderId,
+        amount: "50000.00",
+        transaction_id: 149,
       },
-      verify: fakeGateway({ status: "pending", isPaid: false, amountSum: 0 }),
+      verify: fakeGateway({ status: "pending", amountSum: 0 }),
     });
 
     assert.equal(result.status, "not_paid");
@@ -165,18 +182,39 @@ describe("settleCheckoutPayment — soxta webhook", () => {
     assert.equal(payment?.paidAt, null);
   });
 
+  it("'failed' va 'cancelled' holatlari ham pul qo'shmaydi", async () => {
+    for (const status of ["failed", "cancelled", "SUCCESSFUL", "ok", ""]) {
+      const scenario = await makePendingGatewayPayment(10_000);
+
+      const result = await deposits.settleGatewayPayment({
+        orderId: scenario.orderId,
+        // Summa TO'G'RI — faqat holat "success" emas. Ya'ni test
+        // aynan holat tekshiruvini sinaydi.
+        verify: fakeGateway({ status, amountSum: 10_000 }),
+      });
+
+      assert.equal(
+        result.status,
+        "not_paid",
+        `"${status}" holati to'langan deb qabul qilindi`
+      );
+      assert.equal(await balanceOf(scenario.userId), 0n);
+    }
+  });
+
   it("webhook tanasidagi summa E'TIBORGA OLINMAYDI", async () => {
-    // Lokal yozuv 20 000 so'm. Hujumchi webhook'da 10 000 000 yozdi.
+    // Lokal yozuv 20 000 so'm. Hujumchi webhook'da 100 mln yozdi.
     const scenario = await makePendingGatewayPayment(20_000);
 
-    const result = await deposits.settleCheckoutPayment({
-      invoiceId: scenario.invoiceId,
+    const result = await deposits.settleGatewayPayment({
+      orderId: scenario.orderId,
       webhookPayload: {
-        event: "payment_confirmed",
-        data: { order_id: scenario.invoiceId, amount: 10_000_000 },
+        status: "success",
+        order_id: scenario.orderId,
+        amount: "100000000.00",
       },
       // Shlyuz haqiqiy summani tasdiqlaydi.
-      verify: fakeGateway({ status: "paid", isPaid: true, amountSum: 20_000 }),
+      verify: fakeGateway({ status: "success", amountSum: 20_000 }),
     });
 
     assert.equal(result.status, "credited");
@@ -185,16 +223,55 @@ describe("settleCheckoutPayment — soxta webhook", () => {
     assert.equal(await balanceOf(scenario.userId), sumToTiyin(20_000));
   });
 
-  it("notanish invoysga shlyuzga so'rov ham yuborilmaydi", async () => {
-    // Hujumchi tasodifiy raqam yubordi. Bizda bunday yozuv yo'q, ya'ni
+  it("notanish buyurtmaga shlyuzga so'rov ham yuborilmaydi", async () => {
+    // Hujumchi tasodifiy qiymat yubordi. Bizda bunday yozuv yo'q, ya'ni
     // shlyuzga so'rov yuborishning ma'nosi yo'q — bu bizni tashqi
-    // so'rovlar bilan yuklash yo'lini yopadi.
-    const result = await deposits.settleCheckoutPayment({
-      invoiceId: 999_999_999,
+    // so'rovlar bilan yuklash va shlyuz limitini tugatish yo'lini yopadi.
+    const result = await deposits.settleGatewayPayment({
+      orderId: "deadbeefdeadbeef",
       verify: neverCalled,
     });
 
-    assert.equal(result.status, "unknown_invoice");
+    assert.equal(result.status, "unknown_order");
+  });
+
+  it("boshqa provayderning yozuvi shlyuz to'lovi deb qabul qilinmaydi", async () => {
+    const { db } = dbModule;
+    const id = ++counter;
+
+    const user = await db.user.create({
+      data: {
+        email: `manual-ref-${id}@test.uz`,
+        name: "Mijoz",
+        passwordHash: "x",
+        role: "CUSTOMER",
+        status: "ACTIVE",
+      },
+      select: { id: true },
+    });
+
+    // Qo'lda to'lov yozuvi, lekin `providerRef` shlyuz buyurtmasiga
+    // o'xshaydi. Hujumchi shu kod bilan webhook yuborsa ham to'lov
+    // topilmasligi kerak — `provider` filtri buni ushlaydi.
+    const orderId = makeOrderId(id);
+
+    await db.payment.create({
+      data: {
+        userId: user.id,
+        provider: "MANUAL",
+        providerRef: orderId,
+        amount: sumToTiyin(500_000),
+        status: "PENDING",
+      },
+    });
+
+    const result = await deposits.settleGatewayPayment({
+      orderId,
+      verify: neverCalled,
+    });
+
+    assert.equal(result.status, "unknown_order");
+    assert.equal(await balanceOf(user.id), 0n);
   });
 });
 
@@ -202,16 +279,16 @@ describe("settleCheckoutPayment — soxta webhook", () => {
 // Summa mosligi
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("settleCheckoutPayment — summa mosligi", () => {
+describe("settleGatewayPayment — summa mosligi", () => {
   it("shlyuzdagi summa kamroq bo'lsa xato beradi va pul qo'shmaydi", async () => {
     const scenario = await makePendingGatewayPayment(100_000);
 
     await assert.rejects(
       () =>
-        deposits.settleCheckoutPayment({
-          invoiceId: scenario.invoiceId,
-          // Shlyuz "to'langan" dedi, lekin summa 1 000 so'm.
-          verify: fakeGateway({ status: "paid", isPaid: true, amountSum: 1_000 }),
+        deposits.settleGatewayPayment({
+          orderId: scenario.orderId,
+          // Shlyuz "success" dedi, lekin summa 1 000 so'm.
+          verify: fakeGateway({ status: "success", amountSum: 1_000 }),
         }),
       (error: unknown) =>
         error instanceof deposits.PaymentError &&
@@ -237,9 +314,30 @@ describe("settleCheckoutPayment — summa mosligi", () => {
 
     await assert.rejects(
       () =>
-        deposits.settleCheckoutPayment({
-          invoiceId: scenario.invoiceId,
-          verify: fakeGateway({ status: "paid", isPaid: true, amountSum: 90_000 }),
+        deposits.settleGatewayPayment({
+          orderId: scenario.orderId,
+          verify: fakeGateway({ status: "success", amountSum: 90_000 }),
+        }),
+      (error: unknown) =>
+        error instanceof deposits.PaymentError &&
+        error.code === "AMOUNT_MISMATCH"
+    );
+
+    assert.equal(await balanceOf(scenario.userId), 0n);
+  });
+
+  it("bir tiyinlik farq ham o'tmaydi", async () => {
+    // 50 000 so'm = 5 000 000 tiyin. Shlyuz 49 999 so'm desa — 100
+    // tiyin farq. Yaxlitlash bilan "yaqin" deb qabul qilish MUMKIN
+    // EMAS: shu teshikdan har to'lovda bir necha tiyin o'g'irlash
+    // mumkin bo'lardi.
+    const scenario = await makePendingGatewayPayment(50_000);
+
+    await assert.rejects(
+      () =>
+        deposits.settleGatewayPayment({
+          orderId: scenario.orderId,
+          verify: fakeGateway({ status: "success", amountSum: 49_999 }),
         }),
       (error: unknown) =>
         error instanceof deposits.PaymentError &&
@@ -254,13 +352,17 @@ describe("settleCheckoutPayment — summa mosligi", () => {
 // Muvaffaqiyatli yo'l va idempotentlik
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe("settleCheckoutPayment — muvaffaqiyatli yo'l", () => {
+describe("settleGatewayPayment — muvaffaqiyatli yo'l", () => {
   it("to'lovni yopadi, hamyonni to'ldiradi va daftarga yozadi", async () => {
     const scenario = await makePendingGatewayPayment(75_000);
 
-    const result = await deposits.settleCheckoutPayment({
-      invoiceId: scenario.invoiceId,
-      verify: fakeGateway({ status: "paid", isPaid: true, amountSum: 75_000 }),
+    const result = await deposits.settleGatewayPayment({
+      orderId: scenario.orderId,
+      verify: fakeGateway({
+        status: "success",
+        amountSum: 75_000,
+        method: "payme",
+      }),
     });
 
     assert.equal(result.status, "credited");
@@ -268,10 +370,14 @@ describe("settleCheckoutPayment — muvaffaqiyatli yo'l", () => {
 
     const payment = await dbModule.db.payment.findUnique({
       where: { id: scenario.paymentId },
-      select: { status: true, paidAt: true },
+      select: { status: true, paidAt: true, rawJson: true },
     });
     assert.equal(payment?.status, "PAID");
     assert.ok(payment?.paidAt, "paidAt yozilmadi");
+
+    // Qaysi to'lov tizimi ishlatilgani saqlanishi kerak — buxgalteriya
+    // va nizoda kerak bo'ladi.
+    assert.match(String(payment?.rawJson), /payme/);
 
     // Daftarda aynan bitta DEPOSIT yozuvi bo'lishi kerak.
     const wallet = await dbModule.db.wallet.findUnique({
@@ -288,24 +394,25 @@ describe("settleCheckoutPayment — muvaffaqiyatli yo'l", () => {
     assert.equal(entries[0]?.type, "DEPOSIT");
     assert.equal(entries[0]?.amount, scenario.amount);
     assert.equal(entries[0]?.balanceAfter, scenario.amount);
-    assert.equal(entries[0]?.reference, `payment:checkout:${scenario.paymentId}`);
+    assert.equal(entries[0]?.reference, `payment:gateway:${scenario.paymentId}`);
     assert.equal(wallet?.totalIn, scenario.amount);
   });
 
   it("takroriy webhook ikkinchi marta pul qo'shmaydi", async () => {
     const scenario = await makePendingGatewayPayment(30_000);
-    const gateway = fakeGateway({ status: "paid", isPaid: true, amountSum: 30_000 });
+    const gateway = fakeGateway({ status: "success", amountSum: 30_000 });
 
-    const first = await deposits.settleCheckoutPayment({
-      invoiceId: scenario.invoiceId,
+    const first = await deposits.settleGatewayPayment({
+      orderId: scenario.orderId,
       verify: gateway,
     });
     assert.equal(first.status, "credited");
 
-    // Shlyuz webhook'ni takrorlashi mumkin. Ikkinchi marta shlyuzga
-    // so'rov ham yuborilmasligi kerak — holat allaqachon PAID.
-    const second = await deposits.settleCheckoutPayment({
-      invoiceId: scenario.invoiceId,
+    // inPAY webhook'ni QAYTA YUBORADI (hujjatda shunday). Ikkinchi
+    // marta shlyuzga so'rov ham yuborilmasligi kerak — holat
+    // allaqachon PAID.
+    const second = await deposits.settleGatewayPayment({
+      orderId: scenario.orderId,
       verify: neverCalled,
     });
     assert.equal(second.status, "already_settled");
@@ -313,25 +420,25 @@ describe("settleCheckoutPayment — muvaffaqiyatli yo'l", () => {
     assert.equal(await balanceOf(scenario.userId), scenario.amount);
 
     const count = await dbModule.db.walletTransaction.count({
-      where: { reference: `payment:checkout:${scenario.paymentId}` },
+      where: { reference: `payment:gateway:${scenario.paymentId}` },
     });
     assert.equal(count, 1, "Bir to'lov ikki marta hisoblandi");
   });
 
   it("parallel kelgan ikki webhook bitta marta hisoblanadi", async () => {
     const scenario = await makePendingGatewayPayment(40_000);
-    const gateway = fakeGateway({ status: "paid", isPaid: true, amountSum: 40_000 });
+    const gateway = fakeGateway({ status: "success", amountSum: 40_000 });
 
     // Ikkalasi ham "PENDING" ko'radi, keyin tranzaksiyaga kiradi.
     // Tranzaksiya ichidagi qayta tekshiruv yoki `reference` unique
     // cheklovi ikkinchisini to'xtatishi kerak.
     const results = await Promise.allSettled([
-      deposits.settleCheckoutPayment({
-        invoiceId: scenario.invoiceId,
+      deposits.settleGatewayPayment({
+        orderId: scenario.orderId,
         verify: gateway,
       }),
-      deposits.settleCheckoutPayment({
-        invoiceId: scenario.invoiceId,
+      deposits.settleGatewayPayment({
+        orderId: scenario.orderId,
         verify: gateway,
       }),
     ]);
@@ -352,8 +459,8 @@ describe("settleCheckoutPayment — muvaffaqiyatli yo'l", () => {
       data: { status: "CANCELLED" },
     });
 
-    const result = await deposits.settleCheckoutPayment({
-      invoiceId: scenario.invoiceId,
+    const result = await deposits.settleGatewayPayment({
+      orderId: scenario.orderId,
       verify: neverCalled,
     });
 
@@ -367,12 +474,12 @@ describe("settleCheckoutPayment — muvaffaqiyatli yo'l", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("recheckPendingGatewayPayments", () => {
-  it("webhook kelmagan to'langan invoysni topib qo'shadi", async () => {
+  it("webhook kelmagan to'langan buyurtmani topib qo'shadi", async () => {
     const scenario = await makePendingGatewayPayment(25_000);
 
     const result = await deposits.recheckPendingGatewayPayments(
       scenario.userId,
-      fakeGateway({ status: "paid", isPaid: true, amountSum: 25_000 })
+      fakeGateway({ status: "success", amountSum: 25_000 })
     );
 
     assert.equal(result.credited, 1);
@@ -380,12 +487,12 @@ describe("recheckPendingGatewayPayments", () => {
     assert.equal(await balanceOf(scenario.userId), scenario.amount);
   });
 
-  it("to'lanmagan invoyslarni o'zgarishsiz qoldiradi", async () => {
+  it("to'lanmagan buyurtmalarni o'zgarishsiz qoldiradi", async () => {
     const scenario = await makePendingGatewayPayment(25_000);
 
     const result = await deposits.recheckPendingGatewayPayments(
       scenario.userId,
-      fakeGateway({ status: "pending", isPaid: false, amountSum: 0 })
+      fakeGateway({ status: "pending", amountSum: 0 })
     );
 
     assert.equal(result.credited, 0);
@@ -409,22 +516,22 @@ describe("recheckPendingGatewayPayments", () => {
     });
 
     // Birinchisi summasi mos kelmaydi (xato beradi), ikkinchisi to'g'ri.
-    const broken = 46_100 + id;
-    const good = 46_200 + id;
+    const broken = `broken${id.toString(16).padStart(4, "0")}aaaa`;
+    const good = `good${id.toString(16).padStart(4, "0")}bbbbbb`;
 
     await db.payment.createMany({
       data: [
         {
           userId: user.id,
-          provider: "CHECKOUT",
-          providerRef: String(broken),
+          provider: "INPAY",
+          providerRef: broken,
           amount: sumToTiyin(10_000),
           status: "PENDING",
         },
         {
           userId: user.id,
-          provider: "CHECKOUT",
-          providerRef: String(good),
+          provider: "INPAY",
+          providerRef: good,
           amount: sumToTiyin(35_000),
           status: "PENDING",
         },
@@ -433,14 +540,13 @@ describe("recheckPendingGatewayPayments", () => {
 
     const result = await deposits.recheckPendingGatewayPayments(
       user.id,
-      async (invoiceId) => ({
-        invoiceId,
-        uuid: `uuid-${invoiceId}`,
-        // Buzuq invoysga noto'g'ri summa qaytaramiz.
-        amountSum: invoiceId === broken ? 999_999 : 35_000,
-        currency: "UZS",
-        status: "paid",
+      async (orderId) => ({
+        orderId,
+        status: "success",
         isPaid: true,
+        // Buzuq buyurtmaga noto'g'ri summa qaytaramiz.
+        amountSum: orderId === broken ? 999_999 : 35_000,
+        method: "click",
         paidAt: new Date(),
       })
     );
@@ -448,6 +554,23 @@ describe("recheckPendingGatewayPayments", () => {
     assert.equal(result.credited, 1, "Xato birinchi to'lov qolganini to'xtatdi");
     assert.equal(result.total, sumToTiyin(35_000));
     assert.equal(await balanceOf(user.id), sumToTiyin(35_000));
+  });
+
+  it("boshqa foydalanuvchining to'lovini tekshirmaydi", async () => {
+    // Egalik tekshiruvi: `recheck` faqat O'Z to'lovlarini ko'radi.
+    const mine = await makePendingGatewayPayment(15_000);
+    const other = await makePendingGatewayPayment(90_000);
+
+    const result = await deposits.recheckPendingGatewayPayments(
+      mine.userId,
+      fakeGateway({ status: "success", amountSum: 15_000 })
+    );
+
+    assert.equal(result.credited, 1);
+    assert.equal(await balanceOf(mine.userId), mine.amount);
+
+    // Boshqa odamning hamyoni tegilmagan.
+    assert.equal(await balanceOf(other.userId), 0n);
   });
 });
 
@@ -638,17 +761,17 @@ describe("listPendingDeposits", () => {
       select: { id: true },
     });
 
-    const invoiceId = 47_000 + id;
+    const orderId = makeOrderId(id);
 
     await db.payment.create({
       data: {
         userId: user.id,
-        provider: "CHECKOUT",
-        providerRef: String(invoiceId),
+        provider: "INPAY",
+        providerRef: orderId,
         amount: sumToTiyin(80_000),
         status: "PENDING",
         rawJson: JSON.stringify({
-          paymentUrl: `https://checkout.uz/invoice/${invoiceId}`,
+          paymentUrl: `https://inpay.uz/checkout/${orderId}`,
         }),
       },
     });
@@ -662,10 +785,10 @@ describe("listPendingDeposits", () => {
     const pending = await deposits.listPendingDeposits(user.id);
     assert.equal(pending.length, 2);
 
-    const gateway = pending.find((p) => p.provider === "CHECKOUT");
+    const gateway = pending.find((p) => p.provider === "INPAY");
     assert.ok(gateway);
     assert.equal(gateway.code, null, "Shlyuz to'lovida kod bo'lmasligi kerak");
-    assert.equal(gateway.paymentUrl, `https://checkout.uz/invoice/${invoiceId}`);
+    assert.equal(gateway.paymentUrl, `https://inpay.uz/checkout/${orderId}`);
 
     const bank = pending.find((p) => p.provider === "MANUAL");
     assert.ok(bank);
@@ -694,8 +817,8 @@ describe("listPendingDeposits", () => {
     await db.payment.create({
       data: {
         userId: user.id,
-        provider: "CHECKOUT",
-        providerRef: String(48_000 + id),
+        provider: "INPAY",
+        providerRef: makeOrderId(id),
         amount: sumToTiyin(10_000),
         status: "PENDING",
         rawJson: "{ bu JSON emas",
@@ -707,12 +830,53 @@ describe("listPendingDeposits", () => {
     assert.equal(pending[0]?.paymentUrl, null);
   });
 
+  it("eski CHECKOUT yozuvlari ham ro'yxatda ko'rinadi", async () => {
+    // Shlyuz almashtirildi, lekin eski PENDING yozuvlar databaseda
+    // qolgan. Mijoz ularni ko'rmasa "pulim qayoqqa ketdi?" degan
+    // savol bilan qoladi.
+    const { db } = dbModule;
+    const id = ++counter;
+
+    const user = await db.user.create({
+      data: {
+        email: `legacy-${id}@test.uz`,
+        name: "Mijoz",
+        passwordHash: "x",
+        role: "CUSTOMER",
+        status: "ACTIVE",
+      },
+      select: { id: true },
+    });
+
+    await db.payment.create({
+      data: {
+        userId: user.id,
+        provider: "CHECKOUT",
+        providerRef: "45180",
+        amount: sumToTiyin(70_000),
+        status: "PENDING",
+        rawJson: JSON.stringify({
+          paymentUrl: "https://checkout.uz/invoice/45180",
+        }),
+      },
+    });
+
+    const pending = await deposits.listPendingDeposits(user.id);
+    assert.equal(pending.length, 1);
+    assert.equal(pending[0]?.provider, "CHECKOUT");
+    assert.equal(
+      pending[0]?.paymentUrl,
+      "https://checkout.uz/invoice/45180",
+      "Eski to'lov havolasi ko'rsatilmadi"
+    );
+  });
+
   it("yopilgan to'lovlar ro'yxatga tushmaydi", async () => {
     const scenario = await makePendingGatewayPayment(15_000);
 
-    await deposits.settleCheckoutPayment({
-      invoiceId: scenario.invoiceId,
-      verify: fakeGateway({ status: "paid", isPaid: true, amountSum: 15_000 }),
+    await deposits.settleGatewayPayment({
+      orderId: scenario.orderId,
+      verify: fakeGateway({ status: "success", amountSum: 15_000 }),
     });
 
     const pending = await deposits.listPendingDeposits(scenario.userId);

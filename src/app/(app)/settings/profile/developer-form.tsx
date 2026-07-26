@@ -9,23 +9,37 @@ import { CheckboxField } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { LANGUAGE_CODES } from "@/lib/validators/account";
 import { IDLE, type FormState } from "@/lib/validators/form";
 
-/** Ish holati variantlari — `Availability` enum'iga mos. */
-const AVAILABILITY = [
-  { value: "AVAILABLE", label: "Ish qabul qilaman" },
-  { value: "BUSY", label: "Band — hozir yangi ish olmayapman" },
-  { value: "AWAY", label: "Ta'tilda" },
-] as const;
+/** Ish holati variantlari — `Availability` enum'iga mos tartibda. */
+const AVAILABILITY = ["AVAILABLE", "BUSY", "AWAY"] as const;
 
-/** Tillar — `LANGUAGE_CODES` bilan bir xil tartibda. */
-const LANGUAGES = [
-  { code: "uz", label: "O'zbek" },
-  { code: "ru", label: "Rus" },
-  { code: "en", label: "Ingliz" },
-  { code: "tr", label: "Turk" },
-  { code: "ar", label: "Arab" },
-] as const;
+export type DeveloperFormLabels = {
+  headline: string;
+  headlineHint: string;
+  headlinePlaceholder: string;
+  bio: string;
+  bioHint: string;
+  location: string;
+  locationPlaceholder: string;
+  experience: string;
+  hourlyRate: string;
+  hourlyRateHint: string;
+  linksTitle: string;
+  github: string;
+  linkedin: string;
+  website: string;
+  telegram: string;
+  languagesTitle: string;
+  languages: Record<(typeof LANGUAGE_CODES)[number], string>;
+  availability: string;
+  availabilityHint: string;
+  availabilityOptions: Record<(typeof AVAILABILITY)[number], string>;
+  acceptingWork: string;
+  acceptingWorkHint: string;
+  save: string;
+};
 
 export function DeveloperForm(props: {
   headline: string;
@@ -40,6 +54,7 @@ export function DeveloperForm(props: {
   availability: string;
   acceptingWork: boolean;
   languages: string[];
+  labels: DeveloperFormLabels;
 }) {
   const [state, formAction, isPending] = useActionState<FormState, FormData>(
     updateDeveloperAction,
@@ -48,6 +63,7 @@ export function DeveloperForm(props: {
 
   const errors = state.status === "error" ? state.fieldErrors : undefined;
   const selected = new Set(props.languages);
+  const { labels } = props;
 
   return (
     <form action={formAction} className="flex flex-col gap-5">
@@ -61,8 +77,8 @@ export function DeveloperForm(props: {
 
       <Field
         name="headline"
-        label="Qisqa tavsif"
-        hint="Profil sarlavhasida ko'rinadi. Masalan: “Next.js va Telegram bot ishlab chiquvchi”"
+        label={labels.headline}
+        hint={labels.headlineHint}
         errors={errors?.headline}
       >
         {(field) => (
@@ -70,15 +86,15 @@ export function DeveloperForm(props: {
             {...field}
             defaultValue={props.headline}
             maxLength={120}
-            placeholder="Nima ish qilasiz?"
+            placeholder={labels.headlinePlaceholder}
           />
         )}
       </Field>
 
       <Field
         name="bio"
-        label="O'zingiz haqingizda"
-        hint="Qanday loyihalarda ishlaganingiz, qanday muammolarni hal qilganingiz."
+        label={labels.bio}
+        hint={labels.bioHint}
         errors={errors?.bio}
       >
         {(field) => (
@@ -87,12 +103,12 @@ export function DeveloperForm(props: {
       </Field>
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field name="location" label="Joylashuv" errors={errors?.location}>
+        <Field name="location" label={labels.location} errors={errors?.location}>
           {(field) => (
             <Input
               {...field}
               defaultValue={props.location}
-              placeholder="Toshkent"
+              placeholder={labels.locationPlaceholder}
               maxLength={80}
             />
           )}
@@ -100,7 +116,7 @@ export function DeveloperForm(props: {
 
         <Field
           name="yearsExperience"
-          label="Tajriba (yil)"
+          label={labels.experience}
           errors={errors?.yearsExperience}
         >
           {(field) => (
@@ -118,8 +134,8 @@ export function DeveloperForm(props: {
 
       <Field
         name="hourlyRate"
-        label="Soatlik narx (so'm)"
-        hint="0 qoldirsangiz ko'rsatilmaydi. Bu taxminiy narx — har loyiha uchun alohida kelishiladi."
+        label={labels.hourlyRate}
+        hint={labels.hourlyRateHint}
         errors={errors?.hourlyRate}
       >
         {(field) => (
@@ -137,11 +153,11 @@ export function DeveloperForm(props: {
       {/* ── Havolalar ─────────────────────────────────────────────────── */}
       <fieldset className="flex flex-col gap-5">
         <legend className="mb-1 font-display text-[15px] font-semibold">
-          Havolalar
+          {labels.linksTitle}
         </legend>
 
         <div className="grid gap-5 sm:grid-cols-2">
-          <Field name="githubUrl" label="GitHub" errors={errors?.githubUrl}>
+          <Field name="githubUrl" label={labels.github} errors={errors?.githubUrl}>
             {(field) => (
               <Input
                 {...field}
@@ -154,7 +170,11 @@ export function DeveloperForm(props: {
             )}
           </Field>
 
-          <Field name="linkedinUrl" label="LinkedIn" errors={errors?.linkedinUrl}>
+          <Field
+            name="linkedinUrl"
+            label={labels.linkedin}
+            errors={errors?.linkedinUrl}
+          >
             {(field) => (
               <Input
                 {...field}
@@ -169,7 +189,7 @@ export function DeveloperForm(props: {
 
           <Field
             name="portfolioUrl"
-            label="Shaxsiy sayt"
+            label={labels.website}
             errors={errors?.portfolioUrl}
           >
             {(field) => (
@@ -186,7 +206,7 @@ export function DeveloperForm(props: {
 
           <Field
             name="telegramUsername"
-            label="Telegram"
+            label={labels.telegram}
             errors={errors?.telegramUsername}
           >
             {(field) => (
@@ -204,20 +224,20 @@ export function DeveloperForm(props: {
       {/* ── Tillar ────────────────────────────────────────────────────── */}
       <fieldset>
         <legend className="mb-3 font-display text-[15px] font-semibold">
-          Bilgan tillaringiz
+          {labels.languagesTitle}
         </legend>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          {LANGUAGES.map((language) => (
+          {LANGUAGE_CODES.map((code) => (
             <CheckboxField
-              key={language.code}
+              key={code}
               // Bir xil `name` — server tomonda massivga yig'iladi
-              // (`parseFormData` shuni qiladi).
+              // (`parseFormData` shuni qiladi). `value` shart: aks holda
+              // hammasi "on" yuborardi.
               name="languages"
-              label={language.label}
-              defaultChecked={selected.has(language.code)}
-              // `value` atributi kerak: aks holda checkbox "on" yuboradi.
-              value={language.code}
+              value={code}
+              label={labels.languages[code]}
+              defaultChecked={selected.has(code)}
             />
           ))}
         </div>
@@ -232,15 +252,15 @@ export function DeveloperForm(props: {
       {/* ── Ish holati ────────────────────────────────────────────────── */}
       <Field
         name="availability"
-        label="Ish holati"
-        hint="“Band” yoki “Ta'tilda” bo'lsangiz profilingiz ko'rinadi, lekin yangi taklif so'ralmaydi."
+        label={labels.availability}
+        hint={labels.availabilityHint}
         errors={errors?.availability}
       >
         {(field) => (
           <Select {...field} defaultValue={props.availability}>
-            {AVAILABILITY.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
+            {AVAILABILITY.map((value) => (
+              <option key={value} value={value}>
+                {labels.availabilityOptions[value]}
               </option>
             ))}
           </Select>
@@ -249,14 +269,14 @@ export function DeveloperForm(props: {
 
       <CheckboxField
         name="acceptingWork"
-        label="Yangi loyiha takliflarini qabul qilaman"
-        description="O'chirilsa mijozlar sizga taklif yubora olmaydi."
+        label={labels.acceptingWork}
+        description={labels.acceptingWorkHint}
         defaultChecked={props.acceptingWork}
       />
 
       <div>
         <Button type="submit" loading={isPending}>
-          Saqlash
+          {labels.save}
         </Button>
       </div>
     </form>

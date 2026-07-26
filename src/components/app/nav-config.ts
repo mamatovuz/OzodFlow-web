@@ -4,6 +4,7 @@ import {
   FileText,
   LayoutDashboard,
   Search,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 
@@ -23,7 +24,6 @@ import { UserRole } from "@/lib/enums";
  *
  *  Rejalashtirilgan, LEKIN HALI YO'Q bo'lgani uchun kiritilmagan:
  *    • /messages          — chat
- *    • /settings          — profil va xavfsizlik sozlamalari
  *    • /favorites         — sevimli mutaxassislar
  *    • /calendar          — muddatlar kalendari
  *    • /wallet/invoices   — hisob-fakturalar
@@ -69,6 +69,10 @@ const CUSTOMER_NAV: NavGroup[] = [
     key: "finance",
     items: [{ key: "wallet", href: "/wallet", icon: Banknote }],
   },
+  {
+    key: "account",
+    items: [{ key: "settings", href: "/settings", icon: Settings }],
+  },
 ];
 
 /** Developer kabineti. */
@@ -95,6 +99,10 @@ const DEVELOPER_NAV: NavGroup[] = [
   {
     key: "finance",
     items: [{ key: "wallet", href: "/wallet", icon: Banknote }],
+  },
+  {
+    key: "account",
+    items: [{ key: "settings", href: "/settings", icon: Settings }],
   },
 ];
 

@@ -79,7 +79,9 @@ export class InpayError extends Error {
 
 /** Shlyuz sozlanganmi. Sozlanmagan bo'lsa qo'lda to'ldirishga o'tiladi. */
 export function isInpayConfigured(): boolean {
-  return Boolean(env.INPAY_MERCHANT_ID && env.INPAY_MERCHANT_TOKEN);
+  return (
+    env.INPAY_MERCHANT_ID !== undefined && Boolean(env.INPAY_MERCHANT_TOKEN)
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -145,7 +147,7 @@ async function fetchToken(): Promise<string> {
   const merchantId = env.INPAY_MERCHANT_ID;
   const merchantToken = env.INPAY_MERCHANT_TOKEN;
 
-  if (!merchantId || !merchantToken) {
+  if (merchantId === undefined || !merchantToken) {
     throw new InpayError("inPAY sozlanmagan", "NOT_CONFIGURED");
   }
 
@@ -153,7 +155,7 @@ async function fetchToken(): Promise<string> {
   // qiladi. Shu sababli bu manzil HECH QACHON log'ga yozilmaydi;
   // pastdagi xato log'larida faqat `status` va `error_code` bor.
   const url = new URL(`${API_BASE}/authorization/`);
-  url.searchParams.set("merchant_id", merchantId);
+  url.searchParams.set("merchant_id", String(merchantId));
   url.searchParams.set("merchant_token", merchantToken);
 
   let response: Response;

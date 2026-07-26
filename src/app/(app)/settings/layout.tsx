@@ -1,5 +1,6 @@
 import { Bell, ShieldCheck, User } from "lucide-react";
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 
 import { SettingsNav, type SettingsTab } from "@/app/(app)/settings/settings-nav";
 
@@ -16,29 +17,35 @@ export const metadata: Metadata = {
  * xabarnoma ishlaydi), brauzer orqaga tugmasi kutilgandek ishlaydi va
  * har bo'lim faqat o'ziga kerakli ma'lumotni o'qiydi.
  */
-const TABS: SettingsTab[] = [
-  { href: "/settings/profile", label: "Profil", icon: User },
-  { href: "/settings/security", label: "Xavfsizlik", icon: ShieldCheck },
-  { href: "/settings/notifications", label: "Xabarnomalar", icon: Bell },
-];
-
-export default function SettingsLayout({
+export default async function SettingsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const t = await getTranslations("settings");
+
+  // Matnlar SERVERDA tarjima qilinadi va tayyor holda uzatiladi —
+  // klient komponentga `next-intl` konteksti kerak bo'lmaydi.
+  const tabs: SettingsTab[] = [
+    { href: "/settings/profile", label: t("tabProfile"), icon: User },
+    { href: "/settings/security", label: t("tabSecurity"), icon: ShieldCheck },
+    {
+      href: "/settings/notifications",
+      label: t("tabNotifications"),
+      icon: Bell,
+    },
+  ];
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <header>
         <h1 className="font-display text-2xl font-bold tracking-[-0.02em]">
-          Sozlamalar
+          {t("title")}
         </h1>
-        <p className="mt-1 text-[15px] text-muted-foreground">
-          Hisobingiz, xavfsizlik va xabarnomalar.
-        </p>
+        <p className="mt-1 text-[15px] text-muted-foreground">{t("subtitle")}</p>
       </header>
 
-      <SettingsNav tabs={TABS} />
+      <SettingsNav tabs={tabs} ariaLabel={t("navAria")} />
 
       {children}
     </div>

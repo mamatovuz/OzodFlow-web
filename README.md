@@ -31,6 +31,11 @@ Loyiha fazalar bilan quriladi. Quyida nima tayyor va nima yo'q — ochiq holat.
 | **To'lov shlyuzi** | inPAY — Click/Payme/Plum orqali to'ldirish, **19 test** |
 | **Sozlamalar** | Profil, xavfsizlik (parol/email), kirgan qurilmalar, xabarnomalar |
 | **Portfolio va ko'nikmalar** | Developer o'z ishlarini va ko'nikmalarini boshqaradi, **19 test** |
+| **Mutaxassis arizasi** | Ma'lumot → texnik test → admin tasdig'i, avtomatik baholash |
+| **Chat** | Loyiha suhbati, o'qilmagan hisobi, tugagan loyihada yopiladi |
+| **Admin: arizalar** | Ko'rib chiqish, testga ruxsat, tasdiqlash va rad etish |
+| **Admin: audit jurnali** | Filtr va sahifalash bilan |
+| **Admin: sozlamalar** | Komissiya, cheklovlar, tizim rejimi (super admin)
 | **Admin panel** | Buxgalteriya tekshiruvi, to'lovlar, moderatsiya, foydalanuvchilar |
 | **Ommaviy profillar** | `/dev/username` — SSG, `Person` schema.org bilan |
 | Xizmatlar katalogi | `/services` va kategoriya sahifalari, SSG |
@@ -43,13 +48,13 @@ Loyiha fazalar bilan quriladi. Quyida nima tayyor va nima yo'q — ochiq holat.
 
 | Qism | Izoh |
 | --- | --- |
-| Chat | Real vaqt xabar almashish (`Conversation` modeli tayyor) |
-| Developer arizasi | Texnik test, portfolio yuklash, shaxs tasdig'i. **Hozircha** tasdiqlashni admin panelda admin bajaradi |
 | Boshqa to'lov shlyuzlari | Click, Payme to'g'ridan-to'g'ri (hozir inPAY orqali) |
 | Pul yechib olish | Model va admin ko'rinishi tayyor, avtomatik o'tkazma yo'q |
 | Email yuborish | `src/lib/mail.ts` tayyor, SMTP transport ulanmagan — xat log'ga yoziladi |
 | Fayl yuklash | S3/MinIO integratsiyasi |
-| Sharh va reyting | Model tayyor, forma va hisoblash yo'q |
+| Sharh va reyting | Model va ko'rinish tayyor, qoldirish formasi yo'q |
+| Real vaqt chat | Hozir sahifa yangilanganda yuklanadi (WebSocket yo'q) |
+| Shaxs tasdig'i | `IdentityVerification` modeli tayyor, hujjat yuklash yo'q |
 | AI funksiyalari | Tavsif generatori, byudjet taxmini, spam filtri |
 | Blog / CMS | Model tayyor, sahifalar yo'q |
 | Huquqiy hujjatlar | Sahifalar bor, matn yuridik ko'rikni kutmoqda |
@@ -132,6 +137,7 @@ Sayt: <http://localhost:3000>
 | `npm run db:reset` | Databaseni tozalab qayta yasash |
 | `npm run bootstrap` | Super adminni qo'lda yaratish |
 | `npm run inpay:check` | To'lov shlyuzi ulanishini tekshirish (faqat o'qish) |
+| `npm run smoke` | Ishlab turgan serverda barcha sahifani ochib ko'rish |
 
 ---
 
@@ -468,6 +474,41 @@ yozilsa `Misol 5 000 so'muchun` bo'lib qoladi. Butun gapni tarjima faylida
 `WalletTransaction` yozuvi bilan birga, bitta DB tranzaksiyasi ichida
 bo'lishi kerak. `WalletTransaction.reference` unique — takroriy so'rov
 pulni ikki marta o'tkazmaydi.
+
+---
+
+## Sahifalarni tekshirish
+
+`next build` sahifa KOMPILYATSIYA qilinganini ko'rsatadi — u ishga
+tushganda yiqilishini emas. Shu farq real xatoga olib keldi: sozlamalar
+sahifasi build'dan o'tdi, lekin ochilganda 500 qaytardi.
+
+Sababi: **Lucide ikonasi server komponentdan klient komponentga prop
+sifatida uzatilgan edi**.
+
+```
+Error: Functions cannot be passed directly to Client Components
+```
+
+Ikona — React komponenti, ya'ni funksiya. Funksiya server/klient
+chegarasidan o'tmaydi. Yechim: ikonalar klient komponent ichida turadi,
+serverdan faqat MATN keladi (`src/app/(app)/settings/settings-nav.tsx`
+dagi izohga qarang).
+
+Shunday xatolarni ushlash uchun:
+
+```bash
+npm start          # boshqa terminalda
+npm run smoke
+```
+
+Skript har rol uchun haqiqiy sessiya yasab, barcha himoyalangan
+sahifani ochib ko'radi va HTTP holatini chiqaradi. Deploy'dan keyin
+ishga tushirish tavsiya etiladi.
+
+Ichki havolalarni tekshirish uchun `/settings`, `/messages` kabi
+manzillar navigatsiyada bo'lib, sahifasi yo'q holatlar ham bo'lgan —
+ular endi yopilgan.
 
 ---
 

@@ -4,13 +4,20 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import { DepositForm } from "@/app/(app)/wallet/deposit-form";
+import { RecheckButton } from "@/app/(app)/wallet/recheck-button";
 import { StatGrid, StatTile } from "@/components/app/stat-tile";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, EmptyState } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth/current-user";
-import { TransactionDirection } from "@/lib/enums";
-import { formatMoney } from "@/lib/money";
-import { listPendingDeposits } from "@/lib/payments";
+import { PaymentProvider, TransactionDirection } from "@/lib/enums";
+import { formatMoney, sumToTiyin } from "@/lib/money";
+import {
+  CHECKOUT_MAX_SUM,
+  CHECKOUT_MIN_SUM,
+  isCheckoutConfigured,
+  listPendingDeposits,
+} from "@/lib/payments";
 import { getLedgerPage, getWalletSummary } from "@/lib/wallet";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +37,20 @@ export default async function WalletPage() {
   const [ledger, pendingDeposits] = wallet
     ? await Promise.all([getLedgerPage(wallet.id, { take: 20 }), listPendingDeposits(user.id)])
     : [{ items: [], hasMore: false }, []];
+
+  const gatewayEnabled = isCheckoutConfigured();
+
+  // Limit matni SERVERDA yasaladi — `formatMoney` bigint bilan ishlaydi
+  // va uni klientga uzatib bo'lmaydi.
+  const gatewayLimitLabel = t("gatewayLimit", {
+    min: formatMoney(sumToTiyin(CHECKOUT_MIN_SUM)),
+    max: formatMoney(sumToTiyin(CHECKOUT_MAX_SUM)),
+  });
+
+  // Shlyuz to'lovi kutilayotgan bo'lsa "tekshirish" tugmasi ko'rsatiladi.
+  const hasPendingGateway = pendingDeposits.some(
+    (deposit) => deposit.provider === PaymentProvider.CHECKOUT
+  );
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
@@ -156,7 +177,10 @@ export default async function WalletPage() {
 
         {/* ── To'ldirish ─────────────────────────────────────────────────── */}
         <div className="flex flex-col gap-6">
-          <DepositForm />
+          <DepositForm
+            gatewayEnabled={gatewayEnabled}
+            gatewayLimitLabel={gatewayLimitLabel}
+          />
 
           {pendingDeposits.length > 0 && (
             <Card>
@@ -171,25 +195,55 @@ export default async function WalletPage() {
                 {pendingDeposits.map((deposit) => (
                   <div
                     key={deposit.id}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-border bg-surface-1 p-3"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-1 p-3"
                   >
-                    <div className="min-w-0">
-                      <p className="amount text-[13px] font-medium">
-                        {deposit.providerRef}
-                      </p>
+                    <div className="min-w-0 flex-1">
+                      {/* Bank yo'lida to'lov kodi, shlyuz yo'lida esa
+                          tugallanmagan to'lovga qaytish havolasi. */}
+                      {deposit.code ? (
+                        <p className="amount text-[13px] font-medium">
+                          {deposit.code}
+                        </p>
+                      ) : (
+                        <p className="text-[13px] font-medium">
+                          {t("methodGateway")}
+                        </p>
+                      )}
+
                       <p className="text-[11px] text-muted-foreground">
-                        {t("pendingHint")}
+                        {/* Bank yo'li admin tasdig'ini kutadi, shlyuz yo'li
+                            esa mijozning o'zi to'lovni tugatishini. */}
+                        {deposit.provider === PaymentProvider.MANUAL
+                          ? t("pendingHint")
+                          : t("pendingHintGateway")}
                       </p>
                     </div>
 
-                    <Badge variant="warning" size="sm" className="shrink-0">
-                      {formatMoney(deposit.amount)}
-                    </Badge>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Badge variant="warning" size="sm">
+                        {deposit.amountLabel}
+                      </Badge>
+
+                      {deposit.paymentUrl && (
+                        <Button asChild variant="secondary" size="sm">
+                          {/* Tashqi manzil — `rel` bilan */}
+                          <a
+                            href={deposit.paymentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {t("continuePayment")}
+                          </a>
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </CardContent>
             </Card>
           )}
+
+          {hasPendingGateway && <RecheckButton />}
         </div>
       </div>
     </div>

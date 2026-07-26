@@ -332,12 +332,23 @@ export const WithdrawalStatus = {
 export type WithdrawalStatus = ValueOf<typeof WithdrawalStatus>;
 
 export const PaymentProvider = {
+  /**
+   * CHECKOUT.UZ — asosiy shlyuz.
+   *
+   * U o'z ichida Click, Payme va boshqa tizimlarni birlashtiradi, ya'ni
+   * biz bitta integratsiya bilan bir necha to'lov usulini olamiz.
+   * Aynan qaysi tizim ishlatilgani webhook'dagi `payment_system`
+   * maydonida keladi va `Payment.rawJson` ga saqlanadi.
+   */
+  CHECKOUT: "CHECKOUT",
+  /** Admin qo'lda kiritdi (bank o'tkazmasi) */
+  MANUAL: "MANUAL",
+  // Quyidagilar CHECKOUT.UZ orqali o'tadi, alohida integratsiya emas —
+  // eski yozuvlar mosligi uchun qoldirilgan.
   CLICK: "CLICK",
   PAYME: "PAYME",
   UZUM: "UZUM",
   CARD: "CARD",
-  /** Admin qo'lda kiritdi (bank o'tkazmasi) */
-  MANUAL: "MANUAL",
 } as const;
 export type PaymentProvider = ValueOf<typeof PaymentProvider>;
 

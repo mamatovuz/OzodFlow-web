@@ -1,25 +1,32 @@
 {
-  "name": "OzodFlow - Sayt, Bot va CRM",
+  "name": "OzodFlow — Tekshirilgan mutaxassislar bilan raqamli loyihalar",
   "short_name": "OzodFlow",
-  "description": "Landing page, Telegram bot, CRM va biznes saytlar.",
+  "description": "Sayt, Telegram bot, mobil ilova va dizayn buyurtma qilish. Escrow himoyasi bilan.",
   "start_url": "/",
   "scope": "/",
   "lang": "uz",
+  "dir": "ltr",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/web-app-manifest-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/web-app-manifest-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
-  "theme_color": "#0a1224",
-  "background_color": "#0a1224",
+  "theme_color": "#101218",
+  "background_color": "#fdfdfe",
   "display": "standalone"
 }

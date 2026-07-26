@@ -76,10 +76,45 @@ export type RotateResult =
   | { status: "ok"; tokens: IssuedTokens }
   /** Token topilmadi, muddati o'tdi yoki bekor qilingan */
   | { status: "invalid" }
+  /**
+   * Bir vaqtda kelgan ikkinchi so'rov: token hozirgina yangilangan.
+   *
+   * Bu O'G'IRLIK EMAS — brauzer bir necha so'rovni parallel yuboradi
+   * (Next.js havolalarni oldindan yuklaydi, foydalanuvchi ikki tabda
+   * ishlaydi). Yangi cookie allaqachon o'rnatilgan, shuning uchun
+   * chaqiruvchi shunchaki davom etishi kerak.
+   */
+  | { status: "raced" }
   /** Ishlatilgan token qayta keldi — barcha sessiyalar yopildi */
   | { status: "reuse_detected"; userId: string }
   /** Foydalanuvchi bloklangan yoki o'chirilgan */
   | { status: "user_blocked"; reason: string };
+
+/**
+ * ROTATSIYA GRACE OYNASI
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  NEGA KERAK
+ *
+ *  Rotatsiyadan keyin eski token bekor qilinadi. Lekin brauzer bir necha
+ *  so'rovni PARALLEL yuboradi:
+ *
+ *    • Next.js havola ustiga sichqoncha kelganda sahifani oldindan yuklaydi
+ *    • foydalanuvchi ikki tabda ishlayotgan bo'lishi mumkin
+ *    • sahifada bir vaqtda bir necha so'rov ketadi
+ *
+ *  Ularning hammasi BIR XIL (eski) refresh tokenni yuboradi. Birinchisi
+ *  yangilaydi, qolganlari "bekor qilingan token" deb ko'rinadi.
+ *
+ *  Grace oynasisiz bu O'G'IRLIK deb baholanardi va foydalanuvchining
+ *  barcha sessiyalari yopilardi — ya'ni u har 15 daqiqada tizimdan
+ *  chiqib ketardi. Bu haqiqiy o'g'irlikdan ko'ra ko'proq zarar keltiradi.
+ *
+ *  30 soniya — brauzerning parallel so'rovlari uchun yetarli, lekin
+ *  o'g'irlangan tokenni uzoq muddat ishlatishga imkon bermaydi.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+const ROTATION_GRACE_MS = 30_000;
 
 /**
  * Refresh tokenni yangi juftlikka almashtiradi.
@@ -106,9 +141,23 @@ export async function rotateSession(
 
   // ── O'g'irlikni aniqlash ────────────────────────────────────────────────
   // Bekor qilingan token qayta keldi. Sababi ROTATED bo'lsa — bu token
-  // allaqachon ishlatilgan, ya'ni nusxasi mavjud.
+  // allaqachon ishlatilgan.
   if (session.revokedAt) {
     if (session.revokedReason === SessionRevokeReason.ROTATED) {
+      /**
+       * GRACE OYNASI: token HOZIRGINA yangilangan bo'lsa, bu brauzerning
+       * parallel so'rovi — o'g'irlik emas.
+       *
+       * Yangi cookie allaqachon o'rnatilgan (birinchi so'rov o'rnatgan),
+       * shuning uchun chaqiruvchi shunchaki davom etsa yetarli: keyingi
+       * so'rov yangi tokenni yuboradi.
+       */
+      const sinceRotation = Date.now() - session.revokedAt.getTime();
+
+      if (sinceRotation <= ROTATION_GRACE_MS) {
+        return { status: "raced" };
+      }
+
       await revokeAllUserSessions(
         session.userId,
         SessionRevokeReason.REUSE_DETECTED

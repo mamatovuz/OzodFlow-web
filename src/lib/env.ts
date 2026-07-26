@@ -25,6 +25,27 @@ const optionalString = z
   .transform((value) => (value === "" ? undefined : value))
   .optional();
 
+/**
+ * Bo'sh matnni `undefined` ga aylantiruvchi ixtiyoriy butun son.
+ *
+ * NEGA ALOHIDA: `z.coerce.number()` bo'sh matnni **0** ga aylantiradi.
+ * Bu jimgina buziladigan xato manbai — masalan `CHECKOUT_SHOP_ID=`
+ * yozilgan bo'lsa qiymat `0` bo'lib qoladi va webhook har bir haqiqiy
+ * to'lovni "boshqa kassa" deb rad etadi. Shu sababli bo'shlikni
+ * SONGA AYLANTIRISHDAN OLDIN ushlaymiz.
+ */
+const optionalInt = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value) =>
+    value === undefined || value === "" ? undefined : Number(value)
+  )
+  .refine(
+    (value) => value === undefined || Number.isInteger(value),
+    "Butun son bo'lishi kerak"
+  );
+
 /** "15m", "30d", "3600s" ko'rinishidagi muddat. */
 const duration = z
   .string()
@@ -89,6 +110,13 @@ const envSchema = z.object({
   MIN_WITHDRAWAL_AMOUNT: z.coerce.number().int().min(0).default(100_000),
   DEFAULT_CURRENCY: z.string().default("UZS"),
 
+  // ── CHECKOUT.UZ to'lov shlyuzi ─────────────────────────────────────────────
+  // API kalit kassa sozlamalaridan olinadi. Bo'sh qoldirilsa shlyuz
+  // o'chirilgan holatda ishlaydi va to'ldirish qo'lda tasdiqlanadi.
+  CHECKOUT_API_KEY: optionalString,
+  // Kassa ID — webhook haqiqiyligini tekshirishda ishlatiladi.
+  CHECKOUT_SHOP_ID: optionalInt,
+
   // ── AI ─────────────────────────────────────────────────────────────────────
   ANTHROPIC_API_KEY: optionalString,
   AI_MODEL: z.string().default("claude-sonnet-5"),
@@ -98,6 +126,16 @@ const envSchema = z.object({
 });
 
 export type Env = z.infer<typeof envSchema>;
+
+/**
+ * Sxema testlar uchun ochiladi.
+ *
+ * `env` singleton'i import paytida `process.env` ni o'qiydi, ya'ni uni
+ * test ichida turli qiymatlar bilan qayta yuklab bo'lmaydi. Sxemaning
+ * o'zini tekshirish esa mumkin — bo'sh qiymatlar bilan bo'ladigan
+ * jimgina xatolar aynan shu darajada ushlanadi.
+ */
+export const envSchemaForTests = envSchema;
 
 function loadEnv(): Env {
   // Docker image yasashda maxfiy kalitlar hali berilmagan bo'ladi —
@@ -140,4 +178,9 @@ export const features = {
   s3: Boolean(env.S3_ENDPOINT && env.S3_ACCESS_KEY_ID && env.S3_SECRET_ACCESS_KEY),
   ai: Boolean(env.ANTHROPIC_API_KEY),
   redis: Boolean(env.REDIS_URL),
+  /**
+   * To'lov shlyuzi. O'chirilgan bo'lsa to'ldirish qo'lda tasdiqlanadi —
+   * ikkala yo'l ham ishlaydi, UI shunga qarab moslashadi.
+   */
+  checkout: Boolean(env.CHECKOUT_API_KEY),
 } as const;

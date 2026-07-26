@@ -28,6 +28,7 @@ Loyiha fazalar bilan quriladi. Quyida nima tayyor va nima yo'q — ochiq holat.
 | Birinchi admin | `.env` dan avtomatik yaratiladi, kodda parol yo'q |
 | **Kabinetlar** | Mijoz va mutaxassis uchun rolga qarab |
 | **Hamyon sahifasi** | Balans, tranzaksiyalar tarixi, to'ldirish so'rovi |
+| **To'lov shlyuzi** | CHECKOUT.UZ — karta orqali to'ldirish, **17 test** |
 | **Admin panel** | Buxgalteriya tekshiruvi, to'lovlar, moderatsiya, foydalanuvchilar |
 | **Ommaviy profillar** | `/dev/username` — SSG, `Person` schema.org bilan |
 | Xizmatlar katalogi | `/services` va kategoriya sahifalari, SSG |
@@ -42,7 +43,8 @@ Loyiha fazalar bilan quriladi. Quyida nima tayyor va nima yo'q — ochiq holat.
 | --- | --- |
 | Chat | Real vaqt xabar almashish (`Conversation` modeli tayyor) |
 | Developer arizasi | Texnik test, portfolio yuklash, shaxs tasdig'i. **Hozircha** tasdiqlashni admin panelda admin bajaradi |
-| To'lov shlyuzlari | Click, Payme, Uzum. **Hozircha** to'ldirish admin tasdig'i bilan |
+| Boshqa to'lov shlyuzlari | Click, Payme, Uzum to'g'ridan-to'g'ri (hozir CHECKOUT.UZ orqali) |
+| Pul yechib olish | Model va admin ko'rinishi tayyor, avtomatik o'tkazma yo'q |
 | Email yuborish | `src/lib/mail.ts` tayyor, SMTP transport ulanmagan — xat log'ga yoziladi |
 | Fayl yuklash | S3/MinIO integratsiyasi |
 | Sharh va reyting | Model tayyor, forma va hisoblash yo'q |
@@ -154,6 +156,82 @@ docker compose --profile cache up     # + Redis
 
 ---
 
+## To'lov tizimi
+
+Hamyonni to'ldirishning **ikki yo'li** bor va ikkalasi ham ishlab turadi.
+
+| Yo'l | Provayder | Qachon |
+| --- | --- | --- |
+| Karta orqali | CHECKOUT.UZ | Asosiy yo'l. 1 000 – 10 000 000 so'm |
+| Bank o'tkazmasi | `MANUAL` | Shlyuz sozlanmaganda, limitdan katta summada, yoki mijoz tanlaganda |
+
+Kod: `src/lib/payments/checkout-uz.ts` (shlyuz klienti),
+`src/lib/payments/deposits.ts` (biznes mantiq),
+`src/app/webhook/tolov/route.ts` (webhook).
+
+### Sozlash
+
+1. [checkout.uz](https://checkout.uz) panelida kassa yarating.
+2. **API Secret Key** ni oling → `CHECKOUT_API_KEY`.
+3. **Kassa ID** ni oling → `CHECKOUT_SHOP_ID`.
+4. Webhook manzilini kiriting: `https://ozodflow.uz/webhook/tolov`
+
+`CHECKOUT_API_KEY` bo'sh qoldirilsa karta orqali to'lov **jimgina
+o'chadi** va hamyon sahifasida faqat bank o'tkazmasi ko'rinadi. Ilova
+yiqilmaydi — bu ataylab shunday.
+
+### Webhook'ga ISHONILMAYDI
+
+Bu qismning eng muhim qarori.
+
+CHECKOUT.UZ webhook'ida **imzo yo'q** — hujjatda signature, HMAC yoki
+umumiy maxfiy kalit ko'rsatilmagan. Manzil esa ochiq. Ya'ni istalgan
+odam bizga quyidagini yuborishi mumkin:
+
+```json
+{ "event": "payment_confirmed",
+  "data": { "order_id": 45180, "amount": 10000000, "status": "paid" } }
+```
+
+Shu sababli webhook **faqat signal** sifatida qabul qilinadi:
+
+1. Tanadan **faqat `data.order_id`** olinadi. Summa, holat, valyuta —
+   hammasi e'tiborga olinmaydi.
+2. Shlyuzning o'zidan `/status_payment` orqali **mustaqil tasdiq**
+   olinadi.
+3. Shlyuz aytgan summa **lokal yozuv bilan solishtiriladi**. Mos
+   kelmasa: audit yoziladi va pul qo'shilmaydi.
+4. `reference` unique — bir to'lov ikki marta hisoblanmaydi.
+
+Natijada soxta webhook hech narsa qilmaydi. Bu `src/lib/payments/deposits.test.ts`
+da qulflangan: `"shlyuz 'to'langan' demasa pul qo'shilmaydi"`.
+
+> Shu tartibni buzmaslik kerak. Webhook tanasidagi summaga ishonish —
+> bepul pul ishlab chiqaruvchi teshik.
+
+### Webhook yo'qolsa
+
+Hujjatda: *"Hozircha muvaffaqiyatsiz urinish avtomatik qayta
+yuborilmaydi."* Ya'ni webhook bir marta keladi va yo'qolsa — yo'qoladi
+(deploy paytidagi to'xtash, tarmoq).
+
+Shuning uchun mijoz hamyon sahifasida **"Holatni tekshirish"** tugmasini
+bosib holatni shlyuzdan qayta so'rashi mumkin
+(`recheckPendingGatewayPayments`). Mijoz yordam xizmatini kutib
+qolmasligi kerak.
+
+Webhook har doim `200` qaytaradi — xato kod qaytarish foydasiz (qayta
+yuborilmaydi), lekin panelda "webhook ishlamayapti" degan xato chiqaradi.
+
+### Butun so'm cheklovi
+
+Shlyuz **so'mda** ishlaydi, bizda hisob **tiyinda**. Shu sababli shlyuz
+orqali faqat butun so'mlik summa yuboriladi (`amount % 100n === 0n`),
+aks holda qaytarilgan summa lokal yozuvga hech qachon teng bo'lmasdi.
+Butun bo'lmagan summa avtomatik bank yo'liga o'tadi.
+
+---
+
 ## Deploy
 
 SQLite **doimiy diskni** talab qiladi, shuning uchun:
@@ -193,6 +271,9 @@ JWT_REFRESH_SECRET=<boshqa 48 baytlik qiymat>
 
 OZODFLOW_ADMIN_EMAIL=<email>
 OZODFLOW_ADMIN_PASSWORD=<kuchli parol>
+
+CHECKOUT_API_KEY=<checkout.uz kassa API kaliti>
+CHECKOUT_SHOP_ID=<kassa raqami, masalan 102>
 ```
 
 Kalitlarni yasash:
@@ -359,14 +440,27 @@ npm test money        # nomida "money" bo'lgan fayllar
 Node.js'ning o'zining test runneri ishlatiladi (`node:test`) — qo'shimcha
 kutubxona yo'q. Test fayllari `*.test.ts`, kod bilan yonma-yon turadi.
 
+Hozir **119 test**. Pul bilan ishlaydigan qismlar (money, wallet, escrow,
+deposits) haqiqiy SQLite databaseda tekshiriladi — mock bilan emas, chunki
+mock tranzaksiyani rollback qilmaydi va unique cheklovni bilmaydi.
+
+Testlar **tashqi tarmoqqa chiqmaydi**. Shlyuz javobi `verify` parametri
+orqali almashtiriladi — aks holda har ishga tushirish uchun haqiqiy
+to'lov kerak bo'lardi.
+
 ---
 
 ## Xavfsizlik
 
 - Parollar bcrypt (cost 12) bilan hashlanadi, xom holda saqlanmaydi
-- Refresh token modeli SHA-256 hash va rotatsiya zanjiri bilan loyihalangan
-  (`Session` modeli) — amaliyoti keyingi fazada
-- Xavfsizlik sarlavhalari `next.config.ts` da
-- Hech qanday maxfiy qiymat kodda yoki git'da yo'q — faqat `.env`
+- Refresh token **xom holda saqlanmaydi** — HMAC-SHA256 hash, rotatsiya
+  zanjiri va qayta ishlatishni aniqlash bilan (`src/lib/auth/session.ts`)
+- To'lov webhook'iga ishonilmaydi — summa shlyuzdan mustaqil tasdiqlanadi
+  (yuqoridagi "To'lov tizimi" bo'limiga qarang)
+- Hamyon balansi faqat tranzaksiya ichida va idempotent `reference` bilan
+  o'zgaradi
+- Xavfsizlik sarlavhalari va nonce'li CSP `src/middleware.ts` da
+- Hech qanday maxfiy qiymat kodda yo'q — faqat `.env` (git'ga tushmaydi).
+  `.env.example` da **faqat bo'sh joy va namuna qiymatlar** bo'lishi kerak
 
 Zaiflik topsangiz: <info@ozodflow.uz>

@@ -75,6 +75,17 @@ async function handle(request: NextRequest): Promise<NextResponse> {
       return response;
     }
 
+    /**
+     * Parallel so'rov: token boshqa so'rov tomonidan hozirgina
+     * yangilangan.
+     *
+     * Cookie'ga TEGILMAYDI — brauzerda allaqachon yangi qiymat bor
+     * (g'olib so'rov o'rnatgan). Shunchaki maqsadga yo'naltiramiz va
+     * keyingi so'rov yangi token bilan ketadi.
+     */
+    case "raced":
+      return NextResponse.redirect(new URL(nextPath, request.url));
+
     case "reuse_detected":
       // Barcha sessiyalar `rotateSession` ichida yopildi. Foydalanuvchiga
       // sabab ko'rsatiladi — u parolini o'zgartirishi kerak bo'lishi mumkin.

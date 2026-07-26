@@ -185,9 +185,18 @@ export const cancelProjectSchema = z.object({
 // Hamyon
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Hamyonni to'ldirish.
+ *
+ * Ikki usul:
+ *   GATEWAY — CHECKOUT.UZ to'lov sahifasi (karta, Click, Payme).
+ *             Pul DARHOL tushadi.
+ *   BANK    — bank o'tkazmasi, admin tasdiqlaydi. Shlyuz limitidan
+ *             (10 mln so'm) katta summalar uchun kerak.
+ */
 export const depositSchema = z.object({
   amount: moneyField("Summa"),
-  method: z.enum(["CARD", "BANK", "CLICK", "PAYME", "UZUM"]).default("CARD"),
+  method: z.enum(["GATEWAY", "BANK"]).default("GATEWAY"),
 });
 
 export const withdrawSchema = z.object({

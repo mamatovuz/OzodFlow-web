@@ -176,6 +176,31 @@ export function middleware(request: NextRequest): Promise<NextResponse> | NextRe
     // ── Token yo'q yoki muddati o'tgan ──────────────────────────────────
     if (!claims) {
       /**
+       * PREFETCH so'rovlari tokenni YANGILAMAYDI.
+       *
+       * Next.js havola ustiga sichqoncha kelganda sahifani oldindan
+       * yuklaydi. Agar har prefetch token yangilashni ishga tushirsa:
+       *
+       *   • bir sahifada 10 havola bo'lsa — 10 parallel rotatsiya urinishi
+       *   • ular bir xil (eski) tokenni yuboradi
+       *   • natijada refresh token bir necha marta "qayta ishlatilgan"
+       *     bo'lib ko'rinadi
+       *
+       * Grace oynasi buni yumshatadi, lekin eng to'g'ri yechim — prefetch
+       * uchun umuman yangilamaslik. Prefetch shunchaki bajarilmaydi
+       * (foydalanuvchi buni sezmaydi), haqiqiy bosishda esa yangilanadi.
+       */
+      const isPrefetch =
+        request.headers.get("next-router-prefetch") === "1" ||
+        request.headers.get("purpose") === "prefetch";
+
+      if (isPrefetch) {
+        // Bo'sh javob: prefetch keshga hech narsa yozmaydi va haqiqiy
+        // bosish odatdagi yo'l bilan ketadi.
+        return withSecurityHeaders(new NextResponse(null, { status: 204 }));
+      }
+
+      /**
        * Refresh token bor — tokenni yangilashga urinamiz.
        *
        * Yangilash MIDDLEWARE ICHIDA bajarilmaydi: u databasega yozishni

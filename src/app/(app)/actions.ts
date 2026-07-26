@@ -319,13 +319,11 @@ export async function requestRevisionAction(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * To'ldirish so'rovi yaratadi va TO'LOV KODINI qaytaradi.
+ * Bank o'tkazmasi yo'li natijasi — klient uni ko'rsatma sifatida chizadi.
  *
- * Pul DARHOL tushmaydi: mijoz o'tkazma qilib, kodni izohga yozadi va
- * admin tasdiqlaydi. Bu ochiq aytiladi — foydalanuvchi pul darhol
- * tushadi deb kutib qolmasligi kerak.
+ * Shlyuz yo'lida natija QAYTMAYDI: foydalanuvchi to'lov sahifasiga
+ * yo'naltiriladi (`redirect`).
  */
-/** To'lov so'rovi natijasi — klient uni ko'rsatma sifatida chizadi. */
 export type DepositResult = { code: string; amount: string };
 
 export async function requestDepositAction(
@@ -351,15 +349,57 @@ export async function requestDepositAction(
     return { status: "error", fieldErrors: parsed.fieldErrors };
   }
 
-  try {
-    const { requestDeposit } = await import("@/lib/payments");
+  const {
+    CHECKOUT_MAX_SUM,
+    checkoutErrorMessage,
+    isCheckoutConfigured,
+    requestManualDeposit,
+    startGatewayDeposit,
+  } = await import("@/lib/payments");
 
-    const payment = await requestDeposit({
+  const amount = parsed.data.amount;
+  const amountSum = Number(amount / 100n);
+
+  /**
+   * Shlyuz yo'li mumkinmi.
+   *
+   * Uch shart: sozlangan, foydalanuvchi tanlagan va shlyuz limitiga
+   * sig'adi. Bittasi bajarilmasa bank o'tkazmasi yo'liga o'tiladi —
+   * foydalanuvchi "to'lov ishlamayapti" degan devorga urilmasligi kerak.
+   */
+  const useGateway =
+    parsed.data.method === "GATEWAY" &&
+    isCheckoutConfigured() &&
+    amount % 100n === 0n &&
+    amountSum <= CHECKOUT_MAX_SUM;
+
+  if (useGateway) {
+    let paymentUrl: string;
+
+    try {
+      const deposit = await startGatewayDeposit({
+        userId: auth.user.id,
+        amount,
+        userName: auth.user.name,
+      });
+
+      paymentUrl = deposit.paymentUrl;
+    } catch (error) {
+      console.error("[wallet.deposit.gateway]", error);
+      return formError(checkoutErrorMessage(error));
+    }
+
+    // `redirect` try/catch TASHQARISIDA: Next uni xato tashlash orqali
+    // amalga oshiradi va catch ichida bo'lsa ushlanib qolardi.
+    redirect(paymentUrl);
+  }
+
+  // ── Bank o'tkazmasi (admin tasdig'i bilan) ────────────────────────────
+  try {
+    const payment = await requestManualDeposit({
       userId: auth.user.id,
-      amount: parsed.data.amount,
+      amount,
       method: parsed.data.method,
-      ip: info.ip,
-      userAgent: info.userAgent,
     });
 
     revalidatePath("/wallet");
@@ -369,8 +409,56 @@ export async function requestDepositAction(
       amount: formatMoney(payment.amount),
     });
   } catch (error) {
-    console.error("[wallet.deposit]", error);
+    console.error("[wallet.deposit.manual]", error);
     return formError("So'rovni yaratib bo'lmadi. Qayta urinib ko'ring.");
+  }
+}
+
+/**
+ * Kutilayotgan shlyuz to'lovlarini qayta tekshiradi.
+ *
+ * NEGA KERAK: webhook yetib kelmasligi mumkin — tarmoq uzilishi, deploy
+ * paytidagi to'xtash yoki shlyuz tomonidagi nosozlik. CHECKOUT.UZ
+ * webhook'ni QAYTA YUBORMAYDI (hujjatda shunday yozilgan).
+ *
+ * Shu sababli mijozda "tekshirish" tugmasi bo'lishi SHART, aks holda u
+ * to'lagan pulini kutib qoladi va yordam xizmatiga yozishga majbur
+ * bo'ladi.
+ */
+export async function recheckDepositsAction(
+  _prevState: FormState,
+  _formData: FormData
+): Promise<FormState> {
+  const auth = await authorizeAction();
+  if (!auth.ok) return formError(auth.error);
+
+  const info = await getRequestInfo();
+  const limit = consume(
+    rateLimitKey("deposit_recheck", { ip: info.ip, identifier: auth.user.id }),
+    // Har tekshiruv shlyuzga tashqi so'rov yuboradi — tez-tez bosishga
+    // yo'l qo'yilmaydi.
+    { windowMs: 60_000, max: 6, blockMs: 60_000 }
+  );
+  if (!limit.ok) return formError(rateLimitMessage(limit));
+
+  try {
+    const { recheckPendingGatewayPayments } = await import("@/lib/payments");
+    const result = await recheckPendingGatewayPayments(auth.user.id);
+
+    revalidatePath("/wallet");
+
+    if (result.credited === 0) {
+      return formSuccess(
+        "Yangi tasdiqlangan to'lov topilmadi. To'lovni hozir tugatgan bo'lsangiz, bir daqiqadan keyin qayta tekshiring."
+      );
+    }
+
+    return formSuccess(
+      `${result.credited} ta to'lov tasdiqlandi — ${formatMoney(result.total)} qo'shildi.`
+    );
+  } catch (error) {
+    console.error("[wallet.recheck]", error);
+    return formError("Tekshirib bo'lmadi. Qayta urinib ko'ring.");
   }
 }
 

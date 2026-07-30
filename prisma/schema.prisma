@@ -82,6 +82,7 @@ model Restaurant {
   scans           ScanEvent[]
   memberships     Membership[]
   paymentRequests PaymentRequest[]
+  domainRequests  DomainRequest[]
 
   @@index([ownerId])
 }

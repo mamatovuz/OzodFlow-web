@@ -3,6 +3,7 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { authGuard, ok, fail } from "@/lib/api";
 import { randomCode } from "@/lib/utils";
+import { UPLOAD_DIR } from "@/lib/uploads";
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -23,12 +24,12 @@ export async function POST(req: NextRequest) {
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const ext = file.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
   const filename = `${Date.now()}-${randomCode(6).toLowerCase()}.${ext}`;
 
-  const uploadDir = path.join(process.cwd(), "public", "uploads");
-  await mkdir(uploadDir, { recursive: true });
-  await writeFile(path.join(uploadDir, filename), bytes);
+  await mkdir(UPLOAD_DIR, { recursive: true });
+  await writeFile(path.join(UPLOAD_DIR, filename), bytes);
 
-  return ok({ url: `/uploads/${filename}` });
+  // Fayl /media/<nom> orqali xizmat qilinadi (volume'da ham ishlaydi)
+  return ok({ url: `/media/${filename}` });
 }

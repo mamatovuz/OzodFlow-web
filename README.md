@@ -27,11 +27,13 @@ npm run dev          # http://localhost:3000
 ## Railway'ga deploy
 
 1. Loyihani GitHub'ga push qiling, Railway'da "New Project → Deploy from GitHub".
-2. **Volume** qo'shing (SQLite va yuklamalar saqlanishi uchun):
-   - Volume mount path: `/app/data` (baza) va `/app/public/uploads` (cheklar).
-3. Environment variables:
+2. **Volume** qo'shing (bitta volume yetarli — baza ham, rasmlar ham unda saqlanadi):
+   - Service → **Variables** yonidagi **Volumes** (yoki `+ New` → Volume)
+   - **Mount path:** `/app/data`  ← bu **papka yo'li** (`file` emas!)
+3. Environment variables (Variables bo'limi):
    ```
    DATABASE_URL=file:/app/data/prod.db
+   UPLOAD_DIR=/app/data/uploads
    JWT_SECRET=<uzun-tasodifiy-satr>
    NEXT_PUBLIC_APP_URL=https://sizning-domeningiz.uz
    PLATFORM_HOSTS=sizning-domeningiz.uz
@@ -39,8 +41,14 @@ npm run dev          # http://localhost:3000
 4. Railway avtomatik `npm run build` → `npm run start` qiladi (`start` bazani
    push qiladi va serverni ishga tushiradi). `railway.json` sozlangan.
 
-> Eslatma: Volume ulanmasa, SQLite bazasi va yuklangan cheklar har deploy'da
-> o'chib ketadi.
+**Muhim tushuncha:**
+- **Volume Mount path** = `/app/data` — bu papka (disk). `file` deb yozilmaydi.
+- `file:` faqat `DATABASE_URL` ichidagi Prisma belgisi (SQLite manzili).
+- Baza `/app/data/prod.db` faylida, yuklangan rasmlar `/app/data/uploads` da —
+  ikkalasi ham volume ichida, redeploy'da **o'chmaydi**.
+- Yuklangan rasmlar `/media/<nom>` orqali xizmat qilinadi.
+
+> Volume ulanmasa, baza va rasmlar har deploy'da o'chib ketadi.
 
 ## Skriptlar
 

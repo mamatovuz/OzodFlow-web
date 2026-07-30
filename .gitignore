@@ -31,5 +31,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# uploads
+# uploads (yuklangan rasmlar — volume yoki lokal papka)
+/uploads
 /public/uploads

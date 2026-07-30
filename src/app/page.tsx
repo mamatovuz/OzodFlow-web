@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { headers } from "next/headers";
+import { getMenuByDomain } from "@/lib/menu";
+import { PublicMenu } from "@/components/public/public-menu";
 import {
   QrCode,
   LayoutDashboard,
@@ -79,39 +82,39 @@ const plans = [
     name: "Free",
     price: "0",
     period: "so'm",
-    desc: "Boshlash uchun",
-    features: ["20 ta mahsulot", "Asosiy QR kod", "Asosiy dizayn", "1 filial"],
+    desc: "Sinab ko'rish uchun",
+    features: ["20 ta mahsulot", "7 kunlik sinov", "Oq va Qora dizayn", "Asosiy QR kod"],
     cta: "Bepul boshlash",
     highlight: false,
   },
   {
     name: "Pro",
-    price: "99 000",
-    period: "so'm/oy",
-    desc: "O'sib borayotgan biznes uchun",
+    price: "30 000",
+    period: "so'm · bir martalik",
+    desc: "Umrbod foydalanish",
     features: [
       "Cheksiz mahsulot",
-      "Premium dizayn",
       "To'liq statistika",
       "Cheksiz QR kod",
-      "Stol QR kodlari",
+      "O'z domeningiz",
+      "Umrbod — bir martalik to'lov",
     ],
     cta: "Pro tanlash",
     highlight: true,
   },
   {
-    name: "Business",
-    price: "299 000",
-    period: "so'm/oy",
-    desc: "Tarmoq restoranlar uchun",
+    name: "Pro Max",
+    price: "99 000",
+    period: "so'm · bir martalik",
+    desc: "Barcha imkoniyatlar",
     features: [
       "Pro dagi hammasi",
-      "Filiallar",
-      "Xodimlar va rollar",
-      "Batafsil statistika",
-      "API (kelajak uchun)",
+      "5 ta premium menyu dizayni",
+      "O'z domeningiz",
+      "Filiallar (tez orada)",
+      "Umrbod — bir martalik to'lov",
     ],
-    cta: "Business tanlash",
+    cta: "Pro Max tanlash",
     highlight: false,
   },
 ];
@@ -134,7 +137,39 @@ const testimonials = [
   },
 ];
 
+export const dynamic = "force-dynamic";
+
+// Platforma asosiy domenlari (bularda landing ko'rsatiladi)
+const PLATFORM_HOSTS = (process.env.PLATFORM_HOSTS || "")
+  .split(",")
+  .map((h) => h.trim().toLowerCase())
+  .filter(Boolean);
+
 export default async function LandingPage() {
+  // Custom domain: agar host restoran domeniga to'g'ri kelsa — menyuni ko'rsatamiz
+  const h = await headers();
+  const host = (h.get("host") || "").split(":")[0].toLowerCase();
+  const isPlatform =
+    !host ||
+    host === "localhost" ||
+    host.endsWith(".railway.app") ||
+    host.endsWith("ozodflow.uz") ||
+    PLATFORM_HOSTS.includes(host);
+
+  if (!isPlatform) {
+    const menu = await getMenuByDomain(host);
+    if (menu) {
+      return (
+        <PublicMenu
+          restaurant={menu.restaurant}
+          categories={menu.categories}
+          products={menu.products}
+          theme={menu.theme}
+        />
+      );
+    }
+  }
+
   const user = await getSessionUser();
 
   return (

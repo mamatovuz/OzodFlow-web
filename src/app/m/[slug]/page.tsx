@@ -1,29 +1,10 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+import { getMenuBySlug } from "@/lib/menu";
 import { PublicMenu } from "@/components/public/public-menu";
 
 export const dynamic = "force-dynamic";
-
-async function getData(slug: string) {
-  const restaurant = await prisma.restaurant.findUnique({
-    where: { slug },
-  });
-  if (!restaurant || !restaurant.isActive) return null;
-
-  const categories = await prisma.category.findMany({
-    where: { restaurantId: restaurant.id, isVisible: true },
-    orderBy: { sortOrder: "asc" },
-    select: { id: true, name: true },
-  });
-
-  const products = await prisma.product.findMany({
-    where: { restaurantId: restaurant.id, isVisible: true },
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-  });
-
-  return { restaurant, categories, products };
-}
 
 export async function generateMetadata({
   params,
@@ -53,7 +34,7 @@ export default async function PublicMenuPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const data = await getData(slug);
+  const data = await getMenuBySlug(slug);
   if (!data) notFound();
 
   return (
@@ -61,6 +42,7 @@ export default async function PublicMenuPage({
       restaurant={data.restaurant}
       categories={data.categories}
       products={data.products}
+      theme={data.theme}
     />
   );
 }

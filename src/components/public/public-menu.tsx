@@ -14,8 +14,8 @@ import {
   UtensilsCrossed,
   Star,
 } from "lucide-react";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { formatPrice, parseJson } from "@/lib/utils";
+import type { MenuTheme } from "@/lib/themes";
 
 type PublicProduct = {
   id: string;
@@ -67,10 +67,12 @@ export function PublicMenu({
   restaurant,
   categories,
   products,
+  theme,
 }: {
   restaurant: PublicRestaurant;
   categories: PublicCategory[];
   products: PublicProduct[];
+  theme: MenuTheme;
 }) {
   const [activeCat, setActiveCat] = useState<string>(categories[0]?.id ?? "");
   const [search, setSearch] = useState("");
@@ -78,7 +80,20 @@ export function PublicMenu({
   const [detail, setDetail] = useState<PublicProduct | null>(null);
   const catRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const accent = restaurant.primaryColor || "#2563EB";
+  const accent = theme.accent || restaurant.primaryColor || "#2563EB";
+
+  // Tema ranglarini CSS o'zgaruvchilar orqali qo'llaymiz
+  const themeStyle: React.CSSProperties = {
+    ["--accent" as string]: accent,
+    ["--background" as string]: theme.colors.background,
+    ["--surface" as string]: theme.colors.surface,
+    ["--surface-2" as string]: theme.colors.surface2,
+    ["--card" as string]: theme.colors.card,
+    ["--foreground" as string]: theme.colors.foreground,
+    ["--muted" as string]: theme.colors.muted,
+    ["--border" as string]: theme.colors.border,
+    ["--accent-soft" as string]: theme.isDark ? "#ffffff18" : "#00000010",
+  };
 
   // Skanni qayd qilish
   useEffect(() => {
@@ -132,10 +147,7 @@ export function PublicMenu({
   }
 
   return (
-    <div
-      className="min-h-screen bg-background pb-16"
-      style={{ ["--accent" as string]: accent }}
-    >
+    <div className="min-h-screen bg-background pb-16" style={themeStyle}>
       {/* Cover / Header */}
       <div className="relative">
         <div className="h-40 w-full overflow-hidden bg-surface-2 sm:h-52">
@@ -154,9 +166,6 @@ export function PublicMenu({
               }}
             />
           )}
-        </div>
-        <div className="absolute right-4 top-4">
-          <ThemeToggle className="bg-card/80 backdrop-blur" />
         </div>
       </div>
 

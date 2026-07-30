@@ -1,27 +1,20 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
-import { getUserRestaurant } from "@/lib/api";
-import { Sidebar } from "@/components/dashboard/sidebar";
+import { AdminNav } from "@/components/admin/admin-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-export default async function DashboardLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-  if (user.role === "ADMIN") redirect("/admin");
-
-  const restaurant = await getUserRestaurant(user.id);
-  if (!restaurant) redirect("/login");
+  if (user.role !== "ADMIN") redirect("/dashboard");
 
   return (
     <div className="flex min-h-screen flex-col bg-surface lg:flex-row">
-      <Sidebar
-        user={{ name: user.name, email: user.email, phone: user.phone }}
-        restaurantSlug={restaurant.slug}
-      />
+      <AdminNav name={user.name} />
       <main className="flex-1">
         <div className="hidden items-center justify-end gap-2 border-b border-border bg-card px-6 py-3 lg:flex">
           <ThemeToggle />

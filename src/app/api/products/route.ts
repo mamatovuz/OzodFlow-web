@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
 import { productSchema } from "@/lib/validation";
+import { getEffectivePlan, PLANS } from "@/lib/plans";
 
 export async function GET(req: NextRequest) {
   const { user, res } = await authGuard();
@@ -45,14 +46,17 @@ export async function POST(req: NextRequest) {
   });
   if (!category) return fail("Kategoriya topilmadi", 404);
 
-  // FREE tarif limiti: 20 mahsulot
-  if (restaurant.plan === "FREE") {
+  // Tarif limiti (muddati tugagan pullik tarif ham FREE limitiga tushadi)
+  const { effective, productLimit, expired } = getEffectivePlan(restaurant);
+  if (productLimit !== null) {
     const count = await prisma.product.count({
       where: { restaurantId: restaurant.id },
     });
-    if (count >= 20) {
+    if (count >= productLimit) {
       return fail(
-        "Free tarifda 20 tagacha mahsulot qo'shish mumkin. Pro tarifga o'ting.",
+        expired
+          ? "Tarif muddati tugagan. Iltimos, tarifni yangilang."
+          : `${PLANS[effective].name} tarifda ${productLimit} tagacha mahsulot qo'shish mumkin. Pro tarifga o'ting.`,
         403
       );
     }

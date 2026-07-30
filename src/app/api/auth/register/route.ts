@@ -4,6 +4,7 @@ import { hashPassword, createSession } from "@/lib/auth";
 import { registerSchema } from "@/lib/validation";
 import { ok, fail } from "@/lib/api";
 import { slugify, randomCode } from "@/lib/utils";
+import { FREE_TRIAL_DAYS } from "@/lib/plans";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -49,6 +50,10 @@ export async function POST(req: NextRequest) {
         create: {
           name: restaurantName,
           slug,
+          plan: "FREE",
+          planUntil: new Date(
+            Date.now() + FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000
+          ),
         },
       },
     },

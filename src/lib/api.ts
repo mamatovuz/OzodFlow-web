@@ -22,6 +22,15 @@ export async function authGuard() {
   return { user, res: null };
 }
 
+/** Faqat admin uchun — aks holda 403 */
+export async function adminGuard() {
+  const user = await getSessionUser();
+  if (!user) return { user: null, res: fail("Avtorizatsiya talab qilinadi", 401) };
+  if (user.role !== "ADMIN")
+    return { user: null, res: fail("Ruxsat yo'q", 403) };
+  return { user, res: null };
+}
+
 /**
  * Restoran foydalanuvchiga tegishli ekanini tekshiradi.
  * Egasi yoki a'zosi bo'lsa ruxsat beradi.

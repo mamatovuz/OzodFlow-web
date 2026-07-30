@@ -29,6 +29,8 @@ export const restaurantSchema = z.object({
   hasDelivery: z.boolean().optional(),
   payMethods: z.string().optional(),
   primaryColor: z.string().optional(),
+  menuTheme: z.string().optional(),
+  customDomain: z.string().optional().nullable(),
 });
 
 export const categorySchema = z.object({

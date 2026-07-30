@@ -24,9 +24,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  restaurants Restaurant[]
-  sessions    Session[]
-  memberships Membership[]
+  restaurants     Restaurant[]
+  sessions        Session[]
+  memberships     Membership[]
+  paymentRequests PaymentRequest[]
 }
 
 model Session {
@@ -65,18 +66,21 @@ model Restaurant {
   hasDelivery Boolean @default(false)
   payMethods  String? // JSON string: to'lov usullari
   primaryColor String @default("#2563EB")
-  plan        String  @default("FREE") // FREE | PRO | BUSINESS
-  planUntil   DateTime?
+  menuTheme   String  @default("light") // light | dark | + premium temalar
+  customDomain String? @unique // o'z domeni (Pro/Pro Max)
+  plan        String  @default("FREE") // FREE | PRO | PROMAX
+  planUntil   DateTime? // FREE trial muddati; pullik tariflarda null = umrbod
   isActive    Boolean @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  owner       User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  categories  Category[]
-  products    Product[]
-  tables      RestaurantTable[]
-  scans       ScanEvent[]
-  memberships Membership[]
+  owner           User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  categories      Category[]
+  products        Product[]
+  tables          RestaurantTable[]
+  scans           ScanEvent[]
+  memberships     Membership[]
+  paymentRequests PaymentRequest[]
 
   @@index([ownerId])
 }
@@ -176,4 +180,38 @@ model ScanEvent {
 
   @@index([restaurantId])
   @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────
+// To'lov: qo'lda moderatsiya orqali
+// ─────────────────────────────────────────────
+// Admin qo'shadigan to'lov kartalari
+model PaymentCard {
+  id         String   @id @default(cuid())
+  bankName   String
+  cardNumber String
+  cardHolder String
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+}
+
+// Foydalanuvchi to'lov so'rovi (chek yuklaydi, admin tasdiqlaydi)
+model PaymentRequest {
+  id           String    @id @default(cuid())
+  restaurantId String
+  userId       String
+  plan         String // PRO | BUSINESS
+  months       Int       @default(1)
+  amount       Int
+  receiptImage String
+  status       String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  adminNote    String?
+  createdAt    DateTime  @default(now())
+  reviewedAt   DateTime?
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@index([status])
 }

@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 const planNames: Record<string, string> = {
   FREE: "Free",
   PRO: "Pro",
-  BUSINESS: "Business",
+  PROMAX: "Pro Max",
 };
 
 export default async function DashboardHome() {

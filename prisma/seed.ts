@@ -31,6 +31,9 @@ async function main() {
           hasDelivery: true,
           currency: "UZS",
           primaryColor: "#2563EB",
+          menuTheme: "light",
+          plan: "FREE",
+          planUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         },
       },
     },
@@ -92,8 +95,35 @@ async function main() {
   }));
   await prisma.scanEvent.createMany({ data: scans });
 
+  // Admin foydalanuvchi
+  const adminPass = await bcrypt.hash("admin1234", 10);
+  await prisma.user.upsert({
+    where: { email: "admin@ozodflow.uz" },
+    update: { role: "ADMIN", password: adminPass },
+    create: {
+      name: "Administrator",
+      email: "admin@ozodflow.uz",
+      password: adminPass,
+      role: "ADMIN",
+    },
+  });
+
+  // Namuna to'lov kartasi
+  const cardCount = await prisma.paymentCard.count();
+  if (cardCount === 0) {
+    await prisma.paymentCard.create({
+      data: {
+        bankName: "Uzcard",
+        cardNumber: "8600 1234 5678 9012",
+        cardHolder: "OZODBEK MAMATOV",
+        isActive: true,
+      },
+    });
+  }
+
   console.log("✓ Seed tayyor!");
-  console.log("  Login: demo@ozodflow.uz / demo1234");
+  console.log("  Owner: demo@ozodflow.uz / demo1234");
+  console.log("  Admin: admin@ozodflow.uz / admin1234");
   console.log("  Menyu: /m/osh-markazi");
 }
 

@@ -100,15 +100,16 @@ export function BannersManager() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {banners.map((b) => (
-            <Card key={b.id} className="overflow-hidden">
+            <Card key={b.id} className={`overflow-hidden ${b.isActive ? "" : "opacity-60"}`}>
               <div className="relative h-32 bg-surface-2">
                 {b.image && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={b.image} alt="" className="h-full w-full object-cover" />
                 )}
-                <div className="absolute inset-0 flex flex-col justify-center bg-gradient-to-r from-black/50 to-transparent p-4 text-white">
-                  {b.title && <p className="font-bold">{b.title}</p>}
-                  {b.subtitle && <p className="text-sm text-white/80">{b.subtitle}</p>}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1 p-4 text-white">
+                  {b.title && <p className="text-base font-bold leading-snug drop-shadow-sm">{b.title}</p>}
+                  {b.subtitle && <p className="text-sm text-white/85 drop-shadow-sm">{b.subtitle}</p>}
                 </div>
               </div>
               <div className="flex items-center justify-between p-3">

@@ -195,8 +195,8 @@ export function PublicMenu({
 
   return (
     <div className="min-h-screen bg-background pb-28" style={themeStyle}>
-      {/* ─── Cover + Header ─── */}
-      <div className="relative h-44 w-full overflow-hidden sm:h-56">
+      {/* ─── Cover banner ─── */}
+      <div className="relative h-48 w-full overflow-hidden sm:h-64">
         {restaurant.cover ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={restaurant.cover} alt="" className="h-full w-full object-cover" />
@@ -206,11 +206,12 @@ export function PublicMenu({
             style={{ background: `linear-gradient(135deg, ${accent}, ${theme.colors.foreground})` }}
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+        {/* Pastga qarab qorayadigan gradient — karta bilan yumshoq ajralish uchun */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-background/95" />
         {/* Cart icon */}
         <button
           onClick={() => setCartOpen(true)}
-          className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur"
+          className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white shadow-md backdrop-blur transition-colors hover:bg-black/55"
         >
           <ShoppingBag className="h-5 w-5" />
           {cartCount > 0 && (
@@ -225,55 +226,64 @@ export function PublicMenu({
       </div>
 
       <div className="mx-auto max-w-2xl px-4">
-        {/* ─── Restoran info card (yopishmaydi) ─── */}
+        {/* ─── Restoran info card ─── */}
         <div
-          className="-mt-14 border border-border bg-card p-4 shadow-card"
-          style={{ borderRadius: R + 4 }}
+          className="relative -mt-10 border border-border bg-card px-5 pb-5 shadow-card"
+          style={{ borderRadius: R + 6 }}
         >
-          <div className="flex items-start gap-4">
-            <div
-              className="h-20 w-20 shrink-0 overflow-hidden border-4 border-card bg-surface-2 shadow-soft"
-              style={{ borderRadius: R }}
-            >
-              {restaurant.logo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={restaurant.logo} alt={restaurant.name} className="h-full w-full object-cover" />
-              ) : (
-                <div
-                  className="flex h-full w-full items-center justify-center text-2xl font-bold"
-                  style={{ background: accent, color: accentText }}
-                >
-                  {restaurant.name[0]}
-                </div>
+          {/* Logo cover chetida "suzib" turadi, nom/tavsif esa tagida ajralib */}
+          <div
+            className="-mt-12 h-24 w-24 overflow-hidden border-4 border-card bg-surface-2 shadow-card"
+            style={{ borderRadius: R + 2 }}
+          >
+            {restaurant.logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={restaurant.logo} alt={restaurant.name} className="h-full w-full object-cover" />
+            ) : (
+              <div
+                className="flex h-full w-full items-center justify-center text-3xl font-bold"
+                style={{ background: accent, color: accentText }}
+              >
+                {restaurant.name[0]}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-3">
+            <h1 className="text-2xl font-bold leading-tight text-foreground">
+              {restaurant.name}
+            </h1>
+            <div className="mt-1.5 flex items-center gap-1.5 text-sm text-muted">
+              <Star className="h-4 w-4 fill-current text-warning" />
+              <span className="font-semibold text-foreground">4.8</span>
+              <span>· {products.length} taom</span>
+              {restaurant.hasDelivery && (
+                <>
+                  <span className="text-muted/50">·</span>
+                  <span>Yetkazib berish bor</span>
+                </>
               )}
             </div>
-            <div className="min-w-0 flex-1 pt-1">
-              <h1 className="text-xl font-bold leading-tight text-foreground">
-                {restaurant.name}
-              </h1>
-              <div className="mt-1 flex items-center gap-1 text-sm text-muted">
-                <Star className="h-3.5 w-3.5 fill-current text-warning" />
-                <span className="font-medium text-foreground">4.8</span>
-                <span>· {products.length} taom</span>
-              </div>
-            </div>
           </div>
+
           {restaurant.description && (
-            <p className="mt-3 text-sm leading-relaxed text-muted">
+            <p className="mt-3.5 text-sm leading-relaxed text-muted">
               {restaurant.description}
             </p>
           )}
 
           {/* Info chips */}
-          <div className="mt-3 flex flex-wrap gap-2">
-            {restaurant.workHours && <InfoChip icon={Clock} text={restaurant.workHours} />}
-            {restaurant.address && (
-              <InfoChip icon={MapPin} text={restaurant.address} href={restaurant.mapUrl || undefined} />
-            )}
-            {restaurant.phone && (
-              <InfoChip icon={Phone} text={restaurant.phone} href={`tel:${restaurant.phone}`} />
-            )}
-          </div>
+          {(restaurant.workHours || restaurant.address || restaurant.phone) && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {restaurant.workHours && <InfoChip icon={Clock} text={restaurant.workHours} />}
+              {restaurant.address && (
+                <InfoChip icon={MapPin} text={restaurant.address} href={restaurant.mapUrl || undefined} />
+              )}
+              {restaurant.phone && (
+                <InfoChip icon={Phone} text={restaurant.phone} href={`tel:${restaurant.phone}`} />
+              )}
+            </div>
+          )}
         </div>
 
         {/* ─── Stol bar ─── */}
@@ -289,7 +299,7 @@ export function PublicMenu({
 
         {/* ─── Banner slider ─── */}
         {banners.length > 0 && (
-          <div className="mt-4">
+          <div className="mt-5">
             <BannerSlider banners={banners} accent={accent} accentText={accentText} radius={R} />
           </div>
         )}
@@ -500,62 +510,96 @@ function BannerSlider({
     return () => clearInterval(t);
   }, [banners.length]);
 
-  const b = banners[i];
+  const multi = banners.length > 1;
   return (
-    <div className="relative overflow-hidden" style={{ borderRadius: radius }}>
-      <a
-        href={b.linkUrl || undefined}
-        target={b.linkUrl ? "_blank" : undefined}
-        rel="noreferrer"
-        className="block"
-      >
-        <div className="relative h-36 w-full sm:h-44">
-          {b.image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={b.image} alt={b.title || ""} className="h-full w-full object-cover" />
-          ) : (
-            <div className="h-full w-full" style={{ background: accent }} />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
-          <div
-            className={`absolute inset-0 flex flex-col justify-center py-5 text-white ${
-              banners.length > 1 ? "px-12" : "px-5"
+    <div
+      className="group relative overflow-hidden shadow-card ring-1 ring-black/5"
+      style={{ borderRadius: radius + 4 }}
+    >
+      {/* Slaydlar (silliq o'tish) */}
+      <div className="relative h-40 w-full sm:h-48">
+        {banners.map((bn, idx) => (
+          <a
+            key={bn.id}
+            href={bn.linkUrl || undefined}
+            target={bn.linkUrl ? "_blank" : undefined}
+            rel="noreferrer"
+            className={`absolute inset-0 block transition-opacity duration-700 ease-out ${
+              idx === i ? "opacity-100" : "pointer-events-none opacity-0"
             }`}
+            aria-hidden={idx !== i}
           >
-            {b.title && <p className="text-lg font-bold">{b.title}</p>}
-            {b.subtitle && <p className="mt-0.5 text-sm text-white/80">{b.subtitle}</p>}
-            {b.linkUrl && (
-              <span
-                className="mt-3 inline-flex w-fit items-center gap-1 px-3 py-1.5 text-xs font-semibold"
-                style={{ background: accent, color: accentText, borderRadius: 999 }}
-              >
-                Batafsil <ArrowRight className="h-3 w-3" />
-              </span>
+            {bn.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={bn.image}
+                alt={bn.title || ""}
+                className="h-full w-full object-cover transition-transform duration-[5000ms] ease-out group-hover:scale-105"
+              />
+            ) : (
+              <div
+                className="h-full w-full"
+                style={{ background: `linear-gradient(135deg, ${accent}, #000)` }}
+              />
             )}
-          </div>
-        </div>
-      </a>
+            {/* Matn o'qilishi uchun ikki qatlamli gradient */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/45 to-transparent" />
 
-      {banners.length > 1 && (
+            {(bn.title || bn.subtitle || bn.linkUrl) && (
+              <div
+                className={`absolute inset-x-0 bottom-0 flex flex-col items-start gap-2 p-5 text-white ${
+                  multi ? "pb-8" : ""
+                }`}
+              >
+                {bn.title && (
+                  <p className="text-xl font-bold leading-snug drop-shadow-sm sm:text-2xl">
+                    {bn.title}
+                  </p>
+                )}
+                {bn.subtitle && (
+                  <p className="max-w-[85%] text-sm leading-snug text-white/85 drop-shadow-sm">
+                    {bn.subtitle}
+                  </p>
+                )}
+                {bn.linkUrl && (
+                  <span
+                    className="mt-1 inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold shadow-md transition-transform group-active:scale-95"
+                    style={{ background: accent, color: accentText, borderRadius: 999 }}
+                  >
+                    Batafsil <ArrowRight className="h-3.5 w-3.5" />
+                  </span>
+                )}
+              </div>
+            )}
+          </a>
+        ))}
+      </div>
+
+      {multi && (
         <>
           <button
+            aria-label="Oldingi"
             onClick={() => setI((v) => (v - 1 + banners.length) % banners.length)}
-            className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur"
+            className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white opacity-0 backdrop-blur-md transition-opacity hover:bg-black/55 group-hover:opacity-100 max-sm:opacity-100"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
+            aria-label="Keyingi"
             onClick={() => setI((v) => (v + 1) % banners.length)}
-            className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur"
+            className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white opacity-0 backdrop-blur-md transition-opacity hover:bg-black/55 group-hover:opacity-100 max-sm:opacity-100"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
-          <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5">
+          <div className="absolute bottom-3.5 left-1/2 flex -translate-x-1/2 gap-1.5">
             {banners.map((_, idx) => (
-              <span
+              <button
                 key={idx}
+                aria-label={`${idx + 1}-banner`}
+                onClick={() => setI(idx)}
                 className={`h-1.5 rounded-full transition-all ${
-                  idx === i ? "w-4 bg-white" : "w-1.5 bg-white/50"
+                  idx === i ? "w-5 bg-white" : "w-1.5 bg-white/50 hover:bg-white/70"
                 }`}
               />
             ))}

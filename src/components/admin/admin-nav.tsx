@@ -9,6 +9,7 @@ import {
   Wallet,
   Globe,
   Store,
+  Settings,
   LogOut,
   Menu,
   X,
@@ -23,6 +24,7 @@ const nav = [
   { href: "/admin/cards", label: "Kartalar", icon: CreditCard },
   { href: "/admin/domains", label: "Domenlar", icon: Globe },
   { href: "/admin/restaurants", label: "Restoranlar", icon: Store },
+  { href: "/admin/settings", label: "Sozlamalar", icon: Settings },
 ];
 
 export function AdminNav({ name }: { name: string }) {

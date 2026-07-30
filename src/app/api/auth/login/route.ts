@@ -24,5 +24,5 @@ export async function POST(req: NextRequest) {
     userAgent: req.headers.get("user-agent") || undefined,
   });
 
-  return ok({ id: user.id, name: user.name });
+  return ok({ id: user.id, name: user.name, role: user.role });
 }

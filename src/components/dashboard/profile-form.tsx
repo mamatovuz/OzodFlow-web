@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Loader2, Check } from "lucide-react";
 import { Button, Input, Textarea, Label, Select, Card, Switch } from "@/components/ui";
+import { ImageUpload } from "@/components/dashboard/image-upload";
 
 type Restaurant = {
   name: string;
@@ -26,6 +27,8 @@ export function ProfileForm({ initial }: { initial: Restaurant }) {
   const [saved, setSaved] = useState(false);
   const [hasDelivery, setHasDelivery] = useState(initial.hasDelivery);
   const [color, setColor] = useState(initial.primaryColor || "#2563EB");
+  const [logo, setLogo] = useState(initial.logo || "");
+  const [cover, setCover] = useState(initial.cover || "");
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -35,8 +38,8 @@ export function ProfileForm({ initial }: { initial: Restaurant }) {
     const payload = {
       name: f.get("name"),
       description: f.get("description"),
-      logo: f.get("logo"),
-      cover: f.get("cover"),
+      logo,
+      cover,
       phone: f.get("phone"),
       telegram: f.get("telegram"),
       instagram: f.get("instagram"),
@@ -80,12 +83,12 @@ export function ProfileForm({ initial }: { initial: Restaurant }) {
             />
           </div>
           <div>
-            <Label>Logo URL</Label>
-            <Input name="logo" defaultValue={initial.logo ?? ""} placeholder="https://..." />
+            <Label>Logo</Label>
+            <ImageUpload value={logo} onChange={setLogo} aspect="square" label="logo" />
           </div>
           <div>
-            <Label>Cover URL</Label>
-            <Input name="cover" defaultValue={initial.cover ?? ""} placeholder="https://..." />
+            <Label>Cover rasm</Label>
+            <ImageUpload value={cover} onChange={setCover} aspect="wide" label="cover" />
           </div>
           <div>
             <Label>Valyuta</Label>

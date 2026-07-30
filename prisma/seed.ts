@@ -96,13 +96,13 @@ async function main() {
   await prisma.scanEvent.createMany({ data: scans });
 
   // Admin foydalanuvchi
-  const adminPass = await bcrypt.hash("admin1234", 10);
+  const adminPass = await bcrypt.hash("123@Ozod", 10);
   await prisma.user.upsert({
-    where: { email: "admin@ozodflow.uz" },
+    where: { email: "mamatovo354@gmail.com" },
     update: { role: "ADMIN", password: adminPass },
     create: {
       name: "Administrator",
-      email: "admin@ozodflow.uz",
+      email: "mamatovo354@gmail.com",
       password: adminPass,
       role: "ADMIN",
     },
@@ -123,7 +123,7 @@ async function main() {
 
   console.log("✓ Seed tayyor!");
   console.log("  Owner: demo@ozodflow.uz / demo1234");
-  console.log("  Admin: admin@ozodflow.uz / admin1234");
+  console.log("  Admin: mamatovo354@gmail.com / 123@Ozod");
   console.log("  Menyu: /m/osh-markazi");
 }
 

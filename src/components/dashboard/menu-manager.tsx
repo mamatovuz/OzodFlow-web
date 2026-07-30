@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button, Input, Textarea, Label, Select, Card, Badge, Switch } from "@/components/ui";
 import { Modal } from "@/components/ui-modal";
+import { MultiImageUpload } from "@/components/dashboard/image-upload";
 import { formatPrice, parseJson } from "@/lib/utils";
 
 type Category = {
@@ -471,11 +472,6 @@ function ProductModal({
     onSaved();
   }
 
-  function addImageUrl() {
-    const url = prompt("Rasm havolasini (URL) kiriting:");
-    if (url) setImages((prev) => [...prev, url]);
-  }
-
   return (
     <Modal
       open={state.open}
@@ -493,31 +489,7 @@ function ProductModal({
         {/* Rasmlar */}
         <div>
           <Label>Rasmlar</Label>
-          <div className="flex flex-wrap gap-2">
-            {images.map((img, i) => (
-              <div
-                key={i}
-                className="relative h-16 w-16 overflow-hidden rounded-lg border border-border"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img} alt="" className="h-full w-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => setImages(images.filter((_, x) => x !== i))}
-                  className="absolute right-0 top-0 flex h-5 w-5 items-center justify-center bg-error text-white"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={addImageUrl}
-              className="flex h-16 w-16 items-center justify-center rounded-lg border border-dashed border-border text-muted hover:text-accent"
-            >
-              <Plus className="h-5 w-5" />
-            </button>
-          </div>
+          <MultiImageUpload images={images} onChange={setImages} max={5} />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

@@ -14,11 +14,14 @@ import {
   UtensilsCrossed,
   Star,
   Plus,
+  ShoppingBag,
+  ChevronLeft,
+  ChevronRight,
+  ArrowRight,
 } from "lucide-react";
 import { formatPrice, parseJson } from "@/lib/utils";
 import type { MenuTheme } from "@/lib/themes";
 import {
-  FloatingCart,
   CheckoutModal,
   QtyControl,
   type CartLine,
@@ -45,6 +48,13 @@ type PublicProduct = {
 };
 
 type PublicCategory = { id: string; name: string };
+type PublicBanner = {
+  id: string;
+  image: string | null;
+  title: string | null;
+  subtitle: string | null;
+  linkUrl: string | null;
+};
 
 type PublicRestaurant = {
   slug: string;
@@ -65,9 +75,9 @@ type PublicRestaurant = {
 
 const filters = [
   { key: "all", label: "Barchasi" },
-  { key: "bestseller", label: "Xit" },
-  { key: "new", label: "Yangi" },
-  { key: "vegetarian", label: "Vegetarian" },
+  { key: "bestseller", label: "🔥 Xit" },
+  { key: "new", label: "🆕 Yangi" },
+  { key: "vegetarian", label: "🥬 Vegetarian" },
 ];
 
 export function PublicMenu({
@@ -76,12 +86,14 @@ export function PublicMenu({
   products,
   theme,
   table,
+  banners,
 }: {
   restaurant: PublicRestaurant;
   categories: PublicCategory[];
   products: PublicProduct[];
   theme: MenuTheme;
   table: { code: string; name: string } | null;
+  banners: PublicBanner[];
 }) {
   const [activeCat, setActiveCat] = useState<string>(categories[0]?.id ?? "");
   const [search, setSearch] = useState("");
@@ -90,6 +102,22 @@ export function PublicMenu({
   const [cart, setCart] = useState<Record<string, number>>({});
   const [cartOpen, setCartOpen] = useState(false);
   const catRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const accent = theme.accent || restaurant.primaryColor || "#2563EB";
+  const accentText = theme.accentText || "#ffffff";
+  const R = theme.radius;
+
+  const themeStyle: React.CSSProperties = {
+    ["--accent" as string]: accent,
+    ["--background" as string]: theme.colors.background,
+    ["--surface" as string]: theme.colors.surface,
+    ["--surface-2" as string]: theme.colors.surface2,
+    ["--card" as string]: theme.colors.card,
+    ["--foreground" as string]: theme.colors.foreground,
+    ["--muted" as string]: theme.colors.muted,
+    ["--border" as string]: theme.colors.border,
+    ["--accent-soft" as string]: theme.isDark ? "#ffffff14" : "#0000000d",
+  };
 
   function addToCart(id: string, qty = 1) {
     setCart((c) => ({ ...c, [id]: (c[id] || 0) + qty }));
@@ -114,22 +142,6 @@ export function PublicMenu({
   const cartCount = Object.values(cart).reduce((a, b) => a + b, 0);
   const cartTotal = cartLines.reduce((s, l) => s + l.price * l.qty, 0);
 
-  const accent = theme.accent || restaurant.primaryColor || "#2563EB";
-
-  // Tema ranglarini CSS o'zgaruvchilar orqali qo'llaymiz
-  const themeStyle: React.CSSProperties = {
-    ["--accent" as string]: accent,
-    ["--background" as string]: theme.colors.background,
-    ["--surface" as string]: theme.colors.surface,
-    ["--surface-2" as string]: theme.colors.surface2,
-    ["--card" as string]: theme.colors.card,
-    ["--foreground" as string]: theme.colors.foreground,
-    ["--muted" as string]: theme.colors.muted,
-    ["--border" as string]: theme.colors.border,
-    ["--accent-soft" as string]: theme.isDark ? "#ffffff18" : "#00000010",
-  };
-
-  // Skanni qayd qilish
   useEffect(() => {
     let vid = localStorage.getItem("ozf_vid");
     if (!vid) {
@@ -155,9 +167,7 @@ export function PublicMenu({
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
-      if (search) {
-        return p.name.toLowerCase().includes(search.toLowerCase());
-      }
+      if (search) return p.name.toLowerCase().includes(search.toLowerCase());
       if (filter === "bestseller" && !p.isBestseller) return false;
       if (filter === "new" && !p.isNew) return false;
       if (filter === "vegetarian" && !p.isVegetarian) return false;
@@ -165,138 +175,149 @@ export function PublicMenu({
     });
   }, [products, search, filter]);
 
-  // Qidiruv/filtr bo'lmaganda kategoriyalarga bo'lib ko'rsatamiz
   const grouped = useMemo(() => {
     return categories
-      .map((c) => ({
-        category: c,
-        items: filtered.filter((p) => p.categoryId === c.id),
-      }))
+      .map((c) => ({ category: c, items: filtered.filter((p) => p.categoryId === c.id) }))
       .filter((g) => g.items.length > 0);
   }, [categories, filtered]);
+
+  const recommended = useMemo(
+    () => products.filter((p) => p.isRecommended && p.isAvailable).slice(0, 10),
+    [products]
+  );
 
   function scrollToCat(id: string) {
     setActiveCat(id);
     catRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  const cardProps = { currency: restaurant.currency, accent, accentText, radius: R };
+
   return (
-    <div className="min-h-screen bg-background pb-24" style={themeStyle}>
-      {/* Cover / Header */}
-      <div className="relative">
-        <div className="h-40 w-full overflow-hidden bg-surface-2 sm:h-52">
-          {restaurant.cover ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={restaurant.cover}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div
-              className="h-full w-full"
-              style={{
-                background: `linear-gradient(135deg, ${accent}, ${accent}99)`,
-              }}
-            />
+    <div className="min-h-screen bg-background pb-28" style={themeStyle}>
+      {/* ─── Cover + Header ─── */}
+      <div className="relative h-44 w-full overflow-hidden sm:h-56">
+        {restaurant.cover ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={restaurant.cover} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div
+            className="h-full w-full"
+            style={{ background: `linear-gradient(135deg, ${accent}, ${theme.colors.foreground})` }}
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+        {/* Cart icon */}
+        <button
+          onClick={() => setCartOpen(true)}
+          className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur"
+        >
+          <ShoppingBag className="h-5 w-5" />
+          {cartCount > 0 && (
+            <span
+              className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold"
+              style={{ background: accent, color: accentText }}
+            >
+              {cartCount}
+            </span>
           )}
-        </div>
+        </button>
       </div>
 
       <div className="mx-auto max-w-2xl px-4">
-        {/* Restoran info */}
-        <div className="-mt-10 flex items-end gap-4">
-          <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-4 border-background bg-card shadow-card">
-            {restaurant.logo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={restaurant.logo}
-                alt={restaurant.name}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div
-                className="flex h-full w-full items-center justify-center text-2xl font-bold text-white"
-                style={{ background: accent }}
-              >
-                {restaurant.name[0]}
+        {/* ─── Restoran info card (yopishmaydi) ─── */}
+        <div
+          className="-mt-14 border border-border bg-card p-4 shadow-card"
+          style={{ borderRadius: R + 4 }}
+        >
+          <div className="flex items-start gap-4">
+            <div
+              className="h-20 w-20 shrink-0 overflow-hidden border-4 border-card bg-surface-2 shadow-soft"
+              style={{ borderRadius: R }}
+            >
+              {restaurant.logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={restaurant.logo} alt={restaurant.name} className="h-full w-full object-cover" />
+              ) : (
+                <div
+                  className="flex h-full w-full items-center justify-center text-2xl font-bold"
+                  style={{ background: accent, color: accentText }}
+                >
+                  {restaurant.name[0]}
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1 pt-1">
+              <h1 className="text-xl font-bold leading-tight text-foreground">
+                {restaurant.name}
+              </h1>
+              <div className="mt-1 flex items-center gap-1 text-sm text-muted">
+                <Star className="h-3.5 w-3.5 fill-current text-warning" />
+                <span className="font-medium text-foreground">4.8</span>
+                <span>· {products.length} taom</span>
               </div>
-            )}
+            </div>
           </div>
-          <div className="pb-1">
-            <h1 className="text-xl font-bold text-foreground">
-              {restaurant.name}
-            </h1>
-            {restaurant.description && (
-              <p className="text-sm text-muted">{restaurant.description}</p>
+          {restaurant.description && (
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              {restaurant.description}
+            </p>
+          )}
+
+          {/* Info chips */}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {restaurant.workHours && <InfoChip icon={Clock} text={restaurant.workHours} />}
+            {restaurant.address && (
+              <InfoChip icon={MapPin} text={restaurant.address} href={restaurant.mapUrl || undefined} />
+            )}
+            {restaurant.phone && (
+              <InfoChip icon={Phone} text={restaurant.phone} href={`tel:${restaurant.phone}`} />
             )}
           </div>
         </div>
 
-        {/* Stol banneri */}
+        {/* ─── Stol bar ─── */}
         {table && (
           <div
-            className="mt-4 flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-white"
-            style={{ background: accent }}
+            className="mt-3 flex items-center gap-2 px-4 py-2.5 text-sm font-semibold"
+            style={{ background: accent, color: accentText, borderRadius: R }}
           >
             <UtensilsCrossed className="h-4 w-4" />
-            Siz: <b>{table.name}</b>
+            Siz: {table.name}
           </div>
         )}
 
-        {/* Aloqa chiplar */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          {restaurant.workHours && (
-            <InfoChip icon={Clock} text={restaurant.workHours} />
-          )}
-          {restaurant.address && (
-            <InfoChip
-              icon={MapPin}
-              text={restaurant.address}
-              href={restaurant.mapUrl || undefined}
-            />
-          )}
-          {restaurant.phone && (
-            <InfoChip
-              icon={Phone}
-              text={restaurant.phone}
-              href={`tel:${restaurant.phone}`}
-            />
-          )}
-          {restaurant.hasDelivery && (
-            <span
-              className="rounded-full px-3 py-1.5 text-xs font-medium text-white"
-              style={{ background: accent }}
-            >
-              Yetkazib berish bor
-            </span>
-          )}
-        </div>
+        {/* ─── Banner slider ─── */}
+        {banners.length > 0 && (
+          <div className="mt-4">
+            <BannerSlider banners={banners} accent={accent} accentText={accentText} radius={R} />
+          </div>
+        )}
 
-        {/* Qidiruv */}
-        <div className="sticky top-0 z-30 -mx-4 mt-5 bg-background/90 px-4 py-3 backdrop-blur">
+        {/* ─── Search + kategoriya chips (sticky) ─── */}
+        <div className="sticky top-0 z-30 -mx-4 mt-4 bg-background/95 px-4 py-3 backdrop-blur">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Taom qidirish..."
-              className="h-11 w-full rounded-xl border border-border bg-card pl-9 pr-3 text-sm text-foreground outline-none focus:border-accent"
+              className="h-12 w-full border border-border bg-card pl-10 pr-4 text-sm text-foreground outline-none transition-colors focus:border-accent"
+              style={{ borderRadius: R }}
             />
           </div>
 
-          {/* Filtrlar */}
           {!search && (
             <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
               {filters.map((f) => (
                 <button
                   key={f.key}
                   onClick={() => setFilter(f.key)}
-                  className="shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+                  className="shrink-0 border px-3.5 py-1.5 text-xs font-medium transition-colors"
                   style={
                     filter === f.key
-                      ? { background: accent, color: "#fff", borderColor: accent }
-                      : {}
+                      ? { background: accent, color: accentText, borderColor: accent, borderRadius: 999 }
+                      : { borderRadius: 999 }
                   }
                 >
                   {f.label}
@@ -305,18 +326,16 @@ export function PublicMenu({
             </div>
           )}
 
-          {/* Kategoriya tablar */}
           {!search && filter === "all" && categories.length > 1 && (
             <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
               {categories.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => scrollToCat(c.id)}
-                  className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                    activeCat === c.id
-                      ? "bg-surface-2 text-foreground"
-                      : "text-muted"
+                  className={`shrink-0 px-3 py-1.5 text-xs font-medium transition-colors ${
+                    activeCat === c.id ? "bg-surface-2 text-foreground" : "text-muted"
                   }`}
+                  style={{ borderRadius: 999 }}
                 >
                   {c.name}
                 </button>
@@ -325,8 +344,29 @@ export function PublicMenu({
           )}
         </div>
 
-        {/* Mahsulotlar */}
-        <div className="mt-4 space-y-8">
+        {/* ─── Tavsiya etamiz ─── */}
+        {!search && filter === "all" && recommended.length > 0 && (
+          <div className="mt-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-foreground">Tavsiya etamiz</h2>
+            </div>
+            <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2">
+              {recommended.map((p) => (
+                <RecommendCard
+                  key={p.id}
+                  product={p}
+                  {...cardProps}
+                  qty={cart[p.id] || 0}
+                  onOpen={() => openDetail(p)}
+                  onAdd={() => addToCart(p.id)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Kategoriyalar ─── */}
+        <div className="mt-6 space-y-8">
           {grouped.length === 0 && (
             <div className="flex flex-col items-center py-16 text-center">
               <UtensilsCrossed className="h-10 w-10 text-muted/40" />
@@ -339,58 +379,83 @@ export function PublicMenu({
               ref={(el) => {
                 catRefs.current[g.category.id] = el;
               }}
-              className="scroll-mt-40"
+              className="scroll-mt-44"
             >
-              <h2 className="mb-3 text-lg font-bold text-foreground">
-                {g.category.name}
-              </h2>
-              <div className="space-y-3">
-                {g.items.map((p) => (
-                  <ProductRow
-                    key={p.id}
-                    product={p}
-                    currency={restaurant.currency}
-                    accent={accent}
-                    qty={cart[p.id] || 0}
-                    onOpen={() => openDetail(p)}
-                    onAdd={() => addToCart(p.id)}
-                    onSetQty={(q) => setQty(p.id, q)}
-                  />
-                ))}
-              </div>
+              <h2 className="mb-3 text-lg font-bold text-foreground">{g.category.name}</h2>
+              {theme.layout === "grid" ? (
+                <div className="grid grid-cols-2 gap-3">
+                  {g.items.map((p) => (
+                    <GridCard
+                      key={p.id}
+                      product={p}
+                      {...cardProps}
+                      qty={cart[p.id] || 0}
+                      onOpen={() => openDetail(p)}
+                      onAdd={() => addToCart(p.id)}
+                      onSetQty={(q) => setQty(p.id, q)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {g.items.map((p) => (
+                    <ListCard
+                      key={p.id}
+                      product={p}
+                      {...cardProps}
+                      qty={cart[p.id] || 0}
+                      onOpen={() => openDetail(p)}
+                      onAdd={() => addToCart(p.id)}
+                      onSetQty={(q) => setQty(p.id, q)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>
 
-        {/* Footer aloqa */}
+        {/* Footer */}
         <div className="mt-10 flex justify-center gap-3">
           {restaurant.telegram && (
-            <SocialBtn
-              href={`https://t.me/${restaurant.telegram.replace("@", "")}`}
-              icon={Send}
-            />
+            <SocialBtn href={`https://t.me/${restaurant.telegram.replace("@", "")}`} icon={Send} radius={R} />
           )}
           {restaurant.instagram && (
-            <SocialBtn
-              href={`https://instagram.com/${restaurant.instagram.replace("@", "")}`}
-              icon={Instagram}
-            />
+            <SocialBtn href={`https://instagram.com/${restaurant.instagram.replace("@", "")}`} icon={Instagram} radius={R} />
           )}
-          {restaurant.phone && (
-            <SocialBtn href={`tel:${restaurant.phone}`} icon={Phone} />
-          )}
+          {restaurant.phone && <SocialBtn href={`tel:${restaurant.phone}`} icon={Phone} radius={R} />}
         </div>
-        <p className="mt-8 text-center text-xs text-muted">
-          OzodFlow bilan yaratilgan
-        </p>
+        <p className="mt-6 text-center text-xs text-muted">OzodFlow bilan yaratilgan</p>
       </div>
 
-      {/* Mahsulot detali */}
+      {/* ─── Pastki savat bar ─── */}
+      {cartCount > 0 && (
+        <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-4">
+          <button
+            onClick={() => setCartOpen(true)}
+            className="mx-auto flex w-full max-w-2xl items-center justify-between px-5 py-3.5 shadow-card transition-transform active:scale-[0.99]"
+            style={{ background: accent, color: accentText, borderRadius: R }}
+          >
+            <span className="flex items-center gap-2">
+              <ShoppingBag className="h-5 w-5" />
+              <span className="text-sm font-medium">
+                {cartCount} ta taom · {formatPrice(cartTotal, restaurant.currency)}
+              </span>
+            </span>
+            <span className="flex items-center gap-1 text-sm font-semibold">
+              Rasmiylashtirish <ArrowRight className="h-4 w-4" />
+            </span>
+          </button>
+        </div>
+      )}
+
       {detail && (
         <ProductDetail
           product={detail}
           currency={restaurant.currency}
           accent={accent}
+          accentText={accentText}
+          radius={R}
           onAdd={(q) => {
             addToCart(detail.id, q);
             setDetail(null);
@@ -399,28 +464,353 @@ export function PublicMenu({
         />
       )}
 
-      {/* Doimiy savat */}
-      <FloatingCart
-        count={cartCount}
-        total={cartTotal}
-        currency={restaurant.currency}
-        accent={accent}
-        onOpen={() => setCartOpen(true)}
-      />
-
-      {/* Savat / buyurtma */}
       <CheckoutModal
         open={cartOpen}
         onClose={() => setCartOpen(false)}
         items={cartLines}
         currency={restaurant.currency}
         accent={accent}
+        accentText={accentText}
         slug={restaurant.slug}
         tableCode={table?.code ?? null}
         tableName={table?.name ?? null}
         onSetQty={setQty}
         onClear={() => setCart({})}
       />
+    </div>
+  );
+}
+
+// ─────────── Banner slider ───────────
+function BannerSlider({
+  banners,
+  accent,
+  accentText,
+  radius,
+}: {
+  banners: PublicBanner[];
+  accent: string;
+  accentText: string;
+  radius: number;
+}) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (banners.length < 2) return;
+    const t = setInterval(() => setI((v) => (v + 1) % banners.length), 4500);
+    return () => clearInterval(t);
+  }, [banners.length]);
+
+  const b = banners[i];
+  return (
+    <div className="relative overflow-hidden" style={{ borderRadius: radius }}>
+      <a
+        href={b.linkUrl || undefined}
+        target={b.linkUrl ? "_blank" : undefined}
+        rel="noreferrer"
+        className="block"
+      >
+        <div className="relative h-36 w-full sm:h-44">
+          {b.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={b.image} alt={b.title || ""} className="h-full w-full object-cover" />
+          ) : (
+            <div className="h-full w-full" style={{ background: accent }} />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
+          <div
+            className={`absolute inset-0 flex flex-col justify-center py-5 text-white ${
+              banners.length > 1 ? "px-12" : "px-5"
+            }`}
+          >
+            {b.title && <p className="text-lg font-bold">{b.title}</p>}
+            {b.subtitle && <p className="mt-0.5 text-sm text-white/80">{b.subtitle}</p>}
+            {b.linkUrl && (
+              <span
+                className="mt-3 inline-flex w-fit items-center gap-1 px-3 py-1.5 text-xs font-semibold"
+                style={{ background: accent, color: accentText, borderRadius: 999 }}
+              >
+                Batafsil <ArrowRight className="h-3 w-3" />
+              </span>
+            )}
+          </div>
+        </div>
+      </a>
+
+      {banners.length > 1 && (
+        <>
+          <button
+            onClick={() => setI((v) => (v - 1 + banners.length) % banners.length)}
+            className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setI((v) => (v + 1) % banners.length)}
+            className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5">
+            {banners.map((_, idx) => (
+              <span
+                key={idx}
+                className={`h-1.5 rounded-full transition-all ${
+                  idx === i ? "w-4 bg-white" : "w-1.5 bg-white/50"
+                }`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─────────── Badges ───────────
+function ProductBadges({ p }: { p: PublicProduct }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {p.isBestseller && (
+        <span className="flex items-center gap-0.5 rounded-md bg-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-warning">
+          🔥 Xit
+        </span>
+      )}
+      {p.isNew && (
+        <span className="rounded-md bg-success/15 px-1.5 py-0.5 text-[10px] font-medium text-success">
+          Yangi
+        </span>
+      )}
+      {p.oldPrice && (
+        <span className="rounded-md bg-error/15 px-1.5 py-0.5 text-[10px] font-medium text-error">
+          🏷 Chegirma
+        </span>
+      )}
+      {p.isVegetarian && <Leaf className="h-3 w-3 text-success" />}
+      {p.spicyLevel > 0 && (
+        <span className="flex text-error">
+          {Array.from({ length: p.spicyLevel }).map((_, i) => (
+            <Flame key={i} className="h-3 w-3" />
+          ))}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─────────── List card (rasm chapda) ───────────
+function ListCard({
+  product: p,
+  currency,
+  accent,
+  accentText,
+  radius,
+  qty,
+  onOpen,
+  onAdd,
+  onSetQty,
+}: {
+  product: PublicProduct;
+  currency: string;
+  accent: string;
+  accentText: string;
+  radius: number;
+  qty: number;
+  onOpen: () => void;
+  onAdd: () => void;
+  onSetQty: (q: number) => void;
+}) {
+  const imgs = parseJson<string[]>(p.images, []);
+  return (
+    <div
+      onClick={onOpen}
+      className={`flex cursor-pointer gap-3 border border-border bg-card p-3 shadow-soft transition-all active:scale-[0.99] ${
+        !p.isAvailable ? "opacity-60" : ""
+      }`}
+      style={{ borderRadius: radius }}
+    >
+      <div className="h-24 w-24 shrink-0 overflow-hidden bg-surface-2" style={{ borderRadius: radius - 4 }}>
+        {imgs[0] ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imgs[0]} alt={p.name} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-muted/40">
+            <UtensilsCrossed className="h-7 w-7" />
+          </div>
+        )}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <h3 className="font-semibold text-foreground">{p.name}</h3>
+        {p.description && <p className="mt-0.5 line-clamp-2 text-xs text-muted">{p.description}</p>}
+        <div className="mt-1">
+          <ProductBadges p={p} />
+        </div>
+        <div className="mt-auto flex items-end justify-between gap-2 pt-1">
+          <div>
+            <span className="font-bold text-foreground">{formatPrice(p.price, currency)}</span>
+            {p.oldPrice && (
+              <span className="ml-1.5 text-xs text-muted line-through">
+                {formatPrice(p.oldPrice, currency)}
+              </span>
+            )}
+          </div>
+          {p.isAvailable ? (
+            <div onClick={(e) => e.stopPropagation()}>
+              {qty > 0 ? (
+                <QtyControl qty={qty} accent={accent} accentText={accentText} onChange={onSetQty} size="sm" />
+              ) : (
+                <button
+                  onClick={onAdd}
+                  className="flex h-9 items-center gap-1 px-3 text-sm font-medium"
+                  style={{ background: accent, color: accentText, borderRadius: radius - 4 }}
+                >
+                  <Plus className="h-4 w-4" /> Qo'shish
+                </button>
+              )}
+            </div>
+          ) : (
+            <span className="text-xs font-medium text-error">Mavjud emas</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────── Grid card (rasm tepada) ───────────
+function GridCard({
+  product: p,
+  currency,
+  accent,
+  accentText,
+  radius,
+  qty,
+  onOpen,
+  onAdd,
+  onSetQty,
+}: {
+  product: PublicProduct;
+  currency: string;
+  accent: string;
+  accentText: string;
+  radius: number;
+  qty: number;
+  onOpen: () => void;
+  onAdd: () => void;
+  onSetQty: (q: number) => void;
+}) {
+  const imgs = parseJson<string[]>(p.images, []);
+  return (
+    <div
+      onClick={onOpen}
+      className={`flex cursor-pointer flex-col overflow-hidden border border-border bg-card shadow-soft transition-all active:scale-[0.99] ${
+        !p.isAvailable ? "opacity-60" : ""
+      }`}
+      style={{ borderRadius: radius }}
+    >
+      <div className="relative aspect-square w-full overflow-hidden bg-surface-2">
+        {imgs[0] ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imgs[0]} alt={p.name} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-muted/40">
+            <UtensilsCrossed className="h-9 w-9" />
+          </div>
+        )}
+        <div className="absolute left-2 top-2">
+          <ProductBadges p={p} />
+        </div>
+        {p.isAvailable && (
+          <div className="absolute bottom-2 right-2" onClick={(e) => e.stopPropagation()}>
+            {qty > 0 ? (
+              <div className="bg-card/95 p-1 backdrop-blur" style={{ borderRadius: radius - 4 }}>
+                <QtyControl qty={qty} accent={accent} accentText={accentText} onChange={onSetQty} size="sm" />
+              </div>
+            ) : (
+              <button
+                onClick={onAdd}
+                className="flex h-9 w-9 items-center justify-center shadow-card"
+                style={{ background: accent, color: accentText, borderRadius: 999 }}
+              >
+                <Plus className="h-5 w-5" />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="flex flex-1 flex-col p-3">
+        <h3 className="line-clamp-1 font-semibold text-foreground">{p.name}</h3>
+        {p.description && <p className="mt-0.5 line-clamp-2 text-xs text-muted">{p.description}</p>}
+        <div className="mt-2">
+          <span className="font-bold text-foreground">{formatPrice(p.price, currency)}</span>
+          {p.oldPrice && (
+            <span className="ml-1.5 text-xs text-muted line-through">
+              {formatPrice(p.oldPrice, currency)}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────── Recommend card (horizontal) ───────────
+function RecommendCard({
+  product: p,
+  currency,
+  accent,
+  accentText,
+  radius,
+  qty,
+  onOpen,
+  onAdd,
+}: {
+  product: PublicProduct;
+  currency: string;
+  accent: string;
+  accentText: string;
+  radius: number;
+  qty: number;
+  onOpen: () => void;
+  onAdd: () => void;
+}) {
+  const imgs = parseJson<string[]>(p.images, []);
+  return (
+    <div
+      onClick={onOpen}
+      className="flex w-40 shrink-0 cursor-pointer flex-col overflow-hidden border border-border bg-card shadow-soft"
+      style={{ borderRadius: radius }}
+    >
+      <div className="relative h-28 w-full overflow-hidden bg-surface-2">
+        {imgs[0] ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imgs[0]} alt={p.name} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-muted/40">
+            <UtensilsCrossed className="h-7 w-7" />
+          </div>
+        )}
+        {p.isNew && (
+          <span className="absolute left-2 top-2 rounded-md bg-success px-1.5 py-0.5 text-[10px] font-medium text-white">
+            Yangi
+          </span>
+        )}
+        <div className="absolute bottom-2 right-2" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={onAdd}
+            className="flex h-8 w-8 items-center justify-center shadow-card"
+            style={{ background: accent, color: accentText, borderRadius: 999 }}
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+      <div className="p-2.5">
+        <h3 className="line-clamp-1 text-sm font-semibold text-foreground">{p.name}</h3>
+        <div className="mt-1 flex items-center gap-1">
+          <span className="text-sm font-bold text-foreground">{formatPrice(p.price, currency)}</span>
+          {qty > 0 && <span className="text-xs text-muted">×{qty}</span>}
+        </div>
+      </div>
     </div>
   );
 }
@@ -452,136 +842,46 @@ function InfoChip({
 function SocialBtn({
   href,
   icon: Icon,
+  radius,
 }: {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  radius: number;
 }) {
   return (
     <a
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-foreground transition-colors hover:bg-surface-2"
+      className="flex h-11 w-11 items-center justify-center border border-border bg-card text-foreground transition-colors hover:bg-surface-2"
+      style={{ borderRadius: radius }}
     >
       <Icon className="h-5 w-5" />
     </a>
   );
 }
 
-function ProductRow({
-  product: p,
-  currency,
-  accent,
-  qty,
-  onOpen,
-  onAdd,
-  onSetQty,
-}: {
-  product: PublicProduct;
-  currency: string;
-  accent: string;
-  qty: number;
-  onOpen: () => void;
-  onAdd: () => void;
-  onSetQty: (q: number) => void;
-}) {
-  const imgs = parseJson<string[]>(p.images, []);
-  return (
-    <div
-      onClick={onOpen}
-      className={`flex w-full cursor-pointer gap-3 rounded-2xl border border-border bg-card p-3 text-left shadow-soft transition-all active:scale-[0.99] ${
-        !p.isAvailable ? "opacity-60" : ""
-      }`}
-    >
-      <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-surface-2">
-        {imgs[0] ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={imgs[0]} alt={p.name} className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-muted/40">
-            <UtensilsCrossed className="h-7 w-7" />
-          </div>
-        )}
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-start gap-1.5">
-          <h3 className="font-medium text-foreground">{p.name}</h3>
-        </div>
-        {p.description && (
-          <p className="mt-0.5 line-clamp-2 text-xs text-muted">
-            {p.description}
-          </p>
-        )}
-        <div className="mt-1 flex flex-wrap items-center gap-1">
-          {p.isBestseller && (
-            <span className="flex items-center gap-0.5 rounded-md bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium text-warning">
-              <Star className="h-2.5 w-2.5" /> Xit
-            </span>
-          )}
-          {p.isNew && (
-            <span className="rounded-md bg-success/10 px-1.5 py-0.5 text-[10px] font-medium text-success">
-              Yangi
-            </span>
-          )}
-          {p.isVegetarian && <Leaf className="h-3 w-3 text-success" />}
-          {p.spicyLevel > 0 && (
-            <span className="flex text-error">
-              {Array.from({ length: p.spicyLevel }).map((_, i) => (
-                <Flame key={i} className="h-3 w-3" />
-              ))}
-            </span>
-          )}
-        </div>
-        <div className="mt-auto flex items-center gap-2 pt-1">
-          <div className="flex min-w-0 flex-1 flex-col">
-            <span className="font-bold" style={{ color: accent }}>
-              {formatPrice(p.price, currency)}
-            </span>
-            {p.oldPrice && (
-              <span className="text-xs text-muted line-through">
-                {formatPrice(p.oldPrice, currency)}
-              </span>
-            )}
-          </div>
-          {/* Savatga qo'shish */}
-          {p.isAvailable ? (
-            <div onClick={(e) => e.stopPropagation()}>
-              {qty > 0 ? (
-                <QtyControl qty={qty} accent={accent} onChange={onSetQty} size="sm" />
-              ) : (
-                <button
-                  onClick={onAdd}
-                  className="flex h-9 items-center gap-1 rounded-lg px-3 text-sm font-medium text-white"
-                  style={{ background: accent }}
-                >
-                  <Plus className="h-4 w-4" /> Qo'shish
-                </button>
-              )}
-            </div>
-          ) : (
-            <span className="text-xs font-medium text-error">Mavjud emas</span>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
+// ─────────── Product detail ───────────
 function ProductDetail({
   product: p,
   currency,
   accent,
+  accentText,
+  radius,
   onAdd,
   onClose,
 }: {
   product: PublicProduct;
   currency: string;
   accent: string;
+  accentText: string;
+  radius: number;
   onAdd: (qty: number) => void;
   onClose: () => void;
 }) {
   const imgs = parseJson<string[]>(p.images, []);
   const [qty, setQtyLocal] = useState(1);
+  const [activeImg, setActiveImg] = useState(0);
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -591,122 +891,82 @@ function ProductDetail({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative z-10 max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-card animate-fade-up sm:rounded-3xl">
+      <div className="relative z-10 flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-card animate-fade-up sm:rounded-3xl">
         <button
           onClick={onClose}
           className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur"
         >
           <X className="h-5 w-5" />
         </button>
-        <div className="h-56 w-full overflow-hidden bg-surface-2">
-          {imgs[0] ? (
+        <div className="relative h-60 w-full shrink-0 overflow-hidden bg-surface-2">
+          {imgs[activeImg] ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={imgs[0]} alt={p.name} className="h-full w-full object-cover" />
+            <img src={imgs[activeImg]} alt={p.name} className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-muted/40">
               <UtensilsCrossed className="h-14 w-14" />
             </div>
           )}
+          {imgs.length > 1 && (
+            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
+              {imgs.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveImg(i)}
+                  className={`h-1.5 rounded-full ${i === activeImg ? "w-4 bg-white" : "w-1.5 bg-white/50"}`}
+                />
+              ))}
+            </div>
+          )}
         </div>
-        <div className="p-5">
+        <div className="flex-1 overflow-y-auto p-5">
           <div className="flex items-start justify-between gap-3">
             <h2 className="text-xl font-bold text-foreground">{p.name}</h2>
             <div className="text-right">
-              <div className="text-xl font-bold" style={{ color: accent }}>
-                {formatPrice(p.price, currency)}
-              </div>
+              <div className="text-xl font-bold text-foreground">{formatPrice(p.price, currency)}</div>
               {p.oldPrice && (
-                <div className="text-sm text-muted line-through">
-                  {formatPrice(p.oldPrice, currency)}
-                </div>
+                <div className="text-sm text-muted line-through">{formatPrice(p.oldPrice, currency)}</div>
               )}
             </div>
           </div>
-
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {p.isBestseller && (
-              <span className="rounded-md bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
-                Bestseller
-              </span>
-            )}
-            {p.isNew && (
-              <span className="rounded-md bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-                Yangi
-              </span>
-            )}
-            {p.isVegetarian && (
-              <span className="rounded-md bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-                Vegetarian
-              </span>
-            )}
-            {p.isHalal && (
-              <span className="rounded-md bg-accent-soft px-2 py-0.5 text-xs font-medium text-accent">
-                Halol
-              </span>
-            )}
+          <div className="mt-2">
+            <ProductBadges p={p} />
           </div>
-
-          {p.description && (
-            <p className="mt-3 text-sm leading-relaxed text-muted">
-              {p.description}
-            </p>
-          )}
-
+          {p.description && <p className="mt-3 text-sm leading-relaxed text-muted">{p.description}</p>}
           {p.ingredients && (
             <div className="mt-4">
               <p className="text-xs font-medium text-muted">Tarkibi</p>
               <p className="mt-0.5 text-sm text-foreground">{p.ingredients}</p>
             </div>
           )}
-
           <div className="mt-4 flex gap-4 border-t border-border pt-4">
-            {p.weight && (
-              <div>
-                <p className="text-xs text-muted">Og'irligi</p>
-                <p className="text-sm font-medium text-foreground">{p.weight}</p>
-              </div>
-            )}
-            {p.calories && (
-              <div>
-                <p className="text-xs text-muted">Kaloriya</p>
-                <p className="text-sm font-medium text-foreground">
-                  {p.calories} kkal
-                </p>
-              </div>
-            )}
-            {p.spicyLevel > 0 && (
-              <div>
-                <p className="text-xs text-muted">Achchiqlik</p>
-                <p className="flex text-error">
-                  {Array.from({ length: p.spicyLevel }).map((_, i) => (
-                    <Flame key={i} className="h-4 w-4" />
-                  ))}
-                </p>
-              </div>
-            )}
+            {p.weight && <Meta label="Og'irligi" value={p.weight} />}
+            {p.calories ? <Meta label="Kaloriya" value={`${p.calories} kkal`} /> : null}
+            {p.isHalal && <Meta label="Belgi" value="Halol 🥩" />}
           </div>
-
-          {!p.isAvailable && (
-            <div className="mt-4 rounded-lg bg-error/10 px-3 py-2 text-center text-sm font-medium text-error">
-              Hozircha mavjud emas
-            </div>
-          )}
         </div>
-
-        {/* Savatga qo'shish */}
         {p.isAvailable && (
-          <div className="sticky bottom-0 flex items-center gap-3 border-t border-border bg-card p-4">
-            <QtyControl qty={qty} accent={accent} onChange={(q) => setQtyLocal(Math.max(1, q))} />
+          <div className="flex items-center gap-3 border-t border-border bg-card p-4">
+            <QtyControl qty={qty} accent={accent} accentText={accentText} onChange={(q) => setQtyLocal(Math.max(1, q))} />
             <button
               onClick={() => onAdd(qty)}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 font-medium text-white"
-              style={{ background: accent }}
+              className="flex flex-1 items-center justify-center gap-2 py-3 font-medium"
+              style={{ background: accent, color: accentText, borderRadius: radius }}
             >
               Savatga qo'shish · {formatPrice(p.price * qty, currency)}
             </button>
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function Meta({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs text-muted">{label}</p>
+      <p className="text-sm font-medium text-foreground">{value}</p>
     </div>
   );
 }

@@ -49,6 +49,7 @@ export default async function PublicMenuPage({
       products={data.products}
       theme={data.theme}
       table={table}
+      banners={data.banners}
     />
   );
 }

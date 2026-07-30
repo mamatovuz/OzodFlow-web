@@ -58,6 +58,7 @@ export function CheckoutModal({
   items,
   currency,
   accent,
+  accentText = "#ffffff",
   slug,
   tableCode,
   tableName,
@@ -69,6 +70,7 @@ export function CheckoutModal({
   items: CartLine[];
   currency: string;
   accent: string;
+  accentText?: string;
   slug: string;
   tableCode: string | null;
   tableName: string | null;
@@ -140,8 +142,8 @@ export function CheckoutModal({
             )}
             <button
               onClick={close}
-              className="mt-6 rounded-xl px-6 py-2.5 font-medium text-white"
-              style={{ background: accent }}
+              className="mt-6 rounded-xl px-6 py-2.5 font-medium"
+              style={{ background: accent, color: accentText }}
             >
               Yopish
             </button>
@@ -179,6 +181,7 @@ export function CheckoutModal({
                       <QtyControl
                         qty={it.qty}
                         accent={accent}
+                        accentText={accentText}
                         onChange={(q) => onSetQty(it.productId, q)}
                       />
                     </div>
@@ -223,8 +226,8 @@ export function CheckoutModal({
                 <button
                   onClick={submit}
                   disabled={loading}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-medium text-white disabled:opacity-60"
-                  style={{ background: accent }}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-medium disabled:opacity-60"
+                  style={{ background: accent, color: accentText }}
                 >
                   {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                   Buyurtmani rasmiylashtirish
@@ -241,11 +244,13 @@ export function CheckoutModal({
 export function QtyControl({
   qty,
   accent,
+  accentText = "#ffffff",
   onChange,
   size = "md",
 }: {
   qty: number;
   accent: string;
+  accentText?: string;
   onChange: (q: number) => void;
   size?: "sm" | "md";
 }) {
@@ -261,8 +266,8 @@ export function QtyControl({
       <span className="w-6 text-center text-sm font-semibold text-foreground">{qty}</span>
       <button
         onClick={() => onChange(qty + 1)}
-        className={`flex ${btn} items-center justify-center rounded-lg text-white`}
-        style={{ background: accent }}
+        className={`flex ${btn} items-center justify-center rounded-lg`}
+        style={{ background: accent, color: accentText }}
       >
         <Plus className="h-3.5 w-3.5" />
       </button>

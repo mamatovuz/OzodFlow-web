@@ -2,7 +2,7 @@ import { prisma } from "./prisma";
 import { getTheme } from "./themes";
 
 async function buildMenu(restaurant: NonNullable<Awaited<ReturnType<typeof prisma.restaurant.findUnique>>>) {
-  const [categories, products] = await Promise.all([
+  const [categories, products, banners] = await Promise.all([
     prisma.category.findMany({
       where: { restaurantId: restaurant.id, isVisible: true },
       orderBy: { sortOrder: "asc" },
@@ -12,8 +12,18 @@ async function buildMenu(restaurant: NonNullable<Awaited<ReturnType<typeof prism
       where: { restaurantId: restaurant.id, isVisible: true },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     }),
+    prisma.banner.findMany({
+      where: { restaurantId: restaurant.id, isActive: true },
+      orderBy: { sortOrder: "asc" },
+    }),
   ]);
-  return { restaurant, categories, products, theme: getTheme(restaurant.menuTheme) };
+  return {
+    restaurant,
+    categories,
+    products,
+    banners,
+    theme: getTheme(restaurant.menuTheme),
+  };
 }
 
 export async function getMenuBySlug(slug: string) {

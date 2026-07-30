@@ -54,9 +54,21 @@ try {
   } else {
     console.log("[start] Admin mavjud:", email);
   }
+
+  // Demo restoran yo'q bo'lsa yaratamiz (/m/demo)
+  const demo = await prisma.restaurant.findUnique({ where: { slug: "demo" } });
   await prisma.$disconnect();
+  if (!demo) {
+    console.log("[start] Demo restoran yaratilmoqda...");
+    const seed = spawnSync("npx", ["tsx", "prisma/seed-demo.ts"], {
+      stdio: "inherit",
+      env: process.env,
+      shell: true,
+    });
+    if (seed.status !== 0) console.error("[start] Demo seed xato (davom etadi)");
+  }
 } catch (e) {
-  console.error("[start] Admin bootstrap xato (davom etadi):", e?.message);
+  console.error("[start] Bootstrap xato (davom etadi):", e?.message);
 }
 
 // Next server

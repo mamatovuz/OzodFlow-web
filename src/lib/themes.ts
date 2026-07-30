@@ -1,22 +1,29 @@
-// Mijoz ko'radigan menyu dizayn temalari
-// 2 ta tekin (light, dark) + 5 ta premium (Pro Max)
+// Mijoz ko'radigan menyu dizayn temalari.
+// Har bir tema nafaqat rangni, balki kartalar joylashuvi (layout),
+// burchak radiusi va uslubni ham o'zgartiradi.
 
 export type ThemeKey =
   | "light"
   | "dark"
+  | "ziravor"
   | "emerald"
   | "sunset"
   | "royal"
   | "coffee"
-  | "noir";
+  | "noir"
+  | "ocean";
+
+export type ThemeLayout = "list" | "grid";
 
 export type MenuTheme = {
   key: ThemeKey;
   name: string;
   premium: boolean;
   isDark: boolean;
-  /** Agar berilsa, restoran brend rangi o'rniga shu accent ishlatiladi */
-  accent?: string;
+  layout: ThemeLayout; // list = rasm chapda, grid = rasm tepada 2 ustun
+  radius: number; // px
+  accent: string;
+  accentText: string; // accent ustidagi matn rangi
   colors: {
     background: string;
     surface: string;
@@ -34,14 +41,18 @@ export const MENU_THEMES: MenuTheme[] = [
     name: "Oq",
     premium: false,
     isDark: false,
+    layout: "list",
+    radius: 16,
+    accent: "#111827",
+    accentText: "#ffffff",
     colors: {
       background: "#ffffff",
       surface: "#f8f9fb",
-      surface2: "#f1f3f7",
+      surface2: "#eef1f5",
       card: "#ffffff",
-      foreground: "#1f2937",
+      foreground: "#111827",
       muted: "#6b7280",
-      border: "#e5e7eb",
+      border: "#e8ebf0",
     },
   },
   {
@@ -49,14 +60,37 @@ export const MENU_THEMES: MenuTheme[] = [
     name: "Qora",
     premium: false,
     isDark: true,
+    layout: "list",
+    radius: 16,
+    accent: "#f4f4f5",
+    accentText: "#0a0a0b",
     colors: {
-      background: "#0b0f19",
-      surface: "#111827",
-      surface2: "#1a2234",
-      card: "#111827",
-      foreground: "#e5e7eb",
-      muted: "#9ca3af",
-      border: "#1f2937",
+      background: "#0a0a0b",
+      surface: "#141416",
+      surface2: "#1e1e22",
+      card: "#141416",
+      foreground: "#f4f4f5",
+      muted: "#a1a1aa",
+      border: "#26262b",
+    },
+  },
+  {
+    key: "ziravor",
+    name: "Milliy",
+    premium: true,
+    isDark: false,
+    layout: "grid",
+    radius: 20,
+    accent: "#C26A1A",
+    accentText: "#ffffff",
+    colors: {
+      background: "#F7F3ED",
+      surface: "#efe8dd",
+      surface2: "#e6dccd",
+      card: "#ffffff",
+      foreground: "#0D3B34",
+      muted: "#6b7d6f",
+      border: "#e0d6c6",
     },
   },
   {
@@ -64,7 +98,10 @@ export const MENU_THEMES: MenuTheme[] = [
     name: "Zumrad",
     premium: true,
     isDark: false,
+    layout: "grid",
+    radius: 18,
     accent: "#059669",
+    accentText: "#ffffff",
     colors: {
       background: "#f4faf6",
       surface: "#eaf5ee",
@@ -80,7 +117,10 @@ export const MENU_THEMES: MenuTheme[] = [
     name: "Shafaq",
     premium: true,
     isDark: false,
+    layout: "list",
+    radius: 22,
     accent: "#ea580c",
+    accentText: "#ffffff",
     colors: {
       background: "#fff8f3",
       surface: "#ffefe4",
@@ -96,7 +136,10 @@ export const MENU_THEMES: MenuTheme[] = [
     name: "Shohona",
     premium: true,
     isDark: true,
+    layout: "grid",
+    radius: 18,
     accent: "#8b5cf6",
+    accentText: "#ffffff",
     colors: {
       background: "#0f0b1e",
       surface: "#1a1330",
@@ -112,7 +155,10 @@ export const MENU_THEMES: MenuTheme[] = [
     name: "Qahva",
     premium: true,
     isDark: false,
+    layout: "list",
+    radius: 14,
     accent: "#b45309",
+    accentText: "#ffffff",
     colors: {
       background: "#f7f1ea",
       surface: "#efe5d8",
@@ -128,7 +174,10 @@ export const MENU_THEMES: MenuTheme[] = [
     name: "Nafis",
     premium: true,
     isDark: true,
+    layout: "grid",
+    radius: 12,
     accent: "#d4af37",
+    accentText: "#0a0a0b",
     colors: {
       background: "#0a0a0b",
       surface: "#141416",
@@ -137,6 +186,25 @@ export const MENU_THEMES: MenuTheme[] = [
       foreground: "#f5f2ea",
       muted: "#a8a29a",
       border: "#2a2a2e",
+    },
+  },
+  {
+    key: "ocean",
+    name: "Dengiz",
+    premium: true,
+    isDark: true,
+    layout: "list",
+    radius: 20,
+    accent: "#06b6d4",
+    accentText: "#04222a",
+    colors: {
+      background: "#081b26",
+      surface: "#0d2733",
+      surface2: "#123340",
+      card: "#0d2733",
+      foreground: "#e6f6fb",
+      muted: "#8fb3bf",
+      border: "#1a3d4a",
     },
   },
 ];

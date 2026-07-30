@@ -18,6 +18,7 @@ import {
   ArrowRight,
   Check,
   X,
+  Eye,
 } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { Logo } from "@/components/logo";
@@ -140,6 +141,7 @@ export default async function LandingPage({
           products={menu.products}
           theme={menu.theme}
           table={table}
+          banners={menu.banners}
         />
       );
     }
@@ -177,9 +179,9 @@ export default async function LandingPage({
                   Bepul boshlash <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
-              <a href="#pricing">
+              <a href="/m/demo" target="_blank" rel="noreferrer">
                 <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                  Tariflarni ko'rish
+                  <Eye className="h-4 w-4" /> Demo menyuni ko'rish
                 </Button>
               </a>
             </div>

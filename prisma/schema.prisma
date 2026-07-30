@@ -28,6 +28,7 @@ model User {
   sessions        Session[]
   memberships     Membership[]
   paymentRequests PaymentRequest[]
+  domainRequests  DomainRequest[]
 }
 
 model Session {

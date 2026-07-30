@@ -1,69 +1,76 @@
-import type { Metadata } from "next";
+"use client";
+
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
+import { Button, Input, Label } from "@/components/ui";
 
-import { LoginForm } from "@/app/(auth)/login/login-form";
-import { Alert } from "@/components/ui/alert";
+export default function LoginPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-export const metadata: Metadata = {
-  title: "Kirish",
-  description: "OzodFlow hisobingizga kiring.",
-  // Auth sahifalari qidiruvda chiqmasligi kerak.
-  robots: { index: false, follow: false },
-};
-
-/**
- * Kirish sahifasi.
- *
- * `reason` parametri sessiya nima uchun tugaganini tushuntiradi. Bu MUHIM:
- * sababsiz kirish sahifasiga tushgan foydalanuvchi tizim buzilgan deb
- * o'ylaydi. "Xavfsizlik sababli chiqarildingiz" degan xabar esa nima
- * bo'lganini aytadi va parolni o'zgartirishga undaydi.
- */
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ next?: string; reason?: string }>;
-}) {
-  const t = await getTranslations("auth.login");
-  const params = await searchParams;
-
-  const reasonMessage =
-    params.reason === "security" ? t("reasonSecurity")
-    : params.reason === "blocked" ? t("reasonBlocked")
-    : params.reason === "expired" ? t("reasonExpired")
-    : null;
-
-  const reasonVariant = params.reason === "blocked" ? "danger" : "warning";
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    const form = new FormData(e.currentTarget);
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        identifier: form.get("identifier"),
+        password: form.get("password"),
+      }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setError(json.error || "Xatolik yuz berdi");
+      setLoading(false);
+      return;
+    }
+    router.push("/dashboard");
+    router.refresh();
+  }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="text-center">
-        <h1 className="font-display text-2xl font-bold tracking-[-0.02em] sm:text-[28px]">
-          {t("title")}
-        </h1>
-        <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground text-pretty">
-          {t("subtitle")}
-        </p>
-      </div>
+    <div>
+      <h1 className="text-2xl font-bold text-foreground">Xush kelibsiz</h1>
+      <p className="mt-1.5 text-sm text-muted">
+        Hisobingizga kirish uchun ma'lumotlarni kiriting
+      </p>
 
-      {reasonMessage && <Alert variant={reasonVariant}>{reasonMessage}</Alert>}
+      {error && (
+        <div className="mt-5 rounded-lg bg-error/10 px-4 py-3 text-sm text-error">
+          {error}
+        </div>
+      )}
 
-      <div className="surface-highlight rounded-2xl border border-border bg-card p-6 shadow-lg sm:p-8">
-        <LoginForm next={params.next} />
-      </div>
+      <form onSubmit={onSubmit} className="mt-6 space-y-4">
+        <div>
+          <Label>Email yoki telefon</Label>
+          <Input name="identifier" placeholder="siz@email.uz" required />
+        </div>
+        <div>
+          <div className="flex items-center justify-between">
+            <Label>Parol</Label>
+            <Link href="#" className="text-xs text-accent hover:underline">
+              Parolni unutdingizmi?
+            </Link>
+          </div>
+          <Input name="password" type="password" placeholder="••••••" required />
+        </div>
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+          Kirish
+        </Button>
+      </form>
 
-      <p className="text-center text-sm text-muted-foreground">
-        {t("noAccount")}{" "}
-        <Link
-          href={
-            params.next
-              ? `/register?next=${encodeURIComponent(params.next)}`
-              : "/register"
-          }
-          className="font-medium text-brand transition-colors hover:text-brand-hover"
-        >
-          {t("registerLink")}
+      <p className="mt-6 text-center text-sm text-muted">
+        Hisobingiz yo'qmi?{" "}
+        <Link href="/register" className="font-medium text-accent hover:underline">
+          Ro'yxatdan o'ting
         </Link>
       </p>
     </div>

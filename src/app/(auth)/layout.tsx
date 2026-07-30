@@ -1,52 +1,70 @@
-import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { redirect } from "next/navigation";
+import { getSessionUser } from "@/lib/auth";
+import { Logo } from "@/components/logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 
-import { Logo } from "@/components/brand/logo";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
-
-/**
- * Auth sahifalari qobig'i: kirish, ro'yxatdan o'tish, parolni tiklash.
- *
- * Marketing sarlavhasi va footeri ATAYLAB yo'q. Kirish sahifasida
- * navigatsiya bo'lsa foydalanuvchi chalg'iydi — bu sahifaning bitta
- * vazifasi bor. Faqat logotip (bosh sahifaga qaytish uchun) va tema
- * almashtirgichi qoldirilgan.
- */
 export default async function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const t = await getTranslations("auth");
+  const user = await getSessionUser();
+  if (user) redirect("/dashboard");
 
   return (
-    <div className="relative flex min-h-dvh flex-col bg-hero">
-      <div className="pointer-events-none absolute inset-0 bg-grid" aria-hidden />
-
-      <header className="container-content relative flex h-16 shrink-0 items-center justify-between">
-        <Logo />
-
-        <div className="flex items-center gap-1">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" strokeWidth={2} aria-hidden />
-            <span className="max-sm:hidden">{t("backToSite")}</span>
-          </Link>
+    <div className="flex min-h-screen">
+      {/* Chap: forma */}
+      <div className="flex w-full flex-col px-4 py-6 sm:px-8 lg:w-1/2">
+        <div className="flex items-center justify-between">
+          <Logo />
           <ThemeToggle />
         </div>
-      </header>
+        <div className="flex flex-1 items-center justify-center py-10">
+          <div className="w-full max-w-sm animate-fade-up">{children}</div>
+        </div>
+        <p className="text-center text-xs text-muted">
+          © {new Date().getFullYear()} OzodFlow
+        </p>
+      </div>
 
-      <main
-        id="main"
-        className="container-content relative flex flex-1 items-center justify-center py-10 sm:py-16"
-      >
-        {/* `max-w-md` — forma juda keng bo'lsa o'qish qiyinlashadi va
-            arzon ko'rinadi. 28rem auth formalari uchun maqbul kenglik. */}
-        <div className="w-full max-w-md">{children}</div>
-      </main>
+      {/* O'ng: brend paneli */}
+      <div className="relative hidden w-1/2 overflow-hidden bg-accent lg:block">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute right-10 top-20 h-64 w-64 rounded-full bg-white blur-3xl" />
+          <div className="absolute bottom-10 left-10 h-64 w-64 rounded-full bg-white blur-3xl" />
+        </div>
+        <div className="relative flex h-full flex-col justify-center px-16 text-white">
+          <h2 className="text-4xl font-bold leading-tight">
+            Restoraningizni raqamlashtiring
+          </h2>
+          <p className="mt-4 max-w-md text-white/80">
+            QR kod orqali zamonaviy elektron menyu. Menyuni boshqaring,
+            statistikani kuzating va mijozlaringizga premium tajriba taqdim
+            eting.
+          </p>
+          <ul className="mt-8 space-y-3 text-white/90">
+            {[
+              "Cheksiz menyu boshqaruvi",
+              "Real vaqt statistikasi",
+              "Barcha filiallar bitta panelda",
+            ].map((t) => (
+              <li key={t} className="flex items-center gap-2">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20 text-xs">
+                  ✓
+                </span>
+                {t}
+              </li>
+            ))}
+          </ul>
+          <Link
+            href="/"
+            className="mt-10 inline-block text-sm text-white/70 hover:text-white"
+          >
+            ← Bosh sahifaga qaytish
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

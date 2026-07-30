@@ -1,588 +1,115 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 
-/* Dark mode `.dark` sinfi orqali — tizim sozlamasi emas, foydalanuvchi tanlovi
-   ustun bo'lishi kerak. Sinf `<html>` ga inline skript bilan qo'yiladi. */
-@custom-variant dark (&:is(.dark *));
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   DIZAYN TOKENLARI — YORQIN REJIM
-
-   Ranglar OKLCH da yozilgan. Sabab: OKLCH perceptual bir tekis, ya'ni
-   yorqinlikni (L) o'zgartirganda rang "iflos" bo'lmaydi. Gradientlar va
-   hover holatlar shu tufayli toza chiqadi — HEX bilan bunga erishilmaydi.
-   ═══════════════════════════════════════════════════════════════════════════ */
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* ── Radius shkalasi ─────────────────────────────────────────────────────
-     Asos 14px. Juda katta radius "o'yinchoq", juda kichik "quruq" ko'rinadi. */
-  --radius: 0.875rem;
-
-  /* ── Neytrallar ──────────────────────────────────────────────────────────
-     Sof kulrang emas — barchasida yengil sovuq (ko'k) tus bor. Bu interfeysni
-     "issiq qog'oz" emas, "toza shisha" qilib ko'rsatadi. */
-  --background: oklch(0.994 0.002 260);
-  --foreground: oklch(0.205 0.021 264);
-
-  /* Kartochka fon — fondan bir zina yorqinroq (oq), shu sabab kartochka
-     ko'tarilgan ko'rinadi, soya esa faqat buni tasdiqlaydi. */
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.205 0.021 264);
-
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.205 0.021 264);
-
-  /* Yumshoq to'ldirish — jadval sarlavhalari, nofaol holatlar */
-  --muted: oklch(0.968 0.004 264);
-  --muted-foreground: oklch(0.523 0.017 262);
-
-  /* Sirt qatlamlari: 1 — asosiy, 2 — ichma-ich joylashgan bloklar uchun */
-  --surface-1: oklch(0.978 0.003 264);
-  --surface-2: oklch(0.958 0.005 264);
-
-  --border: oklch(0.922 0.006 264);
-  /* Ingichka chegara — 1px chiziq juda qattiq ko'rinadigan joylar uchun */
-  --border-subtle: oklch(0.945 0.005 264);
-  --input: oklch(0.912 0.007 264);
-
-  /* ── Brend: chuqur azure ─────────────────────────────────────────────────
-     Logotip ko'k bo'lgani uchun brend ko'k oilada qoldi, lekin eski
-     "navy + sky" juftligidan farqli — bitta to'yingan azure va uning
-     nozik tuslari. */
-  --brand: oklch(0.548 0.192 265);
-  --brand-hover: oklch(0.492 0.196 265);
-  --brand-active: oklch(0.445 0.19 265);
-  --brand-foreground: oklch(0.99 0.005 265);
-  /* Fon sifatida ishlatiladigan juda yengil tus (nishonlar, tanlangan qator) */
-  --brand-soft: oklch(0.955 0.028 265);
-  --brand-soft-foreground: oklch(0.44 0.19 265);
-  /* Gradient uchun ikkinchi nuqta — ozgina siyanroq */
-  --brand-alt: oklch(0.604 0.163 238);
-
-  /* shadcn moslik uchun taxalluslar */
-  --primary: var(--brand);
-  --primary-foreground: var(--brand-foreground);
-  --secondary: oklch(0.968 0.004 264);
-  --secondary-foreground: oklch(0.245 0.021 264);
-  --accent: oklch(0.955 0.028 265);
-  --accent-foreground: oklch(0.44 0.19 265);
-
-  /* ── Semantik ranglar ────────────────────────────────────────────────────
-     Jade — pul va muvaffaqiyat. Ataylab brenddan uzoq tonda: to'lov
-     tasdiqlanganini ko'k rang bilan ko'rsatish tushunarsiz bo'lardi. */
-  --success: oklch(0.588 0.135 163);
-  --success-foreground: oklch(0.99 0.01 163);
-  --success-soft: oklch(0.955 0.04 163);
-  --success-soft-foreground: oklch(0.44 0.12 163);
-
-  --warning: oklch(0.72 0.155 72);
-  --warning-foreground: oklch(0.24 0.05 72);
-  --warning-soft: oklch(0.96 0.05 78);
-  --warning-soft-foreground: oklch(0.47 0.12 62);
-
-  --destructive: oklch(0.567 0.208 24);
-  --destructive-foreground: oklch(0.99 0.008 24);
-  --destructive-soft: oklch(0.958 0.03 24);
-  --destructive-soft-foreground: oklch(0.472 0.19 24);
-
-  /* Ma'lumot / neytral holat (kutilmoqda, qoralama) */
-  --info: oklch(0.6 0.13 232);
-  --info-soft: oklch(0.955 0.032 232);
-  --info-soft-foreground: oklch(0.44 0.13 232);
-
-  /* ── Fokus halqasi ───────────────────────────────────────────────────────
-     Klaviatura bilan yuradigan foydalanuvchi uchun eng muhim element. */
-  --ring: oklch(0.548 0.192 265);
-
-  /* ── Soyalar ─────────────────────────────────────────────────────────────
-     Soya rangi QORA EMAS — brend tusiga bo'yalgan. Sof qora soya interfeysni
-     "kir" ko'rsatadi; tusli soya esa yorug'lik fizikasiga yaqin va shu sabab
-     qimmat ko'rinadi. Aynan shu detal Stripe/Linear soyalarini ajratib turadi. */
-  --shadow-color: 264 25% 22%;
-
-  --shadow-xs: 0 1px 2px oklch(0.205 0.021 264 / 0.05);
-  --shadow-sm:
-    0 1px 2px oklch(0.205 0.021 264 / 0.04),
-    0 2px 4px -1px oklch(0.205 0.021 264 / 0.05);
-  --shadow-md:
-    0 1px 2px oklch(0.205 0.021 264 / 0.04),
-    0 4px 12px -2px oklch(0.205 0.021 264 / 0.07);
-  --shadow-lg:
-    0 1px 3px oklch(0.205 0.021 264 / 0.05),
-    0 12px 28px -8px oklch(0.205 0.021 264 / 0.11);
-  --shadow-xl:
-    0 2px 4px oklch(0.205 0.021 264 / 0.05),
-    0 24px 52px -16px oklch(0.205 0.021 264 / 0.16);
-  /* Brend tusidagi porlash — asosiy CTA tugmalar uchun */
-  --shadow-brand:
-    0 1px 2px oklch(0.445 0.19 265 / 0.2),
-    0 8px 20px -6px oklch(0.548 0.192 265 / 0.35);
-
-  /* ── Gradientlar ─────────────────────────────────────────────────────────*/
-  --gradient-brand: linear-gradient(
-    135deg,
-    oklch(0.548 0.192 265) 0%,
-    oklch(0.604 0.163 238) 100%
-  );
-  /* Hero orqa fon: yumshoq nur, keskin chiziqlarsiz */
-  --gradient-hero:
-    radial-gradient(80% 60% at 15% -10%, oklch(0.9 0.06 265 / 0.55) 0%, transparent 60%),
-    radial-gradient(60% 50% at 92% 8%, oklch(0.9 0.05 190 / 0.4) 0%, transparent 55%),
-    linear-gradient(180deg, oklch(0.99 0.004 264) 0%, oklch(0.994 0.002 260) 100%);
-
-  /* Shisha effekt (navbar, modal orqa fon) */
-  --glass-bg: oklch(1 0 0 / 0.72);
-  --glass-border: oklch(1 0 0 / 0.6);
-
-  /* ── Diagramma ranglari ──────────────────────────────────────────────────
-     Ketma-ket, farqlanadigan va rang ko'rmaslikda ham ajratiladigan tanlov:
-     har birining yorqinligi (L) turlicha, faqat tusi emas. */
-  --chart-1: oklch(0.548 0.192 265);
-  --chart-2: oklch(0.65 0.145 195);
-  --chart-3: oklch(0.588 0.135 163);
-  --chart-4: oklch(0.72 0.155 72);
-  --chart-5: oklch(0.62 0.19 340);
-  --chart-6: oklch(0.48 0.13 292);
+  --background: #ffffff;
+  --surface: #f8f9fb;
+  --surface-2: #f1f3f7;
+  --foreground: #1f2937;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: #eff6ff;
+  --success: #16a34a;
+  --warning: #d97706;
+  --error: #dc2626;
+  --card: #ffffff;
+  --radius: 14px;
 }
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   QORONG'I REJIM
-
-   Bu yorqin rejimning teskarisi emas. Qorong'ida:
-   • sirtlar YORQINLASHADI (fon eng qorong'i, kartochka ochroq)
-   • brend rangi yorqinlashadi — to'q fonda to'q ko'k o'qilmaydi
-   • soyalar ish bermaydi, shuning uchun chegara va yengil ichki yorug'lik
-     qatlamni ajratadi
-   ═══════════════════════════════════════════════════════════════════════════ */
 
 .dark {
-  --background: oklch(0.168 0.014 266);
-  --foreground: oklch(0.962 0.005 260);
-
-  --card: oklch(0.208 0.016 266);
-  --card-foreground: oklch(0.962 0.005 260);
-
-  --popover: oklch(0.226 0.017 266);
-  --popover-foreground: oklch(0.962 0.005 260);
-
-  --muted: oklch(0.258 0.016 266);
-  --muted-foreground: oklch(0.706 0.019 260);
-
-  --surface-1: oklch(0.198 0.015 266);
-  --surface-2: oklch(0.246 0.017 266);
-
-  --border: oklch(0.288 0.018 266);
-  --border-subtle: oklch(0.248 0.016 266);
-  --input: oklch(0.315 0.019 266);
-
-  /* To'q fonda brend yorqinlashadi va to'yinganligi pasayadi — aks holda
-     ko'z qamashtiradi. */
-  --brand: oklch(0.662 0.168 265);
-  --brand-hover: oklch(0.712 0.156 265);
-  --brand-active: oklch(0.752 0.142 265);
-  --brand-foreground: oklch(0.152 0.02 265);
-  --brand-soft: oklch(0.288 0.062 265);
-  --brand-soft-foreground: oklch(0.832 0.09 265);
-  --brand-alt: oklch(0.702 0.13 232);
-
-  --primary: var(--brand);
-  --primary-foreground: var(--brand-foreground);
-  --secondary: oklch(0.258 0.016 266);
-  --secondary-foreground: oklch(0.962 0.005 260);
-  --accent: oklch(0.288 0.062 265);
-  --accent-foreground: oklch(0.832 0.09 265);
-
-  --success: oklch(0.688 0.135 163);
-  --success-foreground: oklch(0.16 0.03 163);
-  --success-soft: oklch(0.278 0.055 163);
-  --success-soft-foreground: oklch(0.812 0.1 163);
-
-  --warning: oklch(0.782 0.145 78);
-  --warning-foreground: oklch(0.2 0.04 78);
-  --warning-soft: oklch(0.298 0.06 72);
-  --warning-soft-foreground: oklch(0.858 0.11 82);
-
-  --destructive: oklch(0.648 0.19 24);
-  --destructive-foreground: oklch(0.16 0.03 24);
-  --destructive-soft: oklch(0.298 0.075 24);
-  --destructive-soft-foreground: oklch(0.842 0.1 24);
-
-  --info: oklch(0.688 0.125 232);
-  --info-soft: oklch(0.282 0.055 232);
-  --info-soft-foreground: oklch(0.832 0.09 232);
-
-  --ring: oklch(0.662 0.168 265);
-
-  /* Qorong'ida soya kam ish beradi — kuchliroq va qoraroq, ustiga
-     chegara qatlam ajratish vazifasini oladi. */
-  --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.3);
-  --shadow-sm:
-    0 1px 2px oklch(0 0 0 / 0.3),
-    0 2px 4px -1px oklch(0 0 0 / 0.35);
-  --shadow-md:
-    0 1px 2px oklch(0 0 0 / 0.35),
-    0 4px 12px -2px oklch(0 0 0 / 0.45);
-  --shadow-lg:
-    0 1px 3px oklch(0 0 0 / 0.4),
-    0 12px 28px -8px oklch(0 0 0 / 0.55);
-  --shadow-xl:
-    0 2px 4px oklch(0 0 0 / 0.45),
-    0 24px 52px -16px oklch(0 0 0 / 0.65);
-  --shadow-brand:
-    0 1px 2px oklch(0 0 0 / 0.4),
-    0 8px 24px -6px oklch(0.662 0.168 265 / 0.4);
-
-  --gradient-brand: linear-gradient(
-    135deg,
-    oklch(0.622 0.178 265) 0%,
-    oklch(0.668 0.146 232) 100%
-  );
-  --gradient-hero:
-    radial-gradient(80% 60% at 15% -10%, oklch(0.42 0.11 265 / 0.5) 0%, transparent 60%),
-    radial-gradient(60% 50% at 92% 8%, oklch(0.4 0.09 200 / 0.35) 0%, transparent 55%),
-    linear-gradient(180deg, oklch(0.196 0.017 266) 0%, oklch(0.168 0.014 266) 100%);
-
-  --glass-bg: oklch(0.208 0.016 266 / 0.72);
-  --glass-border: oklch(1 0 0 / 0.08);
-
-  --chart-1: oklch(0.662 0.168 265);
-  --chart-2: oklch(0.732 0.132 195);
-  --chart-3: oklch(0.688 0.135 163);
-  --chart-4: oklch(0.782 0.145 78);
-  --chart-5: oklch(0.702 0.17 340);
-  --chart-6: oklch(0.612 0.14 292);
+  --background: #0b0f19;
+  --surface: #111827;
+  --surface-2: #1a2234;
+  --foreground: #e5e7eb;
+  --muted: #9ca3af;
+  --border: #1f2937;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-soft: #172033;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --card: #111827;
 }
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   TAILWIND TEMASI
-
-   `inline` — qiymatlar CSS o'zgaruvchilariga havola bo'lib qoladi, ya'ni
-   `.dark` sinfi qo'shilganda Tailwind sinflari avtomatik yangi rangni oladi.
-   Qayta kompilyatsiya kerak emas.
-   ═══════════════════════════════════════════════════════════════════════════ */
 
 @theme inline {
-  /* Radius */
-  --radius-xs: calc(var(--radius) - 6px);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 10px);
-  --radius-3xl: calc(var(--radius) + 18px);
-
-  /* Ranglar */
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-surface-1: var(--surface-1);
+  --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
   --color-border: var(--border);
-  --color-border-subtle: var(--border-subtle);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-
-  --color-brand: var(--brand);
-  --color-brand-hover: var(--brand-hover);
-  --color-brand-active: var(--brand-active);
-  --color-brand-foreground: var(--brand-foreground);
-  --color-brand-soft: var(--brand-soft);
-  --color-brand-soft-foreground: var(--brand-soft-foreground);
-  --color-brand-alt: var(--brand-alt);
-
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
   --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
   --color-success: var(--success);
-  --color-success-foreground: var(--success-foreground);
-  --color-success-soft: var(--success-soft);
-  --color-success-soft-foreground: var(--success-soft-foreground);
-
   --color-warning: var(--warning);
-  --color-warning-foreground: var(--warning-foreground);
-  --color-warning-soft: var(--warning-soft);
-  --color-warning-soft-foreground: var(--warning-soft-foreground);
-
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-destructive-soft: var(--destructive-soft);
-  --color-destructive-soft-foreground: var(--destructive-soft-foreground);
-
-  --color-info: var(--info);
-  --color-info-soft: var(--info-soft);
-  --color-info-soft-foreground: var(--info-soft-foreground);
-
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-chart-6: var(--chart-6);
-
-  /* Shriftlar — qiymatlar layout.tsx dagi next/font o'zgaruvchilaridan keladi */
-  --font-display: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
-
-  /* Soyalar */
-  --shadow-xs: var(--shadow-xs);
-  --shadow-sm: var(--shadow-sm);
-  --shadow-md: var(--shadow-md);
-  --shadow-lg: var(--shadow-lg);
-  --shadow-xl: var(--shadow-xl);
-  --shadow-brand: var(--shadow-brand);
-
-  /* Harakat — bir xil egri chiziq butun ilovada ishlatiladi.
-     `spring` yengil "otilish" beradi: tugma bosilganda tirik tuyuladi. */
-  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-
-  /* Kontent maksimal kengligi */
-  --container-content: 76rem;
+  --color-error: var(--error);
+  --color-card: var(--card);
+  --radius-lg: var(--radius);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   ASOSIY USLUBLAR
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-@layer base {
-  * {
-    border-color: var(--border);
-  }
-
-  html {
-    scroll-behavior: smooth;
-    /* Yopishqoq sarlavha ostiga anchor yashirinib qolmasligi uchun */
-    scroll-padding-top: 5rem;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  body {
-    background-color: var(--background);
-    color: var(--foreground);
-    font-family: var(--font-sans);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-
-    /* DIQQAT: `tabular-nums` bu yerda ATAYLAB YO'Q.
-     *
-     * Tabular raqamlar har bir raqamga `0` ning kengligini beradi. Bu
-     * ustunlarda zarur (jadval qatorlari, o'q belgilari) — raqamlar
-     * vertikal tekislanadi. Lekin KATTA yakka son uchun zararli:
-     * "121" kabi qiymat yoyilib, bo'sh joyli ko'rinadi.
-     *
-     * Shuning uchun standart holat — proporsional raqamlar, tabular esa
-     * `.tabular` yoki `.amount` sinfi bilan ATAYLAB qo'shiladi. */
-  }
-
-  /* Sarlavhalar display shriftda va zich harf oralig'i bilan.
-     Katta o'lchamda keng oraliq "yoyilgan" ko'rinadi. */
-  h1, h2, h3, h4 {
-    font-family: var(--font-display);
-    letter-spacing: -0.022em;
-    font-weight: 700;
-  }
-
-  h1 {
-    letter-spacing: -0.032em;
-  }
-
-  /* ── Fokus ────────────────────────────────────────────────────────────────
-     Faqat klaviatura bilan yurganda ko'rinadi. Sichqoncha bosishida
-     halqa chiqmaydi, lekin Tab bilan kelganda albatta ko'rinadi. */
-  :focus-visible {
-    outline: 2px solid var(--ring);
-    outline-offset: 2px;
-    border-radius: var(--radius-sm);
-  }
-
-  ::selection {
-    background: var(--brand);
-    color: var(--brand-foreground);
-  }
-
-  /* ── Skrollbar ───────────────────────────────────────────────────────────*/
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
-  }
-
-  ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background-color: var(--border);
-    border-radius: 999px;
-    /* Ichki bo'sh joy — chiziq skrollbar chetiga tegib turmaydi */
-    border: 3px solid transparent;
-    background-clip: content-box;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background-color: var(--muted-foreground);
-    background-clip: content-box;
-  }
-
-  /* Avtomatik to'ldirishda brauzerning sariq foni interfeysni buzadi */
-  input:-webkit-autofill,
-  input:-webkit-autofill:focus {
-    -webkit-text-fill-color: var(--foreground);
-    -webkit-box-shadow: 0 0 0 1000px var(--card) inset;
-  }
-
-  /* ── Harakatni kamaytirish ───────────────────────────────────────────────
-     Vestibulyar buzilishi bor foydalanuvchilar uchun majburiy talab.
-     Animatsiyalar butunlay o'chmaydi — 0.01ms ga qisqaradi, shunda
-     `animationend` hodisasiga tayangan kod ishlashda davom etadi. */
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
-    }
-  }
+* {
+  border-color: var(--border);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   YORDAMCHI SINFLAR
-   ═══════════════════════════════════════════════════════════════════════════ */
+html {
+  scroll-behavior: smooth;
+}
 
-@layer utilities {
-  .font-display {
-    font-family: var(--font-display);
-    letter-spacing: -0.022em;
-  }
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
 
-  /* Matnni brend gradienti bilan bo'yash */
-  .text-gradient {
-    background: var(--gradient-brand);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-  }
+::selection {
+  background: var(--accent);
+  color: #fff;
+}
 
-  .bg-gradient-brand {
-    background: var(--gradient-brand);
-  }
+/* Yumshoq scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
 
-  .bg-hero {
-    background: var(--gradient-hero);
-  }
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-up {
+  animation: fade-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-fade-in {
+  animation: fade-in 0.6s ease both;
+}
 
-  /* Shisha sirt — navbar va suzuvchi panellar uchun */
-  .glass {
-    background: var(--glass-bg);
-    backdrop-filter: blur(16px) saturate(180%);
-    -webkit-backdrop-filter: blur(16px) saturate(180%);
-    border-color: var(--glass-border);
-  }
-
-  /* Kartochka ustidagi nozik yuqori yorug'lik — qorong'ida qatlamni
-     soyasiz ajratadi (soya to'q fonda ko'rinmaydi). */
-  .surface-highlight {
-    position: relative;
-  }
-
-  .surface-highlight::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding-top: 1px;
-    background: linear-gradient(
-      to bottom,
-      oklch(1 0 0 / 0.08) 0%,
-      transparent 40%
-    );
-    pointer-events: none;
-  }
-
-  /* Nozik to'r fon — hero va bo'sh holatlar uchun.
-     Chetlari mask bilan eritiladi, shunda "jadval" emas "tuzilma" ko'rinadi. */
-  .bg-grid {
-    background-image:
-      linear-gradient(to right, var(--border-subtle) 1px, transparent 1px),
-      linear-gradient(to bottom, var(--border-subtle) 1px, transparent 1px);
-    background-size: 64px 64px;
-    mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 20%, transparent 75%);
-    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 20%, transparent 75%);
-  }
-
-  /* Nuqtali fon — kartochka orqa fonlari uchun */
-  .bg-dots {
-    background-image: radial-gradient(var(--border) 1px, transparent 1px);
-    background-size: 20px 20px;
-  }
-
-  .shadow-brand {
-    box-shadow: var(--shadow-brand);
-  }
-
-  /* Raqam ustunlari uchun: bir xil kenglikdagi raqamlar */
-  .tabular {
-    font-variant-numeric: tabular-nums;
-    font-feature-settings: "tnum";
-  }
-
-  /* Pul summalari — mono shriftda aniqroq o'qiladi */
-  .amount {
-    font-family: var(--font-mono);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
-  }
-
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  .text-pretty {
-    text-wrap: pretty;
-  }
-
-  /* Kontent konteyneri — sahifalar bo'ylab bir xil chekka */
-  .container-content {
-    width: 100%;
-    max-width: var(--container-content);
-    margin-inline: auto;
-    padding-inline: 1.25rem;
-  }
-
-  @media (min-width: 1024px) {
-    .container-content {
-      padding-inline: 2rem;
-    }
-  }
-
-  /* Ekran o'quvchi uchun matn — ko'rinmaydi, lekin o'qiladi */
-  .sr-only-focusable:not(:focus):not(:focus-within) {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border-width: 0;
-  }
+/* Yumshoq soyalar */
+.shadow-soft {
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.04), 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+.shadow-card {
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.04), 0 8px 24px rgba(16, 24, 40, 0.04);
+}
+.dark .shadow-soft,
+.dark .shadow-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }

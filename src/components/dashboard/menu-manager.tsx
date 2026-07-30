@@ -1,0 +1,633 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Loader2,
+  UtensilsCrossed,
+  GripVertical,
+  Search,
+  EyeOff,
+  Flame,
+  Leaf,
+} from "lucide-react";
+import { Button, Input, Textarea, Label, Select, Card, Badge, Switch } from "@/components/ui";
+import { Modal } from "@/components/ui-modal";
+import { formatPrice, parseJson } from "@/lib/utils";
+
+type Category = {
+  id: string;
+  name: string;
+  description: string | null;
+  isVisible: boolean;
+  sortOrder: number;
+  _count?: { products: number };
+};
+
+type Product = {
+  id: string;
+  categoryId: string;
+  name: string;
+  description: string | null;
+  images: string | null;
+  price: number;
+  oldPrice: number | null;
+  weight: string | null;
+  calories: number | null;
+  spicyLevel: number;
+  isVegetarian: boolean;
+  isHalal: boolean;
+  isNew: boolean;
+  isBestseller: boolean;
+  isRecommended: boolean;
+  isAvailable: boolean;
+  isVisible: boolean;
+};
+
+export function MenuManager({ currency }: { currency: string }) {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [activeCat, setActiveCat] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  const [catModal, setCatModal] = useState<{ open: boolean; edit?: Category }>({
+    open: false,
+  });
+  const [prodModal, setProdModal] = useState<{ open: boolean; edit?: Product }>({
+    open: false,
+  });
+
+  const loadCategories = useCallback(async () => {
+    const res = await fetch("/api/categories");
+    const json = await res.json();
+    if (json.success) {
+      setCategories(json.data);
+      setActiveCat((prev) => prev ?? json.data[0]?.id ?? null);
+    }
+  }, []);
+
+  const loadProducts = useCallback(async () => {
+    const res = await fetch("/api/products");
+    const json = await res.json();
+    if (json.success) setProducts(json.data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadCategories();
+    loadProducts();
+  }, [loadCategories, loadProducts]);
+
+  async function deleteCategory(id: string) {
+    if (!confirm("Kategoriya va undagi barcha mahsulotlar o'chiriladi. Davom etilsinmi?"))
+      return;
+    await fetch(`/api/categories/${id}`, { method: "DELETE" });
+    if (activeCat === id) setActiveCat(null);
+    loadCategories();
+    loadProducts();
+  }
+
+  async function deleteProduct(id: string) {
+    if (!confirm("Mahsulot o'chirilsinmi?")) return;
+    await fetch(`/api/products/${id}`, { method: "DELETE" });
+    loadProducts();
+  }
+
+  async function toggleAvailable(p: Product) {
+    await fetch(`/api/products/${p.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isAvailable: !p.isAvailable }),
+    });
+    loadProducts();
+  }
+
+  const visibleProducts = products
+    .filter((p) => (activeCat ? p.categoryId === activeCat : true))
+    .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-accent" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+      {/* Kategoriyalar */}
+      <div>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-semibold text-foreground">Kategoriyalar</h2>
+          <Button size="sm" variant="outline" onClick={() => setCatModal({ open: true })}>
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="space-y-1.5">
+          {categories.length === 0 && (
+            <p className="rounded-lg border border-dashed border-border p-4 text-center text-sm text-muted">
+              Kategoriya yo'q. Qo'shing.
+            </p>
+          )}
+          {categories.map((c) => (
+            <div
+              key={c.id}
+              onClick={() => setActiveCat(c.id)}
+              className={`group flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 transition-colors ${
+                activeCat === c.id
+                  ? "border-accent bg-accent-soft"
+                  : "border-border bg-card hover:bg-surface-2"
+              }`}
+            >
+              <GripVertical className="h-4 w-4 shrink-0 text-muted/50" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate text-sm font-medium text-foreground">
+                    {c.name}
+                  </span>
+                  {!c.isVisible && <EyeOff className="h-3 w-3 text-muted" />}
+                </div>
+                <span className="text-xs text-muted">
+                  {c._count?.products ?? 0} mahsulot
+                </span>
+              </div>
+              <div className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCatModal({ open: true, edit: c });
+                  }}
+                  className="rounded p-1 text-muted hover:text-foreground"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteCategory(c.id);
+                  }}
+                  className="rounded p-1 text-muted hover:text-error"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Mahsulotlar */}
+      <div>
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex-1 sm:max-w-xs">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Mahsulot qidirish..."
+              className="pl-9"
+            />
+          </div>
+          <Button
+            onClick={() => setProdModal({ open: true })}
+            disabled={categories.length === 0}
+          >
+            <Plus className="h-4 w-4" /> Mahsulot
+          </Button>
+        </div>
+
+        {visibleProducts.length === 0 ? (
+          <Card className="flex flex-col items-center justify-center py-16 text-center">
+            <UtensilsCrossed className="h-10 w-10 text-muted/40" />
+            <p className="mt-3 font-medium text-foreground">Mahsulot yo'q</p>
+            <p className="mt-1 text-sm text-muted">
+              {categories.length === 0
+                ? "Avval kategoriya qo'shing"
+                : "Birinchi mahsulotni qo'shing"}
+            </p>
+          </Card>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {visibleProducts.map((p) => {
+              const imgs = parseJson<string[]>(p.images, []);
+              return (
+                <Card key={p.id} className="overflow-hidden">
+                  <div className="flex gap-3 p-3">
+                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-surface-2">
+                      {imgs[0] ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={imgs[0]}
+                          alt={p.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-muted/40">
+                          <UtensilsCrossed className="h-6 w-6" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="truncate font-medium text-foreground">
+                          {p.name}
+                        </p>
+                        <div className="flex shrink-0 gap-0.5">
+                          <button
+                            onClick={() => setProdModal({ open: true, edit: p })}
+                            className="rounded p-1 text-muted hover:text-foreground"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => deleteProduct(p.id)}
+                            className="rounded p-1 text-muted hover:text-error"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <span className="font-semibold text-foreground">
+                          {formatPrice(p.price, currency)}
+                        </span>
+                        {p.oldPrice && (
+                          <span className="text-xs text-muted line-through">
+                            {formatPrice(p.oldPrice, currency)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                        {p.isBestseller && <Badge variant="warning">Xit</Badge>}
+                        {p.isNew && <Badge variant="success">Yangi</Badge>}
+                        {p.isVegetarian && (
+                          <Badge variant="success">
+                            <Leaf className="h-2.5 w-2.5" />
+                          </Badge>
+                        )}
+                        {p.spicyLevel > 0 && (
+                          <Badge variant="error">
+                            <Flame className="h-2.5 w-2.5" /> {p.spicyLevel}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-border px-3 py-2">
+                    <span className="text-xs text-muted">Mavjud</span>
+                    <Switch
+                      checked={p.isAvailable}
+                      onChange={() => toggleAvailable(p)}
+                    />
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Kategoriya modal */}
+      <CategoryModal
+        state={catModal}
+        onClose={() => setCatModal({ open: false })}
+        onSaved={() => {
+          setCatModal({ open: false });
+          loadCategories();
+        }}
+      />
+
+      {/* Mahsulot modal */}
+      <ProductModal
+        state={prodModal}
+        categories={categories}
+        activeCat={activeCat}
+        onClose={() => setProdModal({ open: false })}
+        onSaved={() => {
+          setProdModal({ open: false });
+          loadProducts();
+          loadCategories();
+        }}
+      />
+    </div>
+  );
+}
+
+// ─── Kategoriya modal ───
+function CategoryModal({
+  state,
+  onClose,
+  onSaved,
+}: {
+  state: { open: boolean; edit?: Category };
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const edit = state.edit;
+
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    const f = new FormData(e.currentTarget);
+    const payload = {
+      name: f.get("name"),
+      description: f.get("description"),
+      isVisible: f.get("isVisible") === "on",
+    };
+    const res = await fetch(
+      edit ? `/api/categories/${edit.id}` : "/api/categories",
+      {
+        method: edit ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }
+    );
+    setLoading(false);
+    if (!res.ok) {
+      const j = await res.json();
+      setError(j.error || "Xatolik");
+      return;
+    }
+    onSaved();
+  }
+
+  return (
+    <Modal
+      open={state.open}
+      onClose={onClose}
+      title={edit ? "Kategoriyani tahrirlash" : "Yangi kategoriya"}
+    >
+      <form onSubmit={submit} className="space-y-4">
+        {error && (
+          <div className="rounded-lg bg-error/10 px-3 py-2 text-sm text-error">
+            {error}
+          </div>
+        )}
+        <div>
+          <Label>Nomi *</Label>
+          <Input name="name" defaultValue={edit?.name} required autoFocus />
+        </div>
+        <div>
+          <Label>Tavsif</Label>
+          <Textarea
+            name="description"
+            defaultValue={edit?.description ?? ""}
+            rows={2}
+          />
+        </div>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="isVisible"
+            defaultChecked={edit?.isVisible ?? true}
+            className="h-4 w-4 accent-[var(--accent)]"
+          />
+          <span className="text-sm text-foreground">Menyuda ko'rinsin</span>
+        </label>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Bekor qilish
+          </Button>
+          <Button type="submit" disabled={loading}>
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            Saqlash
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+// ─── Mahsulot modal ───
+function ProductModal({
+  state,
+  categories,
+  activeCat,
+  onClose,
+  onSaved,
+}: {
+  state: { open: boolean; edit?: Product };
+  categories: Category[];
+  activeCat: string | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [images, setImages] = useState<string[]>([]);
+  const edit = state.edit;
+
+  useEffect(() => {
+    setImages(parseJson<string[]>(edit?.images, []));
+    setError("");
+  }, [edit, state.open]);
+
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    const f = new FormData(e.currentTarget);
+    const num = (v: FormDataEntryValue | null) =>
+      v && String(v).trim() !== "" ? Number(v) : undefined;
+    const payload = {
+      categoryId: f.get("categoryId"),
+      name: f.get("name"),
+      description: f.get("description"),
+      price: Number(f.get("price") || 0),
+      oldPrice: num(f.get("oldPrice")) ?? null,
+      weight: f.get("weight"),
+      calories: num(f.get("calories")) ?? null,
+      ingredients: f.get("ingredients"),
+      spicyLevel: Number(f.get("spicyLevel") || 0),
+      images,
+      isVegetarian: f.get("isVegetarian") === "on",
+      isHalal: f.get("isHalal") === "on",
+      isNew: f.get("isNew") === "on",
+      isBestseller: f.get("isBestseller") === "on",
+      isRecommended: f.get("isRecommended") === "on",
+      isVisible: f.get("isVisible") === "on",
+    };
+    const res = await fetch(
+      edit ? `/api/products/${edit.id}` : "/api/products",
+      {
+        method: edit ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }
+    );
+    setLoading(false);
+    if (!res.ok) {
+      const j = await res.json();
+      setError(j.error || "Xatolik");
+      return;
+    }
+    onSaved();
+  }
+
+  function addImageUrl() {
+    const url = prompt("Rasm havolasini (URL) kiriting:");
+    if (url) setImages((prev) => [...prev, url]);
+  }
+
+  return (
+    <Modal
+      open={state.open}
+      onClose={onClose}
+      title={edit ? "Mahsulotni tahrirlash" : "Yangi mahsulot"}
+      wide
+    >
+      <form onSubmit={submit} className="space-y-4">
+        {error && (
+          <div className="rounded-lg bg-error/10 px-3 py-2 text-sm text-error">
+            {error}
+          </div>
+        )}
+
+        {/* Rasmlar */}
+        <div>
+          <Label>Rasmlar</Label>
+          <div className="flex flex-wrap gap-2">
+            {images.map((img, i) => (
+              <div
+                key={i}
+                className="relative h-16 w-16 overflow-hidden rounded-lg border border-border"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={img} alt="" className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setImages(images.filter((_, x) => x !== i))}
+                  className="absolute right-0 top-0 flex h-5 w-5 items-center justify-center bg-error text-white"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addImageUrl}
+              className="flex h-16 w-16 items-center justify-center rounded-lg border border-dashed border-border text-muted hover:text-accent"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <Label>Nomi *</Label>
+            <Input name="name" defaultValue={edit?.name} required />
+          </div>
+          <div>
+            <Label>Kategoriya *</Label>
+            <Select
+              name="categoryId"
+              defaultValue={edit?.categoryId || activeCat || ""}
+              required
+            >
+              <option value="" disabled>
+                Tanlang
+              </option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label>Narx *</Label>
+            <Input
+              name="price"
+              type="number"
+              step="any"
+              defaultValue={edit?.price ?? ""}
+              required
+            />
+          </div>
+          <div>
+            <Label>Eski narx</Label>
+            <Input
+              name="oldPrice"
+              type="number"
+              step="any"
+              defaultValue={edit?.oldPrice ?? ""}
+            />
+          </div>
+          <div>
+            <Label>Og'irligi</Label>
+            <Input
+              name="weight"
+              defaultValue={edit?.weight ?? ""}
+              placeholder="250g"
+            />
+          </div>
+          <div>
+            <Label>Kaloriya</Label>
+            <Input
+              name="calories"
+              type="number"
+              defaultValue={edit?.calories ?? ""}
+            />
+          </div>
+          <div>
+            <Label>Achchiqlik (0-3)</Label>
+            <Select name="spicyLevel" defaultValue={String(edit?.spicyLevel ?? 0)}>
+              <option value="0">Yo'q</option>
+              <option value="1">Kam</option>
+              <option value="2">O'rta</option>
+              <option value="3">Achchiq</option>
+            </Select>
+          </div>
+          <div className="sm:col-span-2">
+            <Label>Tavsif</Label>
+            <Textarea name="description" defaultValue={edit?.description ?? ""} rows={2} />
+          </div>
+          <div className="sm:col-span-2">
+            <Label>Tarkibi</Label>
+            <Input name="ingredients" placeholder="Go'sht, guruch, sabzi..." />
+          </div>
+        </div>
+
+        {/* Belgilar */}
+        <div className="grid grid-cols-2 gap-2 rounded-lg bg-surface-2 p-3 sm:grid-cols-3">
+          {[
+            { name: "isVegetarian", label: "Vegetarian", def: edit?.isVegetarian },
+            { name: "isHalal", label: "Halol", def: edit?.isHalal },
+            { name: "isNew", label: "Yangi", def: edit?.isNew },
+            { name: "isBestseller", label: "Bestseller", def: edit?.isBestseller },
+            { name: "isRecommended", label: "Tavsiya", def: edit?.isRecommended },
+            { name: "isVisible", label: "Ko'rinsin", def: edit?.isVisible ?? true },
+          ].map((c) => (
+            <label key={c.name} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                name={c.name}
+                defaultChecked={c.def ?? false}
+                className="h-4 w-4 accent-[var(--accent)]"
+              />
+              <span className="text-sm text-foreground">{c.label}</span>
+            </label>
+          ))}
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Bekor qilish
+          </Button>
+          <Button type="submit" disabled={loading}>
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            Saqlash
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}

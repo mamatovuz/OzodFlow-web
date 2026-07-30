@@ -1,71 +1,95 @@
-import type { Metadata } from "next";
+"use client";
+
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
+import { Button, Input, Label } from "@/components/ui";
 
-import { RegisterForm } from "@/app/(auth)/register/register-form";
-import { Alert } from "@/components/ui/alert";
-import { UserRole } from "@/lib/enums";
-import { isRegistrationOpen } from "@/lib/settings";
+export default function RegisterPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-export const metadata: Metadata = {
-  title: "Ro'yxatdan o'tish",
-  description: "OzodFlow'da hisob yarating.",
-  robots: { index: false, follow: false },
-};
-
-export default async function RegisterPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ next?: string; ref?: string; role?: string }>;
-}) {
-  const t = await getTranslations("auth.register");
-  const params = await searchParams;
-
-  const registrationOpen = await isRegistrationOpen();
-
-  /**
-   * `?role=developer` — "Mutaxassis bo'lish" tugmasidan kelgan foydalanuvchi
-   * uchun rol oldindan tanlangan bo'ladi. Qiymat tekshiriladi: URL'dan
-   * kelgan matnga ishonib bo'lmaydi.
-   */
-  const defaultRole =
-    params.role?.toUpperCase() === UserRole.DEVELOPER
-      ? UserRole.DEVELOPER
-      : UserRole.CUSTOMER;
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    const form = new FormData(e.currentTarget);
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: form.get("name"),
+        email: form.get("email"),
+        phone: form.get("phone"),
+        password: form.get("password"),
+        restaurantName: form.get("restaurantName"),
+      }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setError(json.error || "Xatolik yuz berdi");
+      setLoading(false);
+      return;
+    }
+    router.push("/dashboard");
+    router.refresh();
+  }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="text-center">
-        <h1 className="font-display text-2xl font-bold tracking-[-0.02em] sm:text-[28px]">
-          {t("title")}
-        </h1>
-        <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground text-pretty">
-          {t("subtitle")}
-        </p>
-      </div>
+    <div>
+      <h1 className="text-2xl font-bold text-foreground">Hisob yarating</h1>
+      <p className="mt-1.5 text-sm text-muted">
+        Bir daqiqada boshlang — bepul
+      </p>
 
-      {!registrationOpen ? (
-        <Alert variant="warning" title="Ro'yxatdan o'tish yopilgan">
-          Yangi hisob yaratish vaqtincha to&apos;xtatilgan. Keyinroq qayta
-          urinib ko&apos;ring yoki yordam xizmatiga murojaat qiling.
-        </Alert>
-      ) : (
-        <div className="surface-highlight rounded-2xl border border-border bg-card p-6 shadow-lg sm:p-8">
-          <RegisterForm
-            next={params.next}
-            referralCode={params.ref}
-            defaultRole={defaultRole}
-          />
+      {error && (
+        <div className="mt-5 rounded-lg bg-error/10 px-4 py-3 text-sm text-error">
+          {error}
         </div>
       )}
 
-      <p className="text-center text-sm text-muted-foreground">
-        {t("haveAccount")}{" "}
-        <Link
-          href={params.next ? `/login?next=${encodeURIComponent(params.next)}` : "/login"}
-          className="font-medium text-brand transition-colors hover:text-brand-hover"
-        >
-          {t("loginLink")}
+      <form onSubmit={onSubmit} className="mt-6 space-y-4">
+        <div>
+          <Label>Ismingiz</Label>
+          <Input name="name" placeholder="Ism Familiya" required />
+        </div>
+        <div>
+          <Label>Restoran nomi</Label>
+          <Input name="restaurantName" placeholder="Masalan: Osh Markazi" required />
+        </div>
+        <div>
+          <Label>Email</Label>
+          <Input name="email" type="email" placeholder="siz@email.uz" />
+        </div>
+        <div>
+          <Label>Telefon</Label>
+          <Input name="phone" type="tel" placeholder="+998 90 123 45 67" />
+        </div>
+        <div>
+          <Label>Parol</Label>
+          <Input
+            name="password"
+            type="password"
+            placeholder="Kamida 6 belgi"
+            minLength={6}
+            required
+          />
+        </div>
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+          Ro'yxatdan o'tish
+        </Button>
+        <p className="text-center text-xs text-muted">
+          Email yoki telefondan kamida bittasini kiriting
+        </p>
+      </form>
+
+      <p className="mt-6 text-center text-sm text-muted">
+        Hisobingiz bormi?{" "}
+        <Link href="/login" className="font-medium text-accent hover:underline">
+          Kirish
         </Link>
       </p>
     </div>

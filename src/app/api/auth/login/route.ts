@@ -11,9 +11,20 @@ export async function POST(req: NextRequest) {
     return fail("Ma'lumotlar noto'g'ri", 422, parsed.error.flatten().fieldErrors);
   }
 
-  const { identifier, password } = parsed.data;
+  const { password } = parsed.data;
+  // Email/telefonni normallashtirish: bo'sh joy va katta harflarni tozalash
+  // (telefon/brauzer birinchi harfni avto-katta qilishi mumkin)
+  const identifier = parsed.data.identifier.trim();
+  const lower = identifier.toLowerCase();
   const user = await prisma.user.findFirst({
-    where: { OR: [{ email: identifier }, { phone: identifier }] },
+    where: {
+      OR: [
+        { email: lower },
+        { email: identifier },
+        { phone: identifier },
+        { phone: lower },
+      ],
+    },
   });
 
   if (!user || !(await verifyPassword(password, user.password))) {

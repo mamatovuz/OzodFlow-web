@@ -26,7 +26,8 @@ export async function PATCH(req: NextRequest) {
     return fail("Ma'lumotlar noto'g'ri", 422, parsed.error.flatten().fieldErrors);
   }
 
-  const { name, email, password } = parsed.data;
+  const { name, password } = parsed.data;
+  const email = parsed.data.email.trim().toLowerCase();
 
   // Email band emasligini tekshirish
   const taken = await prisma.user.findFirst({

@@ -61,7 +61,14 @@ export default function RegisterPage() {
         </div>
         <div>
           <Label>Email</Label>
-          <Input name="email" type="email" placeholder="siz@email.uz" />
+          <Input
+            name="email"
+            type="email"
+            placeholder="siz@email.uz"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+          />
         </div>
         <div>
           <Label>Telefon</Label>

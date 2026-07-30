@@ -50,7 +50,15 @@ export default function LoginPage() {
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
         <div>
           <Label>Email yoki telefon</Label>
-          <Input name="identifier" placeholder="siz@email.uz" required />
+          <Input
+            name="identifier"
+            placeholder="siz@email.uz"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            autoComplete="username"
+            required
+          />
         </div>
         <div>
           <div className="flex items-center justify-between">

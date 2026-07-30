@@ -13,7 +13,10 @@ export async function POST(req: NextRequest) {
     return fail("Ma'lumotlar noto'g'ri", 422, parsed.error.flatten().fieldErrors);
   }
 
-  const { name, email, phone, password, restaurantName } = parsed.data;
+  const { name, password, restaurantName } = parsed.data;
+  // Email har doim kichik harfda saqlanadi (login mosligi uchun)
+  const email = parsed.data.email ? parsed.data.email.trim().toLowerCase() : "";
+  const phone = parsed.data.phone ? parsed.data.phone.trim() : "";
   if (!email && !phone) {
     return fail("Email yoki telefon kiritilishi shart", 422);
   }

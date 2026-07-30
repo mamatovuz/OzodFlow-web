@@ -65,6 +65,9 @@ export const PAID_PLANS: PlanKey[] = ["PRO", "PROMAX"];
 
 export const FREE_TRIAL_DAYS = 7;
 
+// Admin orqali domen ulash xizmati narxi (yillik)
+export const DOMAIN_SERVICE_PRICE = 40000;
+
 /**
  * Restoranning amaldagi tarifini hisoblaydi.
  * FREE trial muddati tugasa "expired". Pullik tariflar umrbod (planUntil = null).

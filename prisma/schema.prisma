@@ -217,3 +217,23 @@ model PaymentRequest {
   @@index([restaurantId])
   @@index([status])
 }
+
+// Domenni admin orqali ulash so'rovi (40 000 so'm/yil xizmat)
+model DomainRequest {
+  id           String    @id @default(cuid())
+  restaurantId String
+  userId       String
+  domain       String
+  note         String?
+  receiptImage String?
+  status       String    @default("PENDING") // PENDING | DONE | REJECTED
+  adminNote    String?
+  createdAt    DateTime  @default(now())
+  reviewedAt   DateTime?
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@index([status])
+}

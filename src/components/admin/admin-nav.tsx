@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   CreditCard,
   Wallet,
+  Globe,
   Store,
   LogOut,
   Menu,
@@ -20,6 +21,7 @@ const nav = [
   { href: "/admin", label: "Bosh sahifa", icon: LayoutDashboard },
   { href: "/admin/payments", label: "To'lovlar", icon: Wallet },
   { href: "/admin/cards", label: "Kartalar", icon: CreditCard },
+  { href: "/admin/domains", label: "Domenlar", icon: Globe },
   { href: "/admin/restaurants", label: "Restoranlar", icon: Store },
 ];
 

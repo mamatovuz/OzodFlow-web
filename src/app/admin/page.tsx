@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Wallet, Store, Users, Clock, CheckCircle2 } from "lucide-react";
+import { Wallet, Store, Clock, CheckCircle2, Globe } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { Card, Badge } from "@/components/ui";
 import { formatPrice } from "@/lib/utils";
@@ -7,10 +7,10 @@ import { formatPrice } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 export default async function AdminHome() {
-  const [pending, restaurants, users, approvedAgg, recent] = await Promise.all([
+  const [pending, domainsPending, restaurants, approvedAgg, recent] = await Promise.all([
     prisma.paymentRequest.count({ where: { status: "PENDING" } }),
+    prisma.domainRequest.count({ where: { status: "PENDING" } }),
     prisma.restaurant.count(),
-    prisma.user.count(),
     prisma.paymentRequest.aggregate({
       where: { status: "APPROVED" },
       _sum: { amount: true },
@@ -24,8 +24,8 @@ export default async function AdminHome() {
 
   const cards = [
     { label: "Kutilayotgan to'lovlar", value: pending, icon: Clock, href: "/admin/payments" },
+    { label: "Domen so'rovlari", value: domainsPending, icon: Globe, href: "/admin/domains" },
     { label: "Restoranlar", value: restaurants, icon: Store, href: "/admin/restaurants" },
-    { label: "Foydalanuvchilar", value: users, icon: Users },
     {
       label: "Jami tushum",
       value: formatPrice(approvedAgg._sum.amount || 0, "UZS"),

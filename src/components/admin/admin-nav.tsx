@@ -19,12 +19,12 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const nav = [
-  { href: "/admin", label: "Bosh sahifa", icon: LayoutDashboard },
-  { href: "/admin/payments", label: "To'lovlar", icon: Wallet },
-  { href: "/admin/cards", label: "Kartalar", icon: CreditCard },
-  { href: "/admin/domains", label: "Domenlar", icon: Globe },
-  { href: "/admin/restaurants", label: "Restoranlar", icon: Store },
-  { href: "/admin/settings", label: "Sozlamalar", icon: Settings },
+  { href: "/admins", label: "Bosh sahifa", icon: LayoutDashboard },
+  { href: "/admins/payments", label: "To'lovlar", icon: Wallet },
+  { href: "/admins/cards", label: "Kartalar", icon: CreditCard },
+  { href: "/admins/domains", label: "Domenlar", icon: Globe },
+  { href: "/admins/restaurants", label: "Restoranlar", icon: Store },
+  { href: "/admins/settings", label: "Sozlamalar", icon: Settings },
 ];
 
 export function AdminNav({ name }: { name: string }) {
@@ -34,7 +34,7 @@ export function AdminNav({ name }: { name: string }) {
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
+    router.push("/admins/login");
     router.refresh();
   }
 
@@ -49,8 +49,8 @@ export function AdminNav({ name }: { name: string }) {
       <nav className="flex flex-1 flex-col gap-1">
         {nav.map((item) => {
           const active =
-            item.href === "/admin"
-              ? pathname === "/admin"
+            item.href === "/admins"
+              ? pathname === "/admins"
               : pathname.startsWith(item.href);
           return (
             <Link

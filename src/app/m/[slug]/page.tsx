@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
-import { getMenuBySlug } from "@/lib/menu";
+import { getMenuBySlug, resolveTable } from "@/lib/menu";
 import { PublicMenu } from "@/components/public/public-menu";
 
 export const dynamic = "force-dynamic";
@@ -30,12 +30,17 @@ export async function generateMetadata({
 
 export default async function PublicMenuPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ t?: string }>;
 }) {
   const { slug } = await params;
+  const { t } = await searchParams;
   const data = await getMenuBySlug(slug);
   if (!data) notFound();
+
+  const table = await resolveTable(data.restaurant.id, t);
 
   return (
     <PublicMenu
@@ -43,6 +48,7 @@ export default async function PublicMenuPage({
       categories={data.categories}
       products={data.products}
       theme={data.theme}
+      table={table}
     />
   );
 }

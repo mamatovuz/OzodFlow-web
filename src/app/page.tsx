@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { headers } from "next/headers";
-import { getMenuByDomain } from "@/lib/menu";
+import { getMenuByDomain, resolveTable } from "@/lib/menu";
 import { PublicMenu } from "@/components/public/public-menu";
 import {
   QrCode,
@@ -145,7 +145,11 @@ const PLATFORM_HOSTS = (process.env.PLATFORM_HOSTS || "")
   .map((h) => h.trim().toLowerCase())
   .filter(Boolean);
 
-export default async function LandingPage() {
+export default async function LandingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ t?: string }>;
+}) {
   // Custom domain: agar host restoran domeniga to'g'ri kelsa — menyuni ko'rsatamiz
   const h = await headers();
   const host = (h.get("host") || "").split(":")[0].toLowerCase();
@@ -159,12 +163,15 @@ export default async function LandingPage() {
   if (!isPlatform) {
     const menu = await getMenuByDomain(host);
     if (menu) {
+      const { t } = await searchParams;
+      const table = await resolveTable(menu.restaurant.id, t);
       return (
         <PublicMenu
           restaurant={menu.restaurant}
           categories={menu.categories}
           products={menu.products}
           theme={menu.theme}
+          table={table}
         />
       );
     }

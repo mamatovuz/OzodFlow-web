@@ -6,6 +6,8 @@ import { useState } from "react";
 import {
   LayoutDashboard,
   UtensilsCrossed,
+  ClipboardList,
+  Table2,
   Store,
   Palette,
   QrCode,
@@ -22,7 +24,9 @@ import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/orders", label: "Buyurtmalar", icon: ClipboardList },
   { href: "/dashboard/menu", label: "Menyu", icon: UtensilsCrossed },
+  { href: "/dashboard/tables", label: "Stollar", icon: Table2 },
   { href: "/dashboard/profile", label: "Restoran profili", icon: Store },
   { href: "/dashboard/design", label: "Menyu dizayni", icon: Palette },
   { href: "/dashboard/qr", label: "QR kod", icon: QrCode },

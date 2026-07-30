@@ -29,3 +29,16 @@ export async function getMenuByDomain(domain: string) {
   if (!restaurant || !restaurant.isActive) return null;
   return buildMenu(restaurant);
 }
+
+// QR koddagi stolni aniqlaydi (?t=CODE)
+export async function resolveTable(
+  restaurantId: string,
+  code: string | undefined
+): Promise<{ code: string; name: string } | null> {
+  if (!code) return null;
+  const t = await prisma.restaurantTable.findFirst({
+    where: { code, restaurantId },
+    select: { code: true, name: true },
+  });
+  return t ?? null;
+}

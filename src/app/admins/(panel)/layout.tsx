@@ -9,8 +9,7 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const user = await getSessionUser();
-  if (!user) redirect("/login");
-  if (user.role !== "ADMIN") redirect("/dashboard");
+  if (!user || user.role !== "ADMIN") redirect("/admins/login");
 
   return (
     <div className="flex min-h-screen flex-col bg-surface lg:flex-row">

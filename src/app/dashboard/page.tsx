@@ -9,10 +9,12 @@ import {
   Clock,
   Crown,
 } from "lucide-react";
+import { ClipboardList, Wallet, Flame } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { getUserRestaurant } from "@/lib/api";
 import { getDashboardStats } from "@/lib/stats";
 import { Card, Badge, Button } from "@/components/ui";
+import { formatPrice } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +77,37 @@ export default async function DashboardHome() {
             </Button>
           </Link>
         </div>
+      </div>
+
+      {/* Buyurtma kartalari */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Link href="/dashboard/orders">
+          <Card className="p-5 transition-all hover:shadow-card">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
+              <ClipboardList className="h-5 w-5" />
+            </div>
+            <p className="text-2xl font-bold text-foreground">{stats.todayOrders}</p>
+            <p className="mt-0.5 text-sm text-muted">Bugungi buyurtmalar</p>
+          </Card>
+        </Link>
+        <Card className="p-5">
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-success/10 text-success">
+            <Wallet className="h-5 w-5" />
+          </div>
+          <p className="text-2xl font-bold text-foreground">
+            {formatPrice(stats.todayRevenue, restaurant.currency)}
+          </p>
+          <p className="mt-0.5 text-sm text-muted">Bugungi daromad</p>
+        </Card>
+        <Link href="/dashboard/orders">
+          <Card className="p-5 transition-all hover:shadow-card">
+            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-warning/10 text-warning">
+              <Flame className="h-5 w-5" />
+            </div>
+            <p className="text-2xl font-bold text-foreground">{stats.activeOrders}</p>
+            <p className="mt-0.5 text-sm text-muted">Faol buyurtmalar</p>
+          </Card>
+        </Link>
       </div>
 
       {/* Statistika kartalari */}

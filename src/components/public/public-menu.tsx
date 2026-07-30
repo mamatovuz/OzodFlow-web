@@ -13,9 +13,16 @@ import {
   X,
   UtensilsCrossed,
   Star,
+  Plus,
 } from "lucide-react";
 import { formatPrice, parseJson } from "@/lib/utils";
 import type { MenuTheme } from "@/lib/themes";
+import {
+  FloatingCart,
+  CheckoutModal,
+  QtyControl,
+  type CartLine,
+} from "@/components/public/order-cart";
 
 type PublicProduct = {
   id: string;
@@ -68,17 +75,44 @@ export function PublicMenu({
   categories,
   products,
   theme,
+  table,
 }: {
   restaurant: PublicRestaurant;
   categories: PublicCategory[];
   products: PublicProduct[];
   theme: MenuTheme;
+  table: { code: string; name: string } | null;
 }) {
   const [activeCat, setActiveCat] = useState<string>(categories[0]?.id ?? "");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [detail, setDetail] = useState<PublicProduct | null>(null);
+  const [cart, setCart] = useState<Record<string, number>>({});
+  const [cartOpen, setCartOpen] = useState(false);
   const catRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  function addToCart(id: string, qty = 1) {
+    setCart((c) => ({ ...c, [id]: (c[id] || 0) + qty }));
+  }
+  function setQty(id: string, qty: number) {
+    setCart((c) => {
+      const n = { ...c };
+      if (qty <= 0) delete n[id];
+      else n[id] = qty;
+      return n;
+    });
+  }
+  const cartLines: CartLine[] = products
+    .filter((p) => cart[p.id])
+    .map((p) => ({
+      productId: p.id,
+      name: p.name,
+      price: p.price,
+      qty: cart[p.id],
+      image: parseJson<string[]>(p.images, [])[0],
+    }));
+  const cartCount = Object.values(cart).reduce((a, b) => a + b, 0);
+  const cartTotal = cartLines.reduce((s, l) => s + l.price * l.qty, 0);
 
   const accent = theme.accent || restaurant.primaryColor || "#2563EB";
 
@@ -147,7 +181,7 @@ export function PublicMenu({
   }
 
   return (
-    <div className="min-h-screen bg-background pb-16" style={themeStyle}>
+    <div className="min-h-screen bg-background pb-24" style={themeStyle}>
       {/* Cover / Header */}
       <div className="relative">
         <div className="h-40 w-full overflow-hidden bg-surface-2 sm:h-52">
@@ -198,6 +232,17 @@ export function PublicMenu({
             )}
           </div>
         </div>
+
+        {/* Stol banneri */}
+        {table && (
+          <div
+            className="mt-4 flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-white"
+            style={{ background: accent }}
+          >
+            <UtensilsCrossed className="h-4 w-4" />
+            Siz: <b>{table.name}</b>
+          </div>
+        )}
 
         {/* Aloqa chiplar */}
         <div className="mt-4 flex flex-wrap gap-2">
@@ -306,7 +351,10 @@ export function PublicMenu({
                     product={p}
                     currency={restaurant.currency}
                     accent={accent}
-                    onClick={() => openDetail(p)}
+                    qty={cart[p.id] || 0}
+                    onOpen={() => openDetail(p)}
+                    onAdd={() => addToCart(p.id)}
+                    onSetQty={(q) => setQty(p.id, q)}
                   />
                 ))}
               </div>
@@ -343,9 +391,36 @@ export function PublicMenu({
           product={detail}
           currency={restaurant.currency}
           accent={accent}
+          onAdd={(q) => {
+            addToCart(detail.id, q);
+            setDetail(null);
+          }}
           onClose={() => setDetail(null)}
         />
       )}
+
+      {/* Doimiy savat */}
+      <FloatingCart
+        count={cartCount}
+        total={cartTotal}
+        currency={restaurant.currency}
+        accent={accent}
+        onOpen={() => setCartOpen(true)}
+      />
+
+      {/* Savat / buyurtma */}
+      <CheckoutModal
+        open={cartOpen}
+        onClose={() => setCartOpen(false)}
+        items={cartLines}
+        currency={restaurant.currency}
+        accent={accent}
+        slug={restaurant.slug}
+        tableCode={table?.code ?? null}
+        tableName={table?.name ?? null}
+        onSetQty={setQty}
+        onClear={() => setCart({})}
+      />
     </div>
   );
 }
@@ -397,18 +472,24 @@ function ProductRow({
   product: p,
   currency,
   accent,
-  onClick,
+  qty,
+  onOpen,
+  onAdd,
+  onSetQty,
 }: {
   product: PublicProduct;
   currency: string;
   accent: string;
-  onClick: () => void;
+  qty: number;
+  onOpen: () => void;
+  onAdd: () => void;
+  onSetQty: (q: number) => void;
 }) {
   const imgs = parseJson<string[]>(p.images, []);
   return (
-    <button
-      onClick={onClick}
-      className={`flex w-full gap-3 rounded-2xl border border-border bg-card p-3 text-left shadow-soft transition-all active:scale-[0.99] ${
+    <div
+      onClick={onOpen}
+      className={`flex w-full cursor-pointer gap-3 rounded-2xl border border-border bg-card p-3 text-left shadow-soft transition-all active:scale-[0.99] ${
         !p.isAvailable ? "opacity-60" : ""
       }`}
     >
@@ -452,22 +533,37 @@ function ProductRow({
           )}
         </div>
         <div className="mt-auto flex items-center gap-2 pt-1">
-          <span className="font-bold" style={{ color: accent }}>
-            {formatPrice(p.price, currency)}
-          </span>
-          {p.oldPrice && (
-            <span className="text-xs text-muted line-through">
-              {formatPrice(p.oldPrice, currency)}
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="font-bold" style={{ color: accent }}>
+              {formatPrice(p.price, currency)}
             </span>
-          )}
-          {!p.isAvailable && (
-            <span className="ml-auto text-xs font-medium text-error">
-              Mavjud emas
-            </span>
+            {p.oldPrice && (
+              <span className="text-xs text-muted line-through">
+                {formatPrice(p.oldPrice, currency)}
+              </span>
+            )}
+          </div>
+          {/* Savatga qo'shish */}
+          {p.isAvailable ? (
+            <div onClick={(e) => e.stopPropagation()}>
+              {qty > 0 ? (
+                <QtyControl qty={qty} accent={accent} onChange={onSetQty} size="sm" />
+              ) : (
+                <button
+                  onClick={onAdd}
+                  className="flex h-9 items-center gap-1 rounded-lg px-3 text-sm font-medium text-white"
+                  style={{ background: accent }}
+                >
+                  <Plus className="h-4 w-4" /> Qo'shish
+                </button>
+              )}
+            </div>
+          ) : (
+            <span className="text-xs font-medium text-error">Mavjud emas</span>
           )}
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -475,14 +571,17 @@ function ProductDetail({
   product: p,
   currency,
   accent,
+  onAdd,
   onClose,
 }: {
   product: PublicProduct;
   currency: string;
   accent: string;
+  onAdd: (qty: number) => void;
   onClose: () => void;
 }) {
   const imgs = parseJson<string[]>(p.images, []);
+  const [qty, setQtyLocal] = useState(1);
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -593,6 +692,20 @@ function ProductDetail({
             </div>
           )}
         </div>
+
+        {/* Savatga qo'shish */}
+        {p.isAvailable && (
+          <div className="sticky bottom-0 flex items-center gap-3 border-t border-border bg-card p-4">
+            <QtyControl qty={qty} accent={accent} onChange={(q) => setQtyLocal(Math.max(1, q))} />
+            <button
+              onClick={() => onAdd(qty)}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl py-3 font-medium text-white"
+              style={{ background: accent }}
+            >
+              Savatga qo'shish · {formatPrice(p.price * qty, currency)}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

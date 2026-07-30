@@ -29,6 +29,21 @@ model User {
   memberships     Membership[]
   paymentRequests PaymentRequest[]
   domainRequests  DomainRequest[]
+  resetCodes      PasswordReset[]
+}
+
+// Parol tiklash kodi (Telegram bot orqali yuboriladi)
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Session {
@@ -83,8 +98,32 @@ model Restaurant {
   memberships     Membership[]
   paymentRequests PaymentRequest[]
   domainRequests  DomainRequest[]
+  orders          Order[]
 
   @@index([ownerId])
+}
+
+// ─────────────────────────────────────────────
+// Buyurtma tizimi
+// ─────────────────────────────────────────────
+model Order {
+  id           String   @id @default(cuid())
+  restaurantId String
+  number       Int // restoran ichida ketma-ket raqam
+  tableCode    String?
+  tableName    String?
+  phone        String?
+  comment      String?
+  status       String   @default("NEW") // NEW | ACCEPTED | PREPARING | READY | DELIVERED | CANCELLED
+  total        Float    @default(0)
+  items        String // JSON: [{productId, name, price, qty}]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, status])
+  @@index([createdAt])
 }
 
 // Xodimlar / rollar (Business tarif uchun tayyor)

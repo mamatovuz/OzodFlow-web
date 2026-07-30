@@ -23,9 +23,9 @@ export default async function AdminHome() {
   ]);
 
   const cards = [
-    { label: "Kutilayotgan to'lovlar", value: pending, icon: Clock, href: "/admin/payments" },
-    { label: "Domen so'rovlari", value: domainsPending, icon: Globe, href: "/admin/domains" },
-    { label: "Restoranlar", value: restaurants, icon: Store, href: "/admin/restaurants" },
+    { label: "Kutilayotgan to'lovlar", value: pending, icon: Clock, href: "/admins/payments" },
+    { label: "Domen so'rovlari", value: domainsPending, icon: Globe, href: "/admins/domains" },
+    { label: "Restoranlar", value: restaurants, icon: Store, href: "/admins/restaurants" },
     {
       label: "Jami tushum",
       value: formatPrice(approvedAgg._sum.amount || 0, "UZS"),
@@ -64,7 +64,7 @@ export default async function AdminHome() {
       <Card className="p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-semibold text-foreground">Oxirgi to'lov so'rovlari</h2>
-          <Link href="/admin/payments" className="text-sm text-accent hover:underline">
+          <Link href="/admins/payments" className="text-sm text-accent hover:underline">
             Hammasi →
           </Link>
         </div>

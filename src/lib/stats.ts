@@ -19,6 +19,9 @@ export async function getDashboardStats(restaurantId: string) {
     categories,
     lastUpdated,
     restaurant,
+    todayOrders,
+    todayRevenueAgg,
+    activeOrders,
   ] = await Promise.all([
     prisma.scanEvent.count({
       where: { restaurantId, createdAt: { gte: today } },
@@ -41,6 +44,23 @@ export async function getDashboardStats(restaurantId: string) {
     prisma.restaurant.findUnique({
       where: { id: restaurantId },
       select: { plan: true, planUntil: true },
+    }),
+    prisma.order.count({
+      where: { restaurantId, createdAt: { gte: today } },
+    }),
+    prisma.order.aggregate({
+      where: {
+        restaurantId,
+        createdAt: { gte: today },
+        status: { not: "CANCELLED" },
+      },
+      _sum: { total: true },
+    }),
+    prisma.order.count({
+      where: {
+        restaurantId,
+        status: { in: ["NEW", "ACCEPTED", "PREPARING", "READY"] },
+      },
     }),
   ]);
 
@@ -71,6 +91,9 @@ export async function getDashboardStats(restaurantId: string) {
     plan: restaurant?.plan ?? "FREE",
     planUntil: restaurant?.planUntil ?? null,
     daily,
+    todayOrders,
+    todayRevenue: todayRevenueAgg._sum.total ?? 0,
+    activeOrders,
   };
 }
 

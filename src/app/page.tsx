@@ -179,7 +179,7 @@ export default async function LandingPage({
                   Bepul boshlash <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
-              <a href="/m/demo" target="_blank" rel="noreferrer">
+              <a href="/m/test" target="_blank" rel="noreferrer">
                 <Button variant="outline" size="lg" className="w-full sm:w-auto">
                   <Eye className="h-4 w-4" /> Demo menyuni ko'rish
                 </Button>

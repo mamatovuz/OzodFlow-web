@@ -12,7 +12,7 @@ async function main() {
     where: { email: "demo-owner@ozodflow.uz" },
   });
   if (existing) await prisma.user.delete({ where: { id: existing.id } });
-  await prisma.restaurant.deleteMany({ where: { slug: "demo" } });
+  await prisma.restaurant.deleteMany({ where: { slug: { in: ["demo", "test"] } } });
 
   const password = await bcrypt.hash("demo1234", 10);
 
@@ -142,7 +142,7 @@ async function main() {
     }
   }
 
-  console.log("✓ Demo tayyor: /m/demo (Ziravor)");
+  console.log("✓ Demo tayyor: /m/test (Ziravor)");
 }
 
 main()

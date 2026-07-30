@@ -56,7 +56,7 @@ try {
   }
 
   // Demo restoran yo'q bo'lsa yaratamiz (/m/demo)
-  const demo = await prisma.restaurant.findUnique({ where: { slug: "demo" } });
+  const demo = await prisma.restaurant.findUnique({ where: { slug: "test" } });
   await prisma.$disconnect();
   if (!demo) {
     console.log("[start] Demo restoran yaratilmoqda...");

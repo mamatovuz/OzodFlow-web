@@ -51,7 +51,7 @@ export async function PATCH(req: NextRequest) {
     const domain = (data.customDomain || "").trim().toLowerCase();
     if (domain) {
       if (!access.canCustomDomain) {
-        return fail("O'z domenini ulash Pro yoki Pro Max tarifida mavjud", 403);
+        return fail("O'z domenini ulash faqat Pro Max tarifida mavjud", 403);
       }
       // Oddiy validatsiya
       if (!/^([a-z0-9-]+\.)+[a-z]{2,}$/.test(domain)) {

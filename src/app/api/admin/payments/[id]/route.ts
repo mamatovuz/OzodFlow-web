@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { adminGuard, ok, fail } from "@/lib/api";
-import { PLANS, type PlanKey } from "@/lib/plans";
+import { PLAN_DAYS, type PlanKey } from "@/lib/plans";
 
 // To'lovni tasdiqlash yoki rad etish
 // Body: { action: "approve" | "reject", note?: string }
@@ -25,21 +25,28 @@ export async function PATCH(
 
   if (action === "approve") {
     const plan = request.plan as PlanKey;
-    // Pullik tariflar bir martalik — umrbod (planUntil = null)
+    // Oylik obuna: faol bo'lsa uzaytiramiz, aks holda bugundan boshlaymiz
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id: request.restaurantId },
+      select: { planUntil: true, plan: true },
+    });
+    const now = new Date();
+    const current = restaurant?.planUntil ? new Date(restaurant.planUntil) : null;
+    const base =
+      current && current > now && restaurant?.plan === plan ? current : now;
+    const planUntil = new Date(base.getTime() + PLAN_DAYS * 24 * 60 * 60 * 1000);
+
     await prisma.$transaction([
       prisma.restaurant.update({
         where: { id: request.restaurantId },
-        data: {
-          plan,
-          planUntil: PLANS[plan].oneTime ? null : undefined,
-        },
+        data: { plan, planUntil },
       }),
       prisma.paymentRequest.update({
         where: { id },
         data: { status: "APPROVED", adminNote: note || null, reviewedAt: new Date() },
       }),
     ]);
-    return ok({ status: "APPROVED" });
+    return ok({ status: "APPROVED", planUntil });
   }
 
   if (action === "reject") {

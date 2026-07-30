@@ -1,5 +1,5 @@
-// Tarif rejalar va to'lov mantiqi
-// Pullik tariflar BIR MARTALIK to'lov — umrbod amal qiladi.
+// Tarif rejalar metama'lumoti (narxlar DB'da — lib/plan-prices.ts)
+// Pullik tariflar OYLIK — muddati tugaydi.
 
 export type PlanKey = "FREE" | "PRO" | "PROMAX";
 
@@ -7,70 +7,73 @@ export const PLANS: Record<
   PlanKey,
   {
     name: string;
-    price: number; // bir martalik narx (so'm)
-    oneTime: boolean;
+    defaultPrice: number; // oylik standart narx (admin o'zgartiradi)
     productLimit: number | null;
     premiumThemes: boolean; // premium menyu dizaynlari
     customDomain: boolean; // o'z domenini ulash
-    features: string[];
+    ordersEnabled: boolean;
   }
 > = {
   FREE: {
     name: "Free",
-    price: 0,
-    oneTime: false,
+    defaultPrice: 0,
     productLimit: 20,
     premiumThemes: false,
     customDomain: false,
-    features: [
-      "20 ta mahsulot",
-      "7 kunlik sinov muddati",
-      "Oq va Qora dizayn",
-      "Asosiy QR kod",
-    ],
+    ordersEnabled: true,
   },
   PRO: {
     name: "Pro",
-    price: 30000,
-    oneTime: true,
+    defaultPrice: 30000,
     productLimit: null,
     premiumThemes: false,
-    customDomain: true,
-    features: [
-      "Cheksiz mahsulot",
-      "To'liq statistika",
-      "Cheksiz QR kod",
-      "O'z domeningizni ulash",
-      "Bir martalik to'lov — umrbod",
-    ],
+    customDomain: false,
+    ordersEnabled: true,
   },
   PROMAX: {
     name: "Pro Max",
-    price: 99000,
-    oneTime: true,
+    defaultPrice: 99000,
     productLimit: null,
     premiumThemes: true,
     customDomain: true,
-    features: [
-      "Pro dagi hammasi",
-      "5 ta premium menyu dizayni",
-      "O'z domeningizni ulash",
-      "Filiallar va xodimlar (tez orada)",
-      "Bir martalik to'lov — umrbod",
-    ],
+    ordersEnabled: true,
   },
 };
 
 export const PAID_PLANS: PlanKey[] = ["PRO", "PROMAX"];
-
 export const FREE_TRIAL_DAYS = 7;
+export const PLAN_DAYS = 30; // oylik obuna muddati
 
 // Admin orqali domen ulash xizmati narxi (yillik)
 export const DOMAIN_SERVICE_PRICE = 40000;
 
+// Landing/taqqoslash uchun to'liq funksiyalar ro'yxati.
+// har bir funksiya qaysi tariflarda borligini ko'rsatadi.
+export const FEATURE_MATRIX: {
+  label: string;
+  free: boolean | string;
+  pro: boolean | string;
+  promax: boolean | string;
+}[] = [
+  { label: "Mahsulotlar soni", free: "20 ta", pro: "Cheksiz", promax: "Cheksiz" },
+  { label: "QR menyu", free: true, pro: true, promax: true },
+  { label: "Buyurtma tizimi", free: true, pro: true, promax: true },
+  { label: "Stol QR kodlari", free: true, pro: true, promax: true },
+  { label: "Global qidiruv", free: true, pro: true, promax: true },
+  { label: "Oq va Qora dizayn", free: true, pro: true, promax: true },
+  { label: "To'liq statistika", free: false, pro: true, promax: true },
+  { label: "Real vaqt buyurtmalar", free: true, pro: true, promax: true },
+  { label: "Ovozli bildirishnoma", free: false, pro: true, promax: true },
+  { label: "5 ta premium dizayn", free: false, pro: false, promax: true },
+  { label: "O'z domeningiz", free: false, pro: false, promax: true },
+  { label: "Xodimlar va rollar", free: false, pro: false, promax: true },
+  { label: "Excel import/eksport", free: false, pro: false, promax: true },
+  { label: "Reklama bannerlari", free: false, pro: true, promax: true },
+];
+
 /**
  * Restoranning amaldagi tarifini hisoblaydi.
- * FREE trial muddati tugasa "expired". Pullik tariflar umrbod (planUntil = null).
+ * Pullik tariflar OYLIK — planUntil o'tsa muddati tugaydi (FREE limitlariga tushadi).
  */
 export function getEffectivePlan(restaurant: {
   plan: string;
@@ -80,22 +83,19 @@ export function getEffectivePlan(restaurant: {
   const plan = (restaurant.plan as PlanKey) || "FREE";
   const until = restaurant.planUntil ? new Date(restaurant.planUntil) : null;
 
-  // Pullik tariflar umrbod — muddat tekshirilmaydi
-  const isPaid = PAID_PLANS.includes(plan);
-  const expired = !isPaid && until ? until < now : false;
-
+  const expired = until ? until < now : false;
   const effective: PlanKey = expired ? "FREE" : plan;
 
   return {
     plan,
     effective,
     expired,
-    isPaid,
+    isPaid: PAID_PLANS.includes(plan),
     planUntil: until,
     productLimit: PLANS[effective].productLimit,
     canPremiumThemes: PLANS[effective].premiumThemes,
     canCustomDomain: PLANS[effective].customDomain,
-    daysLeft: !isPaid && until
+    daysLeft: until
       ? Math.max(0, Math.ceil((until.getTime() - now.getTime()) / 86400000))
       : null,
   };

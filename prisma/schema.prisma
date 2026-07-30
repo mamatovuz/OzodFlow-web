@@ -32,6 +32,13 @@ model User {
   resetCodes      PasswordReset[]
 }
 
+// Tarif narxlari (admin paneldan o'zgartiriladi)
+model PlanConfig {
+  plan      String   @id // PRO | PROMAX
+  price     Int
+  updatedAt DateTime @updatedAt
+}
+
 // Parol tiklash kodi (Telegram bot orqali yuboriladi)
 model PasswordReset {
   id        String   @id @default(cuid())

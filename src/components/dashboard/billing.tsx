@@ -3,19 +3,19 @@
 import { useEffect, useState } from "react";
 import {
   Check,
+  X,
   Crown,
   Loader2,
   Copy,
   Upload,
   Clock,
-  X,
   CheckCircle2,
   XCircle,
 } from "lucide-react";
 import { Button, Card, Badge, Label } from "@/components/ui";
 import { Modal } from "@/components/ui-modal";
 import { formatPrice } from "@/lib/utils";
-import { PLANS, type PlanKey } from "@/lib/plans";
+import { PLANS, FEATURE_MATRIX, type PlanKey } from "@/lib/plans";
 
 type PaymentRequest = {
   id: string;
@@ -35,6 +35,7 @@ type PayCard = {
 };
 
 const order: PlanKey[] = ["FREE", "PRO", "PROMAX"];
+const matrixKey = { FREE: "free", PRO: "pro", PROMAX: "promax" } as const;
 
 export function Billing({
   currentPlan,
@@ -46,6 +47,11 @@ export function Billing({
   expired: boolean;
 }) {
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
+  const [prices, setPrices] = useState<Record<string, number>>({
+    FREE: 0,
+    PRO: PLANS.PRO.defaultPrice,
+    PROMAX: PLANS.PROMAX.defaultPrice,
+  });
   const [modal, setModal] = useState<PlanKey | null>(null);
 
   async function loadRequests() {
@@ -53,9 +59,15 @@ export function Billing({
     const json = await res.json();
     if (json.success) setRequests(json.data);
   }
+  async function loadPrices() {
+    const res = await fetch("/api/payment/plans");
+    const json = await res.json();
+    if (json.success) setPrices(json.data);
+  }
 
   useEffect(() => {
     loadRequests();
+    loadPrices();
   }, []);
 
   const pending = requests.find((r) => r.status === "PENDING");
@@ -68,21 +80,20 @@ export function Billing({
           <Crown className="h-5 w-5 text-warning" />
           <h2 className="font-semibold text-foreground">Joriy tarif</h2>
         </div>
-        <div className="mt-3 flex items-center gap-3">
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           <span className="text-2xl font-bold text-foreground">
             {PLANS[currentPlan].name}
           </span>
-          {currentPlan === "FREE" && daysLeft !== null && (
-            <Badge variant={expired ? "error" : daysLeft <= 2 ? "warning" : "accent"}>
+          {daysLeft !== null && (
+            <Badge variant={expired ? "error" : daysLeft <= 3 ? "warning" : "accent"}>
               {expired ? "Muddati tugagan" : `${daysLeft} kun qoldi`}
             </Badge>
           )}
-          {currentPlan !== "FREE" && <Badge variant="success">Umrbod</Badge>}
         </div>
-        {currentPlan === "FREE" && (
+        {(currentPlan === "FREE" || expired) && (
           <p className="mt-2 text-sm text-muted">
-            Sinov muddati tugagach, mahsulotlar 20 tagacha cheklanadi. Umrbod
-            foydalanish uchun tarifni yangilang.
+            Pullik tariflar oylik. Muddat tugagach mahsulotlar 20 tagacha
+            cheklanadi.
           </p>
         )}
       </Card>
@@ -102,11 +113,11 @@ export function Billing({
         </Card>
       )}
 
-      {/* Tariflar */}
+      {/* Tariflar — to'liq taqqoslash */}
       <div className="grid gap-4 lg:grid-cols-3">
         {order.map((key) => {
-          const p = PLANS[key];
           const isCurrent = currentPlan === key && !expired;
+          const mk = matrixKey[key];
           return (
             <Card
               key={key}
@@ -115,28 +126,42 @@ export function Billing({
               }`}
             >
               <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-foreground">{p.name}</h3>
-                {isCurrent && <Badge variant="accent">Joriy</Badge>}
-                {key === "PROMAX" && !isCurrent && (
+                <h3 className="font-semibold text-foreground">{PLANS[key].name}</h3>
+                {isCurrent ? (
+                  <Badge variant="accent">Joriy</Badge>
+                ) : key === "PROMAX" ? (
                   <Badge variant="accent">Top</Badge>
-                )}
+                ) : null}
               </div>
               <div className="mt-2 flex items-baseline gap-1">
                 <span className="text-2xl font-bold text-foreground">
-                  {p.price === 0 ? "0" : formatPrice(p.price, "UZS")}
+                  {prices[key] === 0 ? "0" : formatPrice(prices[key], "UZS")}
                 </span>
-                {p.oneTime && (
-                  <span className="text-xs text-muted">/ bir martalik</span>
-                )}
+                {key !== "FREE" && <span className="text-xs text-muted">/ oy</span>}
               </div>
+
               <ul className="mt-4 flex-1 space-y-2">
-                {p.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                    <span className="text-foreground">{f}</span>
-                  </li>
-                ))}
+                {FEATURE_MATRIX.map((f) => {
+                  const val = f[mk];
+                  const has = val !== false;
+                  return (
+                    <li key={f.label} className="flex items-start gap-2 text-sm">
+                      {has ? (
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                      ) : (
+                        <X className="mt-0.5 h-4 w-4 shrink-0 text-muted/40" />
+                      )}
+                      <span className={has ? "text-foreground" : "text-muted/50"}>
+                        {f.label}
+                        {typeof val === "string" && (
+                          <span className="text-muted"> — {val}</span>
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
+
               {key !== "FREE" && !isCurrent && (
                 <Button
                   className="mt-5 w-full"
@@ -144,7 +169,7 @@ export function Billing({
                   disabled={!!pending}
                   onClick={() => setModal(key)}
                 >
-                  {pending ? "So'rov kutilmoqda" : `${p.name} sotib olish`}
+                  {pending ? "So'rov kutilmoqda" : `${PLANS[key].name} sotib olish`}
                 </Button>
               )}
             </Card>
@@ -164,8 +189,7 @@ export function Billing({
               >
                 <div>
                   <p className="text-sm font-medium text-foreground">
-                    {PLANS[r.plan as PlanKey].name} —{" "}
-                    {formatPrice(r.amount, "UZS")}
+                    {PLANS[r.plan as PlanKey].name} — {formatPrice(r.amount, "UZS")}
                   </p>
                   <p className="text-xs text-muted">
                     {new Date(r.createdAt).toLocaleString("uz-UZ")}
@@ -181,6 +205,7 @@ export function Billing({
       {modal && (
         <PaymentModal
           plan={modal}
+          price={prices[modal]}
           onClose={() => setModal(null)}
           onDone={() => {
             setModal(null);
@@ -201,10 +226,7 @@ function StatusBadge({ status, note }: { status: string; note: string | null }) 
     );
   if (status === "REJECTED")
     return (
-      <span
-        className="flex items-center gap-1 text-sm text-error"
-        title={note || ""}
-      >
+      <span className="flex items-center gap-1 text-sm text-error" title={note || ""}>
         <XCircle className="h-4 w-4" /> Rad etilgan
       </span>
     );
@@ -215,13 +237,14 @@ function StatusBadge({ status, note }: { status: string; note: string | null }) 
   );
 }
 
-// ─── To'lov modal ───
 function PaymentModal({
   plan,
+  price,
   onClose,
   onDone,
 }: {
   plan: PlanKey;
+  price: number;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -290,14 +313,13 @@ function PaymentModal({
     <Modal open onClose={onClose} title={`${PLANS[plan].name} — to'lov`}>
       <div className="space-y-5">
         <div className="rounded-xl bg-accent-soft p-4 text-center">
-          <p className="text-sm text-muted">To'lov summasi</p>
+          <p className="text-sm text-muted">Oylik to'lov</p>
           <p className="text-2xl font-bold text-accent">
-            {formatPrice(PLANS[plan].price, "UZS")}
+            {formatPrice(price, "UZS")}
           </p>
-          <p className="text-xs text-muted">Bir martalik — umrbod</p>
+          <p className="text-xs text-muted">1 oyga obuna</p>
         </div>
 
-        {/* Kartalar */}
         <div>
           <Label>1. Quyidagi kartaga o'tkazing</Label>
           {loadingCards ? (
@@ -306,20 +328,14 @@ function PaymentModal({
             </div>
           ) : cards.length === 0 ? (
             <p className="rounded-lg bg-surface-2 p-3 text-sm text-muted">
-              Hozircha to'lov kartasi qo'shilmagan. Iltimos, admin bilan
-              bog'laning.
+              Hozircha to'lov kartasi qo'shilmagan. Admin bilan bog'laning.
             </p>
           ) : (
             <div className="space-y-2">
               {cards.map((c) => (
-                <div
-                  key={c.id}
-                  className="rounded-xl border border-border bg-card p-3"
-                >
+                <div key={c.id} className="rounded-xl border border-border bg-card p-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted">
-                      {c.bankName}
-                    </span>
+                    <span className="text-xs font-medium text-muted">{c.bankName}</span>
                     <button
                       onClick={() => copyCard(c.cardNumber)}
                       className="flex items-center gap-1 text-xs text-accent"
@@ -345,7 +361,6 @@ function PaymentModal({
           )}
         </div>
 
-        {/* Chek yuklash */}
         <div>
           <Label>2. To'lov chekini yuklang</Label>
           {receipt ? (
@@ -399,9 +414,6 @@ function PaymentModal({
             So'rov yuborish
           </Button>
         </div>
-        <p className="text-center text-xs text-muted">
-          So'rov yuborilgach, admin chekni tekshiradi va tarifni faollashtiradi.
-        </p>
       </div>
     </Modal>
   );

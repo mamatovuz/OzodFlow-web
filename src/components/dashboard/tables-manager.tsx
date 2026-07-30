@@ -225,8 +225,8 @@ function TableQrModal({
         </button>
         <h3 className="font-semibold text-foreground">{table.name}</h3>
         <p className="mb-4 text-xs text-muted">Skaner qilinganda avtomatik biriktiriladi</p>
-        <div className="mx-auto inline-block rounded-xl bg-white p-3">
-          <canvas ref={canvasRef} />
+        <div className="mx-auto w-full max-w-[220px] rounded-xl bg-white p-3">
+          <canvas ref={canvasRef} className="!h-auto !w-full" />
         </div>
         <Button className="mt-4 w-full" onClick={download}>
           <Download className="h-4 w-4" /> PNG yuklab olish

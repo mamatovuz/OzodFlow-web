@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
 import { PLANS, type PlanKey } from "@/lib/plans";
+import { getPlanPrice } from "@/lib/plan-prices";
 
 const schema = z.object({
   plan: z.enum(["PRO", "PROMAX"]),
@@ -46,14 +47,14 @@ export async function POST(req: NextRequest) {
   }
 
   const plan = parsed.data.plan as PlanKey;
-  const amount = PLANS[plan].price;
+  const amount = await getPlanPrice(plan);
 
   const request = await prisma.paymentRequest.create({
     data: {
       restaurantId: restaurant.id,
       userId: user.id,
       plan,
-      months: 0, // bir martalik — umrbod
+      months: 1, // oylik obuna
       amount,
       receiptImage: parsed.data.receiptImage,
       status: "PENDING",

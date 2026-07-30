@@ -28,27 +28,27 @@ npm run dev          # http://localhost:3000
 
 1. Loyihani GitHub'ga push qiling, Railway'da "New Project → Deploy from GitHub".
 2. **Volume** qo'shing (bitta volume yetarli — baza ham, rasmlar ham unda saqlanadi):
-   - Service → **Variables** yonidagi **Volumes** (yoki `+ New` → Volume)
+   - Service → **Volumes** → **New Volume**
    - **Mount path:** `/app/data`  ← bu **papka yo'li** (`file` emas!)
 3. Environment variables (Variables bo'limi):
    ```
-   DATABASE_URL=file:/app/data/prod.db
-   UPLOAD_DIR=/app/data/uploads
    JWT_SECRET=<uzun-tasodifiy-satr>
    NEXT_PUBLIC_APP_URL=https://sizning-domeningiz.uz
    PLATFORM_HOSTS=sizning-domeningiz.uz
+   TELEGRAM_BOT_TOKEN=<@BotFather token>
+   TELEGRAM_ADMIN_CHAT_ID=<@userinfobot chat id>
    ```
-4. Railway avtomatik `npm run build` → `npm run start` qiladi (`start` bazani
-   push qiladi va serverni ishga tushiradi). `railway.json` sozlangan.
 
-**Muhim tushuncha:**
-- **Volume Mount path** = `/app/data` — bu papka (disk). `file` deb yozilmaydi.
-- `file:` faqat `DATABASE_URL` ichidagi Prisma belgisi (SQLite manzili).
-- Baza `/app/data/prod.db` faylida, yuklangan rasmlar `/app/data/uploads` da —
-  ikkalasi ham volume ichida, redeploy'da **o'chmaydi**.
-- Yuklangan rasmlar `/media/<nom>` orqali xizmat qilinadi.
+**Ma'lumot saqlanishi (muhim):**
+- Volume `/app/data` ga ulansa, ilova bazani va rasmlarni **avtomatik** o'sha
+  volume ichiga yozadi (`scripts/start.mjs` Railway volume'ni aniqlaydi).
+  `DATABASE_URL` ni qo'lda o'zgartirish **shart emas**.
+- Baza `/app/data/prod.db`, rasmlar `/app/data/uploads` — redeploy'da **o'chmaydi**.
+- **Volume ulanmasa, har deploy'da hamma narsa o'chadi!** Avval volume qo'shing.
 
-> Volume ulanmasa, baza va rasmlar har deploy'da o'chib ketadi.
+**Admin akkaunt:** har ishga tushishda avtomatik yaratiladi (yo'q bo'lsa).
+Standart: `mamatovo354@gmail.com` / `123@Ozod`. `ADMIN_EMAIL` va `ADMIN_PASSWORD`
+env orqali o'zgartirish mumkin. Admin panel: `/admins`.
 
 ## Skriptlar
 

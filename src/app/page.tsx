@@ -2,6 +2,9 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { getMenuByDomain, resolveTable } from "@/lib/menu";
 import { PublicMenu } from "@/components/public/public-menu";
+import { getPlanPrices } from "@/lib/plan-prices";
+import { PLANS, FEATURE_MATRIX } from "@/lib/plans";
+import { formatPrice } from "@/lib/utils";
 import {
   QrCode,
   LayoutDashboard,
@@ -14,6 +17,7 @@ import {
   Zap,
   ArrowRight,
   Check,
+  X,
 } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { Logo } from "@/components/logo";
@@ -77,46 +81,10 @@ const steps = [
   },
 ];
 
-const plans = [
-  {
-    name: "Free",
-    price: "0",
-    period: "so'm",
-    desc: "Sinab ko'rish uchun",
-    features: ["20 ta mahsulot", "7 kunlik sinov", "Oq va Qora dizayn", "Asosiy QR kod"],
-    cta: "Bepul boshlash",
-    highlight: false,
-  },
-  {
-    name: "Pro",
-    price: "30 000",
-    period: "so'm · bir martalik",
-    desc: "Umrbod foydalanish",
-    features: [
-      "Cheksiz mahsulot",
-      "To'liq statistika",
-      "Cheksiz QR kod",
-      "O'z domeningiz",
-      "Umrbod — bir martalik to'lov",
-    ],
-    cta: "Pro tanlash",
-    highlight: true,
-  },
-  {
-    name: "Pro Max",
-    price: "99 000",
-    period: "so'm · bir martalik",
-    desc: "Barcha imkoniyatlar",
-    features: [
-      "Pro dagi hammasi",
-      "5 ta premium menyu dizayni",
-      "O'z domeningiz",
-      "Filiallar (tez orada)",
-      "Umrbod — bir martalik to'lov",
-    ],
-    cta: "Pro Max tanlash",
-    highlight: false,
-  },
+const PLAN_ORDER = [
+  { key: "FREE" as const, mk: "free" as const, desc: "Sinab ko'rish uchun", cta: "Bepul boshlash", highlight: false },
+  { key: "PRO" as const, mk: "pro" as const, desc: "O'sib borayotgan biznes", cta: "Pro tanlash", highlight: false },
+  { key: "PROMAX" as const, mk: "promax" as const, desc: "Barcha imkoniyatlar", cta: "Pro Max tanlash", highlight: true },
 ];
 
 const testimonials = [
@@ -178,6 +146,7 @@ export default async function LandingPage({
   }
 
   const user = await getSessionUser();
+  const prices = await getPlanPrices();
 
   return (
     <div className="min-h-screen bg-background">
@@ -281,10 +250,10 @@ export default async function LandingPage({
             subtitle="Bepul boshlang, biznesingiz o'sishi bilan kengaytiring."
           />
           <div className="mt-12 grid gap-6 lg:grid-cols-3">
-            {plans.map((p) => (
+            {PLAN_ORDER.map((p) => (
               <div
-                key={p.name}
-                className={`relative rounded-2xl border p-6 ${
+                key={p.key}
+                className={`relative flex flex-col rounded-2xl border p-6 ${
                   p.highlight
                     ? "border-accent bg-card shadow-card"
                     : "border-border bg-card shadow-soft"
@@ -292,24 +261,42 @@ export default async function LandingPage({
               >
                 {p.highlight && (
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-accent px-3 py-1 text-xs font-medium text-white">
-                    Mashhur
+                    Eng to'liq
                   </span>
                 )}
-                <h3 className="font-semibold text-foreground">{p.name}</h3>
+                <h3 className="font-semibold text-foreground">{PLANS[p.key].name}</h3>
                 <p className="mt-1 text-sm text-muted">{p.desc}</p>
                 <div className="mt-4 flex items-baseline gap-1">
                   <span className="text-3xl font-bold text-foreground">
-                    {p.price}
+                    {prices[p.key] === 0 ? "0" : formatPrice(prices[p.key], "UZS")}
                   </span>
-                  <span className="text-sm text-muted">{p.period}</span>
+                  <span className="text-sm text-muted">
+                    {p.key === "FREE" ? "so'm" : "/ oy"}
+                  </span>
                 </div>
-                <ul className="mt-6 space-y-3">
-                  {p.features.map((feat) => (
-                    <li key={feat} className="flex items-center gap-2 text-sm">
-                      <Check className="h-4 w-4 shrink-0 text-success" />
-                      <span className="text-foreground">{feat}</span>
-                    </li>
-                  ))}
+                {p.key === "FREE" && (
+                  <p className="mt-1 text-xs text-muted">7 kunlik sinov</p>
+                )}
+                <ul className="mt-6 flex-1 space-y-2.5">
+                  {FEATURE_MATRIX.map((f) => {
+                    const val = f[p.mk];
+                    const has = val !== false;
+                    return (
+                      <li key={f.label} className="flex items-start gap-2 text-sm">
+                        {has ? (
+                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                        ) : (
+                          <X className="mt-0.5 h-4 w-4 shrink-0 text-muted/40" />
+                        )}
+                        <span className={has ? "text-foreground" : "text-muted/50 line-through"}>
+                          {f.label}
+                          {typeof val === "string" && (
+                            <span className="text-muted"> — {val}</span>
+                          )}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
                 <Link href="/register" className="mt-6 block">
                   <Button

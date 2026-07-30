@@ -53,9 +53,9 @@ export function QrGenerator({ url }: { url: string }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       {/* QR preview */}
-      <Card className="flex flex-col items-center justify-center p-8">
-        <div className="rounded-2xl bg-white p-4 shadow-soft">
-          <canvas ref={canvasRef} />
+      <Card className="flex flex-col items-center justify-center p-6 sm:p-8">
+        <div className="w-full max-w-[240px] rounded-2xl bg-white p-4 shadow-soft">
+          <canvas ref={canvasRef} className="!h-auto !w-full" />
         </div>
         <p className="mt-4 text-sm text-muted">
           Skanerlang va menyuni oching

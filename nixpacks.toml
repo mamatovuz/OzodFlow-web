@@ -1,0 +1,8 @@
+# Nixpacks konfiguratsiyasi (Railway)
+# `npm install` ishlatamiz (npm ci emas) — Windows'da yaratilgan lockfile
+# Linux native binary'larni (@tailwindcss/oxide, sharp) o'z ichiga olmaydi.
+# npm install ularni joriy platforma (Linux) uchun qayta yuklaydi (npm bug #4828).
+# Node versiyasi package.json "engines" orqali beriladi.
+
+[phases.install]
+cmds = ["npm install --no-audit --no-fund"]

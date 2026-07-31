@@ -25,18 +25,23 @@ export async function PATCH(
 
   if (action === "approve") {
     const plan = request.plan as PlanKey;
-    // Oylik obuna: faol bo'lsa uzaytiramiz, aks holda bugundan boshlaymiz
-    const restaurant = await prisma.restaurant.findUnique({
-      where: { id: request.restaurantId },
-      select: { planUntil: true, plan: true },
-    });
     const now = new Date();
-    const current = restaurant?.planUntil ? new Date(restaurant.planUntil) : null;
-    const base =
-      current && current > now && restaurant?.plan === plan ? current : now;
-    const planUntil = new Date(base.getTime() + PLAN_DAYS * 24 * 60 * 60 * 1000);
+    let planUntil: Date | null;
 
-    await prisma.$transaction([
+    if (request.isLifetime) {
+      planUntil = null; // umrbod
+    } else {
+      // Faol bo'lsa uzaytiramiz, aks holda bugundan
+      const restaurant = await prisma.restaurant.findUnique({
+        where: { id: request.restaurantId },
+        select: { planUntil: true, plan: true },
+      });
+      const current = restaurant?.planUntil ? new Date(restaurant.planUntil) : null;
+      const base = current && current > now && restaurant?.plan === plan ? current : now;
+      planUntil = new Date(base.getTime() + request.months * PLAN_DAYS * 24 * 60 * 60 * 1000);
+    }
+
+    const ops = [
       prisma.restaurant.update({
         where: { id: request.restaurantId },
         data: { plan, planUntil },
@@ -45,7 +50,17 @@ export async function PATCH(
         where: { id },
         data: { status: "APPROVED", adminNote: note || null, reviewedAt: new Date() },
       }),
-    ]);
+    ];
+    // Promo kod ishlatilgan bo'lsa — hisobga olamiz
+    if (request.promoCode) {
+      ops.push(
+        prisma.promoCode.updateMany({
+          where: { code: request.promoCode },
+          data: { usedCount: { increment: 1 } },
+        }) as never
+      );
+    }
+    await prisma.$transaction(ops);
     return ok({ status: "APPROVED", planUntil });
   }
 

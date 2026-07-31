@@ -47,6 +47,44 @@ export const PLAN_DAYS = 30; // oylik obuna muddati
 // Admin orqali domen ulash xizmati narxi (yillik)
 export const DOMAIN_SERVICE_PRICE = 40000;
 
+// Muddat narxlari 1 oylik narxdan avtomatik hisoblanadi
+export const YEARLY_DISCOUNT = 100000; // 1 yillikda chegirma (so'm)
+export const LIFETIME_MONTHS = 36; // umrbod = 36 oyga teng narx
+
+export type DurationOption = {
+  key: string;
+  label: string;
+  months: number; // umrbod uchun 0
+  lifetime?: boolean;
+  custom?: boolean;
+};
+
+export const DURATIONS: DurationOption[] = [
+  { key: "1", label: "1 oy", months: 1 },
+  { key: "3", label: "3 oy", months: 3 },
+  { key: "6", label: "6 oy", months: 6 },
+  { key: "12", label: "1 yil", months: 12 },
+  { key: "custom", label: "Boshqa", months: 0, custom: true },
+  { key: "lifetime", label: "Umrbod", months: 0, lifetime: true },
+];
+
+/**
+ * 1 oylik narxdan muddat narxini hisoblaydi.
+ * Har to'liq yilga YEARLY_DISCOUNT chegirma. Umrbod = LIFETIME_MONTHS × oylik.
+ */
+export function computePrice(
+  monthly: number,
+  months: number,
+  lifetime = false
+): number {
+  if (lifetime) return monthly * LIFETIME_MONTHS;
+  if (months <= 0) return 0;
+  let total = monthly * months;
+  const years = Math.floor(months / 12);
+  total -= YEARLY_DISCOUNT * years;
+  return Math.max(0, Math.round(total));
+}
+
 // Landing/taqqoslash uchun to'liq funksiyalar ro'yxati.
 // har bir funksiya qaysi tariflarda borligini ko'rsatadi.
 export const FEATURE_MATRIX: {

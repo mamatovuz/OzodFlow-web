@@ -13,6 +13,7 @@ import {
   Image as ImageIcon,
   QrCode,
   BarChart3,
+  Ticket,
   Settings,
   LogOut,
   Menu,
@@ -33,6 +34,7 @@ const nav = [
   { href: "/dashboard/banners", label: "Bannerlar", icon: ImageIcon },
   { href: "/dashboard/qr", label: "QR kod", icon: QrCode },
   { href: "/dashboard/stats", label: "Statistika", icon: BarChart3 },
+  { href: "/dashboard/promo", label: "Promo kod", icon: Ticket },
   { href: "/dashboard/settings", label: "Sozlamalar", icon: Settings },
 ];
 

@@ -89,7 +89,7 @@ export function Billing({
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <span className="text-2xl font-bold text-foreground">
-            {PLANS[currentPlan].name}
+            {PLANS[currentPlan]?.name ?? "Tarif"}
           </span>
           {daysLeft !== null && (
             <Badge variant={expired ? "error" : daysLeft <= 3 ? "warning" : "accent"}>
@@ -111,7 +111,7 @@ export function Billing({
           <div className="flex items-center gap-2 text-warning">
             <Clock className="h-4 w-4" />
             <p className="text-sm font-medium">
-              {PLANS[pending.plan as PlanKey].name} to'lovi tekshirilmoqda
+              {PLANS[pending.plan as PlanKey]?.name ?? pending.plan} to'lovi tekshirilmoqda
             </p>
           </div>
           <p className="mt-1 text-sm text-muted">
@@ -196,7 +196,7 @@ export function Billing({
               >
                 <div>
                   <p className="text-sm font-medium text-foreground">
-                    {PLANS[r.plan as PlanKey].name} — {formatPrice(r.amount, "UZS")}
+                    {PLANS[r.plan as PlanKey]?.name ?? r.plan} — {formatPrice(r.amount, "UZS")}
                   </p>
                   <p className="text-xs text-muted">
                     {new Date(r.createdAt).toLocaleString("uz-UZ")}

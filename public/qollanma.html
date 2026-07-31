@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OzodFlow — Restoran egalari uchun to'liq qo'llanma</title>
+<style>
+  :root {
+    --blue: #2563eb;
+    --blue-dark: #1d4ed8;
+    --ink: #1f2937;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --bg: #f8f9fb;
+    --soft: #eff6ff;
+    --green: #16a34a;
+    --amber: #d97706;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
+    color: var(--ink);
+    background: #e9edf3;
+    line-height: 1.6;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .toolbar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; justify-content: center; gap: 10px;
+    padding: 12px; background: #fff; border-bottom: 1px solid var(--line);
+  }
+  .toolbar button {
+    background: var(--blue); color: #fff; border: 0; border-radius: 10px;
+    padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .toolbar button.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+
+  .page {
+    width: 210mm; min-height: 297mm; margin: 16px auto; background: #fff;
+    padding: 20mm 18mm; box-shadow: 0 4px 24px rgba(0,0,0,.08);
+    position: relative;
+  }
+  /* Cover */
+  .cover {
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 0; overflow: hidden;
+  }
+  .cover-inner {
+    height: 297mm; display: flex; flex-direction: column; justify-content: center;
+    padding: 30mm; color: #fff;
+    background: linear-gradient(150deg, #2563eb 0%, #1e3a8a 100%);
+    position: relative;
+  }
+  .cover-inner::after {
+    content: ""; position: absolute; right: -80px; top: -80px;
+    width: 300px; height: 300px; border-radius: 50%; background: rgba(255,255,255,.08);
+  }
+  .cover .logo {
+    display: inline-flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 800;
+  }
+  .cover .logo .mark {
+    width: 46px; height: 46px; border-radius: 12px; background: #fff; color: var(--blue);
+    display: flex; align-items: center; justify-content: center; font-size: 26px;
+  }
+  .cover h1 { font-size: 52px; line-height: 1.1; margin-top: 60px; font-weight: 800; letter-spacing: -1px; }
+  .cover .sub { font-size: 20px; opacity: .9; margin-top: 18px; max-width: 480px; }
+  .cover .tag {
+    display: inline-block; margin-top: 30px; background: rgba(255,255,255,.15);
+    border: 1px solid rgba(255,255,255,.25); padding: 8px 16px; border-radius: 999px; font-size: 14px;
+  }
+  .cover .foot { position: absolute; bottom: 30mm; left: 30mm; right: 30mm; font-size: 13px; opacity: .8; display:flex; justify-content: space-between; }
+
+  h2.section {
+    font-size: 26px; font-weight: 800; color: var(--ink); margin: 0 0 6px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .badge {
+    width: 40px; height: 40px; border-radius: 12px; background: var(--blue); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; flex: none;
+  }
+  .lead { color: var(--muted); font-size: 15px; margin: 0 0 22px 54px; }
+
+  h3 { font-size: 17px; font-weight: 700; margin: 22px 0 8px; color: var(--ink); }
+  p { font-size: 14.5px; margin-bottom: 10px; }
+  ul { margin: 0 0 12px 20px; }
+  li { font-size: 14.5px; margin-bottom: 6px; }
+
+  .steps { counter-reset: st; margin: 8px 0 6px; }
+  .step { position: relative; padding: 0 0 16px 46px; }
+  .step::before {
+    counter-increment: st; content: counter(st);
+    position: absolute; left: 0; top: 0; width: 30px; height: 30px; border-radius: 50%;
+    background: var(--soft); color: var(--blue); border: 2px solid var(--blue);
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;
+  }
+  .step::after {
+    content: ""; position: absolute; left: 14px; top: 32px; bottom: 2px; width: 2px; background: var(--line);
+  }
+  .step:last-child::after { display: none; }
+  .step b { display: block; font-size: 15px; margin-bottom: 2px; }
+  .step span { color: var(--muted); font-size: 14px; }
+
+  .box {
+    border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; margin: 14px 0;
+    background: #fff; break-inside: avoid;
+  }
+  .box.tip { background: #f0fdf4; border-color: #bbf7d0; }
+  .box.tip b { color: var(--green); }
+  .box.warn { background: #fffbeb; border-color: #fde68a; }
+  .box.warn b { color: var(--amber); }
+  .box.info { background: var(--soft); border-color: #bfdbfe; }
+  .box .ico { font-size: 18px; margin-right: 6px; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .card {
+    border: 1px solid var(--line); border-radius: 14px; padding: 16px; break-inside: avoid;
+  }
+  .card .h { font-weight: 700; font-size: 15px; margin-bottom: 6px; display:flex; align-items:center; gap:8px; }
+  .card p { font-size: 13.5px; color: var(--muted); margin: 0; }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13.5px; }
+  th, td { border: 1px solid var(--line); padding: 9px 11px; text-align: left; vertical-align: top; }
+  th { background: var(--bg); font-weight: 700; }
+  .pill { display:inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .pill.g { background:#dcfce7; color:#15803d; }
+  .pill.b { background:var(--soft); color:var(--blue); }
+
+  /* plan cards */
+  .plans { display:grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .plan { border:1px solid var(--line); border-radius:16px; padding:18px; break-inside: avoid; }
+  .plan.hot { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
+  .plan .emoji { font-size: 24px; }
+  .plan .name { font-weight: 800; font-size: 18px; margin-top: 4px; }
+  .plan .price { font-size: 22px; font-weight: 800; color: var(--blue); margin: 8px 0; }
+  .plan .price small { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .plan ul { margin: 8px 0 0 0; list-style: none; }
+  .plan li { font-size: 13px; margin-bottom: 5px; padding-left: 20px; position: relative; }
+  .plan li::before { content: "✓"; position:absolute; left:0; color: var(--green); font-weight: 800; }
+
+  .flow { display:flex; align-items:center; gap: 6px; flex-wrap: wrap; margin: 12px 0; }
+  .flow .node { background: var(--soft); border:1px solid #bfdbfe; color: var(--blue); border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 600; }
+  .flow .arr { color: var(--muted); font-weight: 800; }
+
+  .status-legend { display:flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
+  .status-legend span { display:flex; align-items:center; gap:6px; font-size:13px; }
+  .dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
+
+  .pagenum { position: absolute; bottom: 12mm; right: 18mm; font-size: 11px; color: var(--muted); }
+  .brandfoot { position:absolute; bottom: 12mm; left: 18mm; font-size: 11px; color: var(--muted); }
+
+  .toc-item { display:flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 15px; }
+  .toc-item b { color: var(--blue); margin-right: 10px; }
+
+  @media print {
+    body { background: #fff; }
+    .toolbar { display: none; }
+    .page { margin: 0; box-shadow: none; width: auto; min-height: auto; page-break-after: always; padding: 16mm 15mm; }
+    .page:last-child { page-break-after: auto; }
+  }
+  @page { size: A4; margin: 0; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button onclick="window.print()">🖨️ PDF sifatida saqlash / Chop etish</button>
+  <button class="ghost" onclick="window.scrollTo({top:0,behavior:'smooth'})">⬆️ Boshiga</button>
+</div>
+
+<!-- ===================== COVER ===================== -->
+<div class="page cover">
+  <div class="cover-inner">
+    <div class="logo"><span class="mark">◑</span> Ozod<span style="opacity:.85">Flow</span></div>
+    <h1>Restoran va kafe egalari uchun to'liq qo'llanma</h1>
+    <p class="sub">OzodFlow'da ro'yxatdan o'tishdan tortib menyu, buyurtma tizimi va xodimlarni sozlashgacha — bosqichma-bosqich.</p>
+    <span class="tag">📘 Boshlang'ich qo'llanma · 2026</span>
+    <div class="foot">
+      <span>ozodflow.uz</span>
+      <span>QR elektron menyu · Buyurtma tizimi · Restoran boshqaruvi</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MUNDARIJA + INTRO ===================== -->
+<div class="page">
+  <h2 class="section"><span class="badge">i</span> OzodFlow nima?</h2>
+  <p class="lead">Restoran, kafe, fast food va coffee shop'lar uchun professional elektron menyu va buyurtma platformasi.</p>
+
+  <p>OzodFlow — bu qog'oz menyuning zamonaviy o'rnini bosuvchi tizim. Mijozlar stoldagi <b>QR kodni skaner qiladi</b>, chiroyli menyuni ko'radi, to'g'ridan-to'g'ri <b>buyurtma beradi</b>, siz esa hamma narsani bitta paneldan boshqarasiz.</p>
+
+  <div class="grid2" style="margin-top:16px">
+    <div class="card"><div class="h">📱 QR menyu</div><p>Narx va rasmlarni bir soniyada yangilaysiz — qayta chop etish shart emas.</p></div>
+    <div class="card"><div class="h">🛒 Buyurtma tizimi</div><p>Mijoz stoldan buyurtma beradi, u real vaqtda oshxonaga tushadi.</p></div>
+    <div class="card"><div class="h">👨‍🍳 Xodimlar paneli</div><p>Oshxona va ofitsiant uchun alohida ish oynalari.</p></div>
+    <div class="card"><div class="h">📊 Statistika</div><p>Skanlar, buyurtmalar, daromad va mashhur taomlar — jonli hisobda.</p></div>
+  </div>
+
+  <h3 style="margin-top:24px">Ushbu qo'llanmada</h3>
+  <div class="toc-item"><span><b>1</b> Ro'yxatdan o'tish</span><span>hisob yaratish</span></div>
+  <div class="toc-item"><span><b>2</b> Restoran profilini sozlash</span><span>logo, aloqa, ish vaqti</span></div>
+  <div class="toc-item"><span><b>3</b> Menyu yaratish</span><span>kategoriya, mahsulot, tillar</span></div>
+  <div class="toc-item"><span><b>4</b> Menyu dizayni</span><span>tema va ranglar</span></div>
+  <div class="toc-item"><span><b>5</b> Stollar va QR kodlar</span><span>har stolga QR</span></div>
+  <div class="toc-item"><span><b>6</b> Banner va galereya</span><span>reklama va rasmlar</span></div>
+  <div class="toc-item"><span><b>7</b> Buyurtma tizimi</span><span>qanday ishlaydi</span></div>
+  <div class="toc-item"><span><b>8</b> Stol xaritasi, ofitsiant chaqirish</span><span>real-time</span></div>
+  <div class="toc-item"><span><b>9</b> Xodimlar va rollar</span><span>oshxona/ofitsiant</span></div>
+  <div class="toc-item"><span><b>10</b> Combo, promo, chek, statistika</span><span>qo'shimcha</span></div>
+  <div class="toc-item"><span><b>11</b> Tariflar va to'lov</span><span>narxlar</span></div>
+  <span class="brandfoot">OzodFlow qo'llanma</span>
+  <span class="pagenum">2</span>
+</div>
+
+<!-- ===================== 1. RO'YXAT ===================== -->
+<div class="page">
+  <h2 class="section"><span class="badge">1</span> Ro'yxatdan o'tish</h2>
+  <p class="lead">Bir daqiqada bepul hisob yarating — karta talab qilinmaydi.</p>
+
+  <div class="steps">
+    <div class="step"><b>Saytga kiring</b><span>Brauzerda <b>ozodflow.uz</b> manzilini oching va "Boshlash" yoki "Ro'yxatdan o'tish" tugmasini bosing.</span></div>
+    <div class="step"><b>Ma'lumotlarni to'ldiring</b><span>Ismingiz, restoran nomi, email yoki telefon, va parol (kamida 6 belgi).</span></div>
+    <div class="step"><b>Hisob yaratiladi</b><span>Tugmani bosishingiz bilan avtomatik boshqaruv paneliga (Dashboard) kirasiz.</span></div>
+    <div class="step"><b>7 kunlik bepul sinov</b><span>Yangi hisob avtomatik 7 kunlik sinov muddatini oladi — barcha asosiy imkoniyatlarni sinab ko'rasiz.</span></div>
+  </div>
+
+  <div class="box tip"><b><span class="ico">💡</span>Maslahat.</b> Email'ni to'g'ri yozing — parolni unutsangiz tiklash uchun kerak bo'ladi. Keyingi kirishlarda "Kirish" sahifasidan email/parol bilan tizimga kirasiz.</div>
+
+  <div class="box info"><b><span class="ico">🔐</span>Xavfsizlik.</b> Parolingizni hech kimga bermang. Har bir xodim uchun keyinchalik alohida hisob yaratasiz (9-bo'lim).</div>
+
+  <span class="brandfoot">OzodFlow qo'llanma</span><span class="pagenum">3</span>
+</div>
+
+<!-- ===================== 2. PROFIL ===================== -->
+<div class="page">
+  <h2 class="section"><span class="badge">2</span> Restoran profilini sozlash</h2>
+  <p class="lead">Dashboard → <b>Restoran profili</b>. Bu ma'lumotlar mijoz ko'radigan menyuda chiqadi.</p>
+
+  <h3>Nimalarni to'ldirasiz</h3>
+  <ul>
+    <li><b>Logo</b> va <b>Cover (fon) rasmi</b> — fayl tanlab yuklaysiz (URL emas).</li>
+    <li><b>Restoran nomi</b> va <b>qisqacha tavsif</b> (o'zbek, rus, ingliz tillarida).</li>
+    <li><b>Aloqa:</b> telefon, Telegram, Instagram, website.</li>
+    <li><b>Manzil</b> va <b>Google Maps havolasi</b>.</li>
+    <li><b>Ish vaqti</b> (masalan: Har kuni 09:00 – 23:00).</li>
+    <li><b>Valyuta</b> (so'm, $, ₽) va <b>brend rangi</b>.</li>
+    <li><b>Yetkazib berish bor/yo'q</b> belgisi.</li>
+  </ul>
+
+  <div class="box warn"><b><span class="ico">🖼️</span>Rasm sifati.</b> Logo kvadrat, cover keng (landshaft) bo'lgani chiroyli chiqadi. Rasm hajmi 5MB dan oshmasin.</div>
+
+  <div class="box"><b>Saqlashni unutmang.</b> O'zgarishlardan so'ng pastdagi <b>"O'zgarishlarni saqlash"</b> tugmasini bosing. Menyu darhol yangilanadi.</div>
+
+  <span class="brandfoot">OzodFlow qo'llanma</span><span class="pagenum">4</span>
+</div>
+
+<!-- ===================== 3. MENYU ===================== -->
+<div class="page">
+  <h2 class="section"><span class="badge">3</span> Menyu yaratish</h2>
+  <p class="lead">Dashboard → <b>Menyu</b>. Avval kategoriya, keyin mahsulot qo'shasiz.</p>
+
+  <h3>Kategoriya qo'shish</h3>
+  <div class="steps">
+    <div class="step"><b>"+" tugmasini bosing</b><span>Chap tomonda kategoriyalar ro'yxati. Masalan: Oshlar, Kaboblar, Salatlar, Ichimliklar.</span></div>
+    <div class="step"><b>Nomini yozing (3 tilda)</b><span>O'zbekcha majburiy, ruscha va inglizcha ixtiyoriy.</span></div>
+  </div>
+
+  <h3>Mahsulot qo'shish</h3>
+  <ul>
+    <li><b>Rasmlar</b> — 5 tagacha fayl tanlab yuklaysiz.</li>
+    <li><b>Nomi va tavsifi</b> — 3 tilda (uz/ru/en).</li>
+    <li><b>Narx</b> va <b>eski narx</b> (chegirma ko'rsatish uchun).</li>
+    <li><b>Og'irligi, kaloriyasi, tarkibi, achchiqlik darajasi.</b></li>
+    <li>Belgilar: 🔥 Bestseller, 🆕 Yangi, ⭐ Tavsiya, 🥬 Vegetarian, 🥩 Halol.</li>
+    <li><b>Mavjud / mavjud emas</b> — tugma bilan darhol yashirasiz.</li>
+  </ul>
+
+  <div class="box tip"><b><span class="ico">🌐</span>Ko'p tillilik.</b> Ruscha/inglizcha nomlarni to'ldirsangiz, mijoz menyuda tilni almashtirganda avtomatik tarjima ko'rinadi. To'ldirmasangiz, o'zbekcha ko'rinadi.</div>
+
+  <div class="box info"><b><span class="ico">🔍</span>Qidiruv va filtr.</b> Mahsulotlar ko'p bo'lsa, boshqaruv panelida qidiruv orqali tez topasiz. Mijoz menyusida ham qidiruv va "Xit/Yangi/Vegetarian" filtrlari ishlaydi.</div>
+
+  <span class="brandfoot">OzodFlow qo'llanma</span><span class="pagenum">5</span>
+</div>
+
+<!-- ===================== 4. DIZAYN ===================== -->
+<div class="page">
+  <h2 class="section"><span class="badge">4</span> Menyu dizayni</h2>
+  <p class="lead">Dashboard → <b>Menyu dizayni</b>. Menyungizning ko'rinishini tanlaysiz.</p>
+
+  <p>OzodFlow'da <b>9 ta professional dizayn</b> bor. Har biri nafaqat rangni, balki kartalar joylashuvini ham o'zgartiradi:</p>
+  <ul>
+    <li><b>Bepul:</b> Oq, Qora.</li>
+    <li><b>Premium:</b> Milliy, Zumrad, Shafaq, Shohona, Qahva, Nafis, Dengiz.</li>
+  </ul>
+
+  <div class="box"><b>Qanday tanlaysiz:</b> dizayn ustiga bosing → <b>jonli ko'rinish (preview)</b> chiqadi → yoqsa <b>"Shu dizaynni qo'llash"</b>. Menyu darhol yangi ko'rinishga o'tadi.</div>
+
+  <div class="box warn"><b><span class="ico">💎</span>Premium dizaynlar</b> Pro va Business tariflarida ochiladi. Bepul tarifda Oq va Qora mavjud.</div>
+
+  <span class="brandfoot">OzodFlow qo'llanma</span><span class="pagenum">6</span>
+</div>
+
+<!-- ===================== 5. STOLLAR ===================== -->
+<div class="page">
+  <h2 class="section"><span class="badge">5</span> Stollar va QR kodlar</h2>
+  <p class="lead">Dashboard → <b>Stollar</b>. Har bir stol uchun alohida QR kod yaratiladi.</p>
+
+  <div class="steps">
+    <div class="step"><b>Stol qo'shing</b><span>"Stol qo'shish" → nom yozing: Stol 1, Stol 2, VIP 1, Terassa 1 va h.k.</span></div>
+    <div class="step"><b>QR kodni yuklab oling</b><span>Har stol kartasida "QR kod" tugmasi → PNG formatda yuklab olib chop etasiz.</span></div>
+    <div class="step"><b>Stolga joylashtiring</b><span>QR kodni stol ustiga (stiker yoki ramka) qo'yasiz.</span></div>
+  </div>
+
+  <div class="box tip"><b><span class="ico">🎯</span>Avtomatik biriktirish.</b> Mijoz Stol 8'dagi QR kodni skaner qilsa, menyu yuqorisida <b>"Siz: Stol №8"</b> yoziladi va uning barcha buyurtmalari avtomatik shu stolga biriktiriladi. Mijoz stol raqamini o'zi tanlamaydi.</div>
+
+  <span class="brandfoot">OzodFlow qo'llanma</span><span class="pagenum">7</span>
+</div>
+
+<!-- ===================== 6. BANNER/GALEREYA ===================== -->
+<div class="page">
+  <h2 class="section"><span class="badge">6</span> Banner va galereya</h2>
+  <p class="lead">Menyuni jonlantiring va restoraningizni ko'rsating.</p>
+
+  <h3>🖼️ Bannerlar (Dashboard → Bannerlar)</h3>
+  <p>Menyu tepasida aylanuvchi (slider) reklama bannerlarini qo'shasiz. Masalan: "Kaboblar haftasi — 20% chegirma", "Yangi taomlar", "Ramazon menyusi". Rasm + sarlavha + tavsif + havola.</p>
+
+  <h3>📸 Galereya (Dashboard → Galereya)</h3>
+  <p>Restoran interyeri, eksteryeri va jamoasi rasmlarini yuklaysiz. Ular menyuning pastki qismida chiroyli galereya bo'lib chiqadi.</p>
+
+  <div class="box info"><b><span class="ico">✨</span>Maslahat.</b> 2-3 ta sifatli banner va 4-6 ta interyer rasmi menyuni professional va ishonchli ko'rsatadi.</div>
+
+  <span class="brandfoot">OzodFlow qo'llanma</span><span class="pagenum">8</span>
+</div>
+
+<!-- ===================== 7. BUYURTMA ===================== -->
+<div class="page">
+  <h2 class="section"><span class="badge">7</span> Buyurtma tizimi qanday ishlaydi</h2>
+  <p class="lead">Bu OzodFlow'ning eng muhim qismi — mijozdan oshxonagacha.</p>
+
+  <h3>Mijoz tomoni</h3>
+  <div class="flow">
+    <span class="node">QR skaner</span><span class="arr">→</span>
+    <span class="node">Menyu ochiladi</span><span class="arr">→</span>
+    <span class="node">Taom tanlaydi (+/−)</span><span class="arr">→</span>
+    <span class="node">Savatga qo'shadi</span><span class="arr">→</span>
+    <span class="node">Rasmiylashtiradi</span>
+  </div>
+  <p>Mijoz pastdagi <b>doimiy savat</b> orqali buyurtmani ko'radi, telefon (ixtiyoriy) va izoh ("piyozsiz", "achchiqroq") yozib tasdiqlaydi.</p>
+
+  <h3>Buyurtmadan keyin — mijoz kuzatadi</h3>
+  <div class="flow">
+    <span class="node">🟡 Qabul qilindi</span><span class="arr">→</span>
+    <span class="node">🟠 Tayyorlanmoqda</span><span class="arr">→</span>
+    <span class="node">🟣 Tayyor 🎉</span><span class="arr">→</span>
+    <span class="node">🟢 Yetkazildi</span>
+  </div>
+  <p>Mijoz menyudan chiqmaydi — pastda katta holat kartasi real vaqtda yangilanadi.</p>
+
+  <h3>Restoran tomoni (Dashboard → Buyurtmalar)</h3>
+  <p>Yangi buyurtma <b>real vaqtda</b> panelga tushadi, <b>ovozli signal va bildirishnoma</b> chiqadi. Har buyurtmada: raqami, stoli, taomlar, izoh, jami summa, vaqti. Siz holatni bosqichma-bosqich o'zgartirasiz.</p>
+
+  <span class="brandfoot">OzodFlow qo'llanma</span><span class="pagenum">9</span>
+</div>
+
+<!-- ===================== 8. TABLE MAP ===================== -->
+<div class="page">
+  <h2 class="section"><span class="badge">8</span> Stol xaritasi va chaqiruvlar</h2>
+  <p class="lead">Dashboard → <b>Stol xaritasi</b>. Butun zalni bitta ekranda ko'rasiz.</p>
+
+  <h3>Stol ranglari</h3>
+  <div class="status-legend">
+    <span><i class="dot" style="background:#16a34a"></i> Bo'sh</span>
+    <span><i class="dot" style="background:#d97706"></i> Ofitsiant chaqirilgan</span>
+    <span><i class="dot" style="background:#2563eb"></i> Hisob so'ralgan</span>
+    <span><i class="dot" style="background:#ea580c"></i> Tayyorlanmoqda</span>
+    <span><i class="dot" style="background:#8b5cf6"></i> Tayyor</span>
+    <span><i class="dot" style="background:#dc2626"></i> Yangi buyurtma</span>
+  </div>
+  <p>Stol ustiga bossangiz — buyurtmalari, summasi va tarixi ochiladi. Har narsa real vaqtda yangilanadi.</p>
+
+  <h3>🛎 Ofitsiant chaqirish va 💳 Hisob</h3>
+  <p>Mijoz menyudagi tugma orqali ofitsiantni chaqiradi yoki hisob so'raydi. Tasdiqlagach:</p>
+  <ul>
+    <li>Panelga <b>bildirishnoma</b> boradi va stol xaritasida shu stol <b>miltillaydi</b> (ofitsiant — sariq, hisob — ko'k).</li>
+    <li>Buni faqat <b>ofitsiant va menejer</b> ko'radi (oshxona ko'rmaydi).</li>
+    <li>Ofitsiant <b>"Borayapman" / "Hisob berildi"</b> tugmasini bosadi — bildirishnoma yopiladi.</li>
+  </ul>
+
+  <span class="brandfoot">OzodFlow qo'llanma</span><span class="pagenum">10</span>
+</div>
+
+<!-- ===================== 9. XODIMLAR ===================== -->
+<div class="page">
+  <h2 class="section"><span class="badge">9</span> Xodimlar va rollar</h2>
+  <p class="lead">Dashboard → <b>Xodimlar</b>. Har bir xodim uchun alohida hisob yaratasiz.</p>
+
+  <div class="steps">
+    <div class="step"><b>"Xodim qo'shish"</b><span>Ism, rol, email va parol beriladi.</span></div>
+    <div class="step"><b>Xodim kiradi</b><span>Shu email/parol bilan tizimga kiradi va avtomatik o'z paneliga tushadi.</span></div>
+  </div>
+
+  <table>
+    <tr><th>Rol</th><th>Nima ko'radi / qiladi</th></tr>
+    <tr><td><b>Menejer</b></td><td>To'liq boshqaruv paneli (menyu, buyurtmalar, hammasi).</td></tr>
+    <tr><td><b>Operator</b></td><td>Buyurtmalarni qabul qiladi.</td></tr>
+    <tr><td><b>Kassir</b></td><td>To'lov va buyurtmalar.</td></tr>
+    <tr><td><b>Oshxona</b></td><td>Faqat buyurtmalarni ko'radi → "Tayyorlash" / "Tayyor".</td></tr>
+    <tr><td><b>Ofitsiant</b></td><td>Tayyor buyurtmalar va chaqiruvlar → "Yetkazildi".</td></tr>
+  </table>
+
+  <div class="box info"><b><span class="ico">👨‍🍳</span>Oshxona paneli</b> faqat buyurtmalarni ko'rsatadi — ortiqcha narsa yo'q. <b>Ofitsiant paneli</b> esa tayyor buyurtmalar va stol chaqiruvlarini ko'rsatadi.</div>
+  <div class="box warn"><b><span class="ico">💼</span>Diqqat.</b> Xodimlar tizimi Pro va Business tariflarida mavjud.</div>
+
+  <span class="brandfoot">OzodFlow qo'llanma</span><span class="pagenum">11</span>
+</div>
+
+<!-- ===================== 10. QO'SHIMCHA ===================== -->
+<div class="page">
+  <h2 class="section"><span class="badge">10</span> Qo'shimcha imkoniyatlar</h2>
+  <p class="lead">Combo, promo kod, chek, statistika va boshqalar.</p>
+
+  <div class="grid2">
+    <div class="card"><div class="h">📦 Combo</div><p>Bir nechta taomni to'plamga birlashtirasiz (Combo №1: Lavash + Cola + Fri). Menyuda alohida karta bo'lib chiqadi, bir bosishda savatga qo'shiladi. (Dashboard → Combo)</p></div>
+    <div class="card"><div class="h">🎟 Promo kod</div><p>Yiliga 1 marta o'zingizga chegirma kodini olishingiz mumkin (to'lov paytida ishlatasiz).</p></div>
+    <div class="card"><div class="h">🧾 Elektron chek</div><p>Har buyurtma uchun chek — logo, taomlar, jami, QR bilan. Chop etish yoki PDF sifatida saqlash mumkin.</p></div>
+    <div class="card"><div class="h">📊 Statistika</div><p>QR skanlar (kun/hafta/oy), eng mashhur taomlar, daromad — grafiklar bilan.</p></div>
+    <div class="card"><div class="h">👀 Live Counter</div><p>Hozir menyuni ko'rayotganlar, faol buyurtmalar, band stollar — har soniyada yangilanadi.</p></div>
+    <div class="card"><div class="h">📷 QR Scanner</div><p>Telefon kamerasi bilan stol QR kodini skaner qilib holatini ko'rasiz. (Dashboard → QR Scanner)</p></div>
+  </div>
+
+  <h3 style="margin-top:20px">🌐 Maxsus domen</h3>
+  <p>Business tarifida o'z domeningizni ulaysiz (masalan <b>menu.restoran.uz</b>). Ikki yo'l bor: DNS'ni o'zingiz sozlaysiz (A record) yoki admin o'rnatib beradi (yiliga 40 000 so'm). "Batafsil" tugmasida to'liq qo'llanma bor.</p>
+
+  <span class="brandfoot">OzodFlow qo'llanma</span><span class="pagenum">12</span>
+</div>
+
+<!-- ===================== 11. TARIFLAR ===================== -->
+<div class="page">
+  <h2 class="section"><span class="badge">11</span> Tariflar va to'lov</h2>
+  <p class="lead">Dashboard → <b>Sozlamalar</b>. O'zingizga mos tarifni tanlab, muddatni belgilaysiz.</p>
+
+  <div class="plans">
+    <div class="plan">
+      <div class="emoji">⭐</div><div class="name">Starter</div>
+      <div class="price">79 000 <small>so'm/oy</small></div>
+      <ul><li>30 ta stol</li><li>Cheksiz mahsulot</li><li>QR menyu + buyurtma</li><li>Dashboard va statistika</li></ul>
+    </div>
+    <div class="plan hot">
+      <div class="emoji">🚀</div><div class="name">Pro <span class="pill b">ommabop</span></div>
+      <div class="price">149 000 <small>so'm/oy</small></div>
+      <ul><li>Cheksiz stol</li><li>Oshxona + ofitsiant panel</li><li>Stol xaritasi, chaqirish, hisob</li><li>Elektron chek, xodimlar</li><li>Premium dizaynlar</li></ul>
+    </div>
+    <div class="plan">
+      <div class="emoji">👑</div><div class="name">Business</div>
+      <div class="price">299 000 <small>so'm/oy</small></div>
+      <ul><li>Pro'dagi hammasi</li><li>Filiallar va rollar</li><li>Batafsil hisobotlar</li><li>Maxsus domen</li><li>API (kelajakda)</li></ul>
+    </div>
+    <div class="plan">
+      <div class="emoji">💎</div><div class="name">Enterprise</div>
+      <div class="price">Kelishiladi</div>
+      <ul><li>10+ filial</li><li>Maxsus integratsiyalar</li><li>Shaxsiy menejer</li><li>O'rnatish xizmati</li></ul>
+    </div>
+  </div>
+
+  <h3 style="margin-top:20px">Qanday to'laysiz</h3>
+  <div class="steps">
+    <div class="step"><b>Tarif va muddatni tanlang</b><span>1 oy / 3 oy / 6 oy / 1 yil / umrbod. 1 yilga chegirma bor.</span></div>
+    <div class="step"><b>Kartaga o'tkazing</b><span>Ko'rsatilgan kartaga to'lovni amalga oshiring va chek rasmini yuklang.</span></div>
+    <div class="step"><b>Tasdiqni kuting</b><span>Admin chekni tekshirib tarifni faollashtiradi. Promo kodingiz bo'lsa, to'lovda kiritasiz.</span></div>
+  </div>
+
+  <span class="brandfoot">OzodFlow qo'llanma</span><span class="pagenum">13</span>
+</div>
+
+<!-- ===================== FAQ / ALOQA ===================== -->
+<div class="page">
+  <h2 class="section"><span class="badge">?</span> Savol-javob va yordam</h2>
+  <p class="lead">Tez-tez beriladigan savollar.</p>
+
+  <div class="box"><b>Menyuni o'zgartirsam, qayta chop etishim kerakmi?</b><p style="margin-top:4px">Yo'q. QR kod o'zgarmaydi — narx, rasm yoki taomni o'zgartirsangiz, mijoz darhol yangilangan menyuni ko'radi.</p></div>
+  <div class="box"><b>Internet sekin bo'lsa menyu ochiladimi?</b><p style="margin-top:4px">Ha, menyu juda tez va yengil. Mijoz uni telefoniga ilova sifatida ham o'rnatishi mumkin (PWA).</p></div>
+  <div class="box"><b>Parolimni unutsam?</b><p style="margin-top:4px">Kirish sahifasidagi "Parolni unutdingizmi?" orqali tiklaysiz.</p></div>
+  <div class="box"><b>Bir nechta filialim bo'lsa?</b><p style="margin-top:4px">Business yoki Enterprise tarifi filiallar va rollarni qo'llab-quvvatlaydi.</p></div>
+
+  <div class="box info" style="margin-top:24px; text-align:center; padding: 24px">
+    <div style="font-size:22px; font-weight:800; color:var(--blue)">Ozod<span style="color:var(--ink)">Flow</span></div>
+    <p style="margin-top:8px">Restoraningizni bugun raqamlashtiring.</p>
+    <p style="margin-top:4px; color:var(--muted)">🌐 ozodflow.uz &nbsp;·&nbsp; ✈️ Telegram orqali qo'llab-quvvatlash</p>
+  </div>
+
+  <span class="brandfoot">OzodFlow qo'llanma · 2026</span><span class="pagenum">14</span>
+</div>
+
+</body>
+</html>

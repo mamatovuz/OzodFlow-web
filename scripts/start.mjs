@@ -55,7 +55,17 @@ try {
     console.log("[start] Admin mavjud:", email);
   }
 
-  // Demo restoran yo'q bo'lsa yaratamiz (/m/demo)
+  // Eski tarif qiymatlarini yangi tizimga o'tkazish (PROMAX -> BUSINESS)
+  try {
+    const r1 = await prisma.restaurant.updateMany({ where: { plan: "PROMAX" }, data: { plan: "BUSINESS" } });
+    if (r1.count) console.log("[start] Tarif migratsiya: PROMAX -> BUSINESS", r1.count);
+    await prisma.paymentRequest.updateMany({ where: { plan: "PROMAX" }, data: { plan: "BUSINESS" } });
+    await prisma.promoCode.updateMany({ where: { scope: "PROMAX" }, data: { scope: "BUSINESS" } });
+  } catch (e) {
+    console.error("[start] Migratsiya xato (davom etadi):", e?.message);
+  }
+
+  // Demo restoran yo'q bo'lsa yaratamiz (/m/test)
   const demo = await prisma.restaurant.findUnique({ where: { slug: "test" } });
   await prisma.$disconnect();
   if (!demo) {

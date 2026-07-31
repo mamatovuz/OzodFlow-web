@@ -161,7 +161,7 @@ export default async function DashboardHome() {
               <h2 className="font-semibold text-foreground">Obuna</h2>
             </div>
             <p className="text-lg font-bold text-foreground">
-              {planNames[stats.plan]} tarif
+              {planNames[stats.plan] ?? stats.plan} tarif
             </p>
             {stats.planUntil ? (
               <p className="mt-1 text-sm text-muted">

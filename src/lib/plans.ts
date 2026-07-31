@@ -88,6 +88,12 @@ export const DOMAIN_SERVICE_PRICE = 40000;
 export const YEARLY_DISCOUNT = 100000;
 export const LIFETIME_MONTHS = 36;
 
+// To'lov muddati o'tgach beriladigan qo'shimcha muhlat (kun).
+// Masalan: 12-sanada to'lash kerak bo'lsa, 14-kun kechigacha imkon beriladi.
+export const PAYMENT_GRACE_DAYS = 2;
+// Muddat tugashiga shuncha kun qolganda ogohlantirish ko'rsatiladi.
+export const PAYMENT_WARN_DAYS = 5;
+
 export type DurationOption = {
   key: string;
   label: string;
@@ -167,4 +173,50 @@ export function getEffectivePlan(restaurant: { plan: string; planUntil: Date | n
       ? Math.max(0, Math.ceil((until.getTime() - now.getTime()) / 86400000))
       : null,
   };
+}
+
+export type PaymentStatus = {
+  isPaid: boolean;
+  planUntil: Date | null;
+  daysLeft: number | null; // muddat tugashiga qolgan kun (o'tib ketgan bo'lsa 0)
+  graceUntil: Date | null; // qo'shimcha muhlat tugash sanasi
+  warning: boolean; // muddat yaqinlashdi (hali tugamagan)
+  overdue: boolean; // muddat o'tdi, lekin muhlat ichida (hali ishlaydi)
+  locked: boolean; // muhlat ham o'tdi — panel qulflanadi
+};
+
+/**
+ * Pullik tarif uchun to'lov holatini hisoblaydi.
+ * FREE tarif va umrbod (planUntil = null) obunalar hech qachon qulflanmaydi.
+ */
+export function getPaymentStatus(restaurant: {
+  plan: string;
+  planUntil: Date | null;
+}): PaymentStatus {
+  const now = new Date();
+  const plan = (restaurant.plan as PlanKey) || "FREE";
+  const isPaid = PAID_PLANS.includes(plan) || plan === "ENTERPRISE";
+  const until = restaurant.planUntil ? new Date(restaurant.planUntil) : null;
+
+  // Umrbod yoki tekin tarif — to'lov muddati kuzatilmaydi
+  if (!isPaid || !until) {
+    return {
+      isPaid,
+      planUntil: until,
+      daysLeft: null,
+      graceUntil: null,
+      warning: false,
+      overdue: false,
+      locked: false,
+    };
+  }
+
+  const graceUntil = new Date(until.getTime() + PAYMENT_GRACE_DAYS * 86400000);
+  const msLeft = until.getTime() - now.getTime();
+  const daysLeft = Math.max(0, Math.ceil(msLeft / 86400000));
+  const locked = now.getTime() > graceUntil.getTime();
+  const overdue = !locked && now.getTime() > until.getTime();
+  const warning = !overdue && !locked && msLeft <= PAYMENT_WARN_DAYS * 86400000;
+
+  return { isPaid, planUntil: until, daysLeft, graceUntil, warning, overdue, locked };
 }

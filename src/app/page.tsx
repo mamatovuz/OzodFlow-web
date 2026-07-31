@@ -2,6 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { getMenuByDomain, resolveTable } from "@/lib/menu";
 import { PublicMenu } from "@/components/public/public-menu";
+import { BlockedMenu } from "@/components/public/blocked-menu";
 import { getPlanPrices } from "@/lib/plan-prices";
 import { PLANS, FEATURE_MATRIX } from "@/lib/plans";
 import { formatPrice } from "@/lib/utils";
@@ -19,6 +20,10 @@ import {
   Check,
   X,
   Eye,
+  Sparkles,
+  Rocket,
+  Crown,
+  Gem,
 } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { Logo } from "@/components/logo";
@@ -84,10 +89,10 @@ const steps = [
 ];
 
 const PLAN_ORDER = [
-  { key: "STARTER" as const, mk: "starter" as const, emoji: "⭐", desc: "Kichik kafe, coffee shop, fast food", highlight: false, contact: false },
-  { key: "PRO" as const, mk: "pro" as const, emoji: "🚀", desc: "Eng ommabop tanlov", highlight: true, contact: false },
-  { key: "BUSINESS" as const, mk: "business" as const, emoji: "👑", desc: "Tarmoq restoranlar uchun", highlight: false, contact: false },
-  { key: "ENTERPRISE" as const, mk: "business" as const, emoji: "💎", desc: "10+ filial, maxsus integratsiya", highlight: false, contact: true },
+  { key: "STARTER" as const, mk: "starter" as const, Icon: Sparkles, desc: "Kichik kafe, coffee shop, fast food", highlight: false, contact: false },
+  { key: "PRO" as const, mk: "pro" as const, Icon: Rocket, desc: "Eng ommabop tanlov", highlight: true, contact: false },
+  { key: "BUSINESS" as const, mk: "business" as const, Icon: Crown, desc: "Tarmoq restoranlar uchun", highlight: false, contact: false },
+  { key: "ENTERPRISE" as const, mk: "business" as const, Icon: Gem, desc: "10+ filial, maxsus integratsiya", highlight: false, contact: true },
 ];
 
 const testimonials = [
@@ -133,6 +138,9 @@ export default async function LandingPage({
 
   if (!isPlatform) {
     const menu = await getMenuByDomain(host);
+    if (menu && "blocked" in menu) {
+      return <BlockedMenu name={menu.restaurant.name} slug={menu.restaurant.slug} />;
+    }
     if (menu) {
       const { t } = await searchParams;
       const table = await resolveTable(menu.restaurant.id, t);
@@ -271,8 +279,14 @@ export default async function LandingPage({
                     Eng ommabop
                   </span>
                 )}
-                <div className="text-2xl">{p.emoji}</div>
-                <h3 className="mt-1 font-semibold text-foreground">{PLANS[p.key].name}</h3>
+                <div
+                  className={`flex h-11 w-11 items-center justify-center rounded-xl ${
+                    p.highlight ? "bg-accent text-white" : "bg-accent-soft text-accent"
+                  }`}
+                >
+                  <p.Icon className="h-5 w-5" />
+                </div>
+                <h3 className="mt-3 font-semibold text-foreground">{PLANS[p.key].name}</h3>
                 <p className="mt-1 text-xs text-muted">{p.desc}</p>
                 <div className="mt-4">
                   {p.contact ? (

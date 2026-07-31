@@ -38,9 +38,19 @@ async function buildMenu(restaurant: NonNullable<Awaited<ReturnType<typeof prism
   };
 }
 
+export type BlockedMenu = {
+  blocked: true;
+  restaurant: { name: string; slug: string };
+};
+
+function blockedResult(r: { name: string; slug: string }): BlockedMenu {
+  return { blocked: true, restaurant: { name: r.name, slug: r.slug } };
+}
+
 export async function getMenuBySlug(slug: string) {
   const restaurant = await prisma.restaurant.findUnique({ where: { slug } });
   if (!restaurant || !restaurant.isActive) return null;
+  if (restaurant.isBlocked) return blockedResult(restaurant);
   return buildMenu(restaurant);
 }
 
@@ -49,6 +59,7 @@ export async function getMenuByDomain(domain: string) {
     where: { customDomain: domain.toLowerCase() },
   });
   if (!restaurant || !restaurant.isActive) return null;
+  if (restaurant.isBlocked) return blockedResult(restaurant);
   return buildMenu(restaurant);
 }
 

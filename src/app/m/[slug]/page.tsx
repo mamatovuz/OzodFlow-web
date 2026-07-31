@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { getMenuBySlug, resolveTable } from "@/lib/menu";
 import { PublicMenu } from "@/components/public/public-menu";
+import { BlockedMenu } from "@/components/public/blocked-menu";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,10 @@ export default async function PublicMenuPage({
   const { t } = await searchParams;
   const data = await getMenuBySlug(slug);
   if (!data) notFound();
+
+  if ("blocked" in data) {
+    return <BlockedMenu name={data.restaurant.name} slug={data.restaurant.slug} />;
+  }
 
   const table = await resolveTable(data.restaurant.id, t);
 

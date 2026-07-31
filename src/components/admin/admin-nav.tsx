@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   ShieldCheck,
+  MessageSquare,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ const nav = [
   { href: "/admins/promos", label: "Promo kodlar", icon: Ticket },
   { href: "/admins/domains", label: "Domenlar", icon: Globe },
   { href: "/admins/restaurants", label: "Restoranlar", icon: Store },
+  { href: "/admins/messages", label: "Xabarlar", icon: MessageSquare },
   { href: "/admins/settings", label: "Sozlamalar", icon: Settings },
 ];
 

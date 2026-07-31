@@ -29,9 +29,15 @@ export const metadata: Metadata = {
     title: "OzodFlow — Restoranlar uchun elektron menyu",
     description: "QR kod orqali zamonaviy elektron menyu platformasi",
     type: "website",
+    images: ["/og-image.png"],
   },
   icons: {
-    icon: "/favicon.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon.ico" },
+    ],
     apple: "/apple-touch-icon.png",
   },
 };

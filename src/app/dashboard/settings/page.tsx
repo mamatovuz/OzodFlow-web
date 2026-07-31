@@ -3,6 +3,7 @@ import { getUserRestaurant } from "@/lib/api";
 import { getEffectivePlan } from "@/lib/plans";
 import { Card } from "@/components/ui";
 import { Billing } from "@/components/dashboard/billing";
+import { SlugEditor } from "@/components/dashboard/slug-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,9 @@ export default async function SettingsPage() {
           <Info label="Ism" value={user.name} />
           <Info label="Email / Telefon" value={user.email || user.phone || "—"} />
           <Info label="Restoran" value={restaurant.name} />
-          <Info label="Menyu manzili" value={`/m/${restaurant.slug}`} accent />
+        </div>
+        <div className="mt-4 border-t border-border pt-4">
+          <SlugEditor current={restaurant.slug} />
         </div>
       </Card>
 

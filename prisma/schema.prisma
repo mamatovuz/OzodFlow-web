@@ -96,6 +96,9 @@ model Restaurant {
   plan        String  @default("FREE") // FREE | PRO | PROMAX
   planUntil   DateTime? // FREE trial muddati; pullik tariflarda null = umrbod
   isActive    Boolean @default(true)
+  isBlocked   Boolean @default(false) // admin tomonidan bloklangan
+  blockReason String? // bloklash sababi (ixtiyoriy)
+  overdueNotified DateTime? // to'lov o'tib ketgani haqida adminga oxirgi xabar vaqti
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -112,8 +115,26 @@ model Restaurant {
   gallery         GalleryImage[]
   serviceCalls    ServiceCall[]
   combos          Combo[]
+  supportMessages SupportMessage[]
 
   @@index([ownerId])
+}
+
+// Restoran egasi ↔ bosh admin yozishmalari (blok, to'lov, aloqa)
+model SupportMessage {
+  id           String   @id @default(cuid())
+  restaurantId String
+  topic        String // BLOCK | PAYMENT | CONTACT | GENERAL
+  sender       String // OWNER | ADMIN | VISITOR
+  body         String
+  contact      String? // ommaviy tashrifchi aloqa ma'lumoti
+  isRead       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@index([isRead])
 }
 
 // Ofitsiant chaqirish / hisob so'rash

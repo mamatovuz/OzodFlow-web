@@ -15,13 +15,14 @@ import { getUserRestaurant } from "@/lib/api";
 import { getDashboardStats } from "@/lib/stats";
 import { Card, Badge, Button } from "@/components/ui";
 import { formatPrice } from "@/lib/utils";
+import { LiveCounter } from "@/components/dashboard/live-counter";
 
 export const dynamic = "force-dynamic";
 
 const planNames: Record<string, string> = {
   FREE: "Free",
   PRO: "Pro",
-  PROMAX: "Pro Max",
+  BUSINESS: "Business", STARTER: "Starter",
 };
 
 export default async function DashboardHome() {
@@ -78,6 +79,9 @@ export default async function DashboardHome() {
           </Link>
         </div>
       </div>
+
+      {/* Jonli statistika */}
+      <LiveCounter />
 
       {/* Buyurtma kartalari */}
       <div className="grid gap-4 sm:grid-cols-3">

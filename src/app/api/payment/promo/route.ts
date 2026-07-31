@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null);
   const code = body?.code || "";
-  const plan = body?.plan || "PRO";
+  const plan = body?.plan || "STARTER";
 
   const result = await validatePromo(code, user.id, plan);
   if (!result.valid) return fail(result.reason, 422);

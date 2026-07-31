@@ -55,13 +55,18 @@ const ROLE_CONFIG: Record<
   },
 };
 
+type SvcCall = { id: string; type: string; tableName: string | null; createdAt: string };
+
 export function StaffOrders({ role, currency }: { role: string; currency: string }) {
   const cfg = ROLE_CONFIG[role] || ROLE_CONFIG.OPERATOR;
   const [orders, setOrders] = useState<Order[]>([]);
+  const [calls, setCalls] = useState<SvcCall[]>([]);
   const [loading, setLoading] = useState(true);
   const [soundOn, setSoundOn] = useState(true);
   const lastIdRef = useRef<string | null>(null);
   const first = useRef(true);
+  // Oshxona chaqiruvlarni ko'rmaydi
+  const seesCalls = role !== "KITCHEN";
 
   const beep = useCallback(() => {
     try {
@@ -80,6 +85,12 @@ export function StaffOrders({ role, currency }: { role: string; currency: string
   }, []);
 
   const load = useCallback(async (silent = false) => {
+    if (seesCalls) {
+      fetch("/api/service")
+        .then((r) => r.json())
+        .then((j) => j.success && setCalls(j.data))
+        .catch(() => {});
+    }
     const res = await fetch("/api/orders");
     const json = await res.json();
     if (json.success) {
@@ -107,9 +118,34 @@ export function StaffOrders({ role, currency }: { role: string; currency: string
     });
     load(true);
   }
+  async function resolveCall(id: string) {
+    await fetch(`/api/service/${id}`, { method: "PATCH" });
+    load(true);
+  }
 
   return (
     <div>
+      {/* Chaqiruvlar (ofitsiant / hisob) */}
+      {seesCalls && calls.length > 0 && (
+        <div className="mb-4 space-y-2">
+          {calls.map((c) => (
+            <Card
+              key={c.id}
+              className={`flex items-center justify-between p-3 ${
+                c.type === "WAITER" ? "border-warning/40 bg-warning/5" : "border-accent/40 bg-accent-soft"
+              }`}
+            >
+              <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+                🛎 {c.tableName || "Stol"} —{" "}
+                {c.type === "WAITER" ? "ofitsiant chaqirdi" : "hisob so'radi"}
+              </span>
+              <Button size="sm" onClick={() => resolveCall(c.id)}>
+                {c.type === "WAITER" ? "Borayapman" : "Hisob berildi"}
+              </Button>
+            </Card>
+          ))}
+        </div>
+      )}
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm text-muted">{orders.length} ta buyurtma</p>
         <button

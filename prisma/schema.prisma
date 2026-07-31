@@ -110,8 +110,58 @@ model Restaurant {
   orders          Order[]
   banners         Banner[]
   gallery         GalleryImage[]
+  serviceCalls    ServiceCall[]
+  combos          Combo[]
 
   @@index([ownerId])
+}
+
+// Ofitsiant chaqirish / hisob so'rash
+model ServiceCall {
+  id           String    @id @default(cuid())
+  restaurantId String
+  tableCode    String?
+  tableName    String?
+  type         String // WAITER | BILL
+  status       String    @default("ACTIVE") // ACTIVE | DONE
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, status])
+}
+
+// Combo (to'plam) taomlar
+model Combo {
+  id           String   @id @default(cuid())
+  restaurantId String
+  name         String
+  nameRu       String?
+  nameEn       String?
+  price        Float
+  oldPrice     Float?
+  image        String?
+  description  String?
+  items        String // JSON: [{productId, name, qty}]
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+}
+
+// Menyuni hozir ko'rayotganlar (live counter uchun)
+model Presence {
+  id           String   @id @default(cuid())
+  restaurantId String
+  visitorId    String
+  lastSeen     DateTime @default(now())
+
+  @@unique([restaurantId, visitorId])
+  @@index([restaurantId])
 }
 
 // Restoran galereyasi (interyer, eksteryer, jamoa)

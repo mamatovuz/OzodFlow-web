@@ -6,9 +6,10 @@ import { Button, Input, Card, Label } from "@/components/ui";
 import { formatPrice } from "@/lib/utils";
 
 export function PlansForm() {
-  const [prices, setPrices] = useState<{ PRO: number; PROMAX: number }>({
+  const [prices, setPrices] = useState<Record<string, number>>({
+    STARTER: 0,
     PRO: 0,
-    PROMAX: 0,
+    BUSINESS: 0,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
@@ -17,14 +18,14 @@ export function PlansForm() {
   async function load() {
     const res = await fetch("/api/admin/plans");
     const json = await res.json();
-    if (json.success) setPrices({ PRO: json.data.PRO, PROMAX: json.data.PROMAX });
+    if (json.success) setPrices(json.data);
     setLoading(false);
   }
   useEffect(() => {
     load();
   }, []);
 
-  async function save(plan: "PRO" | "PROMAX", price: number) {
+  async function save(plan: string, price: number) {
     setSaving(plan);
     setSaved(null);
     const res = await fetch("/api/admin/plans", {
@@ -35,7 +36,7 @@ export function PlansForm() {
     const json = await res.json();
     setSaving(null);
     if (res.ok) {
-      setPrices({ PRO: json.data.PRO, PROMAX: json.data.PROMAX });
+      setPrices(json.data);
       setSaved(plan);
       setTimeout(() => setSaved(null), 2500);
     }
@@ -49,13 +50,14 @@ export function PlansForm() {
     );
   }
 
-  const rows: { key: "PRO" | "PROMAX"; name: string }[] = [
+  const rows: { key: string; name: string }[] = [
+    { key: "STARTER", name: "Starter" },
     { key: "PRO", name: "Pro" },
-    { key: "PROMAX", name: "Pro Max" },
+    { key: "BUSINESS", name: "Business" },
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {rows.map((r) => (
         <Card key={r.key} className="p-6">
           <div className="mb-4 flex items-center gap-2">

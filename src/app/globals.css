@@ -113,3 +113,20 @@ body {
 .dark .shadow-card {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
+
+/* Chek chop etish — faqat chekni ko'rsatadi */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #receipt,
+  #receipt * {
+    visibility: visible;
+  }
+  #receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}

@@ -30,13 +30,13 @@ export async function PATCH(req: NextRequest) {
   const data = { ...parsed.data };
   const access = getEffectivePlan(restaurant);
 
-  // Premium tema faqat Pro Max uchun
+  // Premium tema Pro va Business uchun
   if (data.menuTheme !== undefined) {
     const theme = getTheme(data.menuTheme);
     const isFree = FREE_THEMES.includes(theme.key as ThemeKey);
     if (theme.premium && !access.canPremiumThemes) {
       return fail(
-        "Premium dizaynlar faqat Pro Max tarifida mavjud",
+        "Premium dizaynlar Pro va Business tarifida mavjud",
         403
       );
     }
@@ -51,7 +51,7 @@ export async function PATCH(req: NextRequest) {
     const domain = (data.customDomain || "").trim().toLowerCase();
     if (domain) {
       if (!access.canCustomDomain) {
-        return fail("O'z domenini ulash faqat Pro Max tarifida mavjud", 403);
+        return fail("Maxsus domen faqat Business tarifida mavjud", 403);
       }
       // Oddiy validatsiya
       if (!/^([a-z0-9-]+\.)+[a-z]{2,}$/.test(domain)) {

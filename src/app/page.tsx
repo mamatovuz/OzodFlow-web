@@ -25,6 +25,7 @@ import { Logo } from "@/components/logo";
 import { Button, Badge } from "@/components/ui";
 import { SiteNav } from "@/components/landing/site-nav";
 import { FAQ } from "@/components/landing/faq";
+import { EnterpriseContact } from "@/components/landing/enterprise-contact";
 
 const features = [
   {
@@ -83,9 +84,10 @@ const steps = [
 ];
 
 const PLAN_ORDER = [
-  { key: "FREE" as const, mk: "free" as const, desc: "Sinab ko'rish uchun", cta: "Bepul boshlash", highlight: false },
-  { key: "PRO" as const, mk: "pro" as const, desc: "O'sib borayotgan biznes", cta: "Pro tanlash", highlight: false },
-  { key: "PROMAX" as const, mk: "promax" as const, desc: "Barcha imkoniyatlar", cta: "Pro Max tanlash", highlight: true },
+  { key: "STARTER" as const, mk: "starter" as const, emoji: "⭐", desc: "Kichik kafe, coffee shop, fast food", highlight: false, contact: false },
+  { key: "PRO" as const, mk: "pro" as const, emoji: "🚀", desc: "Eng ommabop tanlov", highlight: true, contact: false },
+  { key: "BUSINESS" as const, mk: "business" as const, emoji: "👑", desc: "Tarmoq restoranlar uchun", highlight: false, contact: false },
+  { key: "ENTERPRISE" as const, mk: "business" as const, emoji: "💎", desc: "10+ filial, maxsus integratsiya", highlight: false, contact: true },
 ];
 
 const testimonials = [
@@ -143,6 +145,8 @@ export default async function LandingPage({
           table={table}
           banners={menu.banners}
           gallery={menu.gallery}
+          combos={menu.combos}
+          serviceEnabled={menu.serviceEnabled}
         />
       );
     }
@@ -252,11 +256,11 @@ export default async function LandingPage({
             title="Sizga mos tarifni tanlang"
             subtitle="Bepul boshlang, biznesingiz o'sishi bilan kengaytiring."
           />
-          <div className="mt-12 grid gap-6 lg:grid-cols-3">
+          <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
             {PLAN_ORDER.map((p) => (
               <div
                 key={p.key}
-                className={`relative flex flex-col rounded-2xl border p-6 ${
+                className={`relative flex flex-col rounded-2xl border p-5 ${
                   p.highlight
                     ? "border-accent bg-card shadow-card"
                     : "border-border bg-card shadow-soft"
@@ -264,34 +268,31 @@ export default async function LandingPage({
               >
                 {p.highlight && (
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-accent px-3 py-1 text-xs font-medium text-white">
-                    Eng to'liq
+                    Eng ommabop
                   </span>
                 )}
-                <h3 className="font-semibold text-foreground">{PLANS[p.key].name}</h3>
-                <p className="mt-1 text-sm text-muted">{p.desc}</p>
-                <div className="mt-4 flex items-baseline gap-1">
-                  <span className="text-3xl font-bold text-foreground">
-                    {prices[p.key] === 0 ? "0" : formatPrice(prices[p.key], "UZS")}
-                  </span>
-                  <span className="text-sm text-muted">
-                    {p.key === "FREE" ? "so'm" : "/ oy"}
-                  </span>
+                <div className="text-2xl">{p.emoji}</div>
+                <h3 className="mt-1 font-semibold text-foreground">{PLANS[p.key].name}</h3>
+                <p className="mt-1 text-xs text-muted">{p.desc}</p>
+                <div className="mt-4">
+                  {p.contact ? (
+                    <span className="text-xl font-bold text-foreground">Kelishiladi</span>
+                  ) : (
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-2xl font-bold text-foreground">
+                        {formatPrice(prices[p.key] ?? 0, "UZS")}
+                      </span>
+                      <span className="text-xs text-muted">/ oy</span>
+                    </div>
+                  )}
                 </div>
-                {p.key === "FREE" && (
-                  <p className="mt-1 text-xs text-muted">7 kunlik sinov</p>
-                )}
-                <ul className="mt-6 flex-1 space-y-2.5">
-                  {FEATURE_MATRIX.map((f) => {
+                <ul className="mt-5 flex-1 space-y-2">
+                  {FEATURE_MATRIX.filter((f) => f[p.mk] !== false).map((f) => {
                     const val = f[p.mk];
-                    const has = val !== false;
                     return (
                       <li key={f.label} className="flex items-start gap-2 text-sm">
-                        {has ? (
-                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                        ) : (
-                          <X className="mt-0.5 h-4 w-4 shrink-0 text-muted/40" />
-                        )}
-                        <span className={has ? "text-foreground" : "text-muted/50 line-through"}>
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                        <span className="text-foreground">
                           {f.label}
                           {typeof val === "string" && (
                             <span className="text-muted"> — {val}</span>
@@ -300,15 +301,24 @@ export default async function LandingPage({
                       </li>
                     );
                   })}
+                  {p.contact && (
+                    <>
+                      <FeatLi text="10+ filial" />
+                      <FeatLi text="Maxsus integratsiyalar" />
+                      <FeatLi text="Shaxsiy menejer" />
+                      <FeatLi text="O'rnatish va sozlash xizmati" />
+                    </>
+                  )}
                 </ul>
-                <Link href="/register" className="mt-6 block">
-                  <Button
-                    variant={p.highlight ? "primary" : "outline"}
-                    className="w-full"
-                  >
-                    {p.cta}
-                  </Button>
-                </Link>
+                {p.contact ? (
+                  <EnterpriseContact />
+                ) : (
+                  <Link href="/register" className="mt-5 block">
+                    <Button variant={p.highlight ? "primary" : "outline"} className="w-full">
+                      Tanlash
+                    </Button>
+                  </Link>
+                )}
               </div>
             ))}
           </div>
@@ -417,6 +427,15 @@ export default async function LandingPage({
         </div>
       </footer>
     </div>
+  );
+}
+
+function FeatLi({ text }: { text: string }) {
+  return (
+    <li className="flex items-start gap-2 text-sm">
+      <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+      <span className="text-foreground">{text}</span>
+    </li>
   );
 }
 

@@ -1,8 +1,9 @@
 import { prisma } from "./prisma";
 import { getTheme } from "./themes";
+import { getEffectivePlan } from "./plans";
 
 async function buildMenu(restaurant: NonNullable<Awaited<ReturnType<typeof prisma.restaurant.findUnique>>>) {
-  const [categories, products, banners, gallery] = await Promise.all([
+  const [categories, products, banners, gallery, combos] = await Promise.all([
     prisma.category.findMany({
       where: { restaurantId: restaurant.id, isVisible: true },
       orderBy: { sortOrder: "asc" },
@@ -20,6 +21,10 @@ async function buildMenu(restaurant: NonNullable<Awaited<ReturnType<typeof prism
       where: { restaurantId: restaurant.id },
       orderBy: { sortOrder: "asc" },
     }),
+    prisma.combo.findMany({
+      where: { restaurantId: restaurant.id, isActive: true },
+      orderBy: { sortOrder: "asc" },
+    }),
   ]);
   return {
     restaurant,
@@ -27,6 +32,8 @@ async function buildMenu(restaurant: NonNullable<Awaited<ReturnType<typeof prism
     products,
     banners,
     gallery,
+    combos,
+    serviceEnabled: getEffectivePlan(restaurant).canService,
     theme: getTheme(restaurant.menuTheme),
   };
 }

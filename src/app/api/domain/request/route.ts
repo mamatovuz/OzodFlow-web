@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   // Domen ulash — pullik tarif kerak
   const access = getEffectivePlan(restaurant);
   if (!access.canCustomDomain) {
-    return fail("Domen ulash faqat Pro Max tarifida mavjud", 403);
+    return fail("Maxsus domen faqat Business tarifida mavjud", 403);
   }
 
   const body = await req.json().catch(() => null);

@@ -64,6 +64,7 @@ export function CheckoutModal({
   tableName,
   onSetQty,
   onClear,
+  onOrdered,
 }: {
   open: boolean;
   onClose: () => void;
@@ -76,6 +77,7 @@ export function CheckoutModal({
   tableName: string | null;
   onSetQty: (id: string, qty: number) => void;
   onClear: () => void;
+  onOrdered?: (id: string) => void;
 }) {
   const [step, setStep] = useState<"cart" | "done">("cart");
   const [phone, setPhone] = useState("");
@@ -111,6 +113,7 @@ export function CheckoutModal({
     setOrderNo(json.data.number);
     setStep("done");
     onClear();
+    if (json.data.id && onOrdered) onOrdered(json.data.id);
   }
 
   function close() {

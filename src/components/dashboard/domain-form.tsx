@@ -46,10 +46,10 @@ export function DomainForm({
         <div className="flex items-center gap-2">
           <Globe className="h-5 w-5 text-muted" />
           <h2 className="font-semibold text-foreground">O'z domeningiz</h2>
-          <Badge variant="warning">Pro Max</Badge>
+          <Badge variant="warning">Business</Badge>
         </div>
         <p className="mt-2 text-sm text-muted">
-          O'z domeningizni (masalan <b>menu.restoran.uz</b>) ulash faqat Pro Max
+          O'z domeningizni (masalan <b>menu.restoran.uz</b>) ulash faqat Business
           tarifida mavjud.
         </p>
         <Link href="/dashboard/settings" className="mt-4 inline-block">

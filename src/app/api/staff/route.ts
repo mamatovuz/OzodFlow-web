@@ -37,10 +37,10 @@ export async function POST(req: NextRequest) {
   const restaurant = await ownedRestaurant(user.id);
   if (!restaurant) return fail("Faqat restoran egasi xodim qo'sha oladi", 403);
 
-  // Pullik tarif kerak
+  // Xodimlar Pro va yuqori tariflarda
   const access = getEffectivePlan(restaurant);
-  if (!access.isPaid) {
-    return fail("Xodimlar tizimi Pro yoki Pro Max tarifida mavjud", 403);
+  if (!access.canStaff) {
+    return fail("Xodimlar tizimi Pro va Business tariflarida mavjud", 403);
   }
 
   const body = await req.json().catch(() => null);

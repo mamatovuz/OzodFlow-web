@@ -7,7 +7,7 @@ import { getPlanPrice } from "@/lib/plan-prices";
 import { validatePromo } from "@/lib/promo";
 
 const schema = z.object({
-  plan: z.enum(["PRO", "PROMAX"]),
+  plan: z.enum(["STARTER", "PRO", "BUSINESS"]),
   months: z.number().int().min(0).max(600),
   lifetime: z.boolean().optional(),
   promoCode: z.string().optional(),

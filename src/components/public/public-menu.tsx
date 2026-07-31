@@ -27,6 +27,7 @@ import {
   QtyControl,
   type CartLine,
 } from "@/components/public/order-cart";
+import { ServiceButtons, OrderTracker } from "@/components/public/service-bar";
 
 type PublicProduct = {
   id: string;
@@ -61,6 +62,15 @@ type PublicBanner = {
   linkUrl: string | null;
 };
 type PublicGallery = { id: string; image: string; caption: string | null; category: string };
+type PublicCombo = {
+  id: string;
+  name: string;
+  price: number;
+  oldPrice: number | null;
+  image: string | null;
+  description: string | null;
+  items: string;
+};
 
 type PublicRestaurant = {
   slug: string;
@@ -96,6 +106,8 @@ export function PublicMenu({
   table,
   banners,
   gallery = [],
+  combos = [],
+  serviceEnabled = false,
 }: {
   restaurant: PublicRestaurant;
   categories: PublicCategory[];
@@ -104,6 +116,8 @@ export function PublicMenu({
   table: { code: string; name: string } | null;
   banners: PublicBanner[];
   gallery?: PublicGallery[];
+  combos?: PublicCombo[];
+  serviceEnabled?: boolean;
 }) {
   const [lang, setLang] = useState<Lang>("uz");
   const [activeCat, setActiveCat] = useState<string>(rawCategories[0]?.id ?? "");
@@ -112,6 +126,7 @@ export function PublicMenu({
   const [detail, setDetail] = useState<PublicProduct | null>(null);
   const [cart, setCart] = useState<Record<string, number>>({});
   const [cartOpen, setCartOpen] = useState(false);
+  const [trackedOrder, setTrackedOrder] = useState<string | null>(null);
   const catRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const t = UI[lang];
@@ -165,6 +180,14 @@ export function PublicMenu({
   function addToCart(id: string, qty = 1) {
     setCart((c) => ({ ...c, [id]: (c[id] || 0) + qty }));
   }
+  function addCombo(combo: PublicCombo) {
+    const items = parseJson<{ productId: string; qty: number }[]>(combo.items, []);
+    setCart((c) => {
+      const n = { ...c };
+      for (const it of items) n[it.productId] = (n[it.productId] || 0) + (it.qty || 1);
+      return n;
+    });
+  }
   function setQty(id: string, qty: number) {
     setCart((c) => {
       const n = { ...c };
@@ -201,7 +224,31 @@ export function PublicMenu({
         tableCode: params.get("t") || undefined,
       }),
     }).catch(() => {});
+
+    // Kuzatilayotgan buyurtma (localStorage)
+    const savedOrder = localStorage.getItem(`ozf_order_${restaurant.slug}`);
+    if (savedOrder) setTrackedOrder(savedOrder);
+
+    // Live counter uchun heartbeat
+    const beat = () =>
+      fetch("/api/presence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: restaurant.slug, visitorId: vid }),
+      }).catch(() => {});
+    beat();
+    const iv = setInterval(beat, 20000);
+    return () => clearInterval(iv);
   }, [restaurant.slug]);
+
+  function onOrdered(id: string) {
+    setTrackedOrder(id);
+    localStorage.setItem(`ozf_order_${restaurant.slug}`, id);
+  }
+  function clearTracked() {
+    setTrackedOrder(null);
+    localStorage.removeItem(`ozf_order_${restaurant.slug}`);
+  }
 
   function openDetail(p: PublicProduct) {
     setDetail(p);
@@ -354,6 +401,11 @@ export function PublicMenu({
           </div>
         )}
 
+        {/* Ofitsiant chaqirish / hisob */}
+        {serviceEnabled && (
+          <ServiceButtons slug={restaurant.slug} tableCode={table?.code ?? null} accent={accent} lang={lang} />
+        )}
+
         {/* ─── Banner slider ─── */}
         {banners.length > 0 && (
           <div className="mt-5">
@@ -410,6 +462,63 @@ export function PublicMenu({
             </div>
           )}
         </div>
+
+        {/* ─── Combo takliflar ─── */}
+        {!search && filter === "all" && combos.length > 0 && (
+          <div className="mt-4">
+            <h2 className="mb-3 text-lg font-bold text-foreground">Combo takliflar</h2>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {combos.map((c) => {
+                const items = parseJson<{ name: string; qty: number }[]>(c.items, []);
+                return (
+                  <div
+                    key={c.id}
+                    className="flex flex-col overflow-hidden border border-border bg-card shadow-soft"
+                    style={{ borderRadius: R }}
+                  >
+                    <div className="relative aspect-video w-full overflow-hidden bg-surface-2">
+                      {c.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={c.image} alt={c.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-muted/40">
+                          <UtensilsCrossed className="h-8 w-8" />
+                        </div>
+                      )}
+                      <span
+                        className="absolute left-2 top-2 rounded-md px-1.5 py-0.5 text-[10px] font-bold"
+                        style={{ background: accent, color: accentText }}
+                      >
+                        COMBO
+                      </span>
+                    </div>
+                    <div className="flex flex-1 flex-col p-3">
+                      <h3 className="font-semibold text-foreground">{c.name}</h3>
+                      <p className="mt-0.5 line-clamp-2 text-xs text-muted">
+                        {items.map((it) => `${it.qty}× ${it.name}`).join(", ")}
+                      </p>
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <span className="font-bold text-foreground">{formatPrice(c.price, restaurant.currency)}</span>
+                        {c.oldPrice && (
+                          <span className="text-xs text-muted line-through">
+                            {formatPrice(c.oldPrice, restaurant.currency)}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => addCombo(c)}
+                        className="mt-2.5 flex items-center justify-center gap-1 rounded-lg py-2 text-sm font-medium"
+                        style={{ background: accent, color: accentText, borderRadius: R - 6 }}
+                      >
+                        <Plus className="h-4 w-4" /> Savatga
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ─── Tavsiya etamiz ─── */}
         {!search && filter === "all" && recommended.length > 0 && (
@@ -567,7 +676,18 @@ export function PublicMenu({
         tableName={table?.name ?? null}
         onSetQty={setQty}
         onClear={() => setCart({})}
+        onOrdered={onOrdered}
       />
+
+      {/* Buyurtma kuzatuvi */}
+      {trackedOrder && (
+        <OrderTracker
+          orderId={trackedOrder}
+          currency={restaurant.currency}
+          accent={accent}
+          onClose={clearTracked}
+        />
+      )}
     </div>
   );
 }

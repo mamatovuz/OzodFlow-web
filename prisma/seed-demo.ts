@@ -38,7 +38,7 @@ async function main() {
           currency: "UZS",
           primaryColor: "#C26A1A",
           menuTheme: "ziravor",
-          plan: "PROMAX",
+          plan: "BUSINESS",
           planUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         },
       },

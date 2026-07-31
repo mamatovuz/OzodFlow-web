@@ -34,8 +34,14 @@ type PayCard = {
   cardHolder: string;
 };
 
-const order: PlanKey[] = ["FREE", "PRO", "PROMAX"];
-const matrixKey = { FREE: "free", PRO: "pro", PROMAX: "promax" } as const;
+const order: PlanKey[] = ["STARTER", "PRO", "BUSINESS"];
+const matrixKey = {
+  FREE: "free",
+  STARTER: "starter",
+  PRO: "pro",
+  BUSINESS: "business",
+  ENTERPRISE: "business",
+} as const;
 
 export function Billing({
   currentPlan,
@@ -49,8 +55,9 @@ export function Billing({
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [prices, setPrices] = useState<Record<string, number>>({
     FREE: 0,
+    STARTER: PLANS.STARTER.defaultPrice,
     PRO: PLANS.PRO.defaultPrice,
-    PROMAX: PLANS.PROMAX.defaultPrice,
+    BUSINESS: PLANS.BUSINESS.defaultPrice,
   });
   const [modal, setModal] = useState<PlanKey | null>(null);
 
@@ -122,14 +129,14 @@ export function Billing({
             <Card
               key={key}
               className={`flex flex-col p-5 ${
-                key === "PROMAX" ? "border-accent ring-1 ring-accent" : ""
+                key === "PRO" ? "border-accent ring-1 ring-accent" : ""
               }`}
             >
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-foreground">{PLANS[key].name}</h3>
                 {isCurrent ? (
                   <Badge variant="accent">Joriy</Badge>
-                ) : key === "PROMAX" ? (
+                ) : key === "PRO" ? (
                   <Badge variant="accent">Top</Badge>
                 ) : null}
               </div>
@@ -165,7 +172,7 @@ export function Billing({
               {key !== "FREE" && !isCurrent && (
                 <Button
                   className="mt-5 w-full"
-                  variant={key === "PROMAX" ? "primary" : "outline"}
+                  variant={key === "PRO" ? "primary" : "outline"}
                   disabled={!!pending}
                   onClick={() => setModal(key)}
                 >

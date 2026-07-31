@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
 import { randomCode } from "@/lib/utils";
+import { getEffectivePlan } from "@/lib/plans";
 
 export async function GET() {
   const { user, res } = await authGuard();
@@ -25,6 +26,15 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const name = (body?.name || "").trim();
   if (!name) return fail("Stol nomini kiriting", 422);
+
+  // Stol limiti (tarifga qarab)
+  const { tableLimit } = getEffectivePlan(restaurant);
+  if (tableLimit !== null) {
+    const count = await prisma.restaurantTable.count({ where: { restaurantId: restaurant.id } });
+    if (count >= tableLimit) {
+      return fail(`Tarifingizda ${tableLimit} tagacha stol. Yuqori tarifga o'ting.`, 403);
+    }
+  }
 
   // Noyob kod
   let code = randomCode(6);

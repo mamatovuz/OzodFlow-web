@@ -240,11 +240,21 @@ function OrderCard({
         <span className="font-bold text-foreground">{formatPrice(o.total, currency)}</span>
       </div>
 
-      {o.phone && (
-        <a href={`tel:${o.phone}`} className="mt-1 text-xs text-accent">
-          {o.phone}
+      <div className="mt-1 flex items-center justify-between">
+        {o.phone ? (
+          <a href={`tel:${o.phone}`} className="text-xs text-accent">
+            {o.phone}
+          </a>
+        ) : <span />}
+        <a
+          href={`/receipt/${o.id}`}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs font-medium text-muted hover:text-accent"
+        >
+          🧾 Chek
         </a>
-      )}
+      </div>
 
       {actions.length > 0 && (
         <div className="mt-3 flex gap-2">

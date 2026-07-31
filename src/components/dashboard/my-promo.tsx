@@ -75,7 +75,7 @@ export function MyPromo() {
           <div className="flex-1">
             <h2 className="font-semibold text-foreground">Yillik promo kod</h2>
             <p className="mt-1 text-sm text-muted">
-              Har yili 1 marta Pro yoki Pro Max uchun <b>{discount}%</b> chegirma
+              Har yili 1 marta Pro va Business uchun <b>{discount}%</b> chegirma
               kodini olishingiz mumkin. To'lov paytida shu kodni kiriting.
             </p>
             {canClaim ? (

@@ -203,7 +203,8 @@ export function PromosManager() {
               <Select name="scope" defaultValue="ALL">
                 <option value="ALL">Barcha</option>
                 <option value="PRO">Pro</option>
-                <option value="PROMAX">Pro Max</option>
+                <option value="STARTER">Starter</option>
+                <option value="BUSINESS">Business</option>
               </Select>
             </div>
           </div>

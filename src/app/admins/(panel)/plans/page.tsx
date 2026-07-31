@@ -8,7 +8,7 @@ export default function AdminPlansPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Tarif narxlari</h1>
         <p className="mt-1 text-sm text-muted">
-          Pro va Pro Max tariflarining oylik narxini belgilang
+          Starter, Pro va Business tariflarining oylik narxini belgilang
         </p>
       </div>
       <PlansForm />

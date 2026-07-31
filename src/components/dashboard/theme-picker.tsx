@@ -42,7 +42,7 @@ export function ThemePicker({
         <div className="mb-4 flex items-center justify-between gap-4 rounded-xl border border-accent/30 bg-accent-soft p-4">
           <div className="flex items-center gap-2 text-sm text-foreground">
             <Crown className="h-4 w-4 text-warning" />
-            Premium dizaynlar <b>Pro Max</b> tarifida ochiladi
+            Premium dizaynlar <b>Pro</b> tarifidan ochiladi
           </div>
           <Link href="/dashboard/settings" className="shrink-0 text-sm font-medium text-accent hover:underline">
             Yangilash →
@@ -121,7 +121,7 @@ export function ThemePicker({
               {preview.premium && !canPremium ? (
                 <Link href="/dashboard/settings">
                   <Button className="w-full">
-                    <Lock className="h-4 w-4" /> Pro Max bilan ochish
+                    <Lock className="h-4 w-4" /> Pro bilan ochish
                   </Button>
                 </Link>
               ) : selected === preview.key ? (

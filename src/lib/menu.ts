@@ -2,11 +2,11 @@ import { prisma } from "./prisma";
 import { getTheme } from "./themes";
 
 async function buildMenu(restaurant: NonNullable<Awaited<ReturnType<typeof prisma.restaurant.findUnique>>>) {
-  const [categories, products, banners] = await Promise.all([
+  const [categories, products, banners, gallery] = await Promise.all([
     prisma.category.findMany({
       where: { restaurantId: restaurant.id, isVisible: true },
       orderBy: { sortOrder: "asc" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, nameRu: true, nameEn: true },
     }),
     prisma.product.findMany({
       where: { restaurantId: restaurant.id, isVisible: true },
@@ -16,12 +16,17 @@ async function buildMenu(restaurant: NonNullable<Awaited<ReturnType<typeof prism
       where: { restaurantId: restaurant.id, isActive: true },
       orderBy: { sortOrder: "asc" },
     }),
+    prisma.galleryImage.findMany({
+      where: { restaurantId: restaurant.id },
+      orderBy: { sortOrder: "asc" },
+    }),
   ]);
   return {
     restaurant,
     categories,
     products,
     banners,
+    gallery,
     theme: getTheme(restaurant.menuTheme),
   };
 }

@@ -8,6 +8,8 @@ import { ImageUpload } from "@/components/dashboard/image-upload";
 type Restaurant = {
   name: string;
   description: string | null;
+  descriptionRu: string | null;
+  descriptionEn: string | null;
   logo: string | null;
   cover: string | null;
   phone: string | null;
@@ -38,6 +40,8 @@ export function ProfileForm({ initial }: { initial: Restaurant }) {
     const payload = {
       name: f.get("name"),
       description: f.get("description"),
+      descriptionRu: f.get("descriptionRu"),
+      descriptionEn: f.get("descriptionEn"),
       logo,
       cover,
       phone: f.get("phone"),
@@ -74,13 +78,21 @@ export function ProfileForm({ initial }: { initial: Restaurant }) {
             <Input name="name" defaultValue={initial.name} required />
           </div>
           <div className="sm:col-span-2">
-            <Label>Qisqacha tavsif</Label>
+            <Label>Qisqacha tavsif (o'zbekcha)</Label>
             <Textarea
               name="description"
               defaultValue={initial.description ?? ""}
               rows={2}
               placeholder="Milliy taomlar restorani..."
             />
+          </div>
+          <div>
+            <Label>Описание (RU)</Label>
+            <Textarea name="descriptionRu" defaultValue={initial.descriptionRu ?? ""} rows={2} />
+          </div>
+          <div>
+            <Label>Description (EN)</Label>
+            <Textarea name="descriptionEn" defaultValue={initial.descriptionEn ?? ""} rows={2} />
           </div>
           <div>
             <Label>Logo</Label>

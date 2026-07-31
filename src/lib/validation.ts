@@ -16,6 +16,8 @@ export const loginSchema = z.object({
 export const restaurantSchema = z.object({
   name: z.string().min(2),
   description: z.string().optional(),
+  descriptionRu: z.string().optional(),
+  descriptionEn: z.string().optional(),
   logo: z.string().optional(),
   cover: z.string().optional(),
   phone: z.string().optional(),
@@ -35,6 +37,8 @@ export const restaurantSchema = z.object({
 
 export const categorySchema = z.object({
   name: z.string().min(1, "Nom kiriting"),
+  nameRu: z.string().optional(),
+  nameEn: z.string().optional(),
   description: z.string().optional(),
   icon: z.string().optional(),
   isVisible: z.boolean().optional(),
@@ -43,7 +47,11 @@ export const categorySchema = z.object({
 export const productSchema = z.object({
   categoryId: z.string().min(1, "Kategoriya tanlang"),
   name: z.string().min(1, "Nom kiriting"),
+  nameRu: z.string().optional(),
+  nameEn: z.string().optional(),
   description: z.string().optional(),
+  descriptionRu: z.string().optional(),
+  descriptionEn: z.string().optional(),
   images: z.array(z.string()).optional(),
   price: z.number().min(0),
   oldPrice: z.number().min(0).optional().nullable(),

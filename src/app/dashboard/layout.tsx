@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
-import { getUserRestaurant } from "@/lib/api";
+import { getUserRestaurant, isOwner, getMembership } from "@/lib/api";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -12,6 +12,13 @@ export default async function DashboardLayout({
   const user = await getSessionUser();
   if (!user) redirect("/login");
   if (user.role === "ADMIN") redirect("/admins");
+
+  // Xodim (menejer emas) → staff paneli
+  const owner = await isOwner(user.id);
+  if (!owner) {
+    const membership = await getMembership(user.id);
+    if (membership && membership.role !== "MANAGER") redirect("/staff");
+  }
 
   const restaurant = await getUserRestaurant(user.id);
   if (!restaurant) redirect("/login");

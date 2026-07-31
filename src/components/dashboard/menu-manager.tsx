@@ -21,6 +21,8 @@ import { formatPrice, parseJson } from "@/lib/utils";
 type Category = {
   id: string;
   name: string;
+  nameRu: string | null;
+  nameEn: string | null;
   description: string | null;
   isVisible: boolean;
   sortOrder: number;
@@ -31,7 +33,11 @@ type Product = {
   id: string;
   categoryId: string;
   name: string;
+  nameRu: string | null;
+  nameEn: string | null;
   description: string | null;
+  descriptionRu: string | null;
+  descriptionEn: string | null;
   images: string | null;
   price: number;
   oldPrice: number | null;
@@ -339,6 +345,8 @@ function CategoryModal({
     const f = new FormData(e.currentTarget);
     const payload = {
       name: f.get("name"),
+      nameRu: f.get("nameRu"),
+      nameEn: f.get("nameEn"),
       description: f.get("description"),
       isVisible: f.get("isVisible") === "on",
     };
@@ -372,8 +380,18 @@ function CategoryModal({
           </div>
         )}
         <div>
-          <Label>Nomi *</Label>
+          <Label>Nomi (o'zbekcha) *</Label>
           <Input name="name" defaultValue={edit?.name} required autoFocus />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label>Название (RU)</Label>
+            <Input name="nameRu" defaultValue={edit?.nameRu ?? ""} placeholder="Ruscha" />
+          </div>
+          <div>
+            <Label>Name (EN)</Label>
+            <Input name="nameEn" defaultValue={edit?.nameEn ?? ""} placeholder="Inglizcha" />
+          </div>
         </div>
         <div>
           <Label>Tavsif</Label>
@@ -440,7 +458,11 @@ function ProductModal({
     const payload = {
       categoryId: f.get("categoryId"),
       name: f.get("name"),
+      nameRu: f.get("nameRu"),
+      nameEn: f.get("nameEn"),
       description: f.get("description"),
+      descriptionRu: f.get("descriptionRu"),
+      descriptionEn: f.get("descriptionEn"),
       price: Number(f.get("price") || 0),
       oldPrice: num(f.get("oldPrice")) ?? null,
       weight: f.get("weight"),
@@ -494,8 +516,16 @@ function ProductModal({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <Label>Nomi *</Label>
+            <Label>Nomi (o'zbekcha) *</Label>
             <Input name="name" defaultValue={edit?.name} required />
+          </div>
+          <div>
+            <Label>Название (RU)</Label>
+            <Input name="nameRu" defaultValue={edit?.nameRu ?? ""} placeholder="Ruscha nomi" />
+          </div>
+          <div>
+            <Label>Name (EN)</Label>
+            <Input name="nameEn" defaultValue={edit?.nameEn ?? ""} placeholder="Inglizcha nomi" />
           </div>
           <div>
             <Label>Kategoriya *</Label>
@@ -559,8 +589,16 @@ function ProductModal({
             </Select>
           </div>
           <div className="sm:col-span-2">
-            <Label>Tavsif</Label>
+            <Label>Tavsif (o'zbekcha)</Label>
             <Textarea name="description" defaultValue={edit?.description ?? ""} rows={2} />
+          </div>
+          <div>
+            <Label>Описание (RU)</Label>
+            <Textarea name="descriptionRu" defaultValue={edit?.descriptionRu ?? ""} rows={2} />
+          </div>
+          <div>
+            <Label>Description (EN)</Label>
+            <Textarea name="descriptionEn" defaultValue={edit?.descriptionEn ?? ""} rows={2} />
           </div>
           <div className="sm:col-span-2">
             <Label>Tarkibi</Label>

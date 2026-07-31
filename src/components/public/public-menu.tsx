@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { formatPrice, parseJson } from "@/lib/utils";
 import type { MenuTheme } from "@/lib/themes";
+import { loc, LANGS, UI, type Lang } from "@/lib/i18n";
 import {
   CheckoutModal,
   QtyControl,
@@ -31,7 +32,11 @@ type PublicProduct = {
   id: string;
   categoryId: string;
   name: string;
+  nameRu: string | null;
+  nameEn: string | null;
   description: string | null;
+  descriptionRu: string | null;
+  descriptionEn: string | null;
   images: string | null;
   price: number;
   oldPrice: number | null;
@@ -47,7 +52,7 @@ type PublicProduct = {
   isAvailable: boolean;
 };
 
-type PublicCategory = { id: string; name: string };
+type PublicCategory = { id: string; name: string; nameRu: string | null; nameEn: string | null };
 type PublicBanner = {
   id: string;
   image: string | null;
@@ -55,11 +60,14 @@ type PublicBanner = {
   subtitle: string | null;
   linkUrl: string | null;
 };
+type PublicGallery = { id: string; image: string; caption: string | null; category: string };
 
 type PublicRestaurant = {
   slug: string;
   name: string;
   description: string | null;
+  descriptionRu: string | null;
+  descriptionEn: string | null;
   logo: string | null;
   cover: string | null;
   phone: string | null;
@@ -82,11 +90,12 @@ const filters = [
 
 export function PublicMenu({
   restaurant,
-  categories,
-  products,
+  categories: rawCategories,
+  products: rawProducts,
   theme,
   table,
   banners,
+  gallery = [],
 }: {
   restaurant: PublicRestaurant;
   categories: PublicCategory[];
@@ -94,14 +103,48 @@ export function PublicMenu({
   theme: MenuTheme;
   table: { code: string; name: string } | null;
   banners: PublicBanner[];
+  gallery?: PublicGallery[];
 }) {
-  const [activeCat, setActiveCat] = useState<string>(categories[0]?.id ?? "");
+  const [lang, setLang] = useState<Lang>("uz");
+  const [activeCat, setActiveCat] = useState<string>(rawCategories[0]?.id ?? "");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [detail, setDetail] = useState<PublicProduct | null>(null);
   const [cart, setCart] = useState<Record<string, number>>({});
   const [cartOpen, setCartOpen] = useState(false);
   const catRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const t = UI[lang];
+
+  useEffect(() => {
+    const saved = localStorage.getItem("ozf_lang") as Lang | null;
+    if (saved && ["uz", "ru", "en"].includes(saved)) setLang(saved);
+  }, []);
+  function changeLang(l: Lang) {
+    setLang(l);
+    localStorage.setItem("ozf_lang", l);
+  }
+
+  // Tilga moslash
+  const categories = useMemo(
+    () => rawCategories.map((c) => ({ ...c, name: loc(c.name, c.nameRu, c.nameEn, lang) })),
+    [rawCategories, lang]
+  );
+  const products = useMemo(
+    () =>
+      rawProducts.map((p) => ({
+        ...p,
+        name: loc(p.name, p.nameRu, p.nameEn, lang),
+        description: loc(p.description, p.descriptionRu, p.descriptionEn, lang),
+      })),
+    [rawProducts, lang]
+  );
+  const restaurantDesc = loc(
+    restaurant.description,
+    restaurant.descriptionRu,
+    restaurant.descriptionEn,
+    lang
+  );
 
   const accent = theme.accent || restaurant.primaryColor || "#2563EB";
   const accentText = theme.accentText || "#ffffff";
@@ -208,6 +251,20 @@ export function PublicMenu({
         )}
         {/* Pastga qarab qorayadigan gradient — karta bilan yumshoq ajralish uchun */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-background/95" />
+        {/* Til almashtirish */}
+        <div className="absolute left-4 top-4 flex gap-1 rounded-full bg-black/40 p-1 backdrop-blur">
+          {LANGS.map((l) => (
+            <button
+              key={l.key}
+              onClick={() => changeLang(l.key)}
+              className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                lang === l.key ? "bg-white text-black" : "text-white/80"
+              }`}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
         {/* Cart icon */}
         <button
           onClick={() => setCartOpen(true)}
@@ -266,9 +323,9 @@ export function PublicMenu({
             </div>
           </div>
 
-          {restaurant.description && (
+          {restaurantDesc && (
             <p className="mt-3.5 text-sm leading-relaxed text-muted">
-              {restaurant.description}
+              {restaurantDesc}
             </p>
           )}
 
@@ -293,7 +350,7 @@ export function PublicMenu({
             style={{ background: accent, color: accentText, borderRadius: R }}
           >
             <UtensilsCrossed className="h-4 w-4" />
-            Siz: {table.name}
+            {t.you}: {table.name}
           </div>
         )}
 
@@ -311,7 +368,7 @@ export function PublicMenu({
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Taom qidirish..."
+              placeholder={t.search}
               className="h-12 w-full border border-border bg-card pl-10 pr-4 text-sm text-foreground outline-none transition-colors focus:border-accent"
               style={{ borderRadius: R }}
             />
@@ -358,7 +415,7 @@ export function PublicMenu({
         {!search && filter === "all" && recommended.length > 0 && (
           <div className="mt-4">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">Tavsiya etamiz</h2>
+              <h2 className="text-lg font-bold text-foreground">{t.recommended}</h2>
             </div>
             <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2">
               {recommended.map((p) => (
@@ -380,7 +437,7 @@ export function PublicMenu({
           {grouped.length === 0 && (
             <div className="flex flex-col items-center py-16 text-center">
               <UtensilsCrossed className="h-10 w-10 text-muted/40" />
-              <p className="mt-3 text-sm text-muted">Hech narsa topilmadi</p>
+              <p className="mt-3 text-sm text-muted">{t.empty}</p>
             </div>
           )}
           {grouped.map((g) => (
@@ -425,6 +482,30 @@ export function PublicMenu({
           ))}
         </div>
 
+        {/* Galereya */}
+        {gallery.length > 0 && (
+          <div className="mt-10">
+            <h2 className="mb-3 text-lg font-bold text-foreground">{t.gallery}</h2>
+            <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2">
+              {gallery.map((g) => (
+                <div
+                  key={g.id}
+                  className="relative h-40 w-56 shrink-0 overflow-hidden"
+                  style={{ borderRadius: R }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={g.image} alt={g.caption || ""} className="h-full w-full object-cover" />
+                  {g.caption && (
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                      <p className="text-xs font-medium text-white">{g.caption}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Footer */}
         <div className="mt-10 flex justify-center gap-3">
           {restaurant.telegram && (
@@ -449,11 +530,11 @@ export function PublicMenu({
             <span className="flex items-center gap-2">
               <ShoppingBag className="h-5 w-5" />
               <span className="text-sm font-medium">
-                {cartCount} ta taom · {formatPrice(cartTotal, restaurant.currency)}
+                {cartCount} · {formatPrice(cartTotal, restaurant.currency)}
               </span>
             </span>
             <span className="flex items-center gap-1 text-sm font-semibold">
-              Rasmiylashtirish <ArrowRight className="h-4 w-4" />
+              {t.checkout} <ArrowRight className="h-4 w-4" />
             </span>
           </button>
         </div>

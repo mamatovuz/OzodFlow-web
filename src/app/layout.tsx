@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
+import { PwaRegister } from "@/components/pwa-register";
 import "./globals.css";
 
 const inter = Inter({
@@ -53,6 +54,7 @@ export default function RootLayout({
     <html lang="uz" suppressHydrationWarning className={inter.variable}>
       <body>
         <ThemeProvider>{children}</ThemeProvider>
+        <PwaRegister />
       </body>
     </html>
   );

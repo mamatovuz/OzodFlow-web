@@ -142,6 +142,7 @@ export default async function LandingPage({
           theme={menu.theme}
           table={table}
           banners={menu.banners}
+          gallery={menu.gallery}
         />
       );
     }

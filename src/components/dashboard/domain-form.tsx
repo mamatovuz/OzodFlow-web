@@ -14,6 +14,7 @@ import {
   XCircle,
   Wrench,
   Hand,
+  BookOpen,
 } from "lucide-react";
 import { Button, Input, Card, Badge, Label, Textarea } from "@/components/ui";
 import { formatPrice } from "@/lib/utils";
@@ -186,17 +187,131 @@ function SelfConnect({ current }: { current: string | null }) {
           {error}
         </p>
       )}
+      <DnsGuide />
+    </div>
+  );
+}
+
+const SERVER_IP = process.env.NEXT_PUBLIC_SERVER_IP || "185.203.238.42";
+
+// ─── DNS ko'rsatma (A record) + Batafsil modal ───
+function DnsGuide() {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState("");
+  function copy(t: string) {
+    navigator.clipboard.writeText(t);
+    setCopied(t);
+    setTimeout(() => setCopied(""), 2000);
+  }
+  return (
+    <>
       <div className="mt-4 rounded-xl bg-surface-2 p-4 text-sm text-muted">
-        <p className="font-medium text-foreground">DNS ko'rsatma</p>
+        <div className="flex items-center justify-between">
+          <p className="font-medium text-foreground">Qisqa ko'rsatma (A record)</p>
+          <button
+            onClick={() => setOpen(true)}
+            className="flex items-center gap-1 text-sm font-medium text-accent hover:underline"
+          >
+            <BookOpen className="h-3.5 w-3.5" /> Batafsil
+          </button>
+        </div>
         <ol className="mt-2 space-y-1">
-          <li>1. Domeningiz DNS'ida <b>CNAME</b> yozuv qo'shing.</li>
+          <li>1. Domeningiz DNS'ida <b>A</b> yozuv qo'shing.</li>
           <li>
-            2. Qiymat:{" "}
-            <span className="font-mono text-foreground">cname.ozodflow.uz</span>
+            2. Qiymat (IP):{" "}
+            <button onClick={() => copy(SERVER_IP)} className="font-mono text-foreground underline">
+              {SERVER_IP} {copied === SERVER_IP ? "✓" : "📋"}
+            </button>
           </li>
-          <li>3. Bu yerga domeningizni yozib saqlang.</li>
+          <li>3. Yuqorida domeningizni yozib saqlang.</li>
         </ol>
       </div>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
+          <div className="relative z-10 max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-card p-6 shadow-card animate-fade-up sm:rounded-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-foreground">Domenni ulash — batafsil</h3>
+              <button onClick={() => setOpen(false)} className="text-muted hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-sm text-foreground">
+              <Step n={1} title="Domen provayderingizga kiring">
+                Domenni sotib olgan sayt (masalan ahost.uz, ps.uz, GoDaddy,
+                Namecheap) — shaxsiy kabinetingizga kiring va <b>DNS boshqaruvi</b>{" "}
+                (DNS Management / DNS Zone) bo'limini oching.
+              </Step>
+              <Step n={2} title="A yozuv (A record) qo'shing">
+                <div className="mt-2 overflow-hidden rounded-lg border border-border">
+                  <Row label="Type (turi)" value="A" onCopy={copy} copied={copied} />
+                  <Row label="Name (nom)" value="@ yoki menu" onCopy={copy} copied={copied} />
+                  <Row label="Value (IP manzil)" value={SERVER_IP} onCopy={copy} copied={copied} />
+                  <Row label="TTL" value="3600 (yoki Auto)" onCopy={copy} copied={copied} last />
+                </div>
+                <p className="mt-2 text-xs text-muted">
+                  Butun domen uchun <b>@</b>, subdomen (menu.restoran.uz) uchun{" "}
+                  <b>menu</b> yozing.
+                </p>
+              </Step>
+              <Step n={3} title="Bu yerga domeningizni kiriting">
+                Yuqoridagi maydonga domeningizni to'liq yozing (masalan{" "}
+                <span className="font-mono">menu.restoran.uz</span>) va{" "}
+                <b>Saqlash</b> tugmasini bosing.
+              </Step>
+              <Step n={4} title="Kuting (DNS tarqalishi)">
+                DNS o'zgarishi 5 daqiqadan bir necha soatgacha tarqaladi. Keyin
+                domeningizni brauzerda ochib menyu chiqishini tekshiring. SSL
+                (https) avtomatik ulanadi.
+              </Step>
+            </div>
+
+            <div className="mt-5 rounded-lg bg-accent-soft p-3 text-xs text-muted">
+              Qiyin bo'lsa — <b>“Admin o'rnatib bersin”</b> variantini tanlang,
+              biz sozlab beramiz.
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-3">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">
+        {n}
+      </span>
+      <div className="flex-1">
+        <p className="font-medium text-foreground">{title}</p>
+        <div className="mt-1 text-muted">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function Row({
+  label,
+  value,
+  onCopy,
+  copied,
+  last,
+}: {
+  label: string;
+  value: string;
+  onCopy: (t: string) => void;
+  copied: string;
+  last?: boolean;
+}) {
+  return (
+    <div className={`flex items-center justify-between px-3 py-2 ${last ? "" : "border-b border-border"}`}>
+      <span className="text-xs text-muted">{label}</span>
+      <button onClick={() => onCopy(value)} className="flex items-center gap-1 font-mono text-sm text-foreground">
+        {value} {copied === value ? "✓" : "📋"}
+      </button>
     </div>
   );
 }

@@ -35,5 +35,17 @@ export async function POST(req: NextRequest) {
     userAgent: req.headers.get("user-agent") || undefined,
   });
 
-  return ok({ id: user.id, name: user.name, role: user.role });
+  // Yo'naltirish manzilini aniqlaymiz
+  let redirect = "/dashboard";
+  if (user.role === "ADMIN") {
+    redirect = "/admins";
+  } else {
+    const owns = await prisma.restaurant.findFirst({ where: { ownerId: user.id } });
+    if (!owns) {
+      const membership = await prisma.membership.findFirst({ where: { userId: user.id } });
+      if (membership) redirect = membership.role === "MANAGER" ? "/dashboard" : "/staff";
+    }
+  }
+
+  return ok({ id: user.id, name: user.name, role: user.role, redirect });
 }

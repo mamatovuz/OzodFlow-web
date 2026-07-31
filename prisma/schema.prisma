@@ -76,6 +76,8 @@ model Restaurant {
   slug        String  @unique
   name        String
   description String?
+  descriptionRu String?
+  descriptionEn String?
   logo        String?
   cover       String?
   phone       String?
@@ -107,8 +109,24 @@ model Restaurant {
   domainRequests  DomainRequest[]
   orders          Order[]
   banners         Banner[]
+  gallery         GalleryImage[]
 
   @@index([ownerId])
+}
+
+// Restoran galereyasi (interyer, eksteryer, jamoa)
+model GalleryImage {
+  id           String   @id @default(cuid())
+  restaurantId String
+  image        String
+  caption      String?
+  category     String   @default("interior") // interior | exterior | team | other
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
 }
 
 // Bosh menyu bannerlari (slider)
@@ -172,6 +190,8 @@ model Category {
   id           String  @id @default(cuid())
   restaurantId String
   name         String
+  nameRu       String?
+  nameEn       String?
   description  String?
   icon         String?
   sortOrder    Int     @default(0)
@@ -190,7 +210,11 @@ model Product {
   restaurantId String
   categoryId   String
   name         String
+  nameRu       String?
+  nameEn       String?
   description  String?
+  descriptionRu String?
+  descriptionEn String?
   images       String? // JSON array of image urls
   price        Float   @default(0)
   oldPrice     Float?

@@ -30,7 +30,7 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
-    router.push(json.data?.role === "ADMIN" ? "/admins" : "/dashboard");
+    router.push(json.data?.redirect || "/dashboard");
     router.refresh();
   }
 

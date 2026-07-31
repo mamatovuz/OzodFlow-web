@@ -52,3 +52,17 @@ export async function getUserRestaurant(userId: string) {
     orderBy: { createdAt: "asc" },
   });
 }
+
+/** Foydalanuvchi restoran egasimi (owner) */
+export async function isOwner(userId: string) {
+  const r = await prisma.restaurant.findFirst({ where: { ownerId: userId } });
+  return !!r;
+}
+
+/** Xodim (membership) ma'lumotini oladi */
+export async function getMembership(userId: string) {
+  return prisma.membership.findFirst({
+    where: { userId },
+    include: { restaurant: { select: { id: true, name: true, currency: true, slug: true } } },
+  });
+}

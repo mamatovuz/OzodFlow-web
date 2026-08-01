@@ -92,6 +92,7 @@ model Restaurant {
   payMethods  String? // JSON string: to'lov usullari
   primaryColor String @default("#2563EB")
   menuTheme   String  @default("light") // light | dark | + premium temalar
+  purchasedThemes String @default("[]") // alohida sotib olingan premium dizaynlar (JSON key massivi)
   customDomain String? @unique // o'z domeni (Pro/Pro Max)
   plan        String  @default("FREE") // FREE | PRO | PROMAX
   planUntil   DateTime? // FREE trial muddati; pullik tariflarda null = umrbod
@@ -361,7 +362,9 @@ model PaymentRequest {
   id           String    @id @default(cuid())
   restaurantId String
   userId       String
-  plan         String // PRO | PROMAX
+  kind         String    @default("PLAN") // PLAN = tarif, THEME = alohida dizayn
+  plan         String // tarif kaliti (THEME uchun — joriy tarif)
+  themeKey     String? // THEME turida sotib olinayotgan dizayn kaliti
   months       Int       @default(1) // tanlangan oy soni
   isLifetime   Boolean   @default(false)
   baseAmount   Int       @default(0) // chegirmagacha

@@ -16,9 +16,12 @@ import { Button, Card, Badge, Label } from "@/components/ui";
 import { Modal } from "@/components/ui-modal";
 import { formatPrice } from "@/lib/utils";
 import { PLANS, FEATURE_MATRIX, DURATIONS, computePrice, type PlanKey } from "@/lib/plans";
+import { getTheme } from "@/lib/themes";
 
 type PaymentRequest = {
   id: string;
+  kind?: string;
+  themeKey?: string | null;
   plan: string;
   amount: number;
   status: string;
@@ -111,7 +114,10 @@ export function Billing({
           <div className="flex items-center gap-2 text-warning">
             <Clock className="h-4 w-4" />
             <p className="text-sm font-medium">
-              {PLANS[pending.plan as PlanKey]?.name ?? pending.plan} to'lovi tekshirilmoqda
+              {pending.kind === "THEME"
+                ? `${getTheme(pending.themeKey).name} dizayni`
+                : PLANS[pending.plan as PlanKey]?.name ?? pending.plan}{" "}
+              to'lovi tekshirilmoqda
             </p>
           </div>
           <p className="mt-1 text-sm text-muted">
@@ -196,7 +202,10 @@ export function Billing({
               >
                 <div>
                   <p className="text-sm font-medium text-foreground">
-                    {PLANS[r.plan as PlanKey]?.name ?? r.plan} — {formatPrice(r.amount, "UZS")}
+                    {r.kind === "THEME"
+                      ? `${getTheme(r.themeKey).name} dizayni`
+                      : PLANS[r.plan as PlanKey]?.name ?? r.plan}{" "}
+                    — {formatPrice(r.amount, "UZS")}
                   </p>
                   <p className="text-xs text-muted">
                     {new Date(r.createdAt).toLocaleString("uz-UZ")}

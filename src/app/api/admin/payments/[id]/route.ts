@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { adminGuard, ok, fail } from "@/lib/api";
 import { PLAN_DAYS, type PlanKey } from "@/lib/plans";
+import { parsePurchasedThemes } from "@/lib/themes";
 
 // To'lovni tasdiqlash yoki rad etish
 // Body: { action: "approve" | "reject", note?: string }
@@ -24,6 +25,28 @@ export async function PATCH(
   }
 
   if (action === "approve") {
+    // ── Alohida dizayn sotib olish — temani umrbodga biriktiramiz ──
+    if (request.kind === "THEME" && request.themeKey) {
+      const restaurant = await prisma.restaurant.findUnique({
+        where: { id: request.restaurantId },
+        select: { purchasedThemes: true },
+      });
+      const owned = parsePurchasedThemes(restaurant?.purchasedThemes);
+      if (!owned.includes(request.themeKey)) owned.push(request.themeKey);
+
+      await prisma.$transaction([
+        prisma.restaurant.update({
+          where: { id: request.restaurantId },
+          data: { purchasedThemes: JSON.stringify(owned) },
+        }),
+        prisma.paymentRequest.update({
+          where: { id },
+          data: { status: "APPROVED", adminNote: note || null, reviewedAt: new Date() },
+        }),
+      ]);
+      return ok({ status: "APPROVED", themeKey: request.themeKey });
+    }
+
     const plan = request.plan as PlanKey;
     const now = new Date();
     let planUntil: Date | null;

@@ -3,7 +3,7 @@
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui";
 
-const CONTACT = process.env.NEXT_PUBLIC_CONTACT_TELEGRAM || "ozodflow";
+const CONTACT = process.env.NEXT_PUBLIC_CONTACT_TELEGRAM || "ozodflow_uz";
 const MSG = "Salom! Enterprise tarifining narxini bilmoqchi edim.";
 
 export function EnterpriseContact() {

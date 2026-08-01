@@ -11,9 +11,12 @@ import {
 import { Button, Card, Badge } from "@/components/ui";
 import { Modal } from "@/components/ui-modal";
 import { formatPrice } from "@/lib/utils";
+import { getTheme } from "@/lib/themes";
 
 type Req = {
   id: string;
+  kind?: string;
+  themeKey?: string | null;
   plan: string;
   amount: number;
   status: string;
@@ -124,7 +127,9 @@ export function PaymentsModeration() {
                 </button>
                 <div>
                   <p className="text-sm font-medium text-foreground">
-                    {r.plan} tarif
+                    {r.kind === "THEME"
+                      ? `${getTheme(r.themeKey).name} dizayni`
+                      : `${r.plan} tarif`}
                   </p>
                   <p className="text-lg font-bold text-accent">
                     {formatPrice(r.amount, "UZS")}

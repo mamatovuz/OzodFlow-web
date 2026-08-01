@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
 import { restaurantSchema } from "@/lib/validation";
 import { getEffectivePlan } from "@/lib/plans";
-import { getTheme, FREE_THEMES, type ThemeKey } from "@/lib/themes";
+import { getTheme, FREE_THEMES, parsePurchasedThemes, type ThemeKey } from "@/lib/themes";
 
 export async function GET() {
   const { user, res } = await authGuard();
@@ -30,13 +30,14 @@ export async function PATCH(req: NextRequest) {
   const data = { ...parsed.data };
   const access = getEffectivePlan(restaurant);
 
-  // Premium tema Pro va Business uchun
+  // Premium tema: tarif ochsa (Business/Enterprise) yoki alohida sotib olingan bo'lsa
   if (data.menuTheme !== undefined) {
     const theme = getTheme(data.menuTheme);
     const isFree = FREE_THEMES.includes(theme.key as ThemeKey);
-    if (theme.premium && !access.canPremiumThemes) {
+    const purchased = parsePurchasedThemes(restaurant.purchasedThemes);
+    if (theme.premium && !access.canPremiumThemes && !purchased.includes(theme.key)) {
       return fail(
-        "Premium dizaynlar Pro va Business tarifida mavjud",
+        "Bu premium dizayn hali sotib olinmagan",
         403
       );
     }

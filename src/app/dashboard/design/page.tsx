@@ -1,6 +1,7 @@
 import { getSessionUser } from "@/lib/auth";
 import { getUserRestaurant } from "@/lib/api";
 import { getEffectivePlan } from "@/lib/plans";
+import { parsePurchasedThemes } from "@/lib/themes";
 import { ThemePicker } from "@/components/dashboard/theme-picker";
 import { DomainForm } from "@/components/dashboard/domain-form";
 
@@ -20,7 +21,11 @@ export default async function DesignPage() {
         </p>
       </div>
 
-      <ThemePicker current={restaurant.menuTheme} canPremium={access.canPremiumThemes} />
+      <ThemePicker
+        current={restaurant.menuTheme}
+        canPremium={access.canPremiumThemes}
+        purchased={parsePurchasedThemes(restaurant.purchasedThemes)}
+      />
 
       <DomainForm
         current={restaurant.customDomain}

@@ -48,7 +48,8 @@ export const PLANS: Record<PlanKey, PlanMeta> = {
     tableLimit: null,
     canStaff: true,
     canService: true,
-    canPremiumThemes: true,
+    // Premium dizaynlar Pro tarifga kirmaydi — alohida sotib olinadi (THEME_PRICE).
+    canPremiumThemes: false,
     canCustomDomain: false,
     canBranches: false,
     contactOnly: false,
@@ -85,6 +86,9 @@ export const PAID_PLANS: PlanKey[] = ["STARTER", "PRO", "BUSINESS"];
 export const FREE_TRIAL_DAYS = 7;
 export const PLAN_DAYS = 30;
 export const DOMAIN_SERVICE_PRICE = 40000;
+// Bitta premium dizaynni umrbodga sotib olish narxi (Business/Enterprise'dan boshqa
+// tariflar uchun — ular premium dizaynlarni allaqachon o'z ichiga oladi).
+export const THEME_PRICE = 50000;
 export const YEARLY_DISCOUNT = 100000;
 export const LIFETIME_MONTHS = 36;
 
@@ -139,7 +143,7 @@ export const FEATURE_MATRIX: {
   { label: "Elektron chek", free: false, starter: false, pro: true, business: true },
   { label: "Real-time yangilanish", free: false, starter: false, pro: true, business: true },
   { label: "Xodimlar (bir nechta)", free: false, starter: false, pro: true, business: true },
-  { label: "Premium dizaynlar", free: false, starter: false, pro: true, business: true },
+  { label: "Premium dizaynlar", free: false, starter: false, pro: false, business: true },
   { label: "Filiallar va rollar", free: false, starter: false, pro: false, business: true },
   { label: "Batafsil hisobotlar", free: false, starter: false, pro: false, business: true },
   { label: "Maxsus domen", free: false, starter: false, pro: false, business: true },

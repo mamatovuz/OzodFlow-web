@@ -214,3 +214,27 @@ export function getTheme(key: string | null | undefined): MenuTheme {
 }
 
 export const FREE_THEMES: ThemeKey[] = ["light", "dark"];
+
+// Restoran alohida sotib olgan premium dizaynlar (JSON massiv) ni xavfsiz o'qish.
+export function parsePurchasedThemes(json: string | null | undefined): string[] {
+  if (!json) return [];
+  try {
+    const arr = JSON.parse(json);
+    return Array.isArray(arr) ? arr.filter((k) => typeof k === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+// Dizaynni ishlatish mumkinmi: premium bo'lmasa har doim, premium bo'lsa —
+// tarif ochsa (canPremium) yoki alohida sotib olingan bo'lsa.
+export function canUseTheme(
+  key: string,
+  canPremium: boolean,
+  purchased: string[]
+): boolean {
+  const theme = MENU_THEMES.find((t) => t.key === key);
+  if (!theme) return false;
+  if (!theme.premium) return true;
+  return canPremium || purchased.includes(key);
+}

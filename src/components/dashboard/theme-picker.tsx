@@ -1,22 +1,63 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Lock, Loader2, Crown, X, Eye } from "lucide-react";
-import { Card, Badge, Button } from "@/components/ui";
+import { useEffect, useState } from "react";
+import {
+  Check,
+  Loader2,
+  Crown,
+  X,
+  Eye,
+  Copy,
+  Upload,
+  ShoppingBag,
+  Clock,
+} from "lucide-react";
+import { Card, Badge, Button, Label } from "@/components/ui";
+import { Modal } from "@/components/ui-modal";
 import { MENU_THEMES, type MenuTheme, type ThemeKey } from "@/lib/themes";
+import { THEME_PRICE } from "@/lib/plans";
+import { formatPrice } from "@/lib/utils";
 import Link from "next/link";
+
+type PayCard = {
+  id: string;
+  bankName: string;
+  cardNumber: string;
+  cardHolder: string;
+};
 
 export function ThemePicker({
   current,
   canPremium,
+  purchased,
 }: {
   current: string;
   canPremium: boolean;
+  purchased: string[];
 }) {
+  const [owned] = useState<string[]>(purchased);
   const [selected, setSelected] = useState<string>(current);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<MenuTheme | null>(null);
+  const [buy, setBuy] = useState<MenuTheme | null>(null);
+  const [pending, setPending] = useState(false); // to'lov so'rovi tekshirilmoqda
+  const [justSent, setJustSent] = useState(false);
+
+  // Kutilayotgan to'lov so'rovi bor-yo'qligini tekshiramiz
+  useEffect(() => {
+    fetch("/api/payment/request")
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.success) setPending(j.data.some((r: { status: string }) => r.status === "PENDING"));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Dizaynni ishlatish mumkinmi (bepul, tarif ochgan yoki sotib olingan)
+  function isOwned(t: MenuTheme) {
+    return !t.premium || canPremium || owned.includes(t.key);
+  }
 
   async function apply(key: ThemeKey) {
     setSaving(true);
@@ -39,14 +80,24 @@ export function ThemePicker({
   return (
     <div>
       {!canPremium && (
-        <div className="mb-4 flex items-center justify-between gap-4 rounded-xl border border-accent/30 bg-accent-soft p-4">
+        <div className="mb-4 flex flex-col gap-1 rounded-xl border border-accent/30 bg-accent-soft p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-sm text-foreground">
-            <Crown className="h-4 w-4 text-warning" />
-            Premium dizaynlar <b>Pro</b> tarifidan ochiladi
+            <Crown className="h-4 w-4 shrink-0 text-warning" />
+            Har bir premium dizaynni <b>{formatPrice(THEME_PRICE, "UZS")}</b> ga umrbodga sotib
+            olishingiz mumkin
           </div>
-          <Link href="/dashboard/settings" className="shrink-0 text-sm font-medium text-accent hover:underline">
-            Yangilash →
+          <Link
+            href="/dashboard/settings"
+            className="shrink-0 text-sm font-medium text-accent hover:underline"
+          >
+            Yoki Business tarifi →
           </Link>
+        </div>
+      )}
+
+      {justSent && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
+          <Check className="h-4 w-4" /> So'rov yuborildi. Admin tasdiqlagach dizayn ochiladi.
         </div>
       )}
 
@@ -56,7 +107,8 @@ export function ThemePicker({
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {MENU_THEMES.map((t) => {
-          const locked = t.premium && !canPremium;
+          const unlocked = isOwned(t);
+          const locked = t.premium && !unlocked;
           const active = selected === t.key;
           return (
             <Card
@@ -85,7 +137,18 @@ export function ThemePicker({
                     <Check className="h-3 w-3" /> Faol
                   </span>
                 ) : locked ? (
-                  <Lock className="h-4 w-4 text-muted" />
+                  pending ? (
+                    <span className="flex items-center gap-1 text-xs font-medium text-warning">
+                      <Clock className="h-3.5 w-3.5" /> Kutilmoqda
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => setBuy(t)}
+                      className="flex items-center gap-1 text-xs font-medium text-accent"
+                    >
+                      <ShoppingBag className="h-3.5 w-3.5" /> {formatPrice(THEME_PRICE, "UZS")}
+                    </button>
+                  )
                 ) : (
                   <button
                     onClick={() => setPreview(t)}
@@ -118,12 +181,23 @@ export function ThemePicker({
               <ThemeMock theme={preview} large />
             </div>
             <div className="border-t border-border p-4">
-              {preview.premium && !canPremium ? (
-                <Link href="/dashboard/settings">
-                  <Button className="w-full">
-                    <Lock className="h-4 w-4" /> Pro bilan ochish
+              {preview.premium && !isOwned(preview) ? (
+                pending ? (
+                  <Button className="w-full" variant="outline" disabled>
+                    <Clock className="h-4 w-4" /> To'lov tekshirilmoqda
                   </Button>
-                </Link>
+                ) : (
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      const t = preview;
+                      setPreview(null);
+                      setBuy(t);
+                    }}
+                  >
+                    <ShoppingBag className="h-4 w-4" /> Sotib olish — {formatPrice(THEME_PRICE, "UZS")}
+                  </Button>
+                )
               ) : selected === preview.key ? (
                 <Button className="w-full" variant="outline" disabled>
                   <Check className="h-4 w-4" /> Joriy dizayn
@@ -138,7 +212,203 @@ export function ThemePicker({
           </div>
         </div>
       )}
+
+      {/* Sotib olish modali */}
+      {buy && (
+        <PurchaseModal
+          theme={buy}
+          onClose={() => setBuy(null)}
+          onDone={() => {
+            setBuy(null);
+            setPending(true);
+            setJustSent(true);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+// Bitta premium dizaynni sotib olish (karta → chek → admin tasdiqlaydi)
+function PurchaseModal({
+  theme,
+  onClose,
+  onDone,
+}: {
+  theme: MenuTheme;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [cards, setCards] = useState<PayCard[]>([]);
+  const [loadingCards, setLoadingCards] = useState(true);
+  const [receipt, setReceipt] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState("");
+
+  useEffect(() => {
+    fetch("/api/payment/cards")
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.success) setCards(j.data);
+        setLoadingCards(false);
+      });
+  }, []);
+
+  async function uploadReceipt(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError("");
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    const json = await res.json();
+    setUploading(false);
+    if (!res.ok) {
+      setError(json.error || "Yuklashda xatolik");
+      return;
+    }
+    setReceipt(json.data.url);
+  }
+
+  async function submit() {
+    if (!receipt) {
+      setError("Iltimos, to'lov chekini yuklang");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    const res = await fetch("/api/payment/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "THEME", themeKey: theme.key, receiptImage: receipt }),
+    });
+    const json = await res.json();
+    setSubmitting(false);
+    if (!res.ok) {
+      setError(json.error || "Xatolik");
+      return;
+    }
+    onDone();
+  }
+
+  function copyCard(num: string) {
+    navigator.clipboard.writeText(num.replace(/\s/g, ""));
+    setCopied(num);
+    setTimeout(() => setCopied(""), 2000);
+  }
+
+  return (
+    <Modal open onClose={onClose} title={`${theme.name} dizaynini sotib olish`}>
+      <div className="space-y-5">
+        <div className="rounded-xl bg-accent-soft p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted">Umrbod dizayn</span>
+            <span className="text-2xl font-bold text-accent">
+              {formatPrice(THEME_PRICE, "UZS")}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-muted">
+            Bir marta to'laysiz — bu dizayn umrbod sizniki bo'lib qoladi.
+          </p>
+        </div>
+
+        <div>
+          <Label>1. Quyidagi kartaga o'tkazing</Label>
+          {loadingCards ? (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-accent" />
+            </div>
+          ) : cards.length === 0 ? (
+            <p className="rounded-lg bg-surface-2 p-3 text-sm text-muted">
+              Hozircha to'lov kartasi qo'shilmagan. Admin bilan bog'laning.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {cards.map((c) => (
+                <div key={c.id} className="rounded-xl border border-border bg-card p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted">{c.bankName}</span>
+                    <button
+                      onClick={() => copyCard(c.cardNumber)}
+                      className="flex items-center gap-1 text-xs text-accent"
+                    >
+                      {copied === c.cardNumber ? (
+                        <>
+                          <Check className="h-3 w-3" /> Nusxalandi
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3" /> Nusxalash
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="mt-1 font-mono text-lg tracking-wider text-foreground">
+                    {c.cardNumber}
+                  </p>
+                  <p className="text-sm text-muted">{c.cardHolder}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <Label>2. To'lov chekini yuklang</Label>
+          {receipt ? (
+            <div className="relative inline-block">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={receipt}
+                alt="chek"
+                className="h-32 rounded-lg border border-border object-cover"
+              />
+              <button
+                onClick={() => setReceipt("")}
+                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-error text-white"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-border py-6 text-muted hover:border-accent hover:text-accent">
+              {uploading ? (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              ) : (
+                <>
+                  <Upload className="h-6 w-6" />
+                  <span className="mt-1 text-sm">Chek rasmini tanlang</span>
+                </>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={uploadReceipt}
+                disabled={uploading}
+              />
+            </label>
+          )}
+        </div>
+
+        {error && (
+          <div className="rounded-lg bg-error/10 px-3 py-2 text-sm text-error">{error}</div>
+        )}
+
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose}>
+            Bekor qilish
+          </Button>
+          <Button onClick={submit} disabled={submitting || !receipt}>
+            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            So'rov yuborish
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

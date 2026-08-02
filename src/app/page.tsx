@@ -26,11 +26,13 @@ import {
   Gem,
 } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { Logo } from "@/components/logo";
 import { Button, Badge } from "@/components/ui";
 import { SiteNav } from "@/components/landing/site-nav";
 import { FAQ } from "@/components/landing/faq";
 import { EnterpriseContact } from "@/components/landing/enterprise-contact";
+import { PartnersMarquee } from "@/components/landing/partners-marquee";
 
 const features = [
   {
@@ -162,6 +164,11 @@ export default async function LandingPage({
 
   const user = await getSessionUser();
   const prices = await getPlanPrices();
+  const partners = await prisma.partner.findMany({
+    where: { isActive: true },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    select: { id: true, name: true, image: true, url: true },
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -170,7 +177,20 @@ export default async function LandingPage({
       {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 -z-10">
-          <div className="absolute left-1/2 top-0 h-[400px] w-[700px] -translate-x-1/2 rounded-full bg-accent/5 blur-3xl" />
+          <div className="absolute left-1/2 top-[-120px] h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-accent/10 blur-3xl" />
+          <div className="absolute right-[-100px] top-40 h-[320px] w-[320px] rounded-full bg-accent/5 blur-3xl" />
+          <div
+            className="absolute inset-x-0 top-0 h-[600px] opacity-[0.4] dark:opacity-[0.25]"
+            style={{
+              backgroundImage:
+                "linear-gradient(to right, var(--border) 1px, transparent 1px), linear-gradient(to bottom, var(--border) 1px, transparent 1px)",
+              backgroundSize: "56px 56px",
+              maskImage:
+                "radial-gradient(ellipse 70% 60% at 50% 0%, #000 40%, transparent 100%)",
+              WebkitMaskImage:
+                "radial-gradient(ellipse 70% 60% at 50% 0%, #000 40%, transparent 100%)",
+            }}
+          />
         </div>
         <div className="mx-auto max-w-6xl px-4 pb-16 pt-16 sm:px-6 sm:pt-24">
           <div className="mx-auto max-w-3xl text-center">
@@ -210,6 +230,20 @@ export default async function LandingPage({
           </div>
         </div>
       </section>
+
+      {/* Hamkorlarimiz */}
+      {partners.length > 0 && (
+        <section className="border-t border-border bg-surface/50 py-14">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <p className="text-center text-sm font-medium uppercase tracking-wider text-muted">
+              Bizga ishonadigan hamkorlar
+            </p>
+            <div className="mt-8">
+              <PartnersMarquee partners={partners} />
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Features */}
       <section id="features" className="border-t border-border bg-surface/50 py-20">
@@ -396,21 +430,26 @@ export default async function LandingPage({
       <section className="py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="relative overflow-hidden rounded-3xl bg-accent px-6 py-16 text-center">
-            <h2 className="text-3xl font-bold text-white sm:text-4xl">
-              Bugun raqamlashtirishni boshlang
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-white/80">
-              Restoraningiz uchun professional elektron menyuni bir daqiqada
-              yarating. Bepul.
-            </p>
-            <Link href="/register" className="mt-8 inline-block">
-              <Button
-                size="lg"
-                className="bg-white text-accent hover:bg-white/90"
+            {/* Bezak — yumshoq nur dog'lari */}
+            <div className="pointer-events-none absolute inset-0">
+              <div className="absolute -left-16 -top-16 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
+              <div className="absolute -bottom-20 -right-10 h-72 w-72 rounded-full bg-white/10 blur-2xl" />
+            </div>
+            <div className="relative">
+              <h2 className="text-3xl font-bold text-white sm:text-4xl">
+                Bugun raqamlashtirishni boshlang
+              </h2>
+              <p className="mx-auto mt-4 max-w-xl text-white/80">
+                Restoraningiz uchun professional elektron menyuni bir daqiqada
+                yarating. Bepul.
+              </p>
+              <Link
+                href="/register"
+                className="mt-8 inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-white px-6 text-base font-semibold text-accent shadow-soft transition-all hover:bg-white/90 active:scale-[0.98]"
               >
                 Bepul boshlash <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
+              </Link>
+            </div>
           </div>
         </div>
       </section>

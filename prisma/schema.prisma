@@ -357,6 +357,19 @@ model PaymentCard {
   createdAt  DateTime @default(now())
 }
 
+// Bosh sahifa hamkorlari (logolar tasmasi)
+model Partner {
+  id        String   @id @default(cuid())
+  name      String
+  image     String
+  url       String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([isActive])
+}
+
 // Foydalanuvchi to'lov so'rovi (chek yuklaydi, admin tasdiqlaydi)
 model PaymentRequest {
   id           String    @id @default(cuid())

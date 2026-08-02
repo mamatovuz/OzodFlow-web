@@ -199,7 +199,9 @@ export default async function LandingPage({
             </Badge>
             <h1 className="text-balance text-4xl font-bold leading-[1.1] tracking-tight text-foreground sm:text-6xl">
               Restoraningizni{" "}
-              <span className="text-accent">raqamlashtiring</span>
+              <span className="bg-gradient-to-r from-accent to-accent-hover bg-clip-text text-transparent">
+                raqamlashtiring
+              </span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg text-muted">
               OzodFlow — QR kod orqali zamonaviy elektron menyu. Menyuni
@@ -221,6 +223,22 @@ export default async function LandingPage({
             <p className="mt-4 text-sm text-muted">
               Karta talab qilinmaydi · 1 daqiqada tayyor
             </p>
+
+            {/* Ishonch statistikasi */}
+            <div className="mx-auto mt-12 grid max-w-xl grid-cols-3 gap-4 border-t border-border pt-8">
+              {[
+                { v: "500+", l: "Restoran" },
+                { v: "1M+", l: "QR skan" },
+                { v: "99.9%", l: "Ishlash vaqti" },
+              ].map((s) => (
+                <div key={s.l}>
+                  <p className="text-2xl font-bold text-foreground sm:text-3xl">
+                    {s.v}
+                  </p>
+                  <p className="mt-1 text-xs text-muted sm:text-sm">{s.l}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Preview */}

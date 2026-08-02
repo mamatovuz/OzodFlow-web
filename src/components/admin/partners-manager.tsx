@@ -106,12 +106,12 @@ export function PartnersManager() {
           {partners.map((p) => (
             <Card key={p.id} className="p-4">
               <div className="flex items-start justify-between gap-2">
-                <div className="flex h-16 w-28 items-center justify-center overflow-hidden rounded-lg border border-border bg-white p-2">
+                <div className="h-24 w-40 overflow-hidden rounded-xl border border-border bg-surface-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={p.image}
                     alt={p.name}
-                    className="max-h-full max-w-full object-contain"
+                    className="h-full w-full object-cover"
                   />
                 </div>
                 <button

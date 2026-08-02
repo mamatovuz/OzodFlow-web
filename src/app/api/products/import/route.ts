@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
 import { getEffectivePlan, PLANS } from "@/lib/plans";
 import { IMPORT_COLUMNS, mapHeaders, parseNumber } from "@/lib/excel-import";
+import { storeRemoteImage, mapWithConcurrency } from "@/lib/image-fetch";
 import { readSheet } from "read-excel-file/node";
 
 export const dynamic = "force-dynamic";
@@ -173,6 +174,29 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Rasmlarni yuklab olib siqamiz: tashqi URL'larni o'z serverimizga
+  // (/media) ko'chiramiz — kichikroq bo'ladi va tashqi saytga bog'liq qolmaydi.
+  // Tranzaksiyadan TASHQARIDA qilinadi (tarmoq kutishi DB'ni band qilmasin).
+  const withImages = toCreate.filter((p) => p.imageUrl);
+  let imagesStored = 0;
+  let imagesFailed = 0;
+  await mapWithConcurrency(withImages, 6, async (p) => {
+    const local = await storeRemoteImage(p.imageUrl!);
+    if (local) {
+      p.imageUrl = local;
+      imagesStored++;
+    } else {
+      // Yuklab bo'lmadi — mahsulot rasmsiz qo'shiladi
+      p.imageUrl = null;
+      imagesFailed++;
+    }
+  });
+  if (imagesFailed > 0) {
+    warnings.push(
+      `${imagesFailed} ta rasm yuklab olinmadi (havola noto'g'ri yoki ochilmadi) — mahsulotlar rasmsiz qo'shildi.`
+    );
+  }
+
   // Faqat qo'shiladigan mahsulotlar uchun kerakli yangi kategoriyalarni aniqlaymiz
   const usedNewCatKeys = new Set(
     toCreate.map((p) => p.categoryKey).filter((k) => !catByName.has(k))
@@ -220,6 +244,7 @@ export async function POST(req: NextRequest) {
   return ok({
     created: createdCount,
     categoriesCreated: createdCats,
+    imagesStored,
     skipped,
     warnings,
     limitReached,

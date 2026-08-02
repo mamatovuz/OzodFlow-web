@@ -16,6 +16,7 @@ import {
 import { Button, Input, Textarea, Label, Select, Card, Badge, Switch } from "@/components/ui";
 import { Modal } from "@/components/ui-modal";
 import { MultiImageUpload } from "@/components/dashboard/image-upload";
+import { ExcelImport } from "@/components/dashboard/excel-import";
 import { formatPrice, parseJson } from "@/lib/utils";
 
 type Category = {
@@ -125,7 +126,8 @@ export function MenuManager({ currency }: { currency: string }) {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+    <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
       {/* Kategoriyalar */}
       <div>
         <div className="mb-3 flex items-center justify-between">
@@ -297,6 +299,15 @@ export function MenuManager({ currency }: { currency: string }) {
           </div>
         )}
       </div>
+      </div>
+
+      {/* Excel orqali ommaviy qo'shish — menyu qo'shish joyi ostida */}
+      <ExcelImport
+        onImported={() => {
+          loadProducts();
+          loadCategories();
+        }}
+      />
 
       {/* Kategoriya modal */}
       <CategoryModal

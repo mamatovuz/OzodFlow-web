@@ -479,7 +479,7 @@ export function PublicMenu({
                     <div className="relative aspect-video w-full overflow-hidden bg-surface-2">
                       {c.image ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={c.image} alt={c.name} className="h-full w-full object-cover" />
+                        <img src={c.image} alt={c.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-muted/40">
                           <UtensilsCrossed className="h-8 w-8" />
@@ -603,7 +603,7 @@ export function PublicMenu({
                   style={{ borderRadius: R }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={g.image} alt={g.caption || ""} className="h-full w-full object-cover" />
+                  <img src={g.image} alt={g.caption || ""} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                   {g.caption && (
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2">
                       <p className="text-xs font-medium text-white">{g.caption}</p>
@@ -876,7 +876,7 @@ function ListCard({
       <div className="h-24 w-24 shrink-0 overflow-hidden bg-surface-2" style={{ borderRadius: radius - 4 }}>
         {imgs[0] ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={imgs[0]} alt={p.name} className="h-full w-full object-cover" />
+          <img src={imgs[0]} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted/40">
             <UtensilsCrossed className="h-7 w-7" />
@@ -955,7 +955,7 @@ function GridCard({
       <div className="relative aspect-square w-full overflow-hidden bg-surface-2">
         {imgs[0] ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={imgs[0]} alt={p.name} className="h-full w-full object-cover" />
+          <img src={imgs[0]} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted/40">
             <UtensilsCrossed className="h-9 w-9" />
@@ -1028,7 +1028,7 @@ function RecommendCard({
       <div className="relative h-28 w-full overflow-hidden bg-surface-2">
         {imgs[0] ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={imgs[0]} alt={p.name} className="h-full w-full object-cover" />
+          <img src={imgs[0]} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted/40">
             <UtensilsCrossed className="h-7 w-7" />

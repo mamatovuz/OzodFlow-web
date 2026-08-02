@@ -357,6 +357,18 @@ model PaymentCard {
   createdAt  DateTime @default(now())
 }
 
+// Bosh sahifa ko'rsatkichlari (500+ restoran, 1M+ skan ...) — admin boshqaradi
+model SiteStat {
+  id        String   @id @default(cuid())
+  value     String
+  label     String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([isActive])
+}
+
 // Bosh sahifa hamkorlari (logolar tasmasi)
 model Partner {
   id        String   @id @default(cuid())

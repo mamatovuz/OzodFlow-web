@@ -9,6 +9,7 @@ import { Button } from "@/components/ui";
 
 const links = [
   { href: "#features", label: "Imkoniyatlar" },
+  { href: "#demo", label: "Demo" },
   { href: "#how", label: "Qanday ishlaydi" },
   { href: "#pricing", label: "Tariflar" },
   { href: "#faq", label: "Savol-javob" },

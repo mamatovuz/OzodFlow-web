@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   MessageSquare,
   Handshake,
+  BarChart3,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ const nav = [
   { href: "/admins/domains", label: "Domenlar", icon: Globe },
   { href: "/admins/restaurants", label: "Restoranlar", icon: Store },
   { href: "/admins/partners", label: "Hamkorlar", icon: Handshake },
+  { href: "/admins/stats", label: "Ko'rsatkichlar", icon: BarChart3 },
   { href: "/admins/messages", label: "Xabarlar", icon: MessageSquare },
   { href: "/admins/settings", label: "Sozlamalar", icon: Settings },
 ];

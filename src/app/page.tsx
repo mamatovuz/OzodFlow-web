@@ -169,6 +169,12 @@ export default async function LandingPage({
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     select: { id: true, name: true, image: true, url: true },
   });
+  const stats = await prisma.siteStat.findMany({
+    where: { isActive: true },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    select: { id: true, value: true, label: true },
+    take: 4,
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -224,21 +230,21 @@ export default async function LandingPage({
               Karta talab qilinmaydi · 1 daqiqada tayyor
             </p>
 
-            {/* Ishonch statistikasi */}
-            <div className="mx-auto mt-12 grid max-w-xl grid-cols-3 gap-4 border-t border-border pt-8">
-              {[
-                { v: "500+", l: "Restoran" },
-                { v: "1M+", l: "QR skan" },
-                { v: "99.9%", l: "Ishlash vaqti" },
-              ].map((s) => (
-                <div key={s.l}>
-                  <p className="text-2xl font-bold text-foreground sm:text-3xl">
-                    {s.v}
-                  </p>
-                  <p className="mt-1 text-xs text-muted sm:text-sm">{s.l}</p>
-                </div>
-              ))}
-            </div>
+            {/* Ko'rsatkichlar — admin paneldan boshqariladi (bo'sh bo'lsa ko'rinmaydi) */}
+            {stats.length > 0 && (
+              <div className="mx-auto mt-12 grid max-w-xl gap-4 border-t border-border pt-8"
+                style={{ gridTemplateColumns: `repeat(${Math.min(stats.length, 4)}, minmax(0, 1fr))` }}
+              >
+                {stats.map((s) => (
+                  <div key={s.id}>
+                    <p className="text-2xl font-bold text-foreground sm:text-3xl">
+                      {s.value}
+                    </p>
+                    <p className="mt-1 text-xs text-muted sm:text-sm">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Preview */}
@@ -288,8 +294,71 @@ export default async function LandingPage({
         </div>
       </section>
 
+      {/* Jonli demo menyu */}
+      <section id="demo" className="py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="grid items-center gap-10 lg:grid-cols-2">
+            <div>
+              <Badge variant="accent" className="mb-3">
+                Jonli demo
+              </Badge>
+              <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                Mijozlaringiz aynan shuni ko'radi
+              </h2>
+              <p className="mt-3 text-muted">
+                Bu — haqiqiy ishlaydigan demo menyu. Kategoriyalarni bosing,
+                mahsulotlarni ko'ring, savatga qo'shib ko'ring — hammasi real
+                vaqtda ishlaydi.
+              </p>
+              <ul className="mt-6 space-y-3">
+                {[
+                  "Kategoriya va mahsulotlar bo'yicha tez navigatsiya",
+                  "Savat, buyurtma va stolga bog'lash",
+                  "3 tilda (uz / ru / en) va tunги rejim",
+                ].map((t) => (
+                  <li key={t} className="flex items-start gap-2 text-sm">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                    <span className="text-foreground">{t}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <a href="/m/test" target="_blank" rel="noreferrer">
+                  <Button size="lg" className="w-full sm:w-auto">
+                    <Eye className="h-4 w-4" /> To'liq demo menyuni ochish
+                  </Button>
+                </a>
+                <Link href="/register">
+                  <Button variant="outline" size="lg" className="w-full sm:w-auto">
+                    O'zimniki yarataman <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Telefon ramkasida real menyu (iframe) */}
+            <div className="flex justify-center">
+              <div className="relative w-[300px] shrink-0">
+                <div className="absolute -inset-6 -z-10 rounded-[3rem] bg-accent/10 blur-2xl" />
+                <div className="rounded-[2.5rem] border-[10px] border-foreground/80 bg-foreground/80 shadow-card">
+                  <div className="relative h-[600px] overflow-hidden rounded-[1.7rem] bg-card">
+                    <span className="absolute left-1/2 top-2 z-10 h-1.5 w-16 -translate-x-1/2 rounded-full bg-black/30" />
+                    <iframe
+                      src="/m/test"
+                      title="OzodFlow jonli demo menyu"
+                      loading="lazy"
+                      className="h-full w-full border-0"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* How it works */}
-      <section id="how" className="py-20">
+      <section id="how" className="border-t border-border py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <SectionHeading
             tag="Qanday ishlaydi"

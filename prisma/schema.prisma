@@ -117,6 +117,7 @@ model Restaurant {
   serviceCalls    ServiceCall[]
   combos          Combo[]
   supportMessages SupportMessage[]
+  posIntegrations PosIntegration[]
 
   @@index([ownerId])
 }
@@ -268,12 +269,16 @@ model Category {
   icon         String?
   sortOrder    Int     @default(0)
   isVisible    Boolean @default(true)
+  // ─── POS integratsiya ───
+  posProvider   String? // CLOPOS | IIKO | POSTER | JOWI | RKEEPER
+  posExternalId String? // provayderdagi kategoriya ID
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   products   Product[]
 
+  @@unique([restaurantId, posProvider, posExternalId])
   @@index([restaurantId])
 }
 
@@ -303,12 +308,17 @@ model Product {
   isVisible    Boolean @default(true)
   sortOrder    Int     @default(0)
   views        Int     @default(0)
+  // ─── POS integratsiya (tashqi tizim bilan bog'lash) ───
+  posProvider   String? // CLOPOS | IIKO | POSTER | JOWI | RKEEPER
+  posExternalId String? // provayderdagi mahsulot ID
+  stockStatus   String? // IN_STOCK | OUT_OF_STOCK | LOW
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   category   Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
+  @@unique([restaurantId, posProvider, posExternalId])
   @@index([restaurantId])
   @@index([categoryId])
 }
@@ -444,4 +454,46 @@ model DomainRequest {
 
   @@index([restaurantId])
   @@index([status])
+}
+
+// ─────────────────────────────────────────────
+// POS integratsiya (Clopos, iiko, Poster, JOWI, R-Keeper ...)
+// Provayderga bog'liq bo'lmagan umumiy modellar
+// ─────────────────────────────────────────────
+model PosIntegration {
+  id              String    @id @default(cuid())
+  restaurantId    String
+  provider        String // CLOPOS | IIKO | POSTER | JOWI | RKEEPER
+  credentials     String // AES-256-GCM shifrlangan JSON (hech qachon ochiq saqlanmaydi)
+  isActive        Boolean   @default(true)
+  autoSync        Boolean   @default(true)
+  syncIntervalMin Int       @default(5)
+  status          String    @default("PENDING") // PENDING | CONNECTED | ERROR
+  lastError       String?
+  lastSyncAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  restaurant Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  syncLogs   PosSyncLog[]
+
+  @@unique([restaurantId, provider])
+  @@index([restaurantId])
+}
+
+model PosSyncLog {
+  id            String   @id @default(cuid())
+  integrationId String
+  type          String // MENU | ORDER_PUSH | ORDER_STATUS
+  status        String // SUCCESS | FAILED | PARTIAL
+  itemsSynced   Int      @default(0)
+  itemsFailed   Int      @default(0)
+  message       String?
+  durationMs    Int?
+  createdAt     DateTime @default(now())
+
+  integration PosIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@index([integrationId])
+  @@index([createdAt])
 }

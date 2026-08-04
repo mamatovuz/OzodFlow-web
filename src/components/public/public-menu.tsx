@@ -128,6 +128,8 @@ export function PublicMenu({
   const [cartOpen, setCartOpen] = useState(false);
   const [trackedOrder, setTrackedOrder] = useState<string | null>(null);
   const catRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const chipRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const clickScrollingRef = useRef(false);
 
   const t = UI[lang];
 
@@ -276,9 +278,45 @@ export function PublicMenu({
     [products]
   );
 
+  // Skroll bilan sinxron kategoriya (Uber Eats uslubi): ko'rinishdagi
+  // bo'lim faol chipni yangilaydi va chipni gorizontal ro'yxatda markazga suradi.
+  useEffect(() => {
+    const ids = grouped.map((g) => g.category.id);
+    if (ids.length < 2) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (clickScrollingRef.current) return; // bosib skroll qilinganda tegmaymiz
+        const top = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        const id = top?.target.getAttribute("data-cat-id");
+        if (id) {
+          setActiveCat(id);
+          chipRefs.current[id]?.scrollIntoView({
+            behavior: "smooth",
+            inline: "center",
+            block: "nearest",
+          });
+        }
+      },
+      { rootMargin: "-176px 0px -68% 0px", threshold: 0 }
+    );
+    ids.forEach((id) => {
+      const el = catRefs.current[id];
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, [grouped]);
+
   function scrollToCat(id: string) {
     setActiveCat(id);
+    // Bosilganda observer'ni vaqtincha o'chiramiz — silliq skroll tugagach yoqamiz
+    clickScrollingRef.current = true;
+    chipRefs.current[id]?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
     catRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => {
+      clickScrollingRef.current = false;
+    }, 700);
   }
 
   const cardProps = { currency: restaurant.currency, accent, accentText, radius: R };
@@ -450,11 +488,16 @@ export function PublicMenu({
               {categories.map((c) => (
                 <button
                   key={c.id}
+                  ref={(el) => {
+                    chipRefs.current[c.id] = el;
+                  }}
                   onClick={() => scrollToCat(c.id)}
-                  className={`shrink-0 px-3 py-1.5 text-xs font-medium transition-colors ${
-                    activeCat === c.id ? "bg-surface-2 text-foreground" : "text-muted"
-                  }`}
-                  style={{ borderRadius: 999 }}
+                  className="shrink-0 px-3 py-1.5 text-xs font-medium transition-colors"
+                  style={
+                    activeCat === c.id
+                      ? { background: accent, color: accentText, borderRadius: 999 }
+                      : { borderRadius: 999 }
+                  }
                 >
                   {c.name}
                 </button>
@@ -552,6 +595,7 @@ export function PublicMenu({
           {grouped.map((g) => (
             <div
               key={g.category.id}
+              data-cat-id={g.category.id}
               ref={(el) => {
                 catRefs.current[g.category.id] = el;
               }}

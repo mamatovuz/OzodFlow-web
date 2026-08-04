@@ -33,6 +33,7 @@ import { SiteNav } from "@/components/landing/site-nav";
 import { FAQ } from "@/components/landing/faq";
 import { EnterpriseContact } from "@/components/landing/enterprise-contact";
 import { PartnersMarquee } from "@/components/landing/partners-marquee";
+import { Reveal } from "@/components/landing/reveal";
 
 const features = [
   {
@@ -278,17 +279,18 @@ export default async function LandingPage({
             subtitle="Menyudan statistikagacha — bitta professional platformada."
           />
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((f) => (
-              <div
+            {features.map((f, i) => (
+              <Reveal
                 key={f.title}
-                className="rounded-2xl border border-border bg-card p-6 shadow-soft transition-all hover:shadow-card"
+                delay={(i % 3) * 80}
+                className="rounded-2xl border border-border bg-card p-6 shadow-soft transition-all hover:-translate-y-1 hover:shadow-card"
               >
                 <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-accent-soft text-accent">
                   <f.icon className="h-5 w-5" />
                 </div>
                 <h3 className="mb-2 font-semibold text-foreground">{f.title}</h3>
                 <p className="text-sm leading-relaxed text-muted">{f.desc}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -366,12 +368,12 @@ export default async function LandingPage({
             subtitle="Texnik bilim shart emas. Hammasi oddiy va tez."
           />
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {steps.map((s) => (
-              <div key={s.n} className="relative">
+            {steps.map((s, i) => (
+              <Reveal key={s.n} delay={i * 90} className="relative">
                 <span className="text-4xl font-bold text-accent/20">{s.n}</span>
                 <h3 className="mt-2 font-semibold text-foreground">{s.title}</h3>
                 <p className="mt-1.5 text-sm text-muted">{s.desc}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -386,9 +388,10 @@ export default async function LandingPage({
             subtitle="Bepul boshlang, biznesingiz o'sishi bilan kengaytiring."
           />
           <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
-            {PLAN_ORDER.map((p) => (
-              <div
+            {PLAN_ORDER.map((p, i) => (
+              <Reveal
                 key={p.key}
+                delay={i * 70}
                 className={`relative flex flex-col rounded-2xl border p-5 ${
                   p.highlight
                     ? "border-accent bg-card shadow-card"
@@ -454,7 +457,7 @@ export default async function LandingPage({
                     </Button>
                   </Link>
                 )}
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -469,10 +472,11 @@ export default async function LandingPage({
             subtitle="O'zbekiston bo'ylab yuzlab ovqatlanish maskanlari ishonadi."
           />
           <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {testimonials.map((t) => (
-              <div
+            {testimonials.map((t, i) => (
+              <Reveal
                 key={t.name}
-                className="rounded-2xl border border-border bg-card p-6 shadow-soft"
+                delay={i * 90}
+                className="rounded-2xl border border-border bg-card p-6 shadow-soft transition-all hover:shadow-card"
               >
                 <div className="mb-4 flex gap-0.5 text-warning">
                   {"★★★★★".split("").map((s, i) => (
@@ -493,7 +497,7 @@ export default async function LandingPage({
                     <p className="text-xs text-muted">{t.role}</p>
                   </div>
                 </div>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -515,7 +519,7 @@ export default async function LandingPage({
 
       {/* CTA */}
       <section className="py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <Reveal className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="relative overflow-hidden rounded-3xl bg-accent px-6 py-16 text-center">
             {/* Bezak — yumshoq nur dog'lari */}
             <div className="pointer-events-none absolute inset-0">
@@ -538,7 +542,7 @@ export default async function LandingPage({
               </Link>
             </div>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* Footer */}
@@ -589,7 +593,7 @@ function SectionHeading({
   subtitle: string;
 }) {
   return (
-    <div className="mx-auto max-w-2xl text-center">
+    <Reveal className="mx-auto max-w-2xl text-center">
       <Badge variant="accent" className="mb-3">
         {tag}
       </Badge>
@@ -597,7 +601,7 @@ function SectionHeading({
         {title}
       </h2>
       <p className="mt-3 text-muted">{subtitle}</p>
-    </div>
+    </Reveal>
   );
 }
 

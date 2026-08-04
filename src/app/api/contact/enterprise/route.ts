@@ -1,9 +1,13 @@
 import { NextRequest } from "next/server";
 import { ok } from "@/lib/api";
 import { sendTelegramMessage } from "@/lib/telegram";
+import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
 // Enterprise tarif so'rovi — adminga Telegram xabar yuboradi
 export async function POST(req: NextRequest) {
+  const limited = limitOrReject(req, "contact", { limit: 5, windowMs: WINDOW.fiveMin });
+  if (limited) return limited;
+
   const body = await req.json().catch(() => null);
   const name = (body?.name || "").toString().slice(0, 80);
   const phone = (body?.phone || "").toString().slice(0, 40);

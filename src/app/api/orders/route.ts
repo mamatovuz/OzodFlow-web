@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
+import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 import type { OrderItem } from "@/lib/orders";
 
 // ─── Ommaviy: buyurtma yaratish ───
@@ -16,6 +17,10 @@ const createSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  // Spam himoyasi: IP bo'yicha daqiqasiga 15 buyurtma
+  const limited = limitOrReject(req, "order", { limit: 15, windowMs: WINDOW.minute });
+  if (limited) return limited;
+
   const body = await req.json().catch(() => null);
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) {

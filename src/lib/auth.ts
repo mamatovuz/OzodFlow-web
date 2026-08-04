@@ -3,9 +3,27 @@ import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 
-const SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "ozodflow-dev-secret-change-me"
-);
+/**
+ * JWT maxfiy kaliti. Ishlab chiqarishda `JWT_SECRET` MAJBURIY —
+ * yo'q bo'lsa tokenlar qalbakilashtirilishi mumkin. Shuning uchun prod'da
+ * yo'qligida xato tashlaymiz (lazy — build'ni buzmasligi uchun so'rov vaqtida).
+ */
+let cachedSecret: Uint8Array | null = null;
+function getSecret(): Uint8Array {
+  if (cachedSecret) return cachedSecret;
+  const s = process.env.JWT_SECRET;
+  if (!s) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "JWT_SECRET o'rnatilmagan — ishlab chiqarishda majburiy. Railway env'ga uzun tasodifiy satr qo'shing."
+      );
+    }
+    cachedSecret = new TextEncoder().encode("ozodflow-dev-secret-change-me");
+    return cachedSecret;
+  }
+  cachedSecret = new TextEncoder().encode(s);
+  return cachedSecret;
+}
 const COOKIE = "ozodflow_session";
 const SESSION_DAYS = 30;
 
@@ -31,7 +49,7 @@ async function signToken(payload: { sub: string; sid: string }) {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_DAYS}d`)
-    .sign(SECRET);
+    .sign(getSecret());
 }
 
 export async function createSession(
@@ -41,6 +59,11 @@ export async function createSession(
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
   const tokenId = crypto.randomUUID();
   const jwt = await signToken({ sub: userId, sid: tokenId });
+
+  // Muddati o'tgan sessiyalarni tozalaymiz (jadval cheksiz o'smasligi uchun)
+  await prisma.session
+    .deleteMany({ where: { userId, expiresAt: { lt: new Date() } } })
+    .catch(() => {});
 
   await prisma.session.create({
     data: {
@@ -78,7 +101,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   if (!token) return null;
 
   try {
-    const { payload } = await jwtVerify(token, SECRET);
+    const { payload } = await jwtVerify(token, getSecret());
     const sid = payload.sid as string;
 
     const session = await prisma.session.findUnique({

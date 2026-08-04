@@ -2,10 +2,14 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ok, fail } from "@/lib/api";
 import { sendTelegramMessage, isTelegramConfigured } from "@/lib/telegram";
+import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
 // Admin parolni tiklash — Telegram bot orqali kod yuboradi
 // Body: { email }
 export async function POST(req: NextRequest) {
+  const limited = limitOrReject(req, "admin-forgot", { limit: 5, windowMs: WINDOW.fiveMin });
+  if (limited) return limited;
+
   const body = await req.json().catch(() => null);
   const email = (body?.email || "").trim().toLowerCase();
   if (!email) return fail("Email kiriting", 422);

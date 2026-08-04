@@ -3,8 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { verifyPassword, createSession } from "@/lib/auth";
 import { loginSchema } from "@/lib/validation";
 import { ok, fail } from "@/lib/api";
+import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  // Brute-force himoyasi: IP bo'yicha daqiqasiga 10 urinish
+  const limited = limitOrReject(req, "login", { limit: 10, windowMs: WINDOW.minute });
+  if (limited) return limited;
+
   const body = await req.json().catch(() => null);
   const parsed = loginSchema.safeParse(body);
   if (!parsed.success) {

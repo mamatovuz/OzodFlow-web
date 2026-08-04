@@ -2,9 +2,13 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ok, fail } from "@/lib/api";
 import { sendTelegramMessage } from "@/lib/telegram";
+import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
 // Bloklangan menyu sahifasidan tashrifchi bosh adminga xabar yuboradi
 export async function POST(req: NextRequest) {
+  const limited = limitOrReject(req, "support-public", { limit: 5, windowMs: WINDOW.fiveMin });
+  if (limited) return limited;
+
   const body = await req.json().catch(() => null);
   const slug = String(body?.slug || "").trim();
   const text = String(body?.body || "").trim();

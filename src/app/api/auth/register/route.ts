@@ -5,8 +5,12 @@ import { registerSchema } from "@/lib/validation";
 import { ok, fail } from "@/lib/api";
 import { slugify, randomCode } from "@/lib/utils";
 import { FREE_TRIAL_DAYS } from "@/lib/plans";
+import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const limited = limitOrReject(req, "register", { limit: 5, windowMs: WINDOW.fiveMin });
+  if (limited) return limited;
+
   const body = await req.json().catch(() => null);
   const parsed = registerSchema.safeParse(body);
   if (!parsed.success) {

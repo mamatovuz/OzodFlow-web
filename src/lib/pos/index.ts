@@ -9,3 +9,5 @@ export * from "./provider";
 export * from "./registry";
 export { encryptCredentials, decryptCredentials, maskSecret } from "./crypto";
 export { syncMenu, type SyncResult } from "./sync";
+export { pushOrderToPos, type OrderPushInput } from "./order-push";
+export { runDuePosSyncs, type DueSyncResult } from "./scheduler";

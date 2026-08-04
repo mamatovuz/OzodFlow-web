@@ -5,6 +5,7 @@
 // 4) Next serverni ishga tushiradi.
 
 import { spawnSync, spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 
 const vol = process.env.RAILWAY_VOLUME_MOUNT_PATH;
 
@@ -81,6 +82,12 @@ try {
   console.error("[start] Bootstrap xato (davom etadi):", e?.message);
 }
 
+// POS avtomatik sinxron uchun ichki cron sekret (agar berilmagan bo'lsa)
+if (!process.env.CRON_SECRET) {
+  process.env.CRON_SECRET = randomUUID();
+  console.log("[start] CRON_SECRET avtomatik yaratildi (POS auto-sync uchun)");
+}
+
 // Next server
 const child = spawn("npx", ["next", "start"], {
   stdio: "inherit",
@@ -88,3 +95,29 @@ const child = spawn("npx", ["next", "start"], {
   shell: true,
 });
 child.on("exit", (code) => process.exit(code ?? 0));
+
+// ─── POS avtomatik menyu sinxroni ───
+// Bu start jarayoni tirik turadi, shuning uchun har ~5 daqiqada ichki
+// /api/pos/cron ni chaqiramiz. Muddati kelgan integratsiyalar sinxronlanadi.
+// Railway'da tashqi cron sozlashsiz ishlaydi. O'chirish: POS_AUTO_SYNC=off
+if (process.env.POS_AUTO_SYNC !== "off") {
+  const port = process.env.PORT || 3000;
+  const cronUrl = `http://127.0.0.1:${port}/api/pos/cron`;
+  const runCron = async () => {
+    try {
+      const res = await fetch(cronUrl, {
+        headers: { "x-cron-secret": process.env.CRON_SECRET },
+      });
+      if (!res.ok && res.status !== 401) {
+        console.error("[cron] POS sync javob:", res.status);
+      }
+    } catch {
+      // server hali tayyor bo'lmasligi mumkin — keyingi urinishda
+    }
+  };
+  // Server ko'tarilishiga vaqt beramiz, so'ng har 5 daqiqada
+  setTimeout(() => {
+    runCron();
+    setInterval(runCron, 5 * 60 * 1000);
+  }, 45_000);
+}

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
 import { limitOrReject, WINDOW } from "@/lib/rate-limit";
+import { pushOrderToPos } from "@/lib/pos";
 import type { OrderItem } from "@/lib/orders";
 
 // ─── Ommaviy: buyurtma yaratish ───
@@ -76,6 +77,17 @@ export async function POST(req: NextRequest) {
       total,
       items: JSON.stringify(orderItems),
     },
+  });
+
+  // Restoranда POS ulangan bo'lsa — buyurtmani POS ga ham yuboramiz.
+  // Xato bo'lsa mijoz buyurtmasi buzilmaydi (posError ga yoziladi).
+  await pushOrderToPos({
+    id: order.id,
+    restaurantId: restaurant.id,
+    tableCode: tableCode || null,
+    phone: phone || null,
+    comment: comment || null,
+    items: orderItems.map((o) => ({ productId: o.productId, qty: o.qty })),
   });
 
   return ok({ id: order.id, number: order.number, total }, 201);

@@ -16,6 +16,8 @@ type Order = {
   total: number;
   items: string;
   createdAt: string;
+  posOrderId?: string | null;
+  posError?: string | null;
 };
 
 const tabs = [
@@ -208,6 +210,18 @@ function OrderCard({
           {o.tableName && (
             <p className="text-sm font-medium text-accent">{o.tableName}</p>
           )}
+          {o.posOrderId ? (
+            <span className="mt-1 inline-flex items-center gap-1 rounded bg-success/10 px-1.5 py-0.5 text-[10px] font-medium text-success">
+              POS ✓
+            </span>
+          ) : o.posError ? (
+            <span
+              title={o.posError}
+              className="mt-1 inline-flex items-center gap-1 rounded bg-error/10 px-1.5 py-0.5 text-[10px] font-medium text-error"
+            >
+              POS ✗
+            </span>
+          ) : null}
         </div>
         <span className={`flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ${meta.badge}`}>
           <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />

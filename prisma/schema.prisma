@@ -233,6 +233,9 @@ model Order {
   status       String   @default("NEW") // NEW | ACCEPTED | PREPARING | READY | DELIVERED | CANCELLED
   total        Float    @default(0)
   items        String // JSON: [{productId, name, price, qty}]
+  // ─── POS ga yuborish holati ───
+  posOrderId   String? // POS tizimidagi buyurtma ID (yuborilgan bo'lsa)
+  posError     String? // POS ga yuborishda xato (bo'lsa)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

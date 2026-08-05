@@ -136,7 +136,7 @@ export function MenuManager({ currency }: { currency: string }) {
             <Plus className="h-4 w-4" />
           </Button>
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 max-xl:max-h-[46vh] max-xl:overflow-y-auto max-xl:pr-1">
           {categories.length === 0 && (
             <p className="rounded-lg border border-dashed border-border p-4 text-center text-sm text-muted">
               Kategoriya yo'q. Qo'shing.
@@ -164,7 +164,7 @@ export function MenuManager({ currency }: { currency: string }) {
                   {c._count?.products ?? 0} mahsulot
                 </span>
               </div>
-              <div className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+              <div className="flex shrink-0 gap-0.5 opacity-100 transition-opacity xl:opacity-0 xl:group-hover:opacity-100">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -242,7 +242,7 @@ export function MenuManager({ currency }: { currency: string }) {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="truncate font-medium text-foreground">
+                        <p className="line-clamp-2 font-medium leading-snug text-foreground">
                           {p.name}
                         </p>
                         <div className="flex shrink-0 gap-0.5">

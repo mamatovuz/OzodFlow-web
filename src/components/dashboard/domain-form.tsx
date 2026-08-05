@@ -5,8 +5,6 @@ import {
   Loader2,
   Check,
   Globe,
-  Lock,
-  ExternalLink,
   Upload,
   X,
   Clock,
@@ -16,10 +14,9 @@ import {
   Hand,
   BookOpen,
 } from "lucide-react";
-import { Button, Input, Card, Badge, Label, Textarea } from "@/components/ui";
+import { Button, Input, Card, Label, Textarea } from "@/components/ui";
 import { formatPrice } from "@/lib/utils";
 import { DOMAIN_SERVICE_PRICE } from "@/lib/plans";
-import Link from "next/link";
 
 type DomainReq = {
   id: string;
@@ -32,34 +29,11 @@ type DomainReq = {
 export function DomainForm({
   current,
   slug,
-  canCustomDomain,
 }: {
   current: string | null;
   slug: string;
-  canCustomDomain: boolean;
 }) {
   const [mode, setMode] = useState<"self" | "service">("service");
-
-  if (!canCustomDomain) {
-    return (
-      <Card className="p-6">
-        <div className="flex items-center gap-2">
-          <Globe className="h-5 w-5 text-muted" />
-          <h2 className="font-semibold text-foreground">O'z domeningiz</h2>
-          <Badge variant="warning">Business</Badge>
-        </div>
-        <p className="mt-2 text-sm text-muted">
-          O'z domeningizni (masalan <b>menu.restoran.uz</b>) ulash faqat Business
-          tarifida mavjud.
-        </p>
-        <Link href="/dashboard/settings" className="mt-4 inline-block">
-          <Button variant="outline" size="sm">
-            <Lock className="h-4 w-4" /> Tarifni yangilash
-          </Button>
-        </Link>
-      </Card>
-    );
-  }
 
   return (
     <Card className="p-6">

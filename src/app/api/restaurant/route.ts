@@ -47,13 +47,10 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
-  // Custom domain faqat pullik tariflarda
+  // Custom domain endi barcha tariflarda ochiq (o'zi DNS orqali ulaydi — tekin).
   if (data.customDomain !== undefined) {
     const domain = (data.customDomain || "").trim().toLowerCase();
     if (domain) {
-      if (!access.canCustomDomain) {
-        return fail("Maxsus domen faqat Business tarifida mavjud", 403);
-      }
       // Oddiy validatsiya
       if (!/^([a-z0-9-]+\.)+[a-z]{2,}$/.test(domain)) {
         return fail("Domen noto'g'ri (masalan: menu.restoran.uz)", 422);

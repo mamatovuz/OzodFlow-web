@@ -47,12 +47,12 @@ export default async function StatsPage() {
             <h2 className="font-semibold text-foreground">Haftalik dinamika</h2>
             <Badge variant="accent">7 kun</Badge>
           </div>
-          <div className="flex h-48 items-end justify-between gap-2">
+          <div className="flex h-48 items-stretch justify-between gap-2">
             {stats.daily.map((d, i) => (
               <div key={i} className="flex flex-1 flex-col items-center gap-2">
                 <div className="flex w-full flex-1 items-end">
                   <div
-                    style={{ height: `${(d.count / maxDaily) * 100}%` }}
+                    style={{ height: `${Math.max((d.count / maxDaily) * 100, d.count > 0 ? 6 : 2)}%` }}
                     className="w-full min-h-[4px] rounded-t-md bg-accent/80"
                     title={`${d.count}`}
                   />

@@ -4,6 +4,7 @@ import { getEffectivePlan } from "@/lib/plans";
 import { Card } from "@/components/ui";
 import { Billing } from "@/components/dashboard/billing";
 import { SlugEditor } from "@/components/dashboard/slug-editor";
+import { ResetStats } from "@/components/dashboard/reset-stats";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,9 @@ export default async function SettingsPage() {
         daysLeft={access.daysLeft}
         expired={access.expired}
       />
+
+      {/* Xavfli zona — statistikani nolga qaytarish */}
+      <ResetStats />
     </div>
   );
 }

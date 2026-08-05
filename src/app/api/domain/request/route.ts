@@ -2,7 +2,6 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
-import { getEffectivePlan } from "@/lib/plans";
 
 const schema = z.object({
   domain: z
@@ -35,11 +34,7 @@ export async function POST(req: NextRequest) {
   const restaurant = await getUserRestaurant(user.id);
   if (!restaurant) return fail("Restoran topilmadi", 404);
 
-  // Domen ulash — pullik tarif kerak
-  const access = getEffectivePlan(restaurant);
-  if (!access.canCustomDomain) {
-    return fail("Maxsus domen faqat Business tarifida mavjud", 403);
-  }
+  // Domen ulash endi barcha tariflarda mavjud (admin 40 000 so'm/yil o'rnatib beradi).
 
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);

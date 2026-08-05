@@ -27,11 +27,7 @@ export default async function DesignPage() {
         purchased={parsePurchasedThemes(restaurant.purchasedThemes)}
       />
 
-      <DomainForm
-        current={restaurant.customDomain}
-        slug={restaurant.slug}
-        canCustomDomain={access.canCustomDomain}
-      />
+      <DomainForm current={restaurant.customDomain} slug={restaurant.slug} />
     </div>
   );
 }

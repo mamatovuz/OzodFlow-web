@@ -1,12 +1,13 @@
 /**
  * POS API route'lari uchun umumiy ruxsat tekshiruvi.
- * POS integratsiyasi PRO tarifdan boshlab mavjud.
+ * POS integratsiyasi barcha tariflarda (FREE dan boshlab) mavjud.
  */
 import { getSessionUser } from "./auth";
 import { getUserRestaurant } from "./api";
 import { getEffectivePlan } from "./plans";
 
-const POS_PLANS = ["PRO", "BUSINESS", "ENTERPRISE"];
+// Integratsiya endi barcha tariflar uchun ochiq (FREE, STARTER ham).
+const POS_PLANS = ["FREE", "STARTER", "PRO", "BUSINESS", "ENTERPRISE"];
 
 type Restaurant = NonNullable<Awaited<ReturnType<typeof getUserRestaurant>>>;
 

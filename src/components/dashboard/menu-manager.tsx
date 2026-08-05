@@ -127,7 +127,7 @@ export function MenuManager({ currency }: { currency: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+      <div className="grid gap-6 xl:grid-cols-[260px_1fr]">
       {/* Kategoriyalar */}
       <div>
         <div className="mb-3 flex items-center justify-between">
@@ -220,7 +220,7 @@ export function MenuManager({ currency }: { currency: string }) {
             </p>
           </Card>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(min(100%,260px),1fr))]">
             {visibleProducts.map((p) => {
               const imgs = parseJson<string[]>(p.images, []);
               return (

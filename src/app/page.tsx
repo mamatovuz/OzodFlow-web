@@ -615,6 +615,12 @@ export default async function LandingPage({
               <Link href="/login" className="hover:text-foreground">
                 Kirish
               </Link>
+              <Link href="/privacy" className="hover:text-foreground">
+                Maxfiylik
+              </Link>
+              <Link href="/terms" className="hover:text-foreground">
+                Shartlar
+              </Link>
             </nav>
           </div>
           <div className="mt-8 border-t border-border pt-6 text-center text-sm text-muted">

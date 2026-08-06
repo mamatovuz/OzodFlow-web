@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
 import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 import { pushOrderToPos } from "@/lib/pos";
+import { dispatchWebhook } from "@/lib/webhooks";
+import { idempotentGet, idempotentSet } from "@/lib/idempotency";
 import type { OrderItem } from "@/lib/orders";
 
 // ─── Ommaviy: buyurtma yaratish ───
@@ -28,6 +30,14 @@ export async function POST(req: NextRequest) {
     return fail("Ma'lumotlar noto'g'ri", 422, parsed.error.flatten().fieldErrors);
   }
   const { slug, tableCode, phone, comment, items } = parsed.data;
+
+  // ─── Idempotency: takroriy yuborishda dublikat buyurtma yaratmaymiz ───
+  // Mijoz tugmani ikki marta bossa yoki tarmoq sekin bo'lsa himoya qiladi.
+  const idemKey = req.headers.get("idempotency-key");
+  if (idemKey) {
+    const cached = idempotentGet(`order:${slug}:${idemKey}`);
+    if (cached) return ok(cached, 200);
+  }
 
   const restaurant = await prisma.restaurant.findUnique({ where: { slug } });
   if (!restaurant || !restaurant.isActive) return fail("Restoran topilmadi", 404);
@@ -90,7 +100,22 @@ export async function POST(req: NextRequest) {
     items: orderItems.map((o) => ({ productId: o.productId, qty: o.qty })),
   });
 
-  return ok({ id: order.id, number: order.number, total }, 201);
+  // Restoranning webhooklariga "order.created" hodisasini yuboramiz (fon rejimda)
+  void dispatchWebhook(restaurant.id, "order.created", {
+    id: order.id,
+    number: order.number,
+    total,
+    tableCode: tableCode || null,
+    tableName,
+    phone: phone || null,
+    comment: comment || null,
+    items: orderItems,
+    status: order.status,
+  });
+
+  const result = { id: order.id, number: order.number, total };
+  if (idemKey) idempotentSet(`order:${slug}:${idemKey}`, result);
+  return ok(result, 201);
 }
 
 // ─── Owner: buyurtmalar ro'yxati ───
@@ -100,17 +125,29 @@ export async function GET(req: NextRequest) {
   const restaurant = await getUserRestaurant(user.id);
   if (!restaurant) return fail("Restoran topilmadi", 404);
 
-  const status = req.nextUrl.searchParams.get("status");
-  const sinceId = req.nextUrl.searchParams.get("sinceId"); // yangi buyurtmalarni bilish uchun
+  const sp = req.nextUrl.searchParams;
+  const status = sp.get("status");
+  const sinceId = sp.get("sinceId"); // yangi buyurtmalarni bilish uchun
+  const cursor = sp.get("cursor"); // sahifalash (oxirgi ko'rilgan order id)
+  const rawLimit = parseInt(sp.get("limit") || "", 10);
+  const limit = Number.isFinite(rawLimit) ? Math.min(200, Math.max(1, rawLimit)) : 100;
 
   const orders = await prisma.order.findMany({
     where: { restaurantId: restaurant.id, ...(status ? { status } : {}) },
     orderBy: { createdAt: "desc" },
-    take: 100,
+    take: limit + 1, // keyingi sahifa bor-yo'qligini bilish uchun bittasi ortiq
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
+
+  let nextCursor: string | null = null;
+  if (orders.length > limit) {
+    orders.pop();
+    nextCursor = orders[orders.length - 1]?.id ?? null;
+  }
 
   return ok({
     orders,
+    nextCursor,
     latestId: orders[0]?.id ?? null,
     hasNew: sinceId ? orders.some((o) => o.id === sinceId) === false && orders.length > 0 : false,
   });

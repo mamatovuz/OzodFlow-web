@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authGuard, guardRestaurant, ok, fail } from "@/lib/api";
 import { ORDER_STATUSES } from "@/lib/orders";
+import { dispatchWebhook } from "@/lib/webhooks";
 
 const VALID = ORDER_STATUSES.map((s) => s.key);
 
@@ -26,5 +27,14 @@ export async function PATCH(
     where: { id },
     data: { status },
   });
+
+  // Holat o'zgarishini webhooklarga xabar qilamiz (fon rejimda)
+  void dispatchWebhook(order.restaurantId, "order.status", {
+    id: updated.id,
+    number: updated.number,
+    status: updated.status,
+    total: updated.total,
+  });
+
   return ok(updated);
 }

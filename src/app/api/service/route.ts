@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { authGuard, getUserRestaurant, getMembership, ok, fail } from "@/lib/api";
+import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
 // Ommaviy: ofitsiant chaqirish / hisob so'rash
 const schema = z.object({
@@ -11,6 +12,9 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const limited = limitOrReject(req, "service", { limit: 20, windowMs: WINDOW.minute });
+  if (limited) return limited;
+
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) return fail("Ma'lumotlar noto'g'ri", 422);

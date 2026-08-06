@@ -118,6 +118,8 @@ model Restaurant {
   combos          Combo[]
   supportMessages SupportMessage[]
   posIntegrations PosIntegration[]
+  apiKeys         ApiKey[]
+  webhooks        Webhook[]
 
   @@index([ownerId])
 }
@@ -499,4 +501,45 @@ model PosSyncLog {
 
   @@index([integrationId])
   @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────
+// Tashqi (hamkor) API kalitlari — /api/v1 uchun
+// Sir (secret) ochiq saqlanmaydi: faqat SHA-256 hash.
+// ─────────────────────────────────────────────
+model ApiKey {
+  id           String    @id @default(cuid())
+  restaurantId String
+  name         String
+  prefix       String    @unique // ko'rsatish + tez qidiruv: ozf_live_xxxx
+  hash         String // SHA-256(to'liq kalit)
+  scopes       String    @default("menu:read") // JSON yoki vergul bilan
+  isActive     Boolean   @default(true)
+  lastUsedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+}
+
+// ─────────────────────────────────────────────
+// Chiquvchi webhooklar — buyurtma hodisalarini restoran serveriga yuborish
+// Har yuborish HMAC-SHA256 imzo bilan (X-OzodFlow-Signature).
+// ─────────────────────────────────────────────
+model Webhook {
+  id             String    @id @default(cuid())
+  restaurantId   String
+  url            String
+  secret         String // HMAC imzo kaliti
+  events         String    @default("[\"order.created\"]") // JSON massiv
+  isActive       Boolean   @default(true)
+  lastStatus     Int?
+  lastError      String?
+  lastDeliveryAt DateTime?
+  createdAt      DateTime  @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
 }

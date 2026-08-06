@@ -7,6 +7,7 @@
  * faqat `Order.posError` ga yoziladi.
  */
 import { prisma } from "@/lib/prisma";
+import { log } from "@/lib/log";
 import { createPosProvider } from "./registry";
 import { decryptCredentials } from "./crypto";
 import { posErrorMessage } from "./errors";
@@ -71,6 +72,11 @@ export async function pushOrderToPos(order: OrderPushInput): Promise<void> {
       .update({ where: { id: order.id }, data: { posOrderId: result.externalOrderId, posError: null } })
       .catch(() => {});
   } catch (err) {
+    log.warn("pos_order_push_failed", {
+      orderId: order.id,
+      restaurantId: order.restaurantId,
+      err: err instanceof Error ? err.message : String(err),
+    });
     await setPosError(order.id, posErrorMessage(err));
   }
 }

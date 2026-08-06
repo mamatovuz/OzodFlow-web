@@ -1,16 +1,25 @@
 import { NextRequest } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { ok, fail } from "@/lib/api";
+import { ok, fail, readJson, route } from "@/lib/api";
+import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
 // Ommaviy endpoint — mijoz menyuni ochganda skan hodisasini yozadi.
-// Body: { slug: string, tableCode?: string, visitorId?: string }
-export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null);
-  const slug: string | undefined = body?.slug;
-  if (!slug) return fail("slug talab qilinadi", 422);
+const schema = z.object({
+  slug: z.string().min(1),
+  tableCode: z.string().max(64).optional().nullable(),
+  visitorId: z.string().max(128).optional().nullable(),
+});
+
+export const POST = route(async (req: Request) => {
+  // Spam himoyasi: IP bo'yicha daqiqasiga 60 skan
+  const limited = limitOrReject(req, "scan", { limit: 60, windowMs: WINDOW.minute });
+  if (limited) return limited;
+
+  const data = await readJson(req, schema);
 
   const restaurant = await prisma.restaurant.findUnique({
-    where: { slug },
+    where: { slug: data.slug },
     select: { id: true },
   });
   if (!restaurant) return fail("Restoran topilmadi", 404);
@@ -18,20 +27,20 @@ export async function POST(req: NextRequest) {
   await prisma.scanEvent.create({
     data: {
       restaurantId: restaurant.id,
-      tableCode: body?.tableCode || null,
-      visitorId: body?.visitorId || null,
-      userAgent: req.headers.get("user-agent") || null,
+      tableCode: data.tableCode || null,
+      visitorId: data.visitorId || null,
+      userAgent: (req as NextRequest).headers.get("user-agent") || null,
     },
   });
 
-  if (body?.tableCode) {
+  if (data.tableCode) {
     await prisma.restaurantTable
       .updateMany({
-        where: { code: body.tableCode, restaurantId: restaurant.id },
+        where: { code: data.tableCode, restaurantId: restaurant.id },
         data: { scans: { increment: 1 } },
       })
       .catch(() => {});
   }
 
   return ok({ tracked: true });
-}
+});

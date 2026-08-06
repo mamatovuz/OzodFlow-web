@@ -1,13 +1,19 @@
-import { NextRequest } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { ok, fail } from "@/lib/api";
+import { ok, fail, readJson, route } from "@/lib/api";
+import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
 // Ommaviy: menyu ko'ruvchi "tirik" ekanini bildiradi (live counter uchun)
-export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null);
-  const slug = body?.slug;
-  const visitorId = body?.visitorId;
-  if (!slug || !visitorId) return fail("slug va visitorId kerak", 422);
+const schema = z.object({
+  slug: z.string().min(1),
+  visitorId: z.string().min(1).max(128),
+});
+
+export const POST = route(async (req: Request) => {
+  const limited = limitOrReject(req, "presence", { limit: 60, windowMs: WINDOW.minute });
+  if (limited) return limited;
+
+  const { slug, visitorId } = await readJson(req, schema);
 
   const restaurant = await prisma.restaurant.findUnique({
     where: { slug },
@@ -21,4 +27,4 @@ export async function POST(req: NextRequest) {
     create: { restaurantId: restaurant.id, visitorId },
   });
   return ok({ ok: true });
-}
+});

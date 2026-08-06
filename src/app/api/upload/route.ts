@@ -5,6 +5,7 @@ import sharp from "sharp";
 import { authGuard, ok, fail } from "@/lib/api";
 import { randomCode } from "@/lib/utils";
 import { UPLOAD_DIR } from "@/lib/uploads";
+import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB kiruvchi (siqishdan oldin)
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -12,6 +13,10 @@ const MAX_DIM = 1280; // eng katta tomon (px) — menyu uchun yetarli
 const WEBP_QUALITY = 78;
 
 export async function POST(req: NextRequest) {
+  // Disk to'ldirish/spam himoyasi: IP bo'yicha daqiqasiga 30 yuklash
+  const limited = limitOrReject(req, "upload", { limit: 30, windowMs: WINDOW.minute });
+  if (limited) return limited;
+
   const { user, res } = await authGuard();
   if (!user) return res;
 

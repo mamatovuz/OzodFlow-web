@@ -11,8 +11,14 @@ export async function GET(req: NextRequest) {
   const restaurant = await getUserRestaurant(user.id);
   if (!restaurant) return fail("Restoran topilmadi", 404);
 
-  const categoryId = req.nextUrl.searchParams.get("categoryId");
-  const search = req.nextUrl.searchParams.get("q");
+  const sp = req.nextUrl.searchParams;
+  const categoryId = sp.get("categoryId");
+  const search = sp.get("q");
+  // Ixtiyoriy sahifalash: `?limit=` berilsa cheklanadi (menyu muharriri
+  // hammasini bir marta yuklaydi — shuning uchun standart holatda cheksiz).
+  const rawLimit = parseInt(sp.get("limit") || "", 10);
+  const limit = Number.isFinite(rawLimit) ? Math.min(500, Math.max(1, rawLimit)) : undefined;
+  const cursor = sp.get("cursor");
 
   const products = await prisma.product.findMany({
     where: {
@@ -22,6 +28,8 @@ export async function GET(req: NextRequest) {
     },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
     include: { category: { select: { name: true } } },
+    ...(limit ? { take: limit } : {}),
+    ...(limit && cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
 
   return ok(products);

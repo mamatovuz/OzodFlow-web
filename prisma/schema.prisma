@@ -71,55 +71,60 @@ model Session {
 // Restoran va filiallar
 // ─────────────────────────────────────────────
 model Restaurant {
-  id          String  @id @default(cuid())
-  ownerId     String
-  slug        String  @unique
-  name        String
-  description String?
-  descriptionRu String?
-  descriptionEn String?
-  logo        String?
-  cover       String?
-  phone       String?
-  telegram    String?
-  instagram   String?
-  website     String?
-  mapUrl      String?
-  address     String?
-  workHours   String? // JSON string: ish vaqti
-  currency    String  @default("UZS")
-  hasDelivery Boolean @default(false)
-  payMethods  String? // JSON string: to'lov usullari
-  primaryColor String @default("#2563EB")
-  menuTheme   String  @default("light") // light | dark | + premium temalar
-  purchasedThemes String @default("[]") // alohida sotib olingan premium dizaynlar (JSON key massivi)
-  customDomain String? @unique // o'z domeni (Pro/Pro Max)
-  plan        String  @default("FREE") // FREE | PRO | PROMAX
-  planUntil   DateTime? // FREE trial muddati; pullik tariflarda null = umrbod
-  isActive    Boolean @default(true)
-  isBlocked   Boolean @default(false) // admin tomonidan bloklangan
-  blockReason String? // bloklash sababi (ixtiyoriy)
+  id              String    @id @default(cuid())
+  ownerId         String
+  slug            String    @unique
+  name            String
+  description     String?
+  descriptionRu   String?
+  descriptionEn   String?
+  logo            String?
+  cover           String?
+  phone           String?
+  telegram        String?
+  instagram       String?
+  website         String?
+  mapUrl          String?
+  address         String?
+  workHours       String? // JSON string: ish vaqti
+  currency        String    @default("UZS")
+  hasDelivery     Boolean   @default(false)
+  payMethods      String? // JSON string: to'lov usullari
+  primaryColor    String    @default("#2563EB")
+  menuTheme       String    @default("light") // light | dark | + premium temalar
+  purchasedThemes String    @default("[]") // alohida sotib olingan premium dizaynlar (JSON key massivi)
+  customDomain    String?   @unique // o'z domeni (Pro/Pro Max)
+  plan            String    @default("FREE") // FREE | PRO | PROMAX
+  planUntil       DateTime? // FREE trial muddati; pullik tariflarda null = umrbod
+  isActive        Boolean   @default(true)
+  isBlocked       Boolean   @default(false) // admin tomonidan bloklangan
+  blockReason     String? // bloklash sababi (ixtiyoriy)
   overdueNotified DateTime? // to'lov o'tib ketgani haqida adminga oxirgi xabar vaqti
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  owner           User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  categories      Category[]
-  products        Product[]
-  tables          RestaurantTable[]
-  scans           ScanEvent[]
-  memberships     Membership[]
-  paymentRequests PaymentRequest[]
-  domainRequests  DomainRequest[]
-  orders          Order[]
-  banners         Banner[]
-  gallery         GalleryImage[]
-  serviceCalls    ServiceCall[]
-  combos          Combo[]
-  supportMessages SupportMessage[]
-  posIntegrations PosIntegration[]
-  apiKeys         ApiKey[]
-  webhooks        Webhook[]
+  owner            User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  categories       Category[]
+  products         Product[]
+  tables           RestaurantTable[]
+  scans            ScanEvent[]
+  memberships      Membership[]
+  paymentRequests  PaymentRequest[]
+  domainRequests   DomainRequest[]
+  orders           Order[]
+  banners          Banner[]
+  gallery          GalleryImage[]
+  serviceCalls     ServiceCall[]
+  combos           Combo[]
+  supportMessages  SupportMessage[]
+  posIntegrations  PosIntegration[]
+  apiKeys          ApiKey[]
+  webhooks         Webhook[]
+  instagramAccount InstagramAccount?
+  instagramRules   InstagramRule[]
+  instagramLogs    InstagramLog[]
+  instagramMedia   InstagramMedia[]
+  instagramStats   InstagramStatistic[]
 
   @@index([ownerId])
 }
@@ -265,20 +270,20 @@ model Membership {
 // Menyu: kategoriyalar va mahsulotlar
 // ─────────────────────────────────────────────
 model Category {
-  id           String  @id @default(cuid())
-  restaurantId String
-  name         String
-  nameRu       String?
-  nameEn       String?
-  description  String?
-  icon         String?
-  sortOrder    Int     @default(0)
-  isVisible    Boolean @default(true)
+  id            String   @id @default(cuid())
+  restaurantId  String
+  name          String
+  nameRu        String?
+  nameEn        String?
+  description   String?
+  icon          String?
+  sortOrder     Int      @default(0)
+  isVisible     Boolean  @default(true)
   // ─── POS integratsiya ───
   posProvider   String? // CLOPOS | IIKO | POSTER | JOWI | RKEEPER
   posExternalId String? // provayderdagi kategoriya ID
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   products   Product[]
@@ -288,37 +293,37 @@ model Category {
 }
 
 model Product {
-  id           String  @id @default(cuid())
-  restaurantId String
-  categoryId   String
-  name         String
-  nameRu       String?
-  nameEn       String?
-  description  String?
+  id            String   @id @default(cuid())
+  restaurantId  String
+  categoryId    String
+  name          String
+  nameRu        String?
+  nameEn        String?
+  description   String?
   descriptionRu String?
   descriptionEn String?
-  images       String? // JSON array of image urls
-  price        Float   @default(0)
-  oldPrice     Float?
-  ingredients  String?
-  weight       String?
-  calories     Int?
-  spicyLevel   Int     @default(0) // 0-3
-  isVegetarian Boolean @default(false)
-  isHalal      Boolean @default(false)
-  isNew        Boolean @default(false)
-  isBestseller Boolean @default(false)
-  isRecommended Boolean @default(false)
-  isAvailable  Boolean @default(true)
-  isVisible    Boolean @default(true)
-  sortOrder    Int     @default(0)
-  views        Int     @default(0)
+  images        String? // JSON array of image urls
+  price         Float    @default(0)
+  oldPrice      Float?
+  ingredients   String?
+  weight        String?
+  calories      Int?
+  spicyLevel    Int      @default(0) // 0-3
+  isVegetarian  Boolean  @default(false)
+  isHalal       Boolean  @default(false)
+  isNew         Boolean  @default(false)
+  isBestseller  Boolean  @default(false)
+  isRecommended Boolean  @default(false)
+  isAvailable   Boolean  @default(true)
+  isVisible     Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  views         Int      @default(0)
   // ─── POS integratsiya (tashqi tizim bilan bog'lash) ───
   posProvider   String? // CLOPOS | IIKO | POSTER | JOWI | RKEEPER
   posExternalId String? // provayderdagi mahsulot ID
   stockStatus   String? // IN_STOCK | OUT_OF_STOCK | LOW
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   category   Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
@@ -330,11 +335,11 @@ model Product {
 
 // Har bir stol uchun alohida QR
 model RestaurantTable {
-  id           String  @id @default(cuid())
+  id           String   @id @default(cuid())
   restaurantId String
   name         String
-  code         String  @unique
-  scans        Int     @default(0)
+  code         String   @unique
+  scans        Int      @default(0)
   createdAt    DateTime @default(now())
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
@@ -541,5 +546,190 @@ model Webhook {
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
+  @@index([restaurantId])
+}
+
+// ═════════════════════════════════════════════
+// Instagram Automation — marketing avtomatlashtirish
+// Instagram Graph API (Messenger Platform + Webhooks) orqali ishlaydi.
+// Token'lar DB'da AES-256-GCM bilan shifrlanadi (lib/instagram/token.ts).
+// ═════════════════════════════════════════════
+
+// Ulangan Instagram Business/Creator akkaunti (restoranga 1:1)
+model InstagramAccount {
+  id             String    @id @default(cuid())
+  restaurantId   String    @unique
+  igUserId       String    @unique // Instagram Graph API user id
+  username       String
+  name           String?
+  profilePicture String?
+  followers      Int       @default(0)
+  following      Int       @default(0)
+  mediaCount     Int       @default(0)
+  tokens         String // Shifrlangan {token, refresh?} — v1:iv:tag:data
+  tokenExpiresAt DateTime? // long-lived token muddati (~60 kun)
+  status         String    @default("CONNECTED") // CONNECTED | ERROR | DISCONNECTED
+  lastError      String?
+  lastSyncAt     DateTime?
+  connectedAt    DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+}
+
+// Avtomatlashtirish qoidasi
+model InstagramRule {
+  id            String   @id @default(cuid())
+  restaurantId  String
+  name          String
+  trigger       String   @default("COMMENT_DM") // COMMENT | DM | COMMENT_DM
+  matchType     String   @default("CONTAINS") // CONTAINS | EQUALS | STARTS_WITH | ENDS_WITH
+  caseSensitive Boolean  @default(false)
+  enabled       Boolean  @default(true)
+  priority      Int      @default(1) // kichik raqam = yuqori ustuvorlik
+  scope         String   @default("GLOBAL") // GLOBAL | POST
+  postId        String? // scope=POST bo'lsa Instagram media id
+  postCaption   String? // UI'da ko'rsatish uchun
+  commentReply  String? // comment'ga ochiq javob matni
+  delaySec      Int      @default(0)
+  randomDelay   Boolean  @default(false)
+  cooldownHours Int      @default(24) // smart filter: userga N soatda 1 marta
+  schedule      String? // JSON: {mode, from, to, days, tz}
+  hitCount      Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  restaurant Restaurant         @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  keywords   InstagramKeyword[]
+  messages   InstagramMessage[]
+  logs       InstagramLog[]
+
+  @@index([restaurantId])
+  @@index([postId])
+}
+
+// Qoidaga bog'langan keyword (har biri alohida qator)
+model InstagramKeyword {
+  id       String  @id @default(cuid())
+  ruleId   String
+  word     String
+  isIgnore Boolean @default(false) // true = ignore ro'yxati
+
+  rule InstagramRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@index([ruleId])
+}
+
+// DM flow xabari (ko'p bosqichli — step tartibi bilan)
+model InstagramMessage {
+  id       String  @id @default(cuid())
+  ruleId   String
+  step     Int     @default(0) // flow tartibi (0 = birinchi)
+  kind     String  @default("TEXT") // TEXT | IMAGE | VIDEO
+  body     String? // matn (**bold**, qator, emoji)
+  mediaUrl String? // IMAGE/VIDEO uchun
+  delaySec Int     @default(0)
+
+  rule    InstagramRule     @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  buttons InstagramButton[]
+
+  @@index([ruleId])
+}
+
+// DM xabaridagi tugma (Instagram: max 3 tugma, url yoki postback)
+model InstagramButton {
+  id         String  @id @default(cuid())
+  messageId  String
+  label      String
+  actionType String  @default("URL") // URL | NEXT_STEP | POSTBACK
+  actionUrl  String? // URL uchun
+  nextStep   Int? // NEXT_STEP uchun (flow keyingi step)
+  payload    String? // POSTBACK uchun
+  clicks     Int     @default(0)
+  sortOrder  Int     @default(0)
+
+  message InstagramMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+// Media kutubxonasi (DM'da qayta ishlatish uchun)
+model InstagramMedia {
+  id           String   @id @default(cuid())
+  restaurantId String
+  kind         String   @default("IMAGE") // IMAGE | VIDEO | PDF
+  url          String
+  title        String?
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+}
+
+// Har bir avtomatlashtirish yozuvi (audit + qidiruv)
+model InstagramLog {
+  id           String   @id @default(cuid())
+  restaurantId String
+  ruleId       String?
+  trigger      String // COMMENT | DM
+  igUsername   String?
+  igUserId     String? // IGSID (DM yuborish uchun)
+  mediaId      String? // qaysi post
+  commentId    String?
+  commentText  String?
+  replyText    String? // yuborilgan javob (comment yoki DM)
+  status       String   @default("SENT") // SENT | SKIPPED | FAILED | PENDING
+  reason       String? // SKIPPED/FAILED sababi
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  rule       InstagramRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+
+  @@index([restaurantId])
+  @@index([ruleId])
+  @@index([createdAt])
+}
+
+// Webhook hodisalari (idempotentlik uchun)
+model InstagramEvent {
+  id        String   @id @default(cuid())
+  eventKey  String   @unique // dedup kaliti (comment_id yoki message mid)
+  type      String // COMMENT | MESSAGE
+  igUserId  String?
+  payload   String // xom JSON
+  processed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// Smart filter: userga oxirgi javob vaqti (cooldown uchun)
+model InstagramInteraction {
+  id            String   @id @default(cuid())
+  restaurantId  String
+  igUserId      String
+  ruleId        String?
+  lastRepliedAt DateTime @default(now())
+
+  @@unique([restaurantId, igUserId, ruleId])
+  @@index([restaurantId])
+}
+
+// Kunlik statistika (agregat — grafik uchun)
+model InstagramStatistic {
+  id           String @id @default(cuid())
+  restaurantId String
+  date         String // YYYY-MM-DD
+  comments     Int    @default(0)
+  dms          Int    @default(0)
+  replies      Int    @default(0)
+  buttonClicks Int    @default(0)
+  newFollowers Int    @default(0)
+  conversions  Int    @default(0)
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, date])
   @@index([restaurantId])
 }

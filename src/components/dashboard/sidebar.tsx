@@ -20,6 +20,7 @@ import {
   Users,
   Ticket,
   Plug,
+  Instagram,
   Settings,
   LogOut,
   Menu,
@@ -46,6 +47,7 @@ const nav = [
   { href: "/dashboard/stats", label: "Statistika", icon: BarChart3 },
   { href: "/dashboard/staff", label: "Xodimlar", icon: Users },
   { href: "/dashboard/promo", label: "Promo kod", icon: Ticket },
+  { href: "/dashboard/instagram", label: "Instagram", icon: Instagram },
   { href: "/dashboard/integrations", label: "Integratsiyalar", icon: Plug },
   { href: "/dashboard/settings", label: "Sozlamalar", icon: Settings },
 ];

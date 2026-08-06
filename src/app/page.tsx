@@ -24,7 +24,10 @@ import {
   Rocket,
   Crown,
   Gem,
+  Plug,
+  RefreshCcw,
 } from "lucide-react";
+import { PROVIDER_META } from "@/lib/pos";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Logo } from "@/components/logo";
@@ -376,6 +379,55 @@ export default async function LandingPage({
               </Reveal>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Integratsiyalar (POS / kassa) */}
+      <section id="integrations" className="border-t border-border py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <SectionHeading
+            tag="Integratsiyalar"
+            title="Kassa tizimingizga ulanadi"
+            subtitle="Mashhur POS tizimlari bilan integratsiya — mahsulot va narxlar avtomatik sinxronlanadi, ikki marta kiritmaysiz."
+          />
+
+          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {PROVIDER_META.map((p, i) => (
+              <Reveal
+                key={p.id}
+                delay={(i % 3) * 80}
+                className="flex items-center gap-4 rounded-2xl border border-border bg-card p-5 shadow-soft transition-all hover:-translate-y-1 hover:shadow-card"
+              >
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-lg font-bold text-accent">
+                  {p.label.charAt(0)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-foreground">{p.label}</div>
+                  {p.available ? (
+                    <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-success">
+                      <Check className="h-3.5 w-3.5" /> Ulanadi
+                    </span>
+                  ) : (
+                    <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-muted">
+                      Tez orada
+                    </span>
+                  )}
+                </div>
+                <Plug className={`h-5 w-5 shrink-0 ${p.available ? "text-accent" : "text-muted/40"}`} />
+              </Reveal>
+            ))}
+          </div>
+
+          <Reveal className="mx-auto mt-10 flex max-w-3xl flex-col gap-4 rounded-2xl border border-border bg-surface/50 p-6 sm:flex-row sm:items-center sm:justify-center sm:gap-8">
+            <div className="flex items-center gap-3">
+              <RefreshCcw className="h-5 w-5 shrink-0 text-accent" />
+              <span className="text-sm text-foreground">Menyu har 5 daqiqada avtomatik yangilanadi</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="h-5 w-5 shrink-0 text-accent" />
+              <span className="text-sm text-foreground">Kalitlar shifrlangan holda saqlanadi</span>
+            </div>
+          </Reveal>
         </div>
       </section>
 

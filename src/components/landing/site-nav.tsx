@@ -11,6 +11,7 @@ const links = [
   { href: "#features", label: "Imkoniyatlar" },
   { href: "#demo", label: "Demo" },
   { href: "#how", label: "Qanday ishlaydi" },
+  { href: "#integrations", label: "Integratsiyalar" },
   { href: "#pricing", label: "Tariflar" },
   { href: "#faq", label: "Savol-javob" },
 ];

@@ -10,14 +10,16 @@ import type { PosProvider, PosProviderContext } from "./provider";
 import type { PosProviderId, PosProviderMeta } from "./types";
 import { PosError } from "./errors";
 import { CloposProvider } from "./providers/clopos";
+import { PosterProvider } from "./providers/poster";
+import { IikoProvider } from "./providers/iiko";
 
 type ProviderFactory = (ctx: PosProviderContext) => PosProvider;
 
 const FACTORIES: Partial<Record<PosProviderId, ProviderFactory>> = {
   CLOPOS: (ctx) => new CloposProvider(ctx),
+  POSTER: (ctx) => new PosterProvider(ctx),
+  IIKO: (ctx) => new IikoProvider(ctx),
   // Kelajakda:
-  // IIKO:   (ctx) => new IikoProvider(ctx),
-  // POSTER: (ctx) => new PosterProvider(ctx),
   // JOWI:   (ctx) => new JowiProvider(ctx),
   // RKEEPER:(ctx) => new RKeeperProvider(ctx),
 };
@@ -59,8 +61,43 @@ export const PROVIDER_META: PosProviderMeta[] = [
       },
     ],
   },
-  { id: "IIKO", label: "iiko", available: false, credentialFields: [] },
-  { id: "POSTER", label: "Poster", available: false, credentialFields: [] },
+  {
+    id: "POSTER",
+    label: "Poster",
+    available: true,
+    docsUrl: "https://dev.joinposter.com",
+    credentialFields: [
+      {
+        key: "token",
+        label: "Access Token",
+        type: "password",
+        required: true,
+        help: "Poster → Sozlamalar → API kirish nuqtalari (Access token)",
+      },
+    ],
+  },
+  {
+    id: "IIKO",
+    label: "iiko",
+    available: true,
+    docsUrl: "https://api-ru.iiko.services",
+    credentialFields: [
+      {
+        key: "api_login",
+        label: "API Login",
+        type: "password",
+        required: true,
+        help: "iikoWeb → Integratsiyalar → iikoTransport (apiLogin)",
+      },
+      {
+        key: "organization_id",
+        label: "Organization ID (ixtiyoriy)",
+        type: "text",
+        required: false,
+        help: "Bo'sh qoldirilsa — birinchi tashkilot avtomatik olinadi",
+      },
+    ],
+  },
   { id: "JOWI", label: "JOWI", available: false, credentialFields: [] },
   { id: "RKEEPER", label: "R-Keeper", available: false, credentialFields: [] },
 ];

@@ -29,9 +29,12 @@ export const IG_SCOPES = [
 ];
 
 export function getIgConfig() {
+  // "Instagram API with Instagram Login" oqimi uchun client_id/secret =
+  // Instagram App ID/Secret (Meta App ID EMAS). IG_APP_* birinchi, bo'lmasa
+  // INSTAGRAM_CLIENT_* (muqobil nom) ishlatiladi.
   return {
-    appId: process.env.IG_APP_ID || "",
-    appSecret: process.env.IG_APP_SECRET || "",
+    appId: process.env.IG_APP_ID || process.env.INSTAGRAM_CLIENT_ID || "",
+    appSecret: process.env.IG_APP_SECRET || process.env.INSTAGRAM_CLIENT_SECRET || "",
     verifyToken: process.env.IG_WEBHOOK_VERIFY_TOKEN || "",
     appUrl: (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, ""),
   };

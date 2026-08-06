@@ -4,6 +4,7 @@ import { ok, fail } from "@/lib/api";
 import { getPosOwner } from "@/lib/pos-access";
 import { createPosProvider, isSupportedProvider, getProviderMeta } from "@/lib/pos";
 import type { PosProviderId } from "@/lib/pos";
+import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
 const schema = z.object({
   provider: z.string(),
@@ -12,6 +13,9 @@ const schema = z.object({
 
 // ─── Ulanishni tekshirish (saqlamasdan) ───
 export async function POST(req: NextRequest) {
+  const limited = limitOrReject(req, "pos-test", { limit: 20, windowMs: WINDOW.minute });
+  if (limited) return limited;
+
   const acc = await getPosOwner();
   if (acc.error === "UNAUTHORIZED") return fail("Avtorizatsiya talab qilinadi", 401);
   if (acc.error === "FORBIDDEN") return fail("Ruxsat yo'q", 403);

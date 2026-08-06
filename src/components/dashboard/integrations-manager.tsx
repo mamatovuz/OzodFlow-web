@@ -118,7 +118,7 @@ export function IntegrationsManager() {
     setMsg({
       ok: data?.ok,
       text: data?.ok
-        ? `${data.itemsSynced} ta mahsulot sinxronlandi${data.itemsFailed ? `, ${data.itemsFailed} ta o'tkazildi` : ""}`
+        ? `${data.itemsSynced} ta mahsulot sinxronlandi${data.itemsFailed ? `, ${data.itemsFailed} ta o'tkazildi` : ""}${data.itemsHidden ? `, ${data.itemsHidden} ta POS'da o'chirilgani yashirildi` : ""}`
         : data?.message || "Sinxronlanmadi",
     });
     await load();

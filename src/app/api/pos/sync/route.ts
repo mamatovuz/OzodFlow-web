@@ -2,9 +2,13 @@ import { prisma } from "@/lib/prisma";
 import { ok, fail } from "@/lib/api";
 import { getPosOwner } from "@/lib/pos-access";
 import { syncMenu } from "@/lib/pos";
+import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
 // ─── Qo'lda sinxronlash ("Sync now") ───
-export async function POST() {
+export async function POST(req: Request) {
+  const limited = limitOrReject(req, "pos-sync", { limit: 6, windowMs: WINDOW.minute });
+  if (limited) return limited;
+
   const acc = await getPosOwner();
   if (acc.error === "UNAUTHORIZED") return fail("Avtorizatsiya talab qilinadi", 401);
   if (acc.error === "FORBIDDEN") return fail("Ruxsat yo'q", 403);

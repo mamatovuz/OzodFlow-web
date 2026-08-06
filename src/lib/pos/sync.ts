@@ -17,12 +17,38 @@ export interface SyncResult {
   ok: boolean;
   itemsSynced: number;
   itemsFailed: number;
+  /** POS'da o'chirilgani uchun avtomatik yashirilgan mahsulotlar soni */
+  itemsHidden: number;
   message: string;
   logId: string;
 }
 
+// Bir vaqtda bir integratsiyani ikki marta sinxronlamaslik uchun qulf.
+// (Qo'lda "Sync now" + avtomatik cron ustma-ust tushishi mumkin.)
+// Railway'da bitta Node jarayoni bo'lgani uchun module-darajali Set yetarli.
+const running = new Set<string>();
+
 /** Bitta integratsiya bo'yicha menyuni sinxronlaydi */
 export async function syncMenu(integrationId: string): Promise<SyncResult> {
+  if (running.has(integrationId)) {
+    return {
+      ok: false,
+      itemsSynced: 0,
+      itemsFailed: 0,
+      itemsHidden: 0,
+      message: "Sinxronlash allaqachon bajarilmoqda, biroz kuting",
+      logId: "",
+    };
+  }
+  running.add(integrationId);
+  try {
+    return await runSync(integrationId);
+  } finally {
+    running.delete(integrationId);
+  }
+}
+
+async function runSync(integrationId: string): Promise<SyncResult> {
   const started = Date.now();
   const integration = await prisma.posIntegration.findUnique({
     where: { id: integrationId },
@@ -36,8 +62,14 @@ export async function syncMenu(integrationId: string): Promise<SyncResult> {
 
   let synced = 0;
   let failed = 0;
+  let hidden = 0;
   let ok = true;
   let message = "Menyu muvaffaqiyatli sinxronlandi";
+
+  // POS'dan kelgan tashqi ID'lar — moslashda ko'rilganlarni belgilaymiz,
+  // qolganlari POS'da o'chirilgan hisoblanadi va menyudan yashiriladi.
+  const seenProductExtIds = new Set<string>();
+  const seenCategoryExtIds = new Set<string>();
 
   try {
     const credentials = decryptCredentials(integration.credentials);
@@ -71,6 +103,7 @@ export async function syncMenu(integrationId: string): Promise<SyncResult> {
           },
         });
         catIdByExternal.set(c.externalId, saved.id);
+        seenCategoryExtIds.add(c.externalId);
       } catch {
         failed++;
       }
@@ -119,12 +152,28 @@ export async function syncMenu(integrationId: string): Promise<SyncResult> {
             oldPrice: p.oldPrice ?? null,
             isAvailable: p.isAvailable,
             stockStatus: p.stockStatus ?? null,
+            // POS'da yana paydo bo'lsa — avval yashirilgan bo'lsa ham qayta ko'rsatamiz
+            isVisible: true,
           },
         });
         synced++;
+        seenProductExtIds.add(p.externalId);
       } catch {
         failed++;
       }
+    }
+
+    // ── 3. POS'da o'chirilganlarni yashirish (stale cleanup) ──
+    // Faqat menyu muvaffaqiyatli olingan bo'lsa ishlaydi. Xavfsizlik uchun
+    // bo'sh menyu kelsa (API nosozligi) hech nima yashirmaymiz — aks holda
+    // butun menyu yo'qolib qolishi mumkin.
+    if (seenProductExtIds.size > 0) {
+      hidden += await hideMissing(
+        restaurantId,
+        provider,
+        seenProductExtIds,
+        seenCategoryExtIds
+      );
     }
   } catch (err) {
     ok = false;
@@ -141,6 +190,10 @@ export async function syncMenu(integrationId: string): Promise<SyncResult> {
     },
   });
 
+  // Yashirilganlar sonini xabarga qo'shamiz
+  const fullMessage =
+    ok && hidden > 0 ? `${message} (${hidden} ta POS'da o'chirilgani yashirildi)` : message;
+
   // ── Sync tarixiga yozish ──
   const log = await prisma.posSyncLog.create({
     data: {
@@ -149,10 +202,77 @@ export async function syncMenu(integrationId: string): Promise<SyncResult> {
       status: ok ? (failed > 0 ? "PARTIAL" : "SUCCESS") : "FAILED",
       itemsSynced: synced,
       itemsFailed: failed,
-      message,
+      message: fullMessage,
       durationMs: Date.now() - started,
     },
   });
 
-  return { ok, itemsSynced: synced, itemsFailed: failed, message, logId: log.id };
+  return {
+    ok,
+    itemsSynced: synced,
+    itemsFailed: failed,
+    itemsHidden: hidden,
+    message: fullMessage,
+    logId: log.id,
+  };
+}
+
+/**
+ * POS'da endi mavjud bo'lmagan (bu sinxronda ko'rilmagan) mahsulot va
+ * kategoriyalarni menyudan yashiradi. Faqat POS boshqaradigan yozuvlarga
+ * tegadi (owner qo'lda qo'shganlariga tegmaydi). SQLite parametr limitiga
+ * urilmaslik uchun ID'lar bo'lakma-bo'lak yangilanadi.
+ */
+async function hideMissing(
+  restaurantId: string,
+  provider: PosProviderId,
+  seenProducts: Set<string>,
+  seenCategories: Set<string>
+): Promise<number> {
+  const CHUNK = 400;
+
+  async function hideProductsByIds(ids: string[]) {
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const slice = ids.slice(i, i + CHUNK);
+      await prisma.product.updateMany({
+        where: { id: { in: slice } },
+        data: { isVisible: false, isAvailable: false, stockStatus: "OUT_OF_STOCK" },
+      });
+    }
+  }
+
+  // POS boshqaradigan mahsulotlar
+  const managedProducts = await prisma.product.findMany({
+    where: { restaurantId, posProvider: provider, posExternalId: { not: null } },
+    select: { id: true, posExternalId: true, isVisible: true, isAvailable: true },
+  });
+  const staleProducts = managedProducts
+    .filter(
+      (p) =>
+        p.posExternalId != null &&
+        !seenProducts.has(p.posExternalId) &&
+        (p.isVisible || p.isAvailable)
+    )
+    .map((p) => p.id);
+  await hideProductsByIds(staleProducts);
+
+  // POS boshqaradigan bo'sh (endi ko'rilmagan) kategoriyalar
+  const managedCategories = await prisma.category.findMany({
+    where: { restaurantId, posProvider: provider, posExternalId: { not: null } },
+    select: { id: true, posExternalId: true, isVisible: true },
+  });
+  const staleCategories = managedCategories
+    .filter(
+      (c) => c.posExternalId != null && !seenCategories.has(c.posExternalId) && c.isVisible
+    )
+    .map((c) => c.id);
+  for (let i = 0; i < staleCategories.length; i += CHUNK) {
+    const slice = staleCategories.slice(i, i + CHUNK);
+    await prisma.category.updateMany({
+      where: { id: { in: slice } },
+      data: { isVisible: false },
+    });
+  }
+
+  return staleProducts.length;
 }

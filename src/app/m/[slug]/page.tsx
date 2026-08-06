@@ -18,14 +18,28 @@ export async function generateMetadata({
     select: { name: true, description: true, logo: true },
   });
   if (!restaurant) return { title: "Menyu topilmadi" };
+
+  const title = `${restaurant.name} — Menyu`;
+  const description =
+    restaurant.description || `${restaurant.name} elektron menyusi`;
+
+  // og:image va twitter:image avtomatik `opengraph-image.tsx` orqali qo'shiladi.
+  // Bu yerda faqat favicon'ni restoran logosiga almashtiramiz — brauzer tabida
+  // OzodFlow logosi emas, aynan shu restoranning logosi ko'rinadi.
   return {
-    title: `${restaurant.name} — Menyu`,
-    description: restaurant.description || `${restaurant.name} elektron menyusi`,
-    openGraph: {
-      title: `${restaurant.name} — Menyu`,
-      description: restaurant.description || "",
-      images: restaurant.logo ? [restaurant.logo] : [],
-    },
+    title,
+    description,
+    openGraph: { title, description, type: "website" },
+    twitter: { card: "summary_large_image", title, description },
+    ...(restaurant.logo
+      ? {
+          icons: {
+            icon: [{ url: restaurant.logo }],
+            shortcut: [{ url: restaurant.logo }],
+            apple: [{ url: restaurant.logo }],
+          },
+        }
+      : {}),
   };
 }
 

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getMenuBySlug, resolveTable } from "@/lib/menu";
 import { PublicMenu } from "@/components/public/public-menu";
 import { BlockedMenu } from "@/components/public/blocked-menu";
+import { restaurantJsonLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,9 @@ export async function generateMetadata({
   return {
     title,
     description,
+    // Har restoran uchun alohida PWA manifest (nom + logo bilan o'rnatiladi)
+    manifest: `/m/${slug}/manifest.webmanifest`,
+    appleWebApp: { capable: true, title: restaurant.name },
     openGraph: { title, description, type: "website" },
     twitter: { card: "summary_large_image", title, description },
     ...(restaurant.logo
@@ -61,17 +65,29 @@ export default async function PublicMenuPage({
 
   const table = await resolveTable(data.restaurant.id, t);
 
+  const jsonLd = restaurantJsonLd(
+    data.restaurant,
+    data.categories,
+    data.products
+  );
+
   return (
-    <PublicMenu
-      restaurant={data.restaurant}
-      categories={data.categories}
-      products={data.products}
-      theme={data.theme}
-      table={table}
-      banners={data.banners}
-      gallery={data.gallery}
-      combos={data.combos}
-      serviceEnabled={data.serviceEnabled}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <PublicMenu
+        restaurant={data.restaurant}
+        categories={data.categories}
+        products={data.products}
+        theme={data.theme}
+        table={table}
+        banners={data.banners}
+        gallery={data.gallery}
+        combos={data.combos}
+        serviceEnabled={data.serviceEnabled}
+      />
+    </>
   );
 }

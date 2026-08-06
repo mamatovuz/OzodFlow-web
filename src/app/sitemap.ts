@@ -16,7 +16,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let menus: MetadataRoute.Sitemap = [];
   try {
     const restaurants = await prisma.restaurant.findMany({
-      where: { isActive: true },
+      where: { isActive: true, isBlocked: false },
       select: { slug: true, updatedAt: true },
     });
     menus = restaurants.map((r) => ({

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { formatPrice, parseJson } from "@/lib/utils";
 import type { MenuTheme } from "@/lib/themes";
+import { categoryStyleFor, headerStyleFor } from "@/lib/themes";
 import { loc, LANGS, UI, type Lang } from "@/lib/i18n";
 import {
   CheckoutModal,
@@ -164,6 +165,8 @@ export function PublicMenu({
   const accent = theme.accent || restaurant.primaryColor || "#2563EB";
   const accentText = theme.accentText || "#ffffff";
   const R = theme.radius;
+  const catStyle = categoryStyleFor(theme.key);
+  const headerStyle = headerStyleFor(theme.key);
 
   const themeStyle: React.CSSProperties = {
     ["--accent" as string]: accent,
@@ -376,65 +379,16 @@ export function PublicMenu({
       </div>
 
       <div className="mx-auto max-w-2xl px-4">
-        {/* ─── Restoran info card ─── */}
-        <div
-          className="relative -mt-10 border border-border bg-card px-5 pb-5 shadow-card"
-          style={{ borderRadius: R + 6 }}
-        >
-          {/* Logo cover chetida "suzib" turadi, nom/tavsif esa tagida ajralib */}
-          <div
-            className="-mt-12 h-24 w-24 overflow-hidden border-4 border-card bg-surface-2 shadow-card"
-            style={{ borderRadius: R + 2 }}
-          >
-            {restaurant.logo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={restaurant.logo} alt={restaurant.name} className="h-full w-full object-cover" />
-            ) : (
-              <div
-                className="flex h-full w-full items-center justify-center text-3xl font-bold"
-                style={{ background: accent, color: accentText }}
-              >
-                {restaurant.name[0]}
-              </div>
-            )}
-          </div>
-
-          <div className="mt-3">
-            <h1 className="text-2xl font-bold leading-tight text-foreground">
-              {restaurant.name}
-            </h1>
-            <div className="mt-1.5 flex items-center gap-1.5 text-sm text-muted">
-              <Star className="h-4 w-4 fill-current text-warning" />
-              <span className="font-semibold text-foreground">4.8</span>
-              <span>· {products.length} taom</span>
-              {restaurant.hasDelivery && (
-                <>
-                  <span className="text-muted/50">·</span>
-                  <span>Yetkazib berish bor</span>
-                </>
-              )}
-            </div>
-          </div>
-
-          {restaurantDesc && (
-            <p className="mt-3.5 text-sm leading-relaxed text-muted">
-              {restaurantDesc}
-            </p>
-          )}
-
-          {/* Info chips */}
-          {(restaurant.workHours || restaurant.address || restaurant.phone) && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {restaurant.workHours && <InfoChip icon={Clock} text={restaurant.workHours} />}
-              {restaurant.address && (
-                <InfoChip icon={MapPin} text={restaurant.address} href={restaurant.mapUrl || undefined} />
-              )}
-              {restaurant.phone && (
-                <InfoChip icon={Phone} text={restaurant.phone} href={`tel:${restaurant.phone}`} />
-              )}
-            </div>
-          )}
-        </div>
+        {/* ─── Restoran profili (shablonga qarab) ─── */}
+        <ProfileHeader
+          restaurant={restaurant}
+          desc={restaurantDesc}
+          productCount={products.length}
+          accent={accent}
+          accentText={accentText}
+          radius={R}
+          variant={headerStyle}
+        />
 
         {/* ─── Stol bar ─── */}
         {table && (
@@ -610,12 +564,13 @@ export function PublicMenu({
             </div>
           )}
 
-          {/* Grid: barcha kategoriyalar (banner kartalar) */}
+          {/* Barcha kategoriyalar — shablonga qarab (banner / grid / list) */}
           {showBrowse && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className={catStyle === "grid" ? "grid grid-cols-2 gap-3" : "space-y-3"}>
               {grouped.map((g) => (
-                <CategoryBanner
+                <CategoryCard
                   key={g.category.id}
+                  variant={catStyle}
                   name={g.category.name}
                   image={g.category.image}
                   count={g.items.length}
@@ -740,8 +695,177 @@ export function PublicMenu({
   );
 }
 
-// ─────────── Kategoriya karta (grid, bosilsa kategoriyaga kiradi) ───────────
-function CategoryBanner({
+// ─────────── Restoran profili (shablonga qarab: overlap / center / minimal) ───────────
+function ProfileHeader({
+  restaurant,
+  desc,
+  productCount,
+  accent,
+  accentText,
+  radius,
+  variant,
+}: {
+  restaurant: PublicRestaurant;
+  desc: string;
+  productCount: number;
+  accent: string;
+  accentText: string;
+  radius: number;
+  variant: "overlap" | "center" | "minimal";
+}) {
+  const R = radius;
+  const logo = restaurant.logo ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={restaurant.logo} alt={restaurant.name} className="h-full w-full object-cover" />
+  ) : (
+    <div
+      className="flex h-full w-full items-center justify-center text-3xl font-bold"
+      style={{ background: accent, color: accentText }}
+    >
+      {restaurant.name[0]}
+    </div>
+  );
+
+  const socials = (
+    <div className="flex items-center gap-2">
+      {restaurant.telegram && (
+        <a
+          href={`https://t.me/${restaurant.telegram.replace("@", "")}`}
+          target="_blank"
+          rel="noreferrer"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-foreground transition-colors hover:bg-accent-soft"
+        >
+          <Send className="h-4 w-4" />
+        </a>
+      )}
+      {restaurant.instagram && (
+        <a
+          href={`https://instagram.com/${restaurant.instagram.replace("@", "")}`}
+          target="_blank"
+          rel="noreferrer"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-foreground transition-colors hover:bg-accent-soft"
+        >
+          <Instagram className="h-4 w-4" />
+        </a>
+      )}
+    </div>
+  );
+
+  const infoChips = (restaurant.workHours || restaurant.address || restaurant.phone) && (
+    <div className={`mt-4 flex flex-wrap gap-2 ${variant === "center" ? "justify-center" : ""}`}>
+      {restaurant.address && (
+        <InfoChip icon={MapPin} text={restaurant.address} href={restaurant.mapUrl || undefined} />
+      )}
+      {restaurant.phone && (
+        <InfoChip icon={Phone} text={restaurant.phone} href={`tel:${restaurant.phone}`} />
+      )}
+      {restaurant.workHours && <InfoChip icon={Clock} text={restaurant.workHours} />}
+    </div>
+  );
+
+  // ── CENTER: logo markazda, nom + ijtimoiy tugmalar markazda (rasimdagidek) ──
+  if (variant === "center") {
+    return (
+      <div
+        className="relative -mt-14 border border-border bg-card px-5 pb-5 pt-0 text-center shadow-card"
+        style={{ borderRadius: R + 6 }}
+      >
+        <div
+          className="mx-auto -mt-12 h-24 w-24 overflow-hidden rounded-full border-4 border-card bg-surface-2 shadow-card"
+        >
+          {logo}
+        </div>
+        <div className="mt-3 flex flex-col items-center">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold leading-tight text-foreground">{restaurant.name}</h1>
+            {socials}
+          </div>
+          {desc && <p className="mt-1 text-sm text-muted">{desc}</p>}
+          <div className="mt-1.5 flex items-center gap-1.5 text-sm text-muted">
+            <Star className="h-4 w-4 fill-current text-warning" />
+            <span className="font-semibold text-foreground">4.8</span>
+            <span>· {productCount} taom</span>
+            {restaurant.hasDelivery && (
+              <>
+                <span className="text-muted/50">·</span>
+                <span>Yetkazib berish</span>
+              </>
+            )}
+          </div>
+        </div>
+        {infoChips}
+      </div>
+    );
+  }
+
+  // ── MINIMAL: kichik logo chapda, ixcham (kartasiz) ──
+  if (variant === "minimal") {
+    return (
+      <div className="-mt-8 flex items-center gap-3 px-1">
+        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border-2 border-card bg-surface-2 shadow-card">
+          {logo}
+        </div>
+        <div className="min-w-0 flex-1 pt-6">
+          <div className="flex items-center gap-2">
+            <h1 className="truncate text-xl font-bold text-foreground">{restaurant.name}</h1>
+            {socials}
+          </div>
+          <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+            <Star className="h-3.5 w-3.5 fill-current text-warning" />
+            <span className="font-semibold text-foreground">4.8</span>
+            <span>· {productCount} taom</span>
+            {restaurant.hasDelivery && <span>· Yetkazib berish</span>}
+          </div>
+          {(restaurant.address || restaurant.phone) && (
+            <p className="mt-1 truncate text-xs text-muted">
+              {restaurant.address}
+              {restaurant.address && restaurant.phone ? " · " : ""}
+              {restaurant.phone}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── OVERLAP (standart): logo chap tepada ──
+  return (
+    <div
+      className="relative -mt-10 border border-border bg-card px-5 pb-5 shadow-card"
+      style={{ borderRadius: R + 6 }}
+    >
+      <div className="flex items-start justify-between">
+        <div
+          className="-mt-12 h-24 w-24 overflow-hidden border-4 border-card bg-surface-2 shadow-card"
+          style={{ borderRadius: R + 2 }}
+        >
+          {logo}
+        </div>
+        <div className="pt-3">{socials}</div>
+      </div>
+      <div className="mt-3">
+        <h1 className="text-2xl font-bold leading-tight text-foreground">{restaurant.name}</h1>
+        <div className="mt-1.5 flex items-center gap-1.5 text-sm text-muted">
+          <Star className="h-4 w-4 fill-current text-warning" />
+          <span className="font-semibold text-foreground">4.8</span>
+          <span>· {productCount} taom</span>
+          {restaurant.hasDelivery && (
+            <>
+              <span className="text-muted/50">·</span>
+              <span>Yetkazib berish bor</span>
+            </>
+          )}
+        </div>
+      </div>
+      {desc && <p className="mt-3.5 text-sm leading-relaxed text-muted">{desc}</p>}
+      {infoChips}
+    </div>
+  );
+}
+
+// ─────────── Kategoriya karta (shablonga qarab: banner / grid / list) ───────────
+function CategoryCard({
+  variant,
   name,
   image,
   count,
@@ -751,6 +875,7 @@ function CategoryBanner({
   radius,
   label,
 }: {
+  variant: "banner" | "grid" | "list";
   name: string;
   image: string | null;
   count: number;
@@ -760,10 +885,46 @@ function CategoryBanner({
   radius: number;
   label: string;
 }) {
+  const bg = `linear-gradient(135deg, ${accent}, ${accent}22, #0b0b0b)`;
+
+  // ── LIST: chapda kichik rasm + nom + o'q ──
+  if (variant === "list") {
+    return (
+      <button
+        onClick={onClick}
+        className="group flex w-full items-center gap-3 border border-border bg-card p-2.5 text-left shadow-soft transition-transform active:scale-[0.99]"
+        style={{ borderRadius: radius }}
+      >
+        <div
+          className="h-16 w-16 shrink-0 overflow-hidden bg-surface-2"
+          style={{ borderRadius: radius - 4 }}
+        >
+          {image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={image} alt={name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+          ) : (
+            <div className="h-full w-full" style={{ background: bg }} />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-base font-bold text-foreground">{name}</h3>
+          <p className="text-xs text-muted">
+            {count} {label}
+          </p>
+        </div>
+        <ChevronRight className="h-5 w-5 shrink-0 text-muted transition-transform group-hover:translate-x-0.5" />
+      </button>
+    );
+  }
+
+  // ── BANNER (to'liq enlik) yoki GRID (2 ustun) ──
+  const isBanner = variant === "banner";
   return (
     <button
       onClick={onClick}
-      className="group relative block aspect-[4/3] w-full overflow-hidden text-left shadow-card ring-1 ring-black/5 transition-transform active:scale-[0.98]"
+      className={`group relative block w-full overflow-hidden text-left shadow-card ring-1 ring-black/5 transition-transform active:scale-[0.98] ${
+        isBanner ? "h-40 sm:h-52" : "aspect-[4/3]"
+      }`}
       style={{ borderRadius: radius + 4 }}
     >
       {image ? (
@@ -773,33 +934,49 @@ function CategoryBanner({
           alt={name}
           loading="lazy"
           decoding="async"
-          className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
+          className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
         />
       ) : (
         <div
-          className="h-full w-full transition-transform duration-500 ease-out group-hover:scale-110"
-          style={{ background: `linear-gradient(135deg, ${accent}, ${accent}22, #0b0b0b)` }}
+          className="h-full w-full transition-transform duration-500 ease-out group-hover:scale-105"
+          style={{ background: bg }}
         />
       )}
-      {/* Pastdan chiqadigan gradient — matn o'qilishi uchun */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
-      {/* Nom + soni pastki chapda */}
-      <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3">
-        <div className="min-w-0">
-          <h3 className="truncate text-base font-bold uppercase tracking-wide text-white [text-shadow:0_1px_6px_rgba(0,0,0,0.5)] sm:text-lg">
-            {name}
-          </h3>
-          <p className="text-[11px] font-medium text-white/80">
-            {count} {label}
-          </p>
-        </div>
-        <span
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-md transition-transform group-hover:translate-x-0.5"
-          style={{ background: accent, color: accentText }}
-        >
-          <ChevronRight className="h-5 w-5" />
-        </span>
-      </div>
+      {isBanner ? (
+        <>
+          {/* Markazda nom (rasimdagidek) */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/25 to-black/10" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-5 text-center">
+            <h3 className="text-2xl font-extrabold uppercase tracking-[0.1em] text-white [text-shadow:0_2px_12px_rgba(0,0,0,0.5)] sm:text-4xl">
+              {name}
+            </h3>
+            <span className="rounded-full bg-white/20 px-3 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
+              {count} {label}
+            </span>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Nom pastki chapda */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3">
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-bold uppercase tracking-wide text-white [text-shadow:0_1px_6px_rgba(0,0,0,0.5)] sm:text-lg">
+                {name}
+              </h3>
+              <p className="text-[11px] font-medium text-white/80">
+                {count} {label}
+              </p>
+            </div>
+            <span
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-md transition-transform group-hover:translate-x-0.5"
+              style={{ background: accent, color: accentText }}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </span>
+          </div>
+        </>
+      )}
     </button>
   );
 }

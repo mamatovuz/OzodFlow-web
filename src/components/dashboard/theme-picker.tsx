@@ -14,7 +14,13 @@ import {
 } from "lucide-react";
 import { Card, Badge, Button, Label } from "@/components/ui";
 import { Modal } from "@/components/ui-modal";
-import { MENU_THEMES, type MenuTheme, type ThemeKey } from "@/lib/themes";
+import {
+  MENU_THEMES,
+  categoryStyleFor,
+  headerStyleFor,
+  type MenuTheme,
+  type ThemeKey,
+} from "@/lib/themes";
 import { THEME_PRICE } from "@/lib/plans";
 import { formatPrice } from "@/lib/utils";
 import Link from "next/link";
@@ -443,41 +449,68 @@ function ThemeMock({ theme: t, large = false }: { theme: MenuTheme; large?: bool
       </div>
     );
 
+  const hs = headerStyleFor(t.key);
+  const cs = categoryStyleFor(t.key);
+  const line = (w: string, col: string, op = 0.9, h = 4) => (
+    <div style={{ background: col, opacity: op, height: h * scale, width: w, borderRadius: 2 }} />
+  );
+
+  // Kategoriya ko'rinishi (banner / grid / list)
+  const CatMock =
+    cs === "grid" ? (
+      <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+        {[0, 1].map((i) => (
+          <div key={i} style={{ background: c.surface2, aspectRatio: "4/3", borderRadius: r }} className="relative overflow-hidden">
+            <div className="absolute inset-x-1 bottom-1">{line("70%", "#fff", 0.9, 4)}</div>
+          </div>
+        ))}
+      </div>
+    ) : cs === "list" ? (
+      <div className="mt-1.5 space-y-1.5">
+        {[0, 1].map((i) => (
+          <div key={i} style={{ background: c.card, border: `1px solid ${c.border}`, borderRadius: r }} className="flex items-center gap-2 p-1.5">
+            <div style={{ background: c.surface2, width: 20 * scale, height: 20 * scale, borderRadius: r * 0.6 }} />
+            <div className="flex-1">{line("55%", c.foreground, 0.85, 4)}</div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      // banner (to'liq enlik, markazda nom)
+      <div
+        style={{ background: `linear-gradient(135deg, ${accent}, ${c.foreground})`, height: 30 * scale, borderRadius: r, marginTop: 6 }}
+        className="flex items-center justify-center overflow-hidden"
+      >
+        {line("42%", "#fff", 0.92, 5)}
+      </div>
+    );
+
   return (
     <div style={{ background: c.background }} className="p-2.5">
-      {/* header */}
-      <div className="flex items-center gap-2">
-        <div style={{ background: accent, width: 22 * scale, height: 22 * scale, borderRadius: r * 0.8 }} />
-        <div className="flex-1">
-          <div style={{ background: c.foreground, opacity: 0.9, height: 5 * scale, width: "50%", borderRadius: 2 }} />
-          <div style={{ background: c.muted, opacity: 0.5, height: 3 * scale, width: "35%", borderRadius: 2, marginTop: 3 }} />
+      {/* header — shablonga qarab */}
+      {hs === "center" ? (
+        <div className="flex flex-col items-center gap-1">
+          <div style={{ background: accent, width: 24 * scale, height: 24 * scale, borderRadius: 999 }} />
+          {line("45%", c.foreground, 0.9, 5)}
+          {line("30%", c.muted, 0.5, 3)}
         </div>
-      </div>
-      {/* banner */}
-      <div
-        style={{ background: `linear-gradient(90deg, ${accent}, ${c.surface2})`, height: 26 * scale, borderRadius: r, marginTop: 6 }}
-        className="flex items-center px-2"
-      >
-        <div style={{ background: at, opacity: 0.9, height: 4 * scale, width: "45%", borderRadius: 2 }} />
-      </div>
+      ) : hs === "minimal" ? (
+        <div className="flex items-center gap-2">
+          <div style={{ background: accent, width: 18 * scale, height: 18 * scale, borderRadius: r * 0.7 }} />
+          <div className="flex-1">{line("50%", c.foreground, 0.9, 4)}</div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          <div style={{ background: accent, width: 22 * scale, height: 22 * scale, borderRadius: r * 0.8 }} />
+          <div className="flex-1">
+            {line("50%", c.foreground, 0.9, 5)}
+            <div style={{ marginTop: 3 }}>{line("35%", c.muted, 0.5, 3)}</div>
+          </div>
+        </div>
+      )}
       {/* search */}
       <div style={{ background: c.surface, border: `1px solid ${c.border}`, height: 12 * scale, borderRadius: 999, marginTop: 6 }} />
-      {/* kategoriya banner (yangi dizayn: rasm + markazda nom + ochish belgisi) */}
-      <div
-        style={{
-          background: `linear-gradient(135deg, ${accent}, ${c.foreground})`,
-          height: 30 * scale,
-          borderRadius: r,
-          marginTop: 6,
-        }}
-        className="relative flex items-center justify-center overflow-hidden"
-      >
-        <div style={{ background: "#ffffff", opacity: 0.92, height: 5 * scale, width: "42%", borderRadius: 2 }} />
-        <div
-          style={{ background: accent, width: 10 * scale, height: 10 * scale, borderRadius: 999, right: 4, bottom: 4 }}
-          className="absolute"
-        />
-      </div>
+      {/* kategoriyalar */}
+      {CatMock}
       {/* cards (kategoriya ochilganda) */}
       <div className={`mt-2 ${t.layout === "grid" ? "grid grid-cols-2 gap-1.5" : "space-y-1.5"}`}>
         <Card2 grid={t.layout === "grid"} />

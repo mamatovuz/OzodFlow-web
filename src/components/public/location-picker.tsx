@@ -115,8 +115,9 @@ export function LocationPicker({
           onChangeRef.current(lat, lng);
         });
 
-        // Konteyner o'lchami kechroq aniqlanishi mumkin — qayta hisoblaymiz
-        setTimeout(() => map.invalidateSize(), 200);
+        // Konteyner o'lchami kechroq aniqlanishi mumkin (modal animatsiyasi) —
+        // bir necha marta qayta hisoblaymiz, aks holda bosilgan nuqta xato bo'ladi.
+        [100, 300, 600].forEach((ms) => setTimeout(() => map.invalidateSize(), ms));
         setLoading(false);
       })
       .catch(() => setLoading(false));

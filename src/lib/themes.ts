@@ -213,6 +213,49 @@ export function getTheme(key: string | null | undefined): MenuTheme {
   return MENU_THEMES.find((t) => t.key === key) ?? MENU_THEMES[0];
 }
 
+// ─── Dizayn "shabloni": nafaqat rang, balki tuzilma ham o'zgaradi ───
+// categoryStyle — kategoriyalar qanday ko'rinadi (menyu bosh sahifasida):
+//   banner = to'liq enlik katta rasm kartalar (markazda nom)
+//   grid   = 2 ustunli ixcham rasm kartalar
+//   list   = chapda kichik rasm + nom qatorlar
+// headerStyle — restoran profili (tepa qism):
+//   overlap = logo kartaning chap tepasida (klassik)
+//   center  = logo markazda, nom va tugmalar markazda
+//   minimal = kichik logo, chapga tekislangan, ixcham
+export type CategoryStyle = "banner" | "grid" | "list";
+export type HeaderStyle = "overlap" | "center" | "minimal";
+
+const CATEGORY_STYLE: Record<ThemeKey, CategoryStyle> = {
+  light: "banner",
+  dark: "list",
+  ziravor: "grid",
+  emerald: "grid",
+  sunset: "banner",
+  royal: "grid",
+  coffee: "list",
+  noir: "banner",
+  ocean: "list",
+};
+
+const HEADER_STYLE: Record<ThemeKey, HeaderStyle> = {
+  light: "center",
+  dark: "overlap",
+  ziravor: "center",
+  emerald: "overlap",
+  sunset: "center",
+  royal: "overlap",
+  coffee: "minimal",
+  noir: "center",
+  ocean: "minimal",
+};
+
+export function categoryStyleFor(key: string): CategoryStyle {
+  return CATEGORY_STYLE[key as ThemeKey] ?? "banner";
+}
+export function headerStyleFor(key: string): HeaderStyle {
+  return HEADER_STYLE[key as ThemeKey] ?? "overlap";
+}
+
 export const FREE_THEMES: ThemeKey[] = ["light", "dark"];
 
 // Restoran alohida sotib olgan premium dizaynlar (JSON massiv) ni xavfsiz o'qish.

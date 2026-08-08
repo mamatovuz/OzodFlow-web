@@ -1,13 +1,12 @@
 import { prisma } from "./prisma";
 import { getTheme } from "./themes";
-import { getEffectivePlan } from "./plans";
 
 async function buildMenu(restaurant: NonNullable<Awaited<ReturnType<typeof prisma.restaurant.findUnique>>>) {
   const [categories, products, banners, gallery, combos] = await Promise.all([
     prisma.category.findMany({
       where: { restaurantId: restaurant.id, isVisible: true },
       orderBy: { sortOrder: "asc" },
-      select: { id: true, name: true, nameRu: true, nameEn: true },
+      select: { id: true, name: true, nameRu: true, nameEn: true, image: true },
     }),
     prisma.product.findMany({
       where: { restaurantId: restaurant.id, isVisible: true },
@@ -33,7 +32,7 @@ async function buildMenu(restaurant: NonNullable<Awaited<ReturnType<typeof prism
     banners,
     gallery,
     combos,
-    serviceEnabled: getEffectivePlan(restaurant).canService,
+    hasDelivery: restaurant.hasDelivery,
     theme: getTheme(restaurant.menuTheme),
   };
 }

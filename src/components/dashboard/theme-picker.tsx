@@ -462,7 +462,23 @@ function ThemeMock({ theme: t, large = false }: { theme: MenuTheme; large?: bool
       </div>
       {/* search */}
       <div style={{ background: c.surface, border: `1px solid ${c.border}`, height: 12 * scale, borderRadius: 999, marginTop: 6 }} />
-      {/* cards */}
+      {/* kategoriya banner (yangi dizayn: rasm + markazda nom + ochish belgisi) */}
+      <div
+        style={{
+          background: `linear-gradient(135deg, ${accent}, ${c.foreground})`,
+          height: 30 * scale,
+          borderRadius: r,
+          marginTop: 6,
+        }}
+        className="relative flex items-center justify-center overflow-hidden"
+      >
+        <div style={{ background: "#ffffff", opacity: 0.92, height: 5 * scale, width: "42%", borderRadius: 2 }} />
+        <div
+          style={{ background: accent, width: 10 * scale, height: 10 * scale, borderRadius: 999, right: 4, bottom: 4 }}
+          className="absolute"
+        />
+      </div>
+      {/* cards (kategoriya ochilganda) */}
       <div className={`mt-2 ${t.layout === "grid" ? "grid grid-cols-2 gap-1.5" : "space-y-1.5"}`}>
         <Card2 grid={t.layout === "grid"} />
         <Card2 grid={t.layout === "grid"} />

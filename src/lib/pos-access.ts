@@ -7,7 +7,7 @@ import { getUserRestaurant } from "./api";
 import { getEffectivePlan } from "./plans";
 
 // Integratsiya endi barcha tariflar uchun ochiq (FREE, STARTER ham).
-const POS_PLANS = ["FREE", "STARTER", "PRO", "BUSINESS", "ENTERPRISE"];
+const POS_PLANS = ["FREE", "STARTER", "BUSINESS", "ENTERPRISE"];
 
 type Restaurant = NonNullable<Awaited<ReturnType<typeof getUserRestaurant>>>;
 

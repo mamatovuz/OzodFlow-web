@@ -9,7 +9,7 @@ export async function GET() {
   return ok(prices);
 }
 
-// Body: { plan: "STARTER"|"PRO"|"BUSINESS", price: number }
+// Body: { plan: "STARTER"|"BUSINESS", price: number }
 export async function PATCH(req: NextRequest) {
   const { user, res } = await adminGuard();
   if (!user) return res;
@@ -17,7 +17,7 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const plan = body?.plan;
   const price = Number(body?.price);
-  if (!["STARTER", "PRO", "BUSINESS"].includes(plan)) return fail("Noto'g'ri tarif", 422);
+  if (!["STARTER", "BUSINESS"].includes(plan)) return fail("Noto'g'ri tarif", 422);
   if (!Number.isFinite(price) || price < 0) return fail("Noto'g'ri narx", 422);
 
   await setPlanPrice(plan, Math.round(price));

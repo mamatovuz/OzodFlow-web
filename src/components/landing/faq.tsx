@@ -10,7 +10,7 @@ const faqs = [
   },
   {
     q: "Bepul foydalanish mumkinmi?",
-    a: "Ha, Free tarifda 20 tagacha mahsulot, asosiy QR kod va asosiy dizayn bepul beriladi. Xohlagan vaqtda Pro yoki Business tarifga o'tishingiz mumkin.",
+    a: "Ha, Free tarifda 20 tagacha mahsulot, asosiy QR kod va asosiy dizayn bepul beriladi. Xohlagan vaqtda Starter yoki Business tarifga o'tishingiz mumkin.",
   },
   {
     q: "Menyuni istalgan vaqt o'zgartira olamanmi?",

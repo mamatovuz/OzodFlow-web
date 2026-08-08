@@ -1,7 +1,7 @@
 import { prisma } from "./prisma";
 import { PLANS, type PlanKey } from "./plans";
 
-const PRICED: PlanKey[] = ["STARTER", "PRO", "BUSINESS"];
+const PRICED: PlanKey[] = ["STARTER", "BUSINESS"];
 
 // Narxlarni DB'dan oladi (bo'lmasa standart narx). Server-only.
 export async function getPlanPrices(): Promise<Record<string, number>> {

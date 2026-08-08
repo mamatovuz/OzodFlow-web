@@ -12,6 +12,10 @@ type Order = {
   tableName: string | null;
   phone: string | null;
   comment: string | null;
+  orderType?: string | null;
+  address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
   status: string;
   total: number;
   items: string;
@@ -244,6 +248,23 @@ function OrderCard({
         <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-surface-2 px-2.5 py-1.5 text-xs text-foreground">
           <StickyNote className="mt-0.5 h-3 w-3 shrink-0 text-muted" />
           {o.comment}
+        </div>
+      )}
+
+      {o.orderType === "DELIVERY" && (
+        <div className="mt-2 rounded-lg bg-accent-soft px-2.5 py-1.5 text-xs">
+          <span className="font-medium text-accent">🚚 Yetkazib berish</span>
+          {o.address && <p className="mt-0.5 text-foreground">{o.address}</p>}
+          {o.lat != null && o.lng != null && (
+            <a
+              href={`https://www.google.com/maps?q=${o.lat},${o.lng}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-0.5 inline-flex items-center gap-1 font-medium text-accent hover:underline"
+            >
+              📍 Xaritada ochish
+            </a>
+          )}
         </div>
       )}
 

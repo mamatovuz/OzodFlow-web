@@ -37,11 +37,10 @@ type PayCard = {
   cardHolder: string;
 };
 
-const order: PlanKey[] = ["STARTER", "PRO", "BUSINESS"];
+const order: PlanKey[] = ["STARTER", "BUSINESS"];
 const matrixKey = {
   FREE: "free",
   STARTER: "starter",
-  PRO: "pro",
   BUSINESS: "business",
   ENTERPRISE: "business",
 } as const;
@@ -59,7 +58,6 @@ export function Billing({
   const [prices, setPrices] = useState<Record<string, number>>({
     FREE: 0,
     STARTER: PLANS.STARTER.defaultPrice,
-    PRO: PLANS.PRO.defaultPrice,
     BUSINESS: PLANS.BUSINESS.defaultPrice,
   });
   const [modal, setModal] = useState<PlanKey | null>(null);
@@ -127,7 +125,7 @@ export function Billing({
       )}
 
       {/* Tariflar — to'liq taqqoslash */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="mx-auto grid max-w-2xl gap-4 sm:grid-cols-2">
         {order.map((key) => {
           const isCurrent = currentPlan === key && !expired;
           const mk = matrixKey[key];
@@ -135,14 +133,14 @@ export function Billing({
             <Card
               key={key}
               className={`flex flex-col p-5 ${
-                key === "PRO" ? "border-accent ring-1 ring-accent" : ""
+                key === "BUSINESS" ? "border-accent ring-1 ring-accent" : ""
               }`}
             >
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-foreground">{PLANS[key].name}</h3>
                 {isCurrent ? (
                   <Badge variant="accent">Joriy</Badge>
-                ) : key === "PRO" ? (
+                ) : key === "BUSINESS" ? (
                   <Badge variant="accent">Top</Badge>
                 ) : null}
               </div>
@@ -178,7 +176,7 @@ export function Billing({
               {key !== "FREE" && !isCurrent && (
                 <Button
                   className="mt-5 w-full"
-                  variant={key === "PRO" ? "primary" : "outline"}
+                  variant={key === "BUSINESS" ? "primary" : "outline"}
                   disabled={!!pending}
                   onClick={() => setModal(key)}
                 >

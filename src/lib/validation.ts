@@ -41,6 +41,7 @@ export const categorySchema = z.object({
   nameEn: z.string().optional(),
   description: z.string().optional(),
   icon: z.string().optional(),
+  image: z.string().optional().nullable(),
   isVisible: z.boolean().optional(),
 });
 

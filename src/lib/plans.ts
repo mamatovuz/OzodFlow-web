@@ -1,7 +1,7 @@
 // Tarif rejalar. Narxlar oylik (DB'da, lib/plan-prices.ts).
 // FREE = 7 kunlik sinov. ENTERPRISE = narxi kelishiladi (Telegram orqali).
 
-export type PlanKey = "FREE" | "STARTER" | "PRO" | "BUSINESS" | "ENTERPRISE";
+export type PlanKey = "FREE" | "STARTER" | "BUSINESS" | "ENTERPRISE";
 
 type PlanMeta = {
   name: string;
@@ -41,19 +41,6 @@ export const PLANS: Record<PlanKey, PlanMeta> = {
     canBranches: false,
     contactOnly: false,
   },
-  PRO: {
-    name: "Pro",
-    defaultPrice: 149000,
-    productLimit: null,
-    tableLimit: null,
-    canStaff: true,
-    canService: true,
-    // Premium dizaynlar Pro tarifga kirmaydi — alohida sotib olinadi (THEME_PRICE).
-    canPremiumThemes: false,
-    canCustomDomain: false,
-    canBranches: false,
-    contactOnly: false,
-  },
   BUSINESS: {
     name: "Business",
     defaultPrice: 299000,
@@ -81,7 +68,7 @@ export const PLANS: Record<PlanKey, PlanMeta> = {
 };
 
 // Sotib olinadigan tariflar (self-service)
-export const PAID_PLANS: PlanKey[] = ["STARTER", "PRO", "BUSINESS"];
+export const PAID_PLANS: PlanKey[] = ["STARTER", "BUSINESS"];
 
 export const FREE_TRIAL_DAYS = 7;
 export const PLAN_DAYS = 30;
@@ -128,26 +115,18 @@ export const FEATURE_MATRIX: {
   label: string;
   free: boolean | string;
   starter: boolean | string;
-  pro: boolean | string;
   business: boolean | string;
 }[] = [
-  { label: "Stollar", free: "5 ta", starter: "30 ta", pro: "Cheksiz", business: "Cheksiz" },
-  { label: "Mahsulotlar", free: "20 ta", starter: "Cheksiz", pro: "Cheksiz", business: "Cheksiz" },
-  { label: "QR menyu", free: true, starter: true, pro: true, business: true },
-  { label: "Buyurtma tizimi", free: true, starter: true, pro: true, business: true },
-  { label: "Dashboard va statistika", free: true, starter: true, pro: true, business: true },
-  { label: "Oshxona paneli", free: false, starter: false, pro: true, business: true },
-  { label: "Ofitsiant paneli", free: false, starter: false, pro: true, business: true },
-  { label: "Stol xaritasi (Table Map)", free: false, starter: false, pro: true, business: true },
-  { label: "Ofitsiant chaqirish / Hisob", free: false, starter: false, pro: true, business: true },
-  { label: "Elektron chek", free: false, starter: false, pro: true, business: true },
-  { label: "Real-time yangilanish", free: false, starter: false, pro: true, business: true },
-  { label: "Xodimlar (bir nechta)", free: false, starter: false, pro: true, business: true },
-  { label: "Premium dizaynlar", free: false, starter: false, pro: false, business: true },
-  { label: "Filiallar va rollar", free: false, starter: false, pro: false, business: true },
-  { label: "Batafsil hisobotlar", free: false, starter: false, pro: false, business: true },
-  { label: "Maxsus domen", free: false, starter: false, pro: false, business: true },
-  { label: "API (kelajakda)", free: false, starter: false, pro: false, business: true },
+  { label: "Mahsulotlar", free: "20 ta", starter: "Cheksiz", business: "Cheksiz" },
+  { label: "QR menyu", free: true, starter: true, business: true },
+  { label: "Stol uchun alohida QR", free: true, starter: true, business: true },
+  { label: "Buyurtma tizimi", free: true, starter: true, business: true },
+  { label: "Dashboard va statistika", free: true, starter: true, business: true },
+  { label: "Dizayn tanlash", free: true, starter: true, business: true },
+  { label: "Dastavka (joylashuv bilan)", free: false, starter: true, business: true },
+  { label: "Premium dizaynlar", free: false, starter: false, business: true },
+  { label: "Batafsil hisobotlar", free: false, starter: false, business: true },
+  { label: "Maxsus domen", free: false, starter: false, business: true },
 ];
 
 export function getEffectivePlan(restaurant: { plan: string; planUntil: Date | null }) {

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Button, Input, Textarea, Label, Select, Card, Badge, Switch } from "@/components/ui";
 import { Modal } from "@/components/ui-modal";
-import { MultiImageUpload } from "@/components/dashboard/image-upload";
+import { MultiImageUpload, ImageUpload } from "@/components/dashboard/image-upload";
 import { ExcelImport } from "@/components/dashboard/excel-import";
 import { formatPrice, parseJson } from "@/lib/utils";
 
@@ -25,6 +25,7 @@ type Category = {
   nameRu: string | null;
   nameEn: string | null;
   description: string | null;
+  image: string | null;
   isVisible: boolean;
   sortOrder: number;
   _count?: { products: number };
@@ -348,6 +349,7 @@ function CategoryModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const edit = state.edit;
+  const [image, setImage] = useState(edit?.image ?? "");
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -359,6 +361,7 @@ function CategoryModal({
       nameRu: f.get("nameRu"),
       nameEn: f.get("nameEn"),
       description: f.get("description"),
+      image: image || null,
       isVisible: f.get("isVisible") === "on",
     };
     const res = await fetch(
@@ -411,6 +414,13 @@ function CategoryModal({
             defaultValue={edit?.description ?? ""}
             rows={2}
           />
+        </div>
+        <div>
+          <Label>Kategoriya rasmi (banner)</Label>
+          <ImageUpload value={image} onChange={setImage} aspect="wide" label="Kategoriya" />
+          <p className="mt-1 text-xs text-muted">
+            Menyuda kategoriya katta rasmli karta bo'lib chiqadi. Bosilganda mahsulotlar ochiladi.
+          </p>
         </div>
         <label className="flex items-center gap-2">
           <input

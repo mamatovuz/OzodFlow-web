@@ -17,6 +17,7 @@ import {
   ShoppingBag,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   ArrowRight,
 } from "lucide-react";
 import { formatPrice, parseJson } from "@/lib/utils";
@@ -27,7 +28,7 @@ import {
   QtyControl,
   type CartLine,
 } from "@/components/public/order-cart";
-import { ServiceButtons, OrderTracker } from "@/components/public/service-bar";
+import { OrderTracker } from "@/components/public/service-bar";
 
 type PublicProduct = {
   id: string;
@@ -53,7 +54,7 @@ type PublicProduct = {
   isAvailable: boolean;
 };
 
-type PublicCategory = { id: string; name: string; nameRu: string | null; nameEn: string | null };
+type PublicCategory = { id: string; name: string; nameRu: string | null; nameEn: string | null; image: string | null };
 type PublicBanner = {
   id: string;
   image: string | null;
@@ -107,7 +108,6 @@ export function PublicMenu({
   banners,
   gallery = [],
   combos = [],
-  serviceEnabled = false,
 }: {
   restaurant: PublicRestaurant;
   categories: PublicCategory[];
@@ -117,10 +117,13 @@ export function PublicMenu({
   banners: PublicBanner[];
   gallery?: PublicGallery[];
   combos?: PublicCombo[];
-  serviceEnabled?: boolean;
 }) {
   const [lang, setLang] = useState<Lang>("uz");
-  const [activeCat, setActiveCat] = useState<string>(rawCategories[0]?.id ?? "");
+  // Ochiq kategoriyalar (banner bosilganda ochiladi/yopiladi). Boshida
+  // birinchi kategoriya ochiq turadi.
+  const [openCats, setOpenCats] = useState<Set<string>>(
+    () => new Set(rawCategories[0] ? [rawCategories[0].id] : [])
+  );
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [detail, setDetail] = useState<PublicProduct | null>(null);
@@ -129,7 +132,6 @@ export function PublicMenu({
   const [trackedOrder, setTrackedOrder] = useState<string | null>(null);
   const catRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const chipRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const clickScrollingRef = useRef(false);
 
   const t = UI[lang];
 
@@ -278,45 +280,23 @@ export function PublicMenu({
     [products]
   );
 
-  // Skroll bilan sinxron kategoriya (Uber Eats uslubi): ko'rinishdagi
-  // bo'lim faol chipni yangilaydi va chipni gorizontal ro'yxatda markazga suradi.
-  useEffect(() => {
-    const ids = grouped.map((g) => g.category.id);
-    if (ids.length < 2) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (clickScrollingRef.current) return; // bosib skroll qilinganda tegmaymiz
-        const top = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        const id = top?.target.getAttribute("data-cat-id");
-        if (id) {
-          setActiveCat(id);
-          chipRefs.current[id]?.scrollIntoView({
-            behavior: "smooth",
-            inline: "center",
-            block: "nearest",
-          });
-        }
-      },
-      { rootMargin: "-176px 0px -68% 0px", threshold: 0 }
-    );
-    ids.forEach((id) => {
-      const el = catRefs.current[id];
-      if (el) observer.observe(el);
+  // Kategoriya banner bosilganda ochiladi/yopiladi (akkordion).
+  function toggleCat(id: string) {
+    setOpenCats((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
     });
-    return () => observer.disconnect();
-  }, [grouped]);
+  }
 
+  // Chip bosilganda: kategoriyani ochamiz va unga silliq skroll qilamiz.
   function scrollToCat(id: string) {
-    setActiveCat(id);
-    // Bosilganda observer'ni vaqtincha o'chiramiz — silliq skroll tugagach yoqamiz
-    clickScrollingRef.current = true;
+    setOpenCats((prev) => new Set(prev).add(id));
     chipRefs.current[id]?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-    catRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
     window.setTimeout(() => {
-      clickScrollingRef.current = false;
-    }, 700);
+      catRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
   }
 
   const cardProps = { currency: restaurant.currency, accent, accentText, radius: R };
@@ -439,11 +419,6 @@ export function PublicMenu({
           </div>
         )}
 
-        {/* Ofitsiant chaqirish / hisob */}
-        {serviceEnabled && (
-          <ServiceButtons slug={restaurant.slug} tableCode={table?.code ?? null} accent={accent} lang={lang} />
-        )}
-
         {/* ─── Banner slider ─── */}
         {banners.length > 0 && (
           <div className="mt-5">
@@ -492,10 +467,10 @@ export function PublicMenu({
                     chipRefs.current[c.id] = el;
                   }}
                   onClick={() => scrollToCat(c.id)}
-                  className="shrink-0 px-3 py-1.5 text-xs font-medium transition-colors"
+                  className="shrink-0 border border-border px-3 py-1.5 text-xs font-medium transition-colors"
                   style={
-                    activeCat === c.id
-                      ? { background: accent, color: accentText, borderRadius: 999 }
+                    openCats.has(c.id)
+                      ? { background: accent, color: accentText, borderColor: accent, borderRadius: 999 }
                       : { borderRadius: 999 }
                   }
                 >
@@ -584,25 +559,19 @@ export function PublicMenu({
           </div>
         )}
 
-        {/* ─── Kategoriyalar ─── */}
-        <div className="mt-6 space-y-8">
+        {/* ─── Kategoriyalar (banner + akkordion) ─── */}
+        <div className="mt-6 space-y-4">
           {grouped.length === 0 && (
             <div className="flex flex-col items-center py-16 text-center">
               <UtensilsCrossed className="h-10 w-10 text-muted/40" />
               <p className="mt-3 text-sm text-muted">{t.empty}</p>
             </div>
           )}
-          {grouped.map((g) => (
-            <div
-              key={g.category.id}
-              data-cat-id={g.category.id}
-              ref={(el) => {
-                catRefs.current[g.category.id] = el;
-              }}
-              className="scroll-mt-44"
-            >
-              <h2 className="mb-3 text-lg font-bold text-foreground">{g.category.name}</h2>
-              {theme.layout === "grid" ? (
+          {grouped.map((g) => {
+            const isBrowsing = !search && filter === "all";
+            const open = !isBrowsing || openCats.has(g.category.id);
+            const items =
+              theme.layout === "grid" ? (
                 <div className="grid grid-cols-2 gap-3">
                   {g.items.map((p) => (
                     <GridCard
@@ -630,9 +599,35 @@ export function PublicMenu({
                     />
                   ))}
                 </div>
-              )}
-            </div>
-          ))}
+              );
+            return (
+              <div
+                key={g.category.id}
+                data-cat-id={g.category.id}
+                ref={(el) => {
+                  catRefs.current[g.category.id] = el;
+                }}
+                className="scroll-mt-44"
+              >
+                {isBrowsing ? (
+                  <CategoryBanner
+                    name={g.category.name}
+                    image={g.category.image}
+                    count={g.items.length}
+                    open={open}
+                    onToggle={() => toggleCat(g.category.id)}
+                    accent={accent}
+                    accentText={accentText}
+                    radius={R}
+                    label={t.items}
+                  />
+                ) : (
+                  <h2 className="mb-3 text-lg font-bold text-foreground">{g.category.name}</h2>
+                )}
+                {open && <div className={isBrowsing ? "mt-3" : ""}>{items}</div>}
+              </div>
+            );
+          })}
         </div>
 
         {/* Galereya */}
@@ -669,7 +664,14 @@ export function PublicMenu({
           )}
           {restaurant.phone && <SocialBtn href={`tel:${restaurant.phone}`} icon={Phone} radius={R} />}
         </div>
-        <p className="mt-6 text-center text-xs text-muted">OzodFlow bilan yaratilgan</p>
+        <a
+          href="https://ozodflow.uz"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-6 block text-center text-xs text-muted transition-colors hover:text-accent"
+        >
+          OzodFlow bilan yaratilgan
+        </a>
       </div>
 
       {/* ─── Pastki savat bar ─── */}
@@ -718,6 +720,8 @@ export function PublicMenu({
         slug={restaurant.slug}
         tableCode={table?.code ?? null}
         tableName={table?.name ?? null}
+        hasDelivery={restaurant.hasDelivery}
+        lang={lang}
         onSetQty={setQty}
         onClear={() => setCart({})}
         onOrdered={onOrdered}
@@ -733,6 +737,71 @@ export function PublicMenu({
         />
       )}
     </div>
+  );
+}
+
+// ─────────── Kategoriya banner (bosilsa ochiladi/yopiladi) ───────────
+function CategoryBanner({
+  name,
+  image,
+  count,
+  open,
+  onToggle,
+  accent,
+  accentText,
+  radius,
+  label,
+}: {
+  name: string;
+  image: string | null;
+  count: number;
+  open: boolean;
+  onToggle: () => void;
+  accent: string;
+  accentText: string;
+  radius: number;
+  label: string;
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      className="relative block h-36 w-full overflow-hidden text-left shadow-card transition-transform active:scale-[0.99] sm:h-44"
+      style={{ borderRadius: radius + 4 }}
+      aria-expanded={open}
+    >
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={image}
+          alt={name}
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <div
+          className="h-full w-full"
+          style={{ background: `linear-gradient(135deg, ${accent}, #000)` }}
+        />
+      )}
+      {/* O'qilishi uchun qoraytiruvchi qatlam */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/10" />
+      <div className="absolute inset-0 flex flex-col items-center justify-center px-5 text-center">
+        <h2 className="text-2xl font-extrabold uppercase tracking-wide text-white drop-shadow-md sm:text-3xl">
+          {name}
+        </h2>
+        <span className="mt-1 text-xs font-medium text-white/80">
+          {count} {label}
+        </span>
+      </div>
+      {/* Ochish/yopish belgisi */}
+      <span
+        className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full shadow-md backdrop-blur"
+        style={{ background: accent, color: accentText }}
+      >
+        <ChevronDown className={`h-5 w-5 transition-transform ${open ? "rotate-180" : ""}`} />
+      </span>
+    </button>
   );
 }
 

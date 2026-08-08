@@ -21,9 +21,7 @@ import {
   X,
   Eye,
   Sparkles,
-  Rocket,
   Crown,
-  Gem,
   Plug,
   RefreshCcw,
 } from "lucide-react";
@@ -96,9 +94,7 @@ const steps = [
 
 const PLAN_ORDER = [
   { key: "STARTER" as const, mk: "starter" as const, Icon: Sparkles, desc: "Kichik kafe, coffee shop, fast food", highlight: false, contact: false },
-  { key: "PRO" as const, mk: "pro" as const, Icon: Rocket, desc: "Eng ommabop tanlov", highlight: true, contact: false },
-  { key: "BUSINESS" as const, mk: "business" as const, Icon: Crown, desc: "Tarmoq restoranlar uchun", highlight: false, contact: false },
-  { key: "ENTERPRISE" as const, mk: "business" as const, Icon: Gem, desc: "10+ filial, maxsus integratsiya", highlight: false, contact: true },
+  { key: "BUSINESS" as const, mk: "business" as const, Icon: Crown, desc: "Restoran va tarmoqlar uchun", highlight: true, contact: false },
 ];
 
 const testimonials = [
@@ -160,7 +156,6 @@ export default async function LandingPage({
           banners={menu.banners}
           gallery={menu.gallery}
           combos={menu.combos}
-          serviceEnabled={menu.serviceEnabled}
         />
       );
     }
@@ -439,7 +434,7 @@ export default async function LandingPage({
             title="Sizga mos tarifni tanlang"
             subtitle="Bepul boshlang, biznesingiz o'sishi bilan kengaytiring."
           />
-          <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+          <div className="mx-auto mt-12 grid max-w-3xl gap-5 sm:grid-cols-2">
             {PLAN_ORDER.map((p, i) => (
               <Reveal
                 key={p.key}

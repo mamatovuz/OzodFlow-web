@@ -9,7 +9,7 @@ import { getTheme, parsePurchasedThemes } from "@/lib/themes";
 
 const planSchema = z.object({
   kind: z.literal("PLAN").optional(),
-  plan: z.enum(["STARTER", "PRO", "BUSINESS"]),
+  plan: z.enum(["STARTER", "BUSINESS"]),
   months: z.number().int().min(0).max(600),
   lifetime: z.boolean().optional(),
   promoCode: z.string().optional(),

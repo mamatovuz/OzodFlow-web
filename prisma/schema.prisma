@@ -237,6 +237,11 @@ model Order {
   tableName    String?
   phone        String?
   comment      String?
+  // ─── Dastavka (yetkazib berish) manzili ───
+  orderType    String   @default("DINE_IN") // DINE_IN | DELIVERY
+  address      String? // matnli manzil (ixtiyoriy)
+  lat          Float? // yetkazish nuqtasi kenglik
+  lng          Float? // yetkazish nuqtasi uzunlik
   status       String   @default("NEW") // NEW | ACCEPTED | PREPARING | READY | DELIVERED | CANCELLED
   total        Float    @default(0)
   items        String // JSON: [{productId, name, price, qty}]
@@ -277,6 +282,7 @@ model Category {
   nameEn        String?
   description   String?
   icon          String?
+  image         String? // kategoriya banner rasmi (menyuda katta karta sifatida)
   sortOrder     Int      @default(0)
   isVisible     Boolean  @default(true)
   // ─── POS integratsiya ───

@@ -146,9 +146,9 @@ export function IntegrationsManager() {
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft">
           <Lock className="h-6 w-6 text-accent" />
         </div>
-        <h2 className="mt-4 text-lg font-semibold text-foreground">POS integratsiyasi PRO tarifda</h2>
+        <h2 className="mt-4 text-lg font-semibold text-foreground">POS integratsiyasi Business tarifda</h2>
         <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-          Clopos, iiko, Poster va boshqa kassa tizimlarini ulash uchun PRO yoki undan yuqori tarif kerak.
+          Clopos, iiko, Poster va boshqa kassa tizimlarini ulash uchun Business tarif kerak.
           Mahsulotlaringiz avtomatik sinxronlanadi — ikki marta kiritmaysiz.
         </p>
         <a href="/dashboard/settings">

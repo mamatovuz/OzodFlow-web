@@ -8,7 +8,6 @@ import { formatPrice } from "@/lib/utils";
 export function PlansForm() {
   const [prices, setPrices] = useState<Record<string, number>>({
     STARTER: 0,
-    PRO: 0,
     BUSINESS: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -52,12 +51,11 @@ export function PlansForm() {
 
   const rows: { key: string; name: string }[] = [
     { key: "STARTER", name: "Starter" },
-    { key: "PRO", name: "Pro" },
     { key: "BUSINESS", name: "Business" },
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2">
       {rows.map((r) => (
         <Card key={r.key} className="p-6">
           <div className="mb-4 flex items-center gap-2">

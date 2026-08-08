@@ -21,8 +21,8 @@ export const dynamic = "force-dynamic";
 
 const planNames: Record<string, string> = {
   FREE: "Free",
-  PRO: "Pro",
-  BUSINESS: "Business", STARTER: "Starter",
+  BUSINESS: "Business",
+  STARTER: "Starter",
 };
 
 export default async function DashboardHome() {
@@ -174,7 +174,7 @@ export default async function DashboardHome() {
             {stats.plan === "FREE" && (
               <Link href="/dashboard/settings" className="mt-4 block">
                 <Button variant="outline" size="sm" className="w-full">
-                  Pro ga o'tish
+                  Business ga o'tish
                 </Button>
               </Link>
             )}

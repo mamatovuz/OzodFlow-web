@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   if (!Number.isFinite(discountPercent) || discountPercent < 1 || discountPercent > 100) {
     return fail("Chegirma foizi 1-100 orasida bo'lishi kerak", 422);
   }
-  const scope = ["ALL", "STARTER", "PRO", "BUSINESS"].includes(body?.scope) ? body.scope : "ALL";
+  const scope = ["ALL", "STARTER", "BUSINESS"].includes(body?.scope) ? body.scope : "ALL";
   const maxUses = body?.maxUses ? Math.max(1, Number(body.maxUses)) : null;
 
   let code = (body?.code || "").trim().toUpperCase();

@@ -86,7 +86,6 @@ export default async function PublicMenuPage({
         banners={data.banners}
         gallery={data.gallery}
         combos={data.combos}
-        serviceEnabled={data.serviceEnabled}
       />
     </>
   );

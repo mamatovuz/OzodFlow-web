@@ -14,6 +14,10 @@ const createSchema = z.object({
   tableCode: z.string().optional().nullable(),
   phone: z.string().optional(),
   comment: z.string().optional(),
+  orderType: z.enum(["DINE_IN", "DELIVERY"]).optional(),
+  address: z.string().optional().nullable(),
+  lat: z.number().min(-90).max(90).optional().nullable(),
+  lng: z.number().min(-180).max(180).optional().nullable(),
   items: z
     .array(z.object({ productId: z.string(), qty: z.number().int().min(1).max(99) }))
     .min(1, "Savat bo'sh"),
@@ -29,7 +33,8 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return fail("Ma'lumotlar noto'g'ri", 422, parsed.error.flatten().fieldErrors);
   }
-  const { slug, tableCode, phone, comment, items } = parsed.data;
+  const { slug, tableCode, phone, comment, items, orderType, address, lat, lng } = parsed.data;
+  const isDelivery = orderType === "DELIVERY";
 
   // ─── Idempotency: takroriy yuborishda dublikat buyurtma yaratmaymiz ───
   // Mijoz tugmani ikki marta bossa yoki tarmoq sekin bo'lsa himoya qiladi.
@@ -83,6 +88,10 @@ export async function POST(req: NextRequest) {
       tableName,
       phone: phone || null,
       comment: comment || null,
+      orderType: isDelivery ? "DELIVERY" : "DINE_IN",
+      address: isDelivery ? address || null : null,
+      lat: isDelivery ? lat ?? null : null,
+      lng: isDelivery ? lng ?? null : null,
       status: "NEW",
       total,
       items: JSON.stringify(orderItems),
@@ -109,6 +118,10 @@ export async function POST(req: NextRequest) {
     tableName,
     phone: phone || null,
     comment: comment || null,
+    orderType: order.orderType,
+    address: order.address,
+    lat: order.lat,
+    lng: order.lng,
     items: orderItems,
     status: order.status,
   });

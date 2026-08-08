@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { ShoppingCart, Minus, Plus, X, Loader2, CheckCircle2, Trash2 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
+import { UI, type Lang } from "@/lib/i18n";
+import { LocationPicker } from "@/components/public/location-picker";
 
 export type CartLine = {
   productId: string;
@@ -62,6 +64,8 @@ export function CheckoutModal({
   slug,
   tableCode,
   tableName,
+  hasDelivery = false,
+  lang = "uz",
   onSetQty,
   onClear,
   onOrdered,
@@ -75,6 +79,8 @@ export function CheckoutModal({
   slug: string;
   tableCode: string | null;
   tableName: string | null;
+  hasDelivery?: boolean;
+  lang?: Lang;
   onSetQty: (id: string, qty: number) => void;
   onClear: () => void;
   onOrdered?: (id: string) => void;
@@ -85,12 +91,21 @@ export function CheckoutModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [orderNo, setOrderNo] = useState<number | null>(null);
+  const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(null);
 
+  const t = UI[lang];
+  // Dastavka rejimi: restoranda yetkazish bor va stol tanlanmagan (ya'ni
+  // QR orqali stolda emas — uyga yetkazish).
+  const deliveryMode = hasDelivery && !tableCode;
   const total = items.reduce((s, i) => s + i.price * i.qty, 0);
 
   if (!open) return null;
 
   async function submit() {
+    if (deliveryMode && !loc) {
+      setError(t.pickOnMap);
+      return;
+    }
     setLoading(true);
     setError("");
     const res = await fetch("/api/orders", {
@@ -101,6 +116,9 @@ export function CheckoutModal({
         tableCode,
         phone,
         comment,
+        orderType: deliveryMode ? "DELIVERY" : "DINE_IN",
+        lat: deliveryMode ? loc?.lat : undefined,
+        lng: deliveryMode ? loc?.lng : undefined,
         items: items.map((i) => ({ productId: i.productId, qty: i.qty })),
       }),
     });
@@ -122,6 +140,7 @@ export function CheckoutModal({
     setComment("");
     setOrderNo(null);
     setError("");
+    setLoc(null);
     onClose();
   }
 
@@ -208,6 +227,24 @@ export function CheckoutModal({
                     rows={2}
                     className="w-full rounded-xl border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
                   />
+
+                  {deliveryMode && (
+                    <div>
+                      <p className="mb-2 text-sm font-medium text-foreground">
+                        🚚 {t.delivery} — {t.myLocation.toLowerCase()}
+                      </p>
+                      <LocationPicker
+                        value={loc}
+                        onChange={(lat, lng) => setLoc({ lat, lng })}
+                        accent={accent}
+                        labels={{
+                          myLocation: t.myLocation,
+                          pickOnMap: t.pickOnMap,
+                          addressPicked: t.addressPicked,
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -233,7 +270,7 @@ export function CheckoutModal({
                   style={{ background: accent, color: accentText }}
                 >
                   {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Buyurtmani rasmiylashtirish
+                  {deliveryMode ? t.sendOrder : "Buyurtmani rasmiylashtirish"}
                 </button>
               </div>
             )}

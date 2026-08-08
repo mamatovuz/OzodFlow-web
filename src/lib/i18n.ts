@@ -40,6 +40,7 @@ export const UI: Record<Lang, Record<string, string>> = {
     addressPicked: "Manzil tanlandi",
     sendOrder: "Buyurtmani yuborish",
     delivery: "Yetkazib berish",
+    back: "Orqaga",
   },
   ru: {
     search: "Поиск блюд...",
@@ -60,6 +61,7 @@ export const UI: Record<Lang, Record<string, string>> = {
     addressPicked: "Адрес выбран",
     sendOrder: "Отправить заказ",
     delivery: "Доставка",
+    back: "Назад",
   },
   en: {
     search: "Search dishes...",
@@ -80,5 +82,6 @@ export const UI: Record<Lang, Record<string, string>> = {
     addressPicked: "Address selected",
     sendOrder: "Send order",
     delivery: "Delivery",
+    back: "Back",
   },
 };

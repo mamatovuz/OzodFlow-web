@@ -17,7 +17,6 @@ import {
   ShoppingBag,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   ArrowRight,
 } from "lucide-react";
 import { formatPrice, parseJson } from "@/lib/utils";
@@ -119,19 +118,16 @@ export function PublicMenu({
   combos?: PublicCombo[];
 }) {
   const [lang, setLang] = useState<Lang>("uz");
-  // Ochiq kategoriyalar (banner bosilganda ochiladi/yopiladi). Boshida
-  // birinchi kategoriya ochiq turadi.
-  const [openCats, setOpenCats] = useState<Set<string>>(
-    () => new Set(rawCategories[0] ? [rawCategories[0].id] : [])
-  );
+  // Ochilgan (ichiga kirilgan) kategoriya. null bo'lsa — barcha kategoriyalar
+  // grid ko'rinishida ko'rinadi.
+  const [selectedCat, setSelectedCat] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [detail, setDetail] = useState<PublicProduct | null>(null);
   const [cart, setCart] = useState<Record<string, number>>({});
   const [cartOpen, setCartOpen] = useState(false);
   const [trackedOrder, setTrackedOrder] = useState<string | null>(null);
-  const catRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const chipRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const menuTopRef = useRef<HTMLDivElement | null>(null);
 
   const t = UI[lang];
 
@@ -280,24 +276,56 @@ export function PublicMenu({
     [products]
   );
 
-  // Kategoriya banner bosilganda ochiladi/yopiladi (akkordion).
-  function toggleCat(id: string) {
-    setOpenCats((prev) => {
-      const n = new Set(prev);
-      if (n.has(id)) n.delete(id);
-      else n.add(id);
-      return n;
-    });
+  // Kategoriyaga kirish / orqaga qaytish.
+  function enterCat(id: string) {
+    setSelectedCat(id);
+    window.setTimeout(() => {
+      menuTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 30);
+  }
+  function exitCat() {
+    setSelectedCat(null);
+    window.setTimeout(() => {
+      menuTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 30);
   }
 
-  // Chip bosilganda: kategoriyani ochamiz va unga silliq skroll qilamiz.
-  function scrollToCat(id: string) {
-    setOpenCats((prev) => new Set(prev).add(id));
-    chipRefs.current[id]?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-    window.setTimeout(() => {
-      catRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 60);
+  // Mahsulotlarni tema layoutiga qarab chizadi.
+  function renderItems(list: PublicProduct[]) {
+    return theme.layout === "grid" ? (
+      <div className="grid grid-cols-2 gap-3">
+        {list.map((p) => (
+          <GridCard
+            key={p.id}
+            product={p}
+            {...cardProps}
+            qty={cart[p.id] || 0}
+            onOpen={() => openDetail(p)}
+            onAdd={() => addToCart(p.id)}
+            onSetQty={(q) => setQty(p.id, q)}
+          />
+        ))}
+      </div>
+    ) : (
+      <div className="space-y-3">
+        {list.map((p) => (
+          <ListCard
+            key={p.id}
+            product={p}
+            {...cardProps}
+            qty={cart[p.id] || 0}
+            onOpen={() => openDetail(p)}
+            onAdd={() => addToCart(p.id)}
+            onSetQty={(q) => setQty(p.id, q)}
+          />
+        ))}
+      </div>
+    );
   }
+
+  const searching = !!search || filter !== "all";
+  const currentGroup = grouped.find((g) => g.category.id === selectedCat) ?? null;
+  const showBrowse = !searching && !selectedCat;
 
   const cardProps = { currency: restaurant.currency, accent, accentText, radius: R };
 
@@ -439,7 +467,7 @@ export function PublicMenu({
             />
           </div>
 
-          {!search && (
+          {!search && !selectedCat && (
             <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
               {filters.map((f) => (
                 <button
@@ -457,32 +485,10 @@ export function PublicMenu({
               ))}
             </div>
           )}
-
-          {!search && filter === "all" && categories.length > 1 && (
-            <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-              {categories.map((c) => (
-                <button
-                  key={c.id}
-                  ref={(el) => {
-                    chipRefs.current[c.id] = el;
-                  }}
-                  onClick={() => scrollToCat(c.id)}
-                  className="shrink-0 border border-border px-3 py-1.5 text-xs font-medium transition-colors"
-                  style={
-                    openCats.has(c.id)
-                      ? { background: accent, color: accentText, borderColor: accent, borderRadius: 999 }
-                      : { borderRadius: 999 }
-                  }
-                >
-                  {c.name}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* ─── Combo takliflar ─── */}
-        {!search && filter === "all" && combos.length > 0 && (
+        {showBrowse && combos.length > 0 && (
           <div className="mt-4">
             <h2 className="mb-3 text-lg font-bold text-foreground">Combo takliflar</h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -539,7 +545,7 @@ export function PublicMenu({
         )}
 
         {/* ─── Tavsiya etamiz ─── */}
-        {!search && filter === "all" && recommended.length > 0 && (
+        {showBrowse && recommended.length > 0 && (
           <div className="mt-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-bold text-foreground">{t.recommended}</h2>
@@ -559,77 +565,69 @@ export function PublicMenu({
           </div>
         )}
 
-        {/* ─── Kategoriyalar (banner + akkordion) ─── */}
-        <div className="mt-6 space-y-4">
+        {/* ─── Menyu: qidiruv / kategoriya grid / kategoriya ichi ─── */}
+        <div ref={menuTopRef} className="mt-6 scroll-mt-4">
           {grouped.length === 0 && (
             <div className="flex flex-col items-center py-16 text-center">
               <UtensilsCrossed className="h-10 w-10 text-muted/40" />
               <p className="mt-3 text-sm text-muted">{t.empty}</p>
             </div>
           )}
-          {grouped.map((g) => {
-            const isBrowsing = !search && filter === "all";
-            const open = !isBrowsing || openCats.has(g.category.id);
-            const items =
-              theme.layout === "grid" ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {g.items.map((p) => (
-                    <GridCard
-                      key={p.id}
-                      product={p}
-                      {...cardProps}
-                      qty={cart[p.id] || 0}
-                      onOpen={() => openDetail(p)}
-                      onAdd={() => addToCart(p.id)}
-                      onSetQty={(q) => setQty(p.id, q)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {g.items.map((p) => (
-                    <ListCard
-                      key={p.id}
-                      product={p}
-                      {...cardProps}
-                      qty={cart[p.id] || 0}
-                      onOpen={() => openDetail(p)}
-                      onAdd={() => addToCart(p.id)}
-                      onSetQty={(q) => setQty(p.id, q)}
-                    />
-                  ))}
-                </div>
-              );
-            return (
-              <div
-                key={g.category.id}
-                data-cat-id={g.category.id}
-                ref={(el) => {
-                  catRefs.current[g.category.id] = el;
-                }}
-                className="scroll-mt-44"
-              >
-                {isBrowsing ? (
-                  <CategoryBanner
-                    name={g.category.name}
-                    image={g.category.image}
-                    count={g.items.length}
-                    open={open}
-                    onToggle={() => toggleCat(g.category.id)}
-                    accent={accent}
-                    accentText={accentText}
-                    radius={R}
-                    label={t.items}
-                  />
-                ) : (
-                  <h2 className="mb-3 text-lg font-bold text-foreground">{g.category.name}</h2>
-                )}
-                {open && (
-                  <div className={isBrowsing ? "mt-3 animate-fade-up" : ""}>{items}</div>
-                )}
+
+          {/* Qidiruv yoki filtr — barcha mos mahsulotlar bo'limlar bo'yicha */}
+          {searching &&
+            grouped.map((g) => (
+              <div key={g.category.id} className="mb-8">
+                <h2 className="mb-3 text-lg font-bold text-foreground">{g.category.name}</h2>
+                {renderItems(g.items)}
               </div>
-            );
-          })}
+            ))}
+
+          {/* Kategoriya ichi: orqaga tugma + shu kategoriya mahsulotlari */}
+          {!searching && currentGroup && (
+            <div className="animate-fade-up">
+              <button
+                onClick={exitCat}
+                className="mb-4 flex items-center gap-1.5 text-sm font-semibold text-foreground"
+              >
+                <span
+                  className="flex h-8 w-8 items-center justify-center rounded-full"
+                  style={{ background: "var(--surface-2)" }}
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </span>
+                {t.back}
+              </button>
+              <CategoryHero
+                name={currentGroup.category.name}
+                image={currentGroup.category.image}
+                count={currentGroup.items.length}
+                accent={accent}
+                radius={R}
+                label={t.items}
+              />
+              <div className="mt-4">{renderItems(currentGroup.items)}</div>
+            </div>
+          )}
+
+          {/* Grid: barcha kategoriyalar (banner kartalar) */}
+          {showBrowse && (
+            <div className="grid grid-cols-2 gap-3">
+              {grouped.map((g) => (
+                <CategoryBanner
+                  key={g.category.id}
+                  name={g.category.name}
+                  image={g.category.image}
+                  count={g.items.length}
+                  onClick={() => enterCat(g.category.id)}
+                  accent={accent}
+                  accentText={accentText}
+                  radius={R}
+                  label={t.items}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Galereya */}
@@ -742,13 +740,12 @@ export function PublicMenu({
   );
 }
 
-// ─────────── Kategoriya banner (bosilsa ochiladi/yopiladi) ───────────
+// ─────────── Kategoriya karta (grid, bosilsa kategoriyaga kiradi) ───────────
 function CategoryBanner({
   name,
   image,
   count,
-  open,
-  onToggle,
+  onClick,
   accent,
   accentText,
   radius,
@@ -757,8 +754,7 @@ function CategoryBanner({
   name: string;
   image: string | null;
   count: number;
-  open: boolean;
-  onToggle: () => void;
+  onClick: () => void;
   accent: string;
   accentText: string;
   radius: number;
@@ -766,14 +762,9 @@ function CategoryBanner({
 }) {
   return (
     <button
-      onClick={onToggle}
-      className="group relative block h-32 w-full overflow-hidden text-left shadow-card ring-1 ring-black/5 transition-all active:scale-[0.99] sm:h-40"
-      style={{
-        borderRadius: radius + 6,
-        outline: open ? `2px solid ${accent}` : "none",
-        outlineOffset: 2,
-      }}
-      aria-expanded={open}
+      onClick={onClick}
+      className="group relative block aspect-[4/3] w-full overflow-hidden text-left shadow-card ring-1 ring-black/5 transition-transform active:scale-[0.98]"
+      style={{ borderRadius: radius + 4 }}
     >
       {image ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -782,32 +773,77 @@ function CategoryBanner({
           alt={name}
           loading="lazy"
           decoding="async"
-          className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+          className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
         />
       ) : (
         <div
-          className="h-full w-full transition-transform duration-500 ease-out group-hover:scale-105"
+          className="h-full w-full transition-transform duration-500 ease-out group-hover:scale-110"
           style={{ background: `linear-gradient(135deg, ${accent}, ${accent}22, #0b0b0b)` }}
         />
       )}
-      {/* O'qilishi uchun ikki qatlamli gradient */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-black/10" />
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 px-5 text-center">
-        <h2 className="text-2xl font-extrabold uppercase tracking-[0.08em] text-white [text-shadow:0_2px_10px_rgba(0,0,0,0.45)] sm:text-3xl">
-          {name}
-        </h2>
-        <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm">
-          {count} {label}
+      {/* Pastdan chiqadigan gradient — matn o'qilishi uchun */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
+      {/* Nom + soni pastki chapda */}
+      <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-base font-bold uppercase tracking-wide text-white [text-shadow:0_1px_6px_rgba(0,0,0,0.5)] sm:text-lg">
+            {name}
+          </h3>
+          <p className="text-[11px] font-medium text-white/80">
+            {count} {label}
+          </p>
+        </div>
+        <span
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-md transition-transform group-hover:translate-x-0.5"
+          style={{ background: accent, color: accentText }}
+        >
+          <ChevronRight className="h-5 w-5" />
         </span>
       </div>
-      {/* Ochish/yopish belgisi */}
-      <span
-        className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full shadow-md transition-transform group-active:scale-90"
-        style={{ background: accent, color: accentText }}
-      >
-        <ChevronDown className={`h-5 w-5 transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
-      </span>
     </button>
+  );
+}
+
+// ─────────── Kategoriya ichidagi hero (kirilgach tepada) ───────────
+function CategoryHero({
+  name,
+  image,
+  count,
+  accent,
+  radius,
+  label,
+}: {
+  name: string;
+  image: string | null;
+  count: number;
+  accent: string;
+  radius: number;
+  label: string;
+}) {
+  return (
+    <div
+      className="relative h-28 w-full overflow-hidden shadow-card ring-1 ring-black/5 sm:h-36"
+      style={{ borderRadius: radius + 4 }}
+    >
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={image} alt={name} className="h-full w-full object-cover" />
+      ) : (
+        <div
+          className="h-full w-full"
+          style={{ background: `linear-gradient(135deg, ${accent}, ${accent}22, #0b0b0b)` }}
+        />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 p-4">
+        <h2 className="text-2xl font-extrabold uppercase tracking-[0.06em] text-white [text-shadow:0_2px_10px_rgba(0,0,0,0.45)] sm:text-3xl">
+          {name}
+        </h2>
+        <p className="mt-0.5 text-xs font-medium text-white/85">
+          {count} {label}
+        </p>
+      </div>
+    </div>
   );
 }
 

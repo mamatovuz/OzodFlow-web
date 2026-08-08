@@ -624,7 +624,9 @@ export function PublicMenu({
                 ) : (
                   <h2 className="mb-3 text-lg font-bold text-foreground">{g.category.name}</h2>
                 )}
-                {open && <div className={isBrowsing ? "mt-3" : ""}>{items}</div>}
+                {open && (
+                  <div className={isBrowsing ? "mt-3 animate-fade-up" : ""}>{items}</div>
+                )}
               </div>
             );
           })}
@@ -765,8 +767,12 @@ function CategoryBanner({
   return (
     <button
       onClick={onToggle}
-      className="relative block h-36 w-full overflow-hidden text-left shadow-card transition-transform active:scale-[0.99] sm:h-44"
-      style={{ borderRadius: radius + 4 }}
+      className="group relative block h-32 w-full overflow-hidden text-left shadow-card ring-1 ring-black/5 transition-all active:scale-[0.99] sm:h-40"
+      style={{
+        borderRadius: radius + 6,
+        outline: open ? `2px solid ${accent}` : "none",
+        outlineOffset: 2,
+      }}
       aria-expanded={open}
     >
       {image ? (
@@ -776,30 +782,30 @@ function CategoryBanner({
           alt={name}
           loading="lazy"
           decoding="async"
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
         />
       ) : (
         <div
-          className="h-full w-full"
-          style={{ background: `linear-gradient(135deg, ${accent}, #000)` }}
+          className="h-full w-full transition-transform duration-500 ease-out group-hover:scale-105"
+          style={{ background: `linear-gradient(135deg, ${accent}, ${accent}22, #0b0b0b)` }}
         />
       )}
-      {/* O'qilishi uchun qoraytiruvchi qatlam */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/10" />
-      <div className="absolute inset-0 flex flex-col items-center justify-center px-5 text-center">
-        <h2 className="text-2xl font-extrabold uppercase tracking-wide text-white drop-shadow-md sm:text-3xl">
+      {/* O'qilishi uchun ikki qatlamli gradient */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-black/10" />
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 px-5 text-center">
+        <h2 className="text-2xl font-extrabold uppercase tracking-[0.08em] text-white [text-shadow:0_2px_10px_rgba(0,0,0,0.45)] sm:text-3xl">
           {name}
         </h2>
-        <span className="mt-1 text-xs font-medium text-white/80">
+        <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm">
           {count} {label}
         </span>
       </div>
       {/* Ochish/yopish belgisi */}
       <span
-        className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full shadow-md backdrop-blur"
+        className="absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full shadow-md transition-transform group-active:scale-90"
         style={{ background: accent, color: accentText }}
       >
-        <ChevronDown className={`h-5 w-5 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-5 w-5 transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
       </span>
     </button>
   );

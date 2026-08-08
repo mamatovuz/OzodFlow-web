@@ -47,6 +47,20 @@ function loadLeaflet(): Promise<void> {
 
 const TASHKENT: [number, number] = [41.311081, 69.240562];
 
+// Tashqi rasmga bog'liq bo'lmagan, doim ko'rinadigan pin (SVG).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function makePin(L: any, color: string) {
+  return L.divIcon({
+    className: "ozf-pin",
+    html: `<svg width="34" height="44" viewBox="0 0 34 44" xmlns="http://www.w3.org/2000/svg">
+      <path d="M17 0C7.6 0 0 7.6 0 17c0 12 17 27 17 27s17-15 17-27C34 7.6 26.4 0 17 0z" fill="${color}"/>
+      <circle cx="17" cy="17" r="6.5" fill="#fff"/>
+    </svg>`,
+    iconSize: [34, 44],
+    iconAnchor: [17, 44],
+  });
+}
+
 export function LocationPicker({
   value,
   onChange,
@@ -63,11 +77,14 @@ export function LocationPicker({
   const mapRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const markerRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const iconRef = useRef<any>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
+  const [geoError, setGeoError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -75,13 +92,12 @@ export function LocationPicker({
       .then(() => {
         if (cancelled || !mapEl.current || mapRef.current) return;
         const L = window.L;
-        L.Icon.Default.mergeOptions({
-          iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-          iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-          shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-        });
+        iconRef.current = makePin(L, accent || "#e11d48");
         const start = value ?? { lat: TASHKENT[0], lng: TASHKENT[1] };
-        const map = L.map(mapEl.current).setView([start.lat, start.lng], value ? 16 : 13);
+        const map = L.map(mapEl.current, { zoomControl: true }).setView(
+          [start.lat, start.lng],
+          value ? 16 : 13
+        );
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: "© OpenStreetMap",
           maxZoom: 19,
@@ -89,7 +105,7 @@ export function LocationPicker({
         mapRef.current = map;
 
         if (value) {
-          markerRef.current = L.marker([value.lat, value.lng]).addTo(map);
+          markerRef.current = L.marker([value.lat, value.lng], { icon: iconRef.current }).addTo(map);
         }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -122,23 +138,34 @@ export function LocationPicker({
     if (markerRef.current) {
       markerRef.current.setLatLng([lat, lng]);
     } else {
-      markerRef.current = L.marker([lat, lng]).addTo(mapRef.current);
+      markerRef.current = L.marker([lat, lng], { icon: iconRef.current }).addTo(mapRef.current);
     }
   }
 
   function useMyLocation() {
-    if (!navigator.geolocation) return;
+    setGeoError("");
+    if (!navigator.geolocation) {
+      setGeoError("Brauzer joylashuvni qo'llab-quvvatlamaydi");
+      return;
+    }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
-        if (mapRef.current) mapRef.current.setView([latitude, longitude], 16);
+        if (mapRef.current) mapRef.current.setView([latitude, longitude], 17);
         placeMarker(latitude, longitude);
         onChangeRef.current(latitude, longitude);
         setLocating(false);
       },
-      () => setLocating(false),
-      { enableHighAccuracy: true, timeout: 10000 }
+      (err) => {
+        setLocating(false);
+        setGeoError(
+          err.code === 1
+            ? "Joylashuvga ruxsat berilmadi. Brauzer sozlamasidan ruxsat bering."
+            : "Joylashuvni aniqlab bo'lmadi. Xaritadan qo'lda tanlang."
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   }
 
@@ -177,6 +204,7 @@ export function LocationPicker({
           {labels.myLocation}
         </button>
       </div>
+      {geoError && <p className="text-xs text-error">{geoError}</p>}
     </div>
   );
 }

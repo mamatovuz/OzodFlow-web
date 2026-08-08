@@ -351,6 +351,12 @@ function CategoryModal({
   const edit = state.edit;
   const [image, setImage] = useState(edit?.image ?? "");
 
+  // Modal doim mount holatida turadi — har ochilganda rasmni o'sha
+  // kategoriyaning rasmiga tiklaymiz (aks holda oldingi kategoriya rasmi qoladi).
+  useEffect(() => {
+    if (state.open) setImage(state.edit?.image ?? "");
+  }, [state.open, state.edit?.id]);
+
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");

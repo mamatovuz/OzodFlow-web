@@ -77,6 +77,11 @@ export interface PosOrderInput {
   items: PosOrderItemInput[];
   comment?: string | null;
   phone?: string | null;
+  /** Mijoz ma'lumotlari — ba'zi POS'lar (Clopos v2) buyurtmada majburiy talab qiladi */
+  customerName?: string | null;
+  customerAddress?: string | null;
+  /** Sotuv turi (dostavka/olib ketish/zalda). Provayder ID'lari har xil. */
+  saleTypeId?: number | null;
 }
 
 export interface PosOrderResult {

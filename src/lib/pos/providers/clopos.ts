@@ -49,8 +49,13 @@ interface CloposCategoryRaw {
   name: string;
   parent_id?: number | string | null;
   sort?: number;
+  position?: number | null;
   status?: number;
+  hidden?: boolean;
+  emenu_hidden?: boolean;
   media?: CloposMedia[];
+  // Clopos /categories daraxt (nested) qaytaradi — subkategoriyalar shu yerda
+  children?: CloposCategoryRaw[];
 }
 
 interface CloposProductRaw {
@@ -59,11 +64,15 @@ interface CloposProductRaw {
   description?: string | null;
   price?: string | number;
   old_price?: string | number | null;
-  status?: number; // 1 = sotuvda
+  status?: number; // 1 = faol
+  hidden?: number | boolean;
+  emenu_hidden?: boolean;
+  type?: string; // "DISH" | "INGREDIENT" | "MODIFICATION" | "TIMER" ...
   category_id?: number | string | null;
   weight?: string | number | null;
   calories?: number | null;
   sort?: number;
+  position?: number | null;
   media?: CloposMedia[];
 }
 
@@ -185,40 +194,60 @@ export class CloposProvider extends BasePosProvider {
       this.apiList<CloposProductRaw>("/products"),
     ]);
 
-    const categories: NormalizedCategory[] = rawCats.map((c) => ({
+    // Clopos /categories NESTED daraxt qaytaradi (children ichida) — tekislaymiz,
+    // aks holda faqat yuqori darajali kategoriyalar olinib, subkategoriyalar yo'qoladi.
+    const flatCats: CloposCategoryRaw[] = [];
+    const walk = (list: CloposCategoryRaw[]) => {
+      for (const c of list) {
+        flatCats.push(c);
+        if (Array.isArray(c.children) && c.children.length) walk(c.children);
+      }
+    };
+    walk(rawCats);
+
+    const categories: NormalizedCategory[] = flatCats.map((c) => ({
       externalId: String(c.id),
       name: c.name,
-      sortOrder: c.sort ?? 0,
+      sortOrder: c.position ?? c.sort ?? 0,
       parentExternalId: c.parent_id != null ? String(c.parent_id) : null,
-      isVisible: c.status === undefined ? true : c.status !== 0,
+      isVisible: c.status !== 0 && c.hidden !== true && c.emenu_hidden !== true,
     }));
 
-    const products: NormalizedProduct[] = rawProds.map((p) => {
-      const available = p.status === undefined ? true : p.status === 1;
-      const stockStatus: StockStatus | undefined = available ? "IN_STOCK" : "OUT_OF_STOCK";
-      return {
-        externalId: String(p.id),
-        categoryExternalId: p.category_id != null ? String(p.category_id) : null,
-        name: p.name,
-        description: p.description ?? null,
-        price: toNumber(p.price),
-        oldPrice: p.old_price != null ? toNumber(p.old_price) : null,
-        imageUrl: mediaUrl(p.media),
-        weight: p.weight != null ? String(p.weight) : null,
-        calories: p.calories ?? null,
-        isAvailable: available,
-        stockStatus,
-        sortOrder: p.sort ?? 0,
-      };
-    });
+    const products: NormalizedProduct[] = rawProds
+      // Faqat sotiladigan taomlar — ingredient/modifikatsiya/timer menyuga tushmasin
+      .filter((p) => (p.type ? p.type === "DISH" : true))
+      .map((p) => {
+        const available = p.status === undefined ? true : p.status === 1;
+        const stockStatus: StockStatus | undefined = available ? "IN_STOCK" : "OUT_OF_STOCK";
+        return {
+          externalId: String(p.id),
+          categoryExternalId: p.category_id != null ? String(p.category_id) : null,
+          name: p.name,
+          description: p.description ?? null,
+          price: toNumber(p.price),
+          oldPrice: p.old_price != null ? toNumber(p.old_price) : null,
+          imageUrl: mediaUrl(p.media),
+          weight: p.weight != null ? String(p.weight) : null,
+          calories: p.calories ?? null,
+          isAvailable: available,
+          stockStatus,
+          sortOrder: p.position ?? p.sort ?? 0,
+        };
+      });
 
     return { categories, products };
   }
 
-  // Buyurtmani Clopos'ga yuborish. Order body sxemasi Clopos "Create Order"
-  // hujjatiga qarab yakuniy sozlanadi — hozircha eng ehtimoliy shakl.
+  // Buyurtmani Clopos'ga yuborish — Open API v2 "Create Order" sxemasi.
+  // MUHIM: bu endpoint Clopos'da "call_center" moduli yoqilgan brendlar uchun
+  // ishlaydi. Modul yoqilmagan bo'lsa API 403 "does not have access to module
+  // call_center" qaytaradi — buni AUTH/CONFIG xatosi sifatida aniq ko'rsatamiz.
   async pushOrder(input: PosOrderInput): Promise<PosOrderResult> {
     const token = await this.getToken();
+    // venue_id majburiy (number). Kredensialdagi venue_id yoki token ichidagi 1.
+    const venueId = Number(this.credentials["venue_id"] || 1);
+    const saleTypeId = input.saleTypeId ?? Number(this.credentials["sale_type_id"] || 2);
+
     let res: Response;
     try {
       res = await fetch(`${BASE_URL}/orders`, {
@@ -230,15 +259,26 @@ export class CloposProvider extends BasePosProvider {
           ...this.venueHeader(),
         },
         body: JSON.stringify({
-          table_id: input.tableExternalId ?? undefined,
+          venue_id: venueId,
+          sale_type_id: saleTypeId,
+          order_number: input.tableExternalId ?? undefined,
           comment: input.comment ?? undefined,
-          phone: input.phone ?? undefined,
-          products: input.items.map((it) => ({
-            product_id: it.externalProductId,
+          customer: {
+            id: 0, // 0 = yangi/mehmon mijoz
+            name: input.customerName || "OzodFlow mijoz",
+            phone: input.phone || "",
+            address: input.customerAddress || "",
+            customer_discount_type: 0,
+          },
+          products: input.items.map((it, i) => ({
+            product_id: Number(it.externalProductId),
             count: it.qty,
-            comment: it.note ?? undefined,
-            modifiers: it.modifierOptionIds,
+            status: "new",
+            product_hash: `ozf-${it.externalProductId}-${i}`,
+            note: it.note ?? undefined,
+            modifiers: it.modifierOptionIds?.map((id) => ({ modifier_id: Number(id) })),
           })),
+          auto_order_accept: true,
         }),
       });
     } catch (err) {
@@ -246,9 +286,14 @@ export class CloposProvider extends BasePosProvider {
     }
     const body = (await res.json().catch(() => null)) as CloposEnvelope<{ id: number | string; status?: string }> | null;
     if (!body || body.success === false || !body.data) {
-      throw new PosError("PROVIDER", body?.error || body?.message || "Buyurtma qabul qilinmadi", {
-        status: res.status,
-      });
+      const msg = body?.message || body?.error || "Buyurtma qabul qilinmadi";
+      // Brendda call_center moduli yo'q bo'lsa — sozlama muammosi, aniq belgilaymiz
+      if (res.status === 403 || /module/i.test(String(msg))) {
+        throw new PosError("CONFIG", `Clopos: ${msg}. Brendda "call_center" modulini yoqish uchun Clopos bilan bog'laning (dev@clopos.com).`, {
+          status: res.status,
+        });
+      }
+      throw new PosError("PROVIDER", msg, { status: res.status });
     }
     return { externalOrderId: String(body.data.id), status: body.data.status ?? "PENDING" };
   }

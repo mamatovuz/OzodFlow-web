@@ -17,8 +17,9 @@ export default async function DesignPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Menyu dizaynlari</h1>
         <p className="mt-1 text-sm text-muted">
-          Tayyor dizayn tanlang, so'ng "Sozlash" orqali ranglar, fon, bosh
-          sahifa va logoni restoraningizga moslang.
+          Tayyor dizayn tanlang. <b className="text-foreground">Klassik</b> dizaynда
+          esa &ldquo;Sozlash&rdquo; orqali ranglar, fon, bosh sahifa va logoni
+          restoraningizga to'liq moslaysiz.
         </p>
       </div>
 

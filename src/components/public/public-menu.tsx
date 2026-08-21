@@ -22,7 +22,7 @@ import {
 import { formatPrice, parseJson } from "@/lib/utils";
 import type { MenuTheme } from "@/lib/themes";
 import { categoryStyleFor, headerStyleFor, menuStyleFor } from "@/lib/themes";
-import { resolveDesign, backgroundCss, shadowCss } from "@/lib/design";
+import { resolveDesign, backgroundCss, shadowCss, youtubeEmbed, heroMediaType } from "@/lib/design";
 import { loc, LANGS, UI, type Lang } from "@/lib/i18n";
 import {
   CheckoutModal,
@@ -191,10 +191,20 @@ export function PublicMenu({
       ? design.background.overlay / 100
       : 0;
 
-  // Bosh sahifa (intro) — yoqilgan va media bo'lsa, birinchi ekran sifatida ko'rsatiladi
+  // Bosh sahifa (intro) — FAQAT Klassik (split) dizaynда, yoqilgan va media bo'lsa
   const heroMedia = design.hero.media;
-  const canReturnHome = design.hero.enabled && heroMedia.length > 0;
+  const canReturnHome = isSplit && design.hero.enabled && heroMedia.length > 0;
   const [showIntro, setShowIntro] = useState(canReturnHome);
+
+  // Bosh sahifa (intro) ochiq bo'lsa — orqadagi sahifa skroll bo'lmasin
+  useEffect(() => {
+    if (!showIntro) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [showIntro]);
 
   const themeStyle: React.CSSProperties = {
     ["--accent" as string]: accent,
@@ -886,18 +896,28 @@ function HeroIntro({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex flex-col"
+      className="fixed inset-0 z-[60] flex flex-col overflow-y-auto overscroll-contain"
       style={{ background }}
     >
       {/* ─── TEPA: media (ekranning ~45% i — yarimdan kamroq) ─── */}
-      <div className="relative h-[45vh] w-full shrink-0 overflow-hidden bg-black">
-        {images.map((m, idx) => (
+      <div className="relative h-[45vh] min-h-[260px] w-full shrink-0 overflow-hidden bg-black">
+        {images.map((m, idx) => {
+          const mt = heroMediaType(m);
+          return (
           <div
             key={m.id}
             className="absolute inset-0 transition-opacity duration-700"
             style={{ opacity: idx === i ? 1 : 0 }}
           >
-            {m.kind === "video" ? (
+            {mt === "youtube" ? (
+              <iframe
+                src={youtubeEmbed(m.url) || ""}
+                title="video"
+                className="pointer-events-none h-full w-full scale-150 object-cover"
+                allow="autoplay; encrypted-media"
+                frameBorder={0}
+              />
+            ) : mt === "video" ? (
               <video
                 src={m.url}
                 className="h-full w-full object-cover"
@@ -905,6 +925,7 @@ function HeroIntro({
                 muted
                 loop
                 playsInline
+                preload="auto"
                 onEnded={() =>
                   images.length > 1 && setI((v) => (v + 1) % images.length)
                 }
@@ -914,7 +935,8 @@ function HeroIntro({
               <img src={m.url} alt="" className="h-full w-full object-cover" />
             )}
           </div>
-        ))}
+          );
+        })}
         {/* pastga yumshoq o'tish */}
         <div
           className="absolute inset-x-0 bottom-0 h-24"

@@ -5,6 +5,7 @@ import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
 import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 import { pushOrderToPos } from "@/lib/pos";
 import { dispatchWebhook } from "@/lib/webhooks";
+import { sendOrderToChannel } from "@/lib/order-telegram";
 import { idempotentGet, idempotentSet } from "@/lib/idempotency";
 import type { OrderItem } from "@/lib/orders";
 
@@ -76,16 +77,18 @@ export async function POST(req: NextRequest) {
   // ─── Ofitsant kodi (funksiya yoqilgan bo'lsa) ───
   let waiterId: string | null = null;
   let waiterCodeStored: string | null = null;
+  let waiterName: string | null = null;
   if (restaurant.waiterCodeEnabled) {
     const code = (waiterCode || "").trim();
     if (code) {
       const w = await prisma.waiter.findFirst({
         where: { restaurantId: restaurant.id, code, isActive: true },
-        select: { id: true, code: true },
+        select: { id: true, code: true, name: true, lastName: true },
       });
       if (!w) return fail("Ofitsant kodi noto'g'ri", 422);
       waiterId = w.id;
       waiterCodeStored = w.code;
+      waiterName = `${w.name}${w.lastName ? " " + w.lastName : ""}`;
     }
   }
 
@@ -127,6 +130,30 @@ export async function POST(req: NextRequest) {
     comment: comment || null,
     items: orderItems.map((o) => ({ productId: o.productId, qty: o.qty })),
   });
+
+  // Restoran Telegram kanaliga buyurtmani yuboramiz (ulangan bo'lsa, fon rejimda)
+  if (restaurant.orderBotToken && restaurant.orderChatId) {
+    void sendOrderToChannel({
+      token: restaurant.orderBotToken,
+      chatId: restaurant.orderChatId,
+      restaurantName: restaurant.name,
+      currency: restaurant.currency,
+      order: {
+        number: order.number,
+        orderType: order.orderType,
+        tableName,
+        phone: phone || null,
+        comment: comment || null,
+        total,
+        address: order.address,
+        lat: order.lat,
+        lng: order.lng,
+        waiterName,
+        waiterCode: waiterCodeStored,
+      },
+      items: orderItems,
+    });
+  }
 
   // Restoranning webhooklariga "order.created" hodisasini yuboramiz (fon rejimda)
   void dispatchWebhook(restaurant.id, "order.created", {

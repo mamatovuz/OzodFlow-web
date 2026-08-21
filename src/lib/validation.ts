@@ -34,6 +34,8 @@ export const restaurantSchema = z.object({
   menuTheme: z.string().optional(),
   designConfig: z.string().optional(),
   waiterCodeEnabled: z.boolean().optional(),
+  orderBotToken: z.string().max(120).optional().nullable(),
+  orderChatId: z.string().max(120).optional().nullable(),
   customDomain: z.string().optional().nullable(),
 });
 

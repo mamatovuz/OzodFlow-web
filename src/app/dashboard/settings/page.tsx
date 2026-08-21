@@ -6,6 +6,7 @@ import { Billing } from "@/components/dashboard/billing";
 import { SlugEditor } from "@/components/dashboard/slug-editor";
 import { ResetStats } from "@/components/dashboard/reset-stats";
 import { WaiterCodeToggle } from "@/components/dashboard/waiter-code-toggle";
+import { OrderChannel } from "@/components/dashboard/order-channel";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,12 @@ export default async function SettingsPage() {
 
       {/* Funksiyalar — ofitsant kodi */}
       <WaiterCodeToggle enabled={restaurant.waiterCodeEnabled} />
+
+      {/* Buyurtmalarni Telegram kanaliga yuborish */}
+      <OrderChannel
+        connected={!!restaurant.orderBotToken && !!restaurant.orderChatId}
+        chatId={restaurant.orderChatId}
+      />
 
       {/* Obuna / to'lov */}
       <Billing

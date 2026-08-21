@@ -302,6 +302,39 @@ export function backgroundCss(
   return { backgroundColor: fallback };
 }
 
+// ─── Hero video: YouTube / to'g'ridan-to'g'ri havola ───
+
+// YouTube video ID ni turli havola ko'rinishlaridan ajratadi
+export function youtubeId(url: string): string | null {
+  if (!url) return null;
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/v\/)([A-Za-z0-9_-]{11})/,
+  ];
+  for (const p of patterns) {
+    const m = p.exec(url);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+// YouTube uchun autoplay/muted/loop embed havolasi
+export function youtubeEmbed(url: string): string | null {
+  const id = youtubeId(url);
+  if (!id) return null;
+  const params =
+    "autoplay=1&mute=1&loop=1&controls=0&modestbranding=1&rel=0&playsinline=1&showinfo=0&iv_load_policy=3&playlist=" +
+    id;
+  return `https://www.youtube.com/embed/${id}?${params}`;
+}
+
+// Media turi: youtube | file (yuklangan yoki to'g'ridan-to'g'ri video) | image
+export function heroMediaType(m: { kind: string; url: string }): "youtube" | "video" | "image" {
+  if (m.kind === "video") {
+    return youtubeId(m.url) ? "youtube" : "video";
+  }
+  return "image";
+}
+
 // getTheme + resolveDesign qisqartma
 export function getDesign(
   themeKey: string | null | undefined,

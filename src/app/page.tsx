@@ -404,12 +404,12 @@ export default async function LandingPage({
               </div>
             </div>
 
-            {/* Telefon ramkasida real menyu (iframe) */}
+            {/* Telefon ramkasida real menyu (iframe) — kattaroq */}
             <div className="flex justify-center">
-              <div className="relative w-[300px] shrink-0">
+              <div className="relative w-[330px] shrink-0 sm:w-[380px]">
                 <div className="absolute -inset-6 -z-10 rounded-[3rem] bg-accent/10 blur-2xl" />
-                <div className="rounded-[2.5rem] border-[10px] border-foreground/80 bg-foreground/80 shadow-card">
-                  <div className="relative h-[600px] overflow-hidden rounded-[1.7rem] bg-card">
+                <div className="rounded-[2.8rem] border-[12px] border-foreground/80 bg-foreground/80 shadow-card">
+                  <div className="relative h-[680px] overflow-hidden rounded-[1.9rem] bg-card sm:h-[760px]">
                     <span className="absolute left-1/2 top-2 z-10 h-1.5 w-16 -translate-x-1/2 rounded-full bg-black/30" />
                     <iframe
                       src="/m/test"

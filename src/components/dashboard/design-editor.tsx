@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   X,
   Loader2,
@@ -24,6 +24,9 @@ import {
   defaultDesignFromTheme,
   backgroundCss,
   shadowCss,
+  youtubeEmbed,
+  youtubeId,
+  heroMediaType,
   PALETTES,
   type DesignConfig,
   type DesignColors,
@@ -79,6 +82,15 @@ export function DesignEditor({
 
   const design = useMemo(() => resolveDesign(theme, config), [theme, config]);
   const def = useMemo(() => defaultDesignFromTheme(theme), [theme]);
+
+  // Editor ochiq bo'lsa — orqadagi sahifa skroll bo'lmasin (orqa qismi qimirlamasin)
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   // ─── config yangilash yordamchilari ───
   function setColor(key: keyof DesignColors, value: string) {
@@ -421,7 +433,23 @@ function MediaManager({
 }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [link, setLink] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // YouTube yoki to'g'ridan-to'g'ri video havolasini qo'shadi
+  function addLink() {
+    const u = link.trim();
+    if (!u) return;
+    const isYt = !!youtubeId(u);
+    const isVid = /\.(mp4|webm|mov)(\?|$)/i.test(u);
+    if (!isYt && !isVid && !/^https?:\/\//i.test(u)) {
+      setErr("To'g'ri havola kiriting (YouTube yoki .mp4)");
+      return;
+    }
+    setErr("");
+    onChange([...media, { id: crypto.randomUUID(), kind: "video" as const, url: u }].slice(0, 8));
+    setLink("");
+  }
 
   async function add(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
@@ -475,7 +503,14 @@ function MediaManager({
           className="flex items-center gap-2 rounded-xl border border-border bg-card p-2"
         >
           <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-surface-2">
-            {m.kind === "video" ? (
+            {heroMediaType(m) === "youtube" ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={`https://img.youtube.com/vi/${youtubeId(m.url)}/mqdefault.jpg`}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+            ) : heroMediaType(m) === "video" ? (
               <video src={m.url} className="h-full w-full object-cover" muted />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
@@ -501,7 +536,11 @@ function MediaManager({
               </button>
             )}
             <span className="block truncate text-[11px] text-muted">
-              {m.kind === "video" ? "Video" : "Rasm"}
+              {heroMediaType(m) === "youtube"
+                ? "YouTube"
+                : m.kind === "video"
+                ? "Video"
+                : "Rasm"}
             </span>
           </div>
           <div className="flex items-center gap-0.5">
@@ -551,6 +590,23 @@ function MediaManager({
           disabled={busy}
         />
       </label>
+
+      {/* YouTube / video havolasi orqali qo'shish */}
+      <div className="flex gap-2">
+        <input
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addLink()}
+          placeholder="YouTube yoki video havolasi (https://...)"
+          className="min-w-0 flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-accent"
+        />
+        <button
+          onClick={addLink}
+          className="shrink-0 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-accent"
+        >
+          Qo'shish
+        </button>
+      </div>
     </div>
   );
 }
@@ -940,7 +996,15 @@ function IntroPreview({
       {/* Hero media — yarimdan kamroq (tepada) */}
       <div className="relative h-[45%] min-h-[210px] w-full overflow-hidden bg-black/10">
         {enabled && first ? (
-          first.kind === "video" ? (
+          heroMediaType(first) === "youtube" ? (
+            <iframe
+              src={youtubeEmbed(first.url) || ""}
+              title="video"
+              className="pointer-events-none h-full w-full scale-150"
+              allow="autoplay; encrypted-media"
+              frameBorder={0}
+            />
+          ) : heroMediaType(first) === "video" ? (
             <video
               src={first.url}
               className="h-full w-full object-cover"
@@ -948,6 +1012,7 @@ function IntroPreview({
               muted
               loop
               playsInline
+              preload="auto"
             />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element

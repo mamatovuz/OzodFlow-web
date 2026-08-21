@@ -18,7 +18,21 @@ export function contentTypeFor(name: string): string {
     case "jpg":
     case "jpeg":
       return "image/jpeg";
+    case "svg":
+      return "image/svg+xml";
+    case "mp4":
+      return "video/mp4";
+    case "webm":
+      return "video/webm";
+    case "mov":
+      return "video/quicktime";
     default:
       return "application/octet-stream";
   }
+}
+
+// Fayl video ekanligini nomidan aniqlaydi
+export function isVideoFile(name: string): boolean {
+  const ext = name.split(".").pop()?.toLowerCase();
+  return ext === "mp4" || ext === "webm" || ext === "mov";
 }

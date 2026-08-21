@@ -69,6 +69,12 @@ export function ThemePicker({
     return !t.premium || canPremium || owned.includes(t.key);
   }
 
+  // Faqat Klassik (split) dizaynда sozlash + bosh sahifa bor
+  function customizable(key: string) {
+    return menuStyleFor(key) === "split";
+  }
+  const canCustomize = (key: string) => !!onCustomize && customizable(key);
+
   async function apply(key: ThemeKey) {
     setSaving(true);
     setError("");
@@ -143,9 +149,9 @@ export function ThemePicker({
                   )}
                 </span>
                 {active ? (
-                  onCustomize ? (
+                  canCustomize(t.key) ? (
                     <button
-                      onClick={() => onCustomize(t.key)}
+                      onClick={() => onCustomize!(t.key)}
                       className="flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-xs font-semibold text-white"
                     >
                       <SlidersHorizontal className="h-3 w-3" /> Sozlash
@@ -218,13 +224,13 @@ export function ThemePicker({
                   </Button>
                 )
               ) : selected === preview.key ? (
-                onCustomize ? (
+                canCustomize(preview.key) ? (
                   <Button
                     className="w-full"
                     onClick={() => {
                       const k = preview.key;
                       setPreview(null);
-                      onCustomize(k);
+                      onCustomize!(k);
                     }}
                   >
                     <SlidersHorizontal className="h-4 w-4" /> Dizaynni sozlash
@@ -238,15 +244,15 @@ export function ThemePicker({
                 <div className="flex gap-2">
                   <Button className="flex-1" onClick={() => apply(preview.key)} disabled={saving}>
                     {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                    Tanlash
+                    {canCustomize(preview.key) ? "Tanlash" : "Shu dizaynni qo'llash"}
                   </Button>
-                  {onCustomize && (
+                  {canCustomize(preview.key) && (
                     <Button
                       variant="outline"
                       onClick={async () => {
                         await apply(preview.key);
                         const k = preview.key;
-                        onCustomize(k);
+                        onCustomize!(k);
                       }}
                       disabled={saving}
                     >

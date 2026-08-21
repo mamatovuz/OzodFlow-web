@@ -301,7 +301,7 @@ export function menuStyleFor(key: string): MenuStyle {
   return MENU_STYLE[key as ThemeKey] ?? "browse";
 }
 
-export const FREE_THEMES: ThemeKey[] = ["light", "dark"];
+export const FREE_THEMES: ThemeKey[] = ["light", "dark", "classic"];
 
 // Restoran alohida sotib olgan premium dizaynlar (JSON massiv) ni xavfsiz o'qish.
 export function parsePurchasedThemes(json: string | null | undefined): string[] {

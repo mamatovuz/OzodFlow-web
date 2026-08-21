@@ -24,6 +24,16 @@ import {
   Crown,
   Plug,
   RefreshCcw,
+  Wallet,
+  Clock,
+  TrendingUp,
+  ShoppingCart,
+  ChefHat,
+  Truck,
+  Languages,
+  Wand2,
+  Table2,
+  Printer,
 } from "lucide-react";
 import { PROVIDER_META } from "@/lib/pos";
 import { getSessionUser } from "@/lib/auth";
@@ -69,29 +79,6 @@ const features = [
   },
 ];
 
-const steps = [
-  {
-    n: "01",
-    title: "Ro'yxatdan o'ting",
-    desc: "Bir daqiqada hisob yarating va restoraningizni qo'shing.",
-  },
-  {
-    n: "02",
-    title: "Menyu yarating",
-    desc: "Kategoriya va mahsulotlarni qo'shing, rasm va narxlarni kiriting.",
-  },
-  {
-    n: "03",
-    title: "QR kodni chop eting",
-    desc: "Tayyor QR kodni yuklab olib stollarga joylashtiring.",
-  },
-  {
-    n: "04",
-    title: "Mijozlar ko'radi",
-    desc: "Mijozlar QR kodni skanerlab zamonaviy menyuni ochadi.",
-  },
-];
-
 const PLAN_ORDER = [
   { key: "STARTER" as const, mk: "starter" as const, Icon: Sparkles, desc: "Kichik kafe, coffee shop, fast food", highlight: false, contact: false },
   { key: "BUSINESS" as const, mk: "business" as const, Icon: Crown, desc: "Restoran va tarmoqlar uchun", highlight: true, contact: false },
@@ -113,6 +100,46 @@ const testimonials = [
     role: "Fast Food tarmog'i",
     text: "3 ta filialni bitta paneldan boshqaramiz. OzodFlow biz uchun juda katta vaqt tejaydi.",
   },
+];
+
+// Qog'oz menyu → OzodFlow taqqoslash
+const compareRows = [
+  { paper: "Narx o'zgarsa qayta chop etish", ozod: "1 marta o'zgartirasiz" },
+  { paper: "Vaqt o'tib eskirib qoladi", ozod: "Doim yangi va aniq" },
+  { paper: "Har safar qo'shimcha xarajat", ozod: "Raqamli — bepul yangilash" },
+  { paper: "Statistikasi yo'q", ozod: "Skaner va sotuv statistikasi" },
+  { paper: "Bitta umumiy menyu", ozod: "Har stolga alohida QR" },
+  { paper: "Buyurtmani qo'lda olasiz", ozod: "Online buyurtma panelga keladi" },
+];
+
+// Restoran uchun nima beradi (feature emas — benefit)
+const benefits = [
+  { icon: Wallet, title: "Xarajatni kamaytiring", desc: "Menyu narxi yoki taomi o'zgarsa — qayta-qayta menyu chop etmaysiz." },
+  { icon: Zap, title: "Bir zumda yangilang", desc: "Bitta mahsulotni o'zgartirsangiz, barcha mijozlar yangi ma'lumotni ko'radi." },
+  { icon: BarChart3, title: "Mijozlaringizni tushuning", desc: "Qaysi taomlar ko'p ko'rilayotganini statistikadan bilib oling." },
+  { icon: Smartphone, title: "Telefondan boshqaring", desc: "Kompyuter shart emas. Menyu, narx va mahsulotlarni telefondan boshqaring." },
+  { icon: Store, title: "Filiallarni birlashtiring", desc: "Bir nechta restoran bo'lsa, hammasini yagona panelga ulang." },
+  { icon: Clock, title: "24/7 ishlaydi", desc: "Menyu doim mavjud — kechayu kunduz, ta'tilsiz." },
+];
+
+// Nega OzodFlow (ishonch)
+const whyReasons = [
+  { icon: Zap, title: "1 daqiqada ishga tushadi", desc: "Texnik bilim kerak emas." },
+  { icon: Smartphone, title: "Telefondan boshqariladi", desc: "Istalgan joydan menyuni yangilang." },
+  { icon: Languages, title: "O'zbekistonga mos", desc: "So'm, o'zbekcha, ruscha va inglizcha." },
+  { icon: Palette, title: "Professional dizayn", desc: "Restoraningiz brendiga mos menyu." },
+  { icon: BarChart3, title: "Statistika", desc: "Mijozlar harakatini tushuning." },
+  { icon: ShieldCheck, title: "24/7 ishlaydi", desc: "Menyu doim mavjud va xavfsiz." },
+];
+
+// QR sayohati (visual journey)
+const journey = [
+  { icon: Store, label: "Restoran yarating" },
+  { icon: Layers, label: "Menyuni qo'shing" },
+  { icon: QrCode, label: "QR kodni stolga qo'ying" },
+  { icon: Smartphone, label: "Mijoz skanerlaydi" },
+  { icon: Eye, label: "Menyu ochiladi" },
+  { icon: ShoppingCart, label: "Buyurtma keladi" },
 ];
 
 export const dynamic = "force-dynamic";
@@ -200,18 +227,19 @@ export default async function LandingPage({
         <div className="mx-auto max-w-6xl px-4 pb-16 pt-16 sm:px-6 sm:pt-24">
           <div className="mx-auto max-w-3xl text-center">
             <Badge variant="accent" className="mb-5">
-              <Zap className="h-3 w-3" /> Restoranlar uchun #1 elektron menyu
+              <QrCode className="h-3 w-3" /> Restoranlar uchun QR menyu
             </Badge>
             <h1 className="text-balance text-4xl font-bold leading-[1.1] tracking-tight text-foreground sm:text-6xl">
-              Restoraningizni{" "}
+              Restoraningiz menyusini{" "}
               <span className="bg-gradient-to-r from-accent to-accent-hover bg-clip-text text-transparent">
-                raqamlashtiring
-              </span>
+                1 daqiqada
+              </span>{" "}
+              raqamlashtiring
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg text-muted">
-              OzodFlow — QR kod orqali zamonaviy elektron menyu. Menyuni
-              yarating, boshqaring va barcha filiallarni bitta professional
-              paneldan nazorat qiling.
+              Qog'oz menyuni unuting. Menyuni istalgan vaqtda yangilang,
+              buyurtmalarni qabul qiling va mijozlaringizni yaxshiroq tushuning —
+              hammasi bitta paneldan.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link href="/register">
@@ -221,13 +249,17 @@ export default async function LandingPage({
               </Link>
               <a href="/m/test" target="_blank" rel="noreferrer">
                 <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                  <Eye className="h-4 w-4" /> Demo menyuni ko'rish
+                  <Eye className="h-4 w-4" /> Demo ko'rish
                 </Button>
               </a>
             </div>
-            <p className="mt-4 text-sm text-muted">
-              Karta talab qilinmaydi · 1 daqiqada tayyor
-            </p>
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-muted">
+              {["Karta talab qilinmaydi", "1 daqiqada ishga tushadi", "Telefon orqali boshqariladi"].map((t) => (
+                <span key={t} className="flex items-center gap-1.5">
+                  <Check className="h-4 w-4 text-success" /> {t}
+                </span>
+              ))}
+            </div>
 
             {/* Ko'rsatkichlar — admin paneldan boshqariladi (bo'sh bo'lsa ko'rinmaydi) */}
             {stats.length > 0 && (
@@ -267,6 +299,42 @@ export default async function LandingPage({
           </div>
         </section>
       )}
+
+      {/* Muammo → Yechim: Qog'oz menyu vs OzodFlow */}
+      <section className="border-t border-border py-20">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6">
+          <SectionHeading
+            tag="Nega raqamli?"
+            title="Qog'oz menyu vs OzodFlow"
+            subtitle="Bitta o'zgarish restoraningizga qancha vaqt va pul tejashini ko'ring."
+          />
+          <Reveal className="mt-12 overflow-hidden rounded-2xl border border-border">
+            <div className="grid grid-cols-2 bg-surface/50 text-sm font-semibold">
+              <div className="flex items-center gap-2 px-4 py-3 text-muted sm:px-6">
+                <Printer className="h-4 w-4" /> Oddiy qog'oz menyu
+              </div>
+              <div className="flex items-center gap-2 border-l border-border px-4 py-3 text-accent sm:px-6">
+                <Sparkles className="h-4 w-4" /> OzodFlow
+              </div>
+            </div>
+            {compareRows.map((r, i) => (
+              <div
+                key={r.paper}
+                className={`grid grid-cols-2 text-sm ${i % 2 ? "bg-card" : "bg-surface/30"}`}
+              >
+                <div className="flex items-start gap-2 px-4 py-3.5 text-muted sm:px-6">
+                  <X className="mt-0.5 h-4 w-4 shrink-0 text-error/70" />
+                  <span>{r.paper}</span>
+                </div>
+                <div className="flex items-start gap-2 border-l border-border px-4 py-3.5 text-foreground sm:px-6">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                  <span>{r.ozod}</span>
+                </div>
+              </div>
+            ))}
+          </Reveal>
+        </div>
+      </section>
 
       {/* Features */}
       <section id="features" className="border-t border-border bg-surface/50 py-20">
@@ -357,22 +425,206 @@ export default async function LandingPage({
         </div>
       </section>
 
-      {/* How it works */}
+      {/* Restoran uchun nima beradi (benefit) */}
+      <section className="border-t border-border py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <SectionHeading
+            tag="Foyda"
+            title="Restoraningizga nima beradi?"
+            subtitle="OzodFlow — bu shunchaki menyu emas, vaqt va pul tejaydigan vosita."
+          />
+          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {benefits.map((b, i) => (
+              <Reveal
+                key={b.title}
+                delay={(i % 3) * 80}
+                className="rounded-2xl border border-border bg-card p-6 shadow-soft"
+              >
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-accent-soft text-accent">
+                  <b.icon className="h-5 w-5" />
+                </div>
+                <h3 className="mb-2 font-semibold text-foreground">{b.title}</h3>
+                <p className="text-sm leading-relaxed text-muted">{b.desc}</p>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Dizayn editor ko'rgazmasi */}
+      <section className="border-t border-border bg-surface/50 py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="grid items-center gap-10 lg:grid-cols-2">
+            <div>
+              <Badge variant="accent" className="mb-3">
+                <Wand2 className="h-3 w-3" /> Dizayn editori
+              </Badge>
+              <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                Menyuni restoraningiz uslubida yarating
+              </h2>
+              <p className="mt-3 text-muted">
+                Tayyor dizaynlardan birini tanlab, uni brendingizga moslang —
+                dasturlashni bilish shart emas. Har o'zgarish jonli ko'rinishda
+                darhol namoyon bo'ladi.
+              </p>
+              <ul className="mt-6 grid grid-cols-2 gap-3">
+                {[
+                  "Tayyor dizayn shablonlari",
+                  "Logo va rang tanlash",
+                  "Bosh sahifa rasm/video",
+                  "Fon va tugma sozlamalari",
+                  "Tayyor rang paletralari",
+                  "Chap-o'ng menyu tuzilishi",
+                ].map((t) => (
+                  <li key={t} className="flex items-start gap-2 text-sm">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                    <span className="text-foreground">{t}</span>
+                  </li>
+                ))}
+              </ul>
+              <Link href="/register" className="mt-8 inline-block">
+                <Button size="lg">
+                  Dizaynni sinab ko'rish <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+            <Reveal className="flex justify-center">
+              <EditorPreview />
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* How it works — QR sayohati */}
       <section id="how" className="border-t border-border py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <SectionHeading
             tag="Qanday ishlaydi"
-            title="4 qadamda ishga tushiring"
+            title="Restorandan mijozgacha — bitta oqim"
             subtitle="Texnik bilim shart emas. Hammasi oddiy va tez."
           />
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {steps.map((s, i) => (
-              <Reveal key={s.n} delay={i * 90} className="relative">
-                <span className="text-4xl font-bold text-accent/20">{s.n}</span>
-                <h3 className="mt-2 font-semibold text-foreground">{s.title}</h3>
-                <p className="mt-1.5 text-sm text-muted">{s.desc}</p>
+          <div className="mt-12 grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            {journey.map((s, i) => (
+              <Reveal key={s.label} delay={i * 70} className="relative">
+                <div className="flex flex-col items-center rounded-2xl border border-border bg-card p-5 text-center shadow-soft">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent-soft text-accent">
+                    <s.icon className="h-6 w-6" />
+                  </div>
+                  <span className="mt-3 text-xs font-bold text-accent/70">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <p className="mt-1 text-sm font-medium text-foreground">{s.label}</p>
+                </div>
               </Reveal>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Stol QR */}
+      <section className="border-t border-border bg-surface/50 py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="grid items-center gap-10 lg:grid-cols-2">
+            <Reveal className="order-2 flex justify-center lg:order-1">
+              <TableQrPreview />
+            </Reveal>
+            <div className="order-1 lg:order-2">
+              <Badge variant="accent" className="mb-3">
+                <Table2 className="h-3 w-3" /> Stol QR
+              </Badge>
+              <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                Har bir stol — o'z QR kodiga ega
+              </h2>
+              <p className="mt-3 text-muted">
+                Mijoz stoldagi QR kodni skanerlaydi — menyu ochiladi va buyurtma
+                qaysi stoldan kelayotgani avtomatik aniqlanadi. Ofitsiant qidirib
+                yurmaydi.
+              </p>
+              <ol className="mt-6 space-y-3">
+                {[
+                  "Mijoz stol QR kodini skanerlaydi",
+                  "Menyu ochiladi",
+                  "Stol raqami avtomatik aniqlanadi",
+                  "Buyurtma to'g'ri stolga bog'lanib yuboriladi",
+                ].map((t, i) => (
+                  <li key={t} className="flex items-center gap-3 text-sm">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-bold text-white">
+                      {i + 1}
+                    </span>
+                    <span className="text-foreground">{t}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Buyurtma oqimi */}
+      <section className="border-t border-border py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <SectionHeading
+            tag="Buyurtma"
+            title="Buyurtma jarayonini avtomatlashtiring"
+            subtitle="OzodFlow — oddiy QR menyu generatori emas, to'liq restoran boshqaruv platformasi."
+          />
+          <div className="mt-12 grid gap-6 md:grid-cols-2">
+            <Reveal className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+              <div className="mb-4 flex items-center gap-2">
+                <Smartphone className="h-5 w-5 text-accent" />
+                <h3 className="font-semibold text-foreground">Mijoz</h3>
+              </div>
+              <FlowSteps steps={["Menyuni ochadi", "Taom tanlaydi", "Savatga qo'shadi", "Buyurtma beradi"]} />
+            </Reveal>
+            <Reveal delay={90} className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+              <div className="mb-4 flex items-center gap-2">
+                <ChefHat className="h-5 w-5 text-accent" />
+                <h3 className="font-semibold text-foreground">Restoran</h3>
+              </div>
+              <FlowSteps steps={["Buyurtma panelga keladi", "Xodim qabul qiladi", "Tayyorlanadi", "Buyurtma yopiladi"]} />
+            </Reveal>
+          </div>
+          <Reveal className="mx-auto mt-8 flex max-w-2xl items-center justify-center gap-3 rounded-2xl border border-border bg-surface/50 p-5 text-center">
+            <Truck className="h-5 w-5 shrink-0 text-accent" />
+            <span className="text-sm text-foreground">
+              Yetkazib berish uchun mijoz xaritada joylashuvini belgilaydi — buyurtma manzil bilan keladi.
+            </span>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* Statistika */}
+      <section className="border-t border-border bg-surface/50 py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="grid items-center gap-10 lg:grid-cols-2">
+            <div>
+              <Badge variant="accent" className="mb-3">
+                <TrendingUp className="h-3 w-3" /> Statistika
+              </Badge>
+              <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                &ldquo;Men pul to'lasam nima olaman?&rdquo;
+              </h2>
+              <p className="mt-3 text-muted">
+                Har bir skaner, mashhur taomlar, eng faol vaqt va eng ko'p buyurtma
+                keladigan stollar — barchasi real vaqtda panelingizda. Qaror
+                qabul qilish endi taxminga emas, raqamga asoslanadi.
+              </p>
+              <ul className="mt-6 space-y-3">
+                {[
+                  "Qaysi taomlar ko'p ko'rilayotganini biling",
+                  "Eng faol soatlarni aniqlang",
+                  "Menyuni ma'lumotga asoslanib yaxshilang",
+                ].map((t) => (
+                  <li key={t} className="flex items-start gap-2 text-sm">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                    <span className="text-foreground">{t}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <Reveal className="flex justify-center">
+              <StatsPreview />
+            </Reveal>
           </div>
         </div>
       </section>
@@ -423,6 +675,34 @@ export default async function LandingPage({
               <span className="text-sm text-foreground">Kalitlar shifrlangan holda saqlanadi</span>
             </div>
           </Reveal>
+        </div>
+      </section>
+
+      {/* Nega OzodFlow? */}
+      <section className="border-t border-border py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <SectionHeading
+            tag="Nega OzodFlow?"
+            title="Nega restoranlar OzodFlow'ni tanlaydi?"
+            subtitle="Zamonaviy, ishonchli va O'zbekistonga moslangan."
+          />
+          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {whyReasons.map((w, i) => (
+              <Reveal
+                key={w.title}
+                delay={(i % 3) * 80}
+                className="flex gap-4 rounded-2xl border border-border bg-card p-6 shadow-soft"
+              >
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
+                  <w.icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">{w.title}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-muted">{w.desc}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -734,6 +1014,159 @@ function PhonePreview() {
           <Smartphone className="h-3 w-3" />
           <span className="text-[9px] font-medium">QR menyu</span>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Dizayn editor ko'rgazmasi (chapda sozlamalar, o'ngda telefon)
+function EditorPreview() {
+  return (
+    <div className="w-full max-w-md rounded-2xl border border-border bg-card p-4 shadow-card">
+      <div className="mb-3 flex items-center gap-2">
+        <Wand2 className="h-4 w-4 text-accent" />
+        <span className="text-sm font-medium text-foreground">Dizaynni sozlash</span>
+      </div>
+      <div className="grid grid-cols-[1fr_120px] gap-3">
+        {/* chap: sozlamalar */}
+        <div className="space-y-2.5">
+          <div className="text-[11px] font-semibold text-muted">Ranglar</div>
+          <div className="flex gap-1.5">
+            {["#8B5E3C", "#2E9E5B", "#2563EB", "#EA580C", "#0A0A0B"].map((c) => (
+              <span
+                key={c}
+                className="h-6 w-6 rounded-full border-2 border-card shadow-soft"
+                style={{ background: c }}
+              />
+            ))}
+          </div>
+          {[
+            { l: "Asosiy rang", c: "#8B5E3C" },
+            { l: "Fon", c: "#F8F5F0" },
+            { l: "Tugma", c: "#8B5E3C" },
+          ].map((row) => (
+            <div
+              key={row.l}
+              className="flex items-center justify-between rounded-lg border border-border px-2.5 py-1.5"
+            >
+              <span className="text-[11px] text-foreground">{row.l}</span>
+              <span className="h-4 w-4 rounded" style={{ background: row.c }} />
+            </div>
+          ))}
+          <div className="rounded-lg border border-border px-2.5 py-2">
+            <div className="mb-1 text-[10px] text-muted">Burchak radiusi</div>
+            <div className="h-1.5 w-full rounded-full bg-surface-2">
+              <div className="h-1.5 w-2/3 rounded-full bg-accent" />
+            </div>
+          </div>
+        </div>
+        {/* o'ng: telefon preview */}
+        <div className="rounded-2xl border-4 border-foreground/80 bg-foreground/80 p-1">
+          <div className="overflow-hidden rounded-xl bg-card">
+            <div className="h-16 bg-gradient-to-br from-accent/80 to-accent" />
+            <div className="p-2">
+              <div className="-mt-6 mb-1.5 h-7 w-7 rounded-lg border-2 border-card bg-accent" />
+              <div className="h-2 w-3/4 rounded bg-foreground/20" />
+              <div className="mt-1 h-1.5 w-1/2 rounded bg-foreground/10" />
+              <div className="mt-2 h-5 w-full rounded-md bg-accent" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Stol QR ko'rgazmasi
+function TableQrPreview() {
+  return (
+    <div className="relative w-[260px]">
+      <div className="rounded-2xl border border-border bg-card p-6 text-center shadow-card">
+        <p className="text-sm font-semibold text-foreground">Stol №12</p>
+        <div className="mx-auto mt-4 h-40 w-40">
+          <div className="grid h-full w-full grid-cols-7 grid-rows-7 gap-0.5 rounded-xl border border-border bg-white p-2">
+            {Array.from({ length: 49 }).map((_, i) => {
+              // Barqaror soxta QR naqsh (deterministik)
+              const on = (i * 7 + (i % 5) * 3 + ((i >> 1) & 1)) % 3 !== 0;
+              const corner =
+                (i < 3 || (i >= 7 && i < 10) || (i >= 14 && i < 17)) &&
+                (i % 7 < 3);
+              return (
+                <span
+                  key={i}
+                  className="rounded-[1px]"
+                  style={{ background: on || corner ? "#111827" : "transparent" }}
+                />
+              );
+            })}
+          </div>
+        </div>
+        <p className="mt-4 text-xs text-muted">Skanerlang — menyu ochiladi</p>
+      </div>
+      <div className="absolute -bottom-3 -right-3 flex h-11 w-11 items-center justify-center rounded-full bg-accent text-white shadow-card">
+        <QrCode className="h-5 w-5" />
+      </div>
+    </div>
+  );
+}
+
+// Buyurtma oqimi qadamlari
+function FlowSteps({ steps }: { steps: string[] }) {
+  return (
+    <ol className="space-y-2.5">
+      {steps.map((s, i) => (
+        <li key={s} className="flex items-center gap-3">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-bold text-accent">
+            {i + 1}
+          </span>
+          <span className="text-sm text-foreground">{s}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+// Statistika ko'rgazmasi
+function StatsPreview() {
+  return (
+    <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-card">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-medium text-foreground">Restoran statistikasi</span>
+        <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">
+          +18.4%
+        </span>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="rounded-xl bg-surface p-3">
+          <p className="text-[11px] text-muted">Bugungi skaner</p>
+          <p className="mt-1 text-2xl font-bold text-foreground">1 284</p>
+        </div>
+        <div className="rounded-xl bg-surface p-3">
+          <p className="text-[11px] text-muted">Buyurtmalar</p>
+          <p className="mt-1 text-2xl font-bold text-foreground">86</p>
+        </div>
+      </div>
+      <div className="mt-4">
+        <p className="mb-2 text-[11px] font-semibold text-muted">Eng ko'p ko'rilgan</p>
+        <div className="space-y-2">
+          {[
+            { n: "🥇 Osh", v: 84 },
+            { n: "🥈 Lavash", v: 72 },
+            { n: "🥉 Choy", v: 61 },
+          ].map((r) => (
+            <div key={r.n} className="flex items-center gap-2">
+              <span className="w-20 text-xs text-foreground">{r.n}</span>
+              <div className="h-2 flex-1 rounded-full bg-surface-2">
+                <div className="h-2 rounded-full bg-accent" style={{ width: `${r.v}%` }} />
+              </div>
+              <span className="w-8 text-right text-[11px] text-muted">{r.v}%</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="mt-4 flex items-center justify-between rounded-xl bg-surface p-3 text-xs">
+        <span className="text-muted">Eng faol vaqt</span>
+        <span className="font-semibold text-foreground">19:00 — 21:00</span>
       </div>
     </div>
   );

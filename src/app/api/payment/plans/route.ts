@@ -1,10 +1,10 @@
 import { authGuard, ok } from "@/lib/api";
-import { getPlanPrices } from "@/lib/plan-prices";
+import { getPlanPrices, getLifetimePrices } from "@/lib/plan-prices";
 
-// Foydalanuvchi uchun joriy tarif narxlari
+// Foydalanuvchi uchun joriy tarif narxlari (oylik + umrbod)
 export async function GET() {
   const { user, res } = await authGuard();
   if (!user) return res;
-  const prices = await getPlanPrices();
-  return ok(prices);
+  const [prices, lifetime] = await Promise.all([getPlanPrices(), getLifetimePrices()]);
+  return ok({ ...prices, lifetime });
 }

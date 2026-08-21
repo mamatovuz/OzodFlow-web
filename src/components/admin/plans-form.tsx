@@ -5,11 +5,11 @@ import { Loader2, Check, Crown } from "lucide-react";
 import { Button, Input, Card, Label } from "@/components/ui";
 import { formatPrice } from "@/lib/utils";
 
+const LIFETIME_MONTHS = 36; // lib/plans.ts bilan mos
+
 export function PlansForm() {
-  const [prices, setPrices] = useState<Record<string, number>>({
-    STARTER: 0,
-    BUSINESS: 0,
-  });
+  const [prices, setPrices] = useState<Record<string, number>>({ STARTER: 0, BUSINESS: 0 });
+  const [lifetime, setLifetime] = useState<Record<string, number>>({ STARTER: 0, BUSINESS: 0 });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
@@ -17,25 +17,39 @@ export function PlansForm() {
   async function load() {
     const res = await fetch("/api/admin/plans");
     const json = await res.json();
-    if (json.success) setPrices(json.data);
+    if (json.success) {
+      const { lifetime: lf, ...monthly } = json.data as Record<string, number> & {
+        lifetime?: Record<string, number>;
+      };
+      setPrices(monthly);
+      if (lf) setLifetime(lf);
+    }
     setLoading(false);
   }
   useEffect(() => {
     load();
   }, []);
 
-  async function save(plan: string, price: number) {
+  async function save(plan: string) {
     setSaving(plan);
     setSaved(null);
     const res = await fetch("/api/admin/plans", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plan, price }),
+      body: JSON.stringify({
+        plan,
+        price: prices[plan],
+        lifetimePrice: lifetime[plan] || 0,
+      }),
     });
     const json = await res.json();
     setSaving(null);
     if (res.ok) {
-      setPrices(json.data);
+      const { lifetime: lf, ...monthly } = json.data as Record<string, number> & {
+        lifetime?: Record<string, number>;
+      };
+      setPrices(monthly);
+      if (lf) setLifetime(lf);
       setSaved(plan);
       setTimeout(() => setSaved(null), 2500);
     }
@@ -56,36 +70,64 @@ export function PlansForm() {
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      {rows.map((r) => (
-        <Card key={r.key} className="p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <Crown className="h-5 w-5 text-warning" />
-            <h2 className="font-semibold text-foreground">{r.name}</h2>
-          </div>
-          <Label>Oylik narx (so'm)</Label>
-          <div className="flex gap-2">
+      {rows.map((r) => {
+        const monthly = prices[r.key] || 0;
+        const lp = lifetime[r.key] || 0;
+        const autoLifetime = monthly * LIFETIME_MONTHS;
+        const effective = lp > 0 ? lp : autoLifetime;
+        // Chegirma foizi: umrbod narx oylik×36 ga nisbatan qancha arzon
+        const discount = autoLifetime > 0 ? Math.round((1 - effective / autoLifetime) * 100) : 0;
+        return (
+          <Card key={r.key} className="p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <Crown className="h-5 w-5 text-warning" />
+              <h2 className="font-semibold text-foreground">{r.name}</h2>
+            </div>
+
+            <Label>Oylik narx (so'm)</Label>
             <Input
               type="number"
-              value={prices[r.key]}
-              onChange={(e) =>
-                setPrices((p) => ({ ...p, [r.key]: Number(e.target.value) }))
-              }
+              value={monthly}
+              onChange={(e) => setPrices((p) => ({ ...p, [r.key]: Number(e.target.value) }))}
             />
-            <Button onClick={() => save(r.key, prices[r.key])} disabled={saving === r.key}>
+
+            <Label className="mt-4">Umrbod narx (so'm)</Label>
+            <Input
+              type="number"
+              value={lp}
+              placeholder={`Bo'sh = avtomatik (${formatPrice(autoLifetime, "UZS")})`}
+              onChange={(e) => setLifetime((p) => ({ ...p, [r.key]: Number(e.target.value) }))}
+            />
+            <p className="mt-1.5 text-xs text-muted">
+              Umrbod narx: <b className="text-foreground">{formatPrice(effective, "UZS")}</b>
+              {discount > 0 && (
+                <span className="ml-1 rounded bg-success/10 px-1.5 py-0.5 font-medium text-success">
+                  −{discount}% chegirma
+                </span>
+              )}
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted">
+              Bo'sh (0) qoldirsangiz — oylik narx × {LIFETIME_MONTHS} avtomatik hisoblanadi.
+            </p>
+
+            <Button
+              className="mt-4 w-full"
+              onClick={() => save(r.key)}
+              disabled={saving === r.key}
+            >
               {saving === r.key ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : saved === r.key ? (
-                <Check className="h-4 w-4" />
+                <>
+                  <Check className="h-4 w-4" /> Saqlandi
+                </>
               ) : (
                 "Saqlash"
               )}
             </Button>
-          </div>
-          <p className="mt-2 text-sm text-muted">
-            Hozirgi: {formatPrice(prices[r.key], "UZS")} / oy
-          </p>
-        </Card>
-      ))}
+          </Card>
+        );
+      })}
     </div>
   );
 }

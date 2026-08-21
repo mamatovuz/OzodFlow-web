@@ -76,7 +76,8 @@ export const DOMAIN_SERVICE_PRICE = 40000;
 // Bitta premium dizaynni umrbodga sotib olish narxi (Business/Enterprise'dan boshqa
 // tariflar uchun — ular premium dizaynlarni allaqachon o'z ichiga oladi).
 export const THEME_PRICE = 50000;
-export const YEARLY_DISCOUNT = 100000;
+export const YEARLY_DISCOUNT = 100000; // 12 oy oldindan to'lasa chegirma
+export const HALF_YEAR_DISCOUNT = 50000; // 6 oy oldindan to'lasa chegirma
 export const LIFETIME_MONTHS = 36;
 
 // To'lov muddati o'tgach beriladigan qo'shimcha muhlat (kun).
@@ -106,7 +107,10 @@ export function computePrice(monthly: number, months: number, lifetime = false):
   if (lifetime) return monthly * LIFETIME_MONTHS;
   if (months <= 0) return 0;
   let total = monthly * months;
+  // Har to'liq yil uchun yillik chegirma
   total -= YEARLY_DISCOUNT * Math.floor(months / 12);
+  // Qolgan oylar ichida to'liq yarim yil bo'lsa — yarim yillik chegirma
+  if (months % 12 >= 6) total -= HALF_YEAR_DISCOUNT;
   return Math.max(0, Math.round(total));
 }
 
@@ -123,7 +127,10 @@ export const FEATURE_MATRIX: {
   { label: "Buyurtma tizimi", free: true, starter: true, business: true },
   { label: "Dashboard va statistika", free: true, starter: true, business: true },
   { label: "Dizayn tanlash", free: true, starter: true, business: true },
-  { label: "Dastavka (joylashuv bilan)", free: false, starter: true, business: true },
+  { label: "Telegram kanaliga buyurtma", free: false, starter: true, business: true },
+  { label: "Dastavka (joylashuv bilan)", free: false, starter: false, business: true },
+  { label: "Ofitsant kodi va statistikasi", free: false, starter: false, business: true },
+  { label: "Kassa (POS) integratsiyalari", free: false, starter: false, business: true },
   { label: "Premium dizaynlar", free: false, starter: false, business: true },
   { label: "Batafsil hisobotlar", free: false, starter: false, business: true },
   { label: "Maxsus domen", free: false, starter: false, business: true },

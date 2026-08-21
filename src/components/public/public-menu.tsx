@@ -127,6 +127,8 @@ export function PublicMenu({
   const [selectedCat, setSelectedCat] = useState<string | null>(null);
   // Split (chap-o'ng) layout uchun tanlangan kategoriya
   const [splitCat, setSplitCat] = useState<string | null>(null);
+  // Tabs (tepa tab) layout uchun tanlangan kategoriya
+  const [tabsCat, setTabsCat] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [detail, setDetail] = useState<PublicProduct | null>(null);
@@ -181,6 +183,7 @@ export function PublicMenu({
   const headerStyle = headerStyleFor(theme.key);
   const menuStyle = menuStyleFor(theme.key);
   const isSplit = menuStyle === "split";
+  const isTabs = menuStyle === "tabs";
   const cardShadow = shadowCss(design.card.shadow, theme.isDark);
 
   // Menyu foni (standart / rang / rasm / gradient + overlay)
@@ -561,7 +564,7 @@ export function PublicMenu({
             />
           </div>
 
-          {!search && !selectedCat && (
+          {!search && !selectedCat && !isTabs && (
             <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
               {filters.map((f) => (
                 <button
@@ -691,8 +694,21 @@ export function PublicMenu({
             />
           )}
 
+          {/* ─── TABS layout: tepada kategoriya tablari, bitta kategoriya mahsulotlari ─── */}
+          {!searching && isTabs && grouped.length > 0 && (
+            <TabsMenu
+              groups={grouped}
+              activeId={tabsCat ?? grouped[0].category.id}
+              onSelect={setTabsCat}
+              renderItems={renderItems}
+              accent={accent}
+              accentText={accentText}
+              radius={R}
+            />
+          )}
+
           {/* Kategoriya ichi: orqaga tugma + shu kategoriya mahsulotlari */}
-          {!searching && !isSplit && currentGroup && (
+          {!searching && !isSplit && !isTabs && currentGroup && (
             <div className="animate-fade-up">
               <button
                 onClick={exitCat}
@@ -719,7 +735,7 @@ export function PublicMenu({
           )}
 
           {/* Barcha kategoriyalar — shablonga qarab (banner / grid / list) */}
-          {showBrowse && !isSplit && (
+          {showBrowse && !isSplit && !isTabs && (
             <div className={catStyle === "grid" ? "grid grid-cols-2 gap-3" : "space-y-3"}>
               {grouped.map((g) => (
                 <CategoryCard
@@ -848,6 +864,66 @@ export function PublicMenu({
           onClose={clearTracked}
         />
       )}
+    </div>
+  );
+}
+
+// ─────────── TABS menyu: tepada kategoriya tablari, bitta kategoriya mahsulotlari ───────────
+function TabsMenu({
+  groups,
+  activeId,
+  onSelect,
+  renderItems,
+  accent,
+  accentText,
+  radius,
+}: {
+  groups: { category: { id: string; name: string; image: string | null }; items: PublicProduct[] }[];
+  activeId: string;
+  onSelect: (id: string) => void;
+  renderItems: (list: PublicProduct[], gridClass?: string) => React.ReactNode;
+  accent: string;
+  accentText: string;
+  radius: number;
+}) {
+  const active = groups.find((g) => g.category.id === activeId) ?? groups[0];
+  const rowRef = useRef<HTMLDivElement | null>(null);
+
+  return (
+    <div>
+      {/* Yopishqoq tab qatori */}
+      <div
+        ref={rowRef}
+        className="sticky top-[68px] z-20 -mx-4 flex gap-2 overflow-x-auto bg-background/95 px-4 py-3 backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {groups.map((g) => {
+          const on = g.category.id === active.category.id;
+          return (
+            <button
+              key={g.category.id}
+              data-cat={g.category.id}
+              onClick={(e) => {
+                onSelect(g.category.id);
+                e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+              }}
+              className="shrink-0 whitespace-nowrap px-4 py-2 text-sm font-semibold transition-colors"
+              style={
+                on
+                  ? { background: accent, color: accentText, borderRadius: 999 }
+                  : { borderRadius: 999, background: "var(--surface-2)", color: "var(--foreground)" }
+              }
+            >
+              {g.category.name}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tanlangan kategoriya mahsulotlari */}
+      <div className="mt-4">
+        <h2 className="mb-3 text-xl font-bold text-foreground">{active.category.name}</h2>
+        {renderItems(active.items, "grid-cols-2 lg:grid-cols-3")}
+      </div>
     </div>
   );
 }

@@ -60,6 +60,7 @@ export function Billing({
     STARTER: PLANS.STARTER.defaultPrice,
     BUSINESS: PLANS.BUSINESS.defaultPrice,
   });
+  const [lifetimePrices, setLifetimePrices] = useState<Record<string, number>>({});
   const [modal, setModal] = useState<PlanKey | null>(null);
 
   async function loadRequests() {
@@ -70,7 +71,13 @@ export function Billing({
   async function loadPrices() {
     const res = await fetch("/api/payment/plans");
     const json = await res.json();
-    if (json.success) setPrices(json.data);
+    if (json.success) {
+      const { lifetime, ...monthly } = json.data as Record<string, number> & {
+        lifetime?: Record<string, number>;
+      };
+      setPrices(monthly);
+      if (lifetime) setLifetimePrices(lifetime);
+    }
   }
 
   useEffect(() => {
@@ -220,6 +227,7 @@ export function Billing({
         <PaymentModal
           plan={modal}
           price={prices[modal]}
+          lifetimePrice={lifetimePrices[modal] ?? 0}
           onClose={() => setModal(null)}
           onDone={() => {
             setModal(null);
@@ -254,11 +262,13 @@ function StatusBadge({ status, note }: { status: string; note: string | null }) 
 function PaymentModal({
   plan,
   price,
+  lifetimePrice,
   onClose,
   onDone,
 }: {
   plan: PlanKey;
   price: number;
+  lifetimePrice: number;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -280,7 +290,12 @@ function PaymentModal({
   const dur = DURATIONS.find((d) => d.key === durKey)!;
   const lifetime = !!dur.lifetime;
   const months = dur.custom ? Math.max(1, customMonths) : dur.months;
-  const baseAmount = computePrice(price, months, lifetime);
+  // Umrbod uchun admin narxi (bo'lsa), aks holda avtomatik oylik×36
+  const baseAmount = lifetime
+    ? lifetimePrice > 0
+      ? lifetimePrice
+      : computePrice(price, 0, true)
+    : computePrice(price, months, false);
   const discount = promo ? Math.round((baseAmount * promo.discountPercent) / 100) : 0;
   const finalAmount = Math.max(0, baseAmount - discount);
 

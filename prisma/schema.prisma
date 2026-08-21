@@ -34,9 +34,10 @@ model User {
 
 // Tarif narxlari (admin paneldan o'zgartiriladi)
 model PlanConfig {
-  plan      String   @id // PRO | PROMAX
-  price     Int
-  updatedAt DateTime @updatedAt
+  plan          String   @id // STARTER | BUSINESS
+  price         Int // oylik narx
+  lifetimePrice Int      @default(0) // umrbod narx (0 = oylik×36 avtomatik)
+  updatedAt     DateTime @updatedAt
 }
 
 // Parol tiklash kodi (Telegram bot orqali yuboriladi)

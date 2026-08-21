@@ -12,7 +12,10 @@ export type ThemeKey =
   | "coffee"
   | "noir"
   | "ocean"
-  | "classic";
+  | "classic"
+  | "aurora"
+  | "carbon"
+  | "botanic";
 
 export type ThemeLayout = "list" | "grid";
 
@@ -229,6 +232,66 @@ export const MENU_THEMES: MenuTheme[] = [
       border: "#e6e8ec",
     },
   },
+  {
+    // Aurora — zamonaviy, havodor, indigo urg'u. Toza SaaS uslubi.
+    key: "aurora",
+    name: "Aurora",
+    premium: true,
+    isDark: false,
+    layout: "grid",
+    radius: 22,
+    accent: "#6366f1",
+    accentText: "#ffffff",
+    colors: {
+      background: "#f6f6ff",
+      surface: "#eeeefe",
+      surface2: "#e3e3fb",
+      card: "#ffffff",
+      foreground: "#1a1a2e",
+      muted: "#71718a",
+      border: "#e2e2f5",
+    },
+  },
+  {
+    // Carbon — qattiq qora + jonli to'q sariq. Premium fast-food/steak uslubi.
+    key: "carbon",
+    name: "Carbon",
+    premium: true,
+    isDark: true,
+    layout: "list",
+    radius: 10,
+    accent: "#f97316",
+    accentText: "#1a0f05",
+    colors: {
+      background: "#101012",
+      surface: "#17171a",
+      surface2: "#202024",
+      card: "#161619",
+      foreground: "#f5f5f4",
+      muted: "#9a9a9e",
+      border: "#28282d",
+    },
+  },
+  {
+    // Botanic — yumshoq zaytun/sage, tabiiy va nafis. Kafe/veg uslubi.
+    key: "botanic",
+    name: "Botanic",
+    premium: true,
+    isDark: false,
+    layout: "grid",
+    radius: 24,
+    accent: "#4d7c0f",
+    accentText: "#ffffff",
+    colors: {
+      background: "#f4f6ef",
+      surface: "#ecefe3",
+      surface2: "#e1e6d3",
+      card: "#fbfcf8",
+      foreground: "#21260f",
+      muted: "#6b7355",
+      border: "#dde3cd",
+    },
+  },
 ];
 
 export function getTheme(key: string | null | undefined): MenuTheme {
@@ -258,6 +321,9 @@ const CATEGORY_STYLE: Record<ThemeKey, CategoryStyle> = {
   noir: "banner",
   ocean: "list",
   classic: "list",
+  aurora: "grid",
+  carbon: "list",
+  botanic: "banner",
 };
 
 const HEADER_STYLE: Record<ThemeKey, HeaderStyle> = {
@@ -271,6 +337,9 @@ const HEADER_STYLE: Record<ThemeKey, HeaderStyle> = {
   noir: "center",
   ocean: "minimal",
   classic: "minimal",
+  aurora: "center",
+  carbon: "minimal",
+  botanic: "center",
 };
 
 export function categoryStyleFor(key: string): CategoryStyle {
@@ -282,7 +351,8 @@ export function headerStyleFor(key: string): HeaderStyle {
 
 // ─── Menyu tuzilishi: browse (kategoriyaga kirish) yoki split (chap kategoriya + o'ng mahsulot) ───
 // split = chap tomonda kategoriyalar roili, o'ngda tanlangan kategoriya mahsulotlari (bir vaqtda).
-export type MenuStyle = "browse" | "split";
+// browse = kategoriyaga kirish; split = chap rail; tabs = tepada tab + bitta kategoriya
+export type MenuStyle = "browse" | "split" | "tabs";
 
 const MENU_STYLE: Record<ThemeKey, MenuStyle> = {
   light: "browse",
@@ -295,6 +365,9 @@ const MENU_STYLE: Record<ThemeKey, MenuStyle> = {
   noir: "browse",
   ocean: "browse",
   classic: "split",
+  aurora: "tabs",
+  carbon: "browse",
+  botanic: "browse",
 };
 
 export function menuStyleFor(key: string): MenuStyle {

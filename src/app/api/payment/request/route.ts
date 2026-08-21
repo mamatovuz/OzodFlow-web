@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
 import { PLANS, computePrice, THEME_PRICE, type PlanKey } from "@/lib/plans";
-import { getPlanPrice } from "@/lib/plan-prices";
+import { getPlanPrice, getLifetimePrice } from "@/lib/plan-prices";
 import { validatePromo } from "@/lib/promo";
 import { getTheme, parsePurchasedThemes } from "@/lib/themes";
 
@@ -95,7 +95,10 @@ export async function POST(req: NextRequest) {
   if (!lifetime && months < 1) return fail("Muddatni tanlang", 422);
 
   const monthly = await getPlanPrice(plan);
-  const baseAmount = computePrice(monthly, months, lifetime);
+  // Umrbod uchun admin belgilagan narx (bo'lsa), aks holda avtomatik oylik×36
+  const baseAmount = lifetime
+    ? await getLifetimePrice(plan)
+    : computePrice(monthly, months, lifetime);
 
   // Promo kod
   let discount = 0;

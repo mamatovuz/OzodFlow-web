@@ -3,8 +3,8 @@ import { headers } from "next/headers";
 import { getMenuByDomain, resolveTable } from "@/lib/menu";
 import { PublicMenu } from "@/components/public/public-menu";
 import { BlockedMenu } from "@/components/public/blocked-menu";
-import { getPlanPrices } from "@/lib/plan-prices";
-import { PLANS, FEATURE_MATRIX } from "@/lib/plans";
+import { getPlanPrices, getLifetimePrices } from "@/lib/plan-prices";
+import { PLANS, FEATURE_MATRIX, LIFETIME_MONTHS, computePrice } from "@/lib/plans";
 import { formatPrice } from "@/lib/utils";
 import {
   QrCode,
@@ -22,7 +22,6 @@ import {
   Eye,
   Sparkles,
   Crown,
-  Plug,
   RefreshCcw,
   Wallet,
   Clock,
@@ -84,22 +83,12 @@ const PLAN_ORDER = [
   { key: "BUSINESS" as const, mk: "business" as const, Icon: Crown, desc: "Restoran va tarmoqlar uchun", highlight: true, contact: false },
 ];
 
-const testimonials = [
-  {
-    name: "Sardor Rahimov",
-    role: "Osh Markazi, Toshkent",
-    text: "Qog'oz menyudan voz kechdik. Endi narxlarni bir soniyada yangilaymiz, mijozlar ham menyuni yoqtirishmoqda.",
-  },
-  {
-    name: "Dilnoza Karimova",
-    role: "Coffee House, Samarqand",
-    text: "Dizayni juda chiroyli va professional. QR statistikasi qaysi taomlar mashhurligini ko'rsatib beradi.",
-  },
-  {
-    name: "Jasur Aliyev",
-    role: "Fast Food tarmog'i",
-    text: "3 ta filialni bitta paneldan boshqaramiz. OzodFlow biz uchun juda katta vaqt tejaydi.",
-  },
+// Ishonch ko'rsatkichlari (admin SiteStat bo'sh bo'lsa — standart)
+const defaultTrustStats = [
+  { value: "500+", label: "Restoran va kafe" },
+  { value: "50 000+", label: "Menyu mahsuloti" },
+  { value: "1.2M+", label: "QR skaner" },
+  { value: "99.9%", label: "Ishlash vaqti (uptime)" },
 ];
 
 // Qog'oz menyu → OzodFlow taqqoslash
@@ -190,6 +179,8 @@ export default async function LandingPage({
 
   const user = await getSessionUser();
   const prices = await getPlanPrices();
+  const lifetimePrices = await getLifetimePrices();
+  // Ishonch ko'rsatkichlari — admin belgilagan (SiteStat) yoki standart
   const partners = await prisma.partner.findMany({
     where: { isActive: true },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
@@ -201,6 +192,11 @@ export default async function LandingPage({
     select: { id: true, value: true, label: true },
     take: 4,
   });
+  // Ishonch bo'limi: admin 4+ ko'rsatkich qo'shsa — o'shani, aks holda standart
+  const trustStats =
+    stats.length >= 4
+      ? stats.map((s) => ({ value: s.value, label: s.label }))
+      : defaultTrustStats;
 
   return (
     <div className="min-h-screen bg-background">
@@ -634,47 +630,52 @@ export default async function LandingPage({
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <SectionHeading
             tag="Integratsiyalar"
-            title="Kassa tizimingizga ulanadi"
-            subtitle="Mashhur POS tizimlari bilan integratsiya — mahsulot va narxlar avtomatik sinxronlanadi, ikki marta kiritmaysiz."
+            title="Mavjud kassa tizimingiz bilan ishlaydi"
+            subtitle="Mahsulotlar va narxlar POS tizimingizdan avtomatik sinxronlanadi — ikki marta kiritmaysiz."
           />
 
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {PROVIDER_META.map((p, i) => (
-              <Reveal
-                key={p.id}
-                delay={(i % 3) * 80}
-                className="flex items-center gap-4 rounded-2xl border border-border bg-card p-5 shadow-soft transition-all hover:-translate-y-1 hover:shadow-card"
-              >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-lg font-bold text-accent">
-                  {p.label.charAt(0)}
+          <Reveal className="mx-auto mt-12 max-w-4xl overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3">
+              {PROVIDER_META.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center gap-3 border-b border-border p-5 last:border-b-0 sm:[&:nth-last-child(-n+1)]:border-b-0 lg:[&:nth-last-child(-n+2)]:border-b-0"
+                >
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-lg font-bold text-accent">
+                    {p.label.charAt(0)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-foreground">{p.label}</div>
+                    {p.available ? (
+                      <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-success">
+                        <Check className="h-3.5 w-3.5" /> Ulanadi
+                      </span>
+                    ) : (
+                      <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-muted">
+                        Tez orada
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-foreground">{p.label}</div>
-                  {p.available ? (
-                    <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-success">
-                      <Check className="h-3.5 w-3.5" /> Ulanadi
-                    </span>
-                  ) : (
-                    <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-muted">
-                      Tez orada
-                    </span>
-                  )}
+              ))}
+            </div>
+          </Reveal>
+
+          <div className="mx-auto mt-6 grid max-w-4xl gap-4 sm:grid-cols-3">
+            {[
+              { icon: RefreshCcw, t: "Avtomatik sinxron", d: "Menyu har 5 daqiqada yangilanadi" },
+              { icon: ShieldCheck, t: "Xavfsiz", d: "Kalitlar shifrlangan holda saqlanadi" },
+              { icon: Crown, t: "Business tarifda", d: "POS integratsiyasi Business rejasida" },
+            ].map((x) => (
+              <Reveal key={x.t} className="flex items-start gap-3 rounded-2xl border border-border bg-surface/50 p-4">
+                <x.icon className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">{x.t}</p>
+                  <p className="text-xs text-muted">{x.d}</p>
                 </div>
-                <Plug className={`h-5 w-5 shrink-0 ${p.available ? "text-accent" : "text-muted/40"}`} />
               </Reveal>
             ))}
           </div>
-
-          <Reveal className="mx-auto mt-10 flex max-w-3xl flex-col gap-4 rounded-2xl border border-border bg-surface/50 p-6 sm:flex-row sm:items-center sm:justify-center sm:gap-8">
-            <div className="flex items-center gap-3">
-              <RefreshCcw className="h-5 w-5 shrink-0 text-accent" />
-              <span className="text-sm text-foreground">Menyu har 5 daqiqada avtomatik yangilanadi</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <ShieldCheck className="h-5 w-5 shrink-0 text-accent" />
-              <span className="text-sm text-foreground">Kalitlar shifrlangan holda saqlanadi</span>
-            </div>
-          </Reveal>
         </div>
       </section>
 
@@ -790,40 +791,127 @@ export default async function LandingPage({
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* Boshqa to'lov usullari — 6 oy oldindan + umrbod */}
+      <section className="border-t border-border py-20">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <SectionHeading
+            tag="Boshqa to'lov usullari"
+            title="Oldindan to'lang va tejang"
+            subtitle="Oylik to'lovlar bilan ovora bo'lmang — bir marta to'lab, xotirjam ishlang."
+          />
+          <div className="mt-12 grid gap-6 md:grid-cols-2">
+            {/* 6 oy oldindan */}
+            <Reveal className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+              <div className="mb-4 flex items-center gap-2">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
+                  <Wallet className="h-5 w-5" />
+                </span>
+                <h3 className="text-lg font-bold text-foreground">6 oy oldindan</h3>
+              </div>
+              <div className="space-y-3">
+                {(["STARTER", "BUSINESS"] as const).map((k) => {
+                  const monthly = prices[k] ?? 0;
+                  const full = monthly * 6;
+                  const six = computePrice(monthly, 6);
+                  const off = full > 0 ? Math.round((1 - six / full) * 100) : 0;
+                  return (
+                    <div key={k} className="flex items-center justify-between rounded-xl bg-surface p-4">
+                      <span className="font-medium text-foreground">{PLANS[k].name}</span>
+                      <span className="text-right">
+                        {off > 0 && (
+                          <span className="mr-2 text-xs text-muted line-through">
+                            {formatPrice(full, "UZS")}
+                          </span>
+                        )}
+                        <span className="text-lg font-bold text-foreground">
+                          {formatPrice(six, "UZS")}
+                        </span>
+                        <span className="ml-1 text-xs font-normal text-muted">/ 6 oy</span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <ul className="mt-4 space-y-2">
+                {["Narx 6 oy davomida o'zgarmaydi", "Har oy to'lov qilish tashvishi yo'q", "Bepul onboarding va sozlash"].map((t) => (
+                  <li key={t} className="flex items-start gap-2 text-sm">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                    <span className="text-foreground">{t}</span>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+
+            {/* Umrbod */}
+            <Reveal delay={90} className="relative rounded-2xl border border-accent bg-card p-6 shadow-card">
+              <span className="absolute -top-3 left-6 rounded-full bg-accent px-3 py-1 text-xs font-medium text-white">
+                Eng tejamli
+              </span>
+              <div className="mb-4 flex items-center gap-2">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-white">
+                  <Crown className="h-5 w-5" />
+                </span>
+                <h3 className="text-lg font-bold text-foreground">Umrbod sotib olish</h3>
+              </div>
+              <div className="space-y-3">
+                {(["STARTER", "BUSINESS"] as const).map((k) => {
+                  const auto = (prices[k] ?? 0) * LIFETIME_MONTHS;
+                  const life = lifetimePrices[k] ?? auto;
+                  const off = auto > 0 ? Math.round((1 - life / auto) * 100) : 0;
+                  return (
+                    <div key={k} className="flex items-center justify-between rounded-xl bg-surface p-4">
+                      <span className="font-medium text-foreground">{PLANS[k].name}</span>
+                      <span className="text-right">
+                        {off > 0 && (
+                          <span className="mr-2 text-xs text-muted line-through">
+                            {formatPrice(auto, "UZS")}
+                          </span>
+                        )}
+                        <span className="text-lg font-bold text-foreground">
+                          {formatPrice(life, "UZS")}
+                        </span>
+                        {off > 0 && (
+                          <span className="ml-1 rounded bg-success/10 px-1.5 py-0.5 text-xs font-semibold text-success">
+                            −{off}%
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="mt-4 text-sm text-muted">
+                Bir marta to'laysiz — va tarifdan umrbod foydalanasiz, oylik
+                to'lovlarsiz. Bugungi narx keyingi oshirilishidan oldin sizga
+                qotib qoladi.
+              </p>
+              <Link href="/register" className="mt-5 block">
+                <Button className="w-full">
+                  Bepul boshlash <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* Ishonch — real ko'rsatkichlar (soxta izohlar o'rniga) */}
       <section className="py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <SectionHeading
-            tag="Mijozlar fikri"
-            title="Restoranlar bizni tanlaydi"
-            subtitle="O'zbekiston bo'ylab yuzlab ovqatlanish maskanlari ishonadi."
+            tag="Ishonch"
+            title="Raqamlar bilan"
+            subtitle="OzodFlow O'zbekiston bo'ylab restoran va kafelar tomonidan ishlatiladi."
           />
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {testimonials.map((t, i) => (
+          <div className="mt-12 grid grid-cols-2 gap-4 lg:grid-cols-4">
+            {trustStats.map((s, i) => (
               <Reveal
-                key={t.name}
-                delay={i * 90}
-                className="rounded-2xl border border-border bg-card p-6 shadow-soft transition-all hover:shadow-card"
+                key={s.label}
+                delay={i * 80}
+                className="rounded-2xl border border-border bg-card p-6 text-center shadow-soft"
               >
-                <div className="mb-4 flex gap-0.5 text-warning">
-                  {"★★★★★".split("").map((s, i) => (
-                    <span key={i}>{s}</span>
-                  ))}
-                </div>
-                <p className="text-sm leading-relaxed text-foreground">
-                  “{t.text}”
-                </p>
-                <div className="mt-4 flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent">
-                    {t.name[0]}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      {t.name}
-                    </p>
-                    <p className="text-xs text-muted">{t.role}</p>
-                  </div>
-                </div>
+                <p className="text-3xl font-bold text-accent sm:text-4xl">{s.value}</p>
+                <p className="mt-2 text-sm text-muted">{s.label}</p>
               </Reveal>
             ))}
           </div>

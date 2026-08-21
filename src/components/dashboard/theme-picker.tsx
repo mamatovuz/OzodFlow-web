@@ -556,7 +556,30 @@ function ThemeMock({ theme: t, large = false }: { theme: MenuTheme; large?: bool
       )}
       {/* search */}
       <div style={{ background: c.surface, border: `1px solid ${c.border}`, height: 12 * scale, borderRadius: 999, marginTop: 6 }} />
-      {menuStyleFor(t.key) === "split" ? (
+      {menuStyleFor(t.key) === "tabs" ? (
+        /* TABS: tepada tab qatori, pastda mahsulotlar */
+        <>
+          <div className="mt-2 flex gap-1">
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                style={{
+                  background: i === 0 ? accent : c.surface2,
+                  borderRadius: 999,
+                  height: 10 * scale,
+                  width: 26 * scale,
+                }}
+              />
+            ))}
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-1.5">
+            <Card2 grid />
+            <Card2 grid />
+            <Card2 grid />
+            <Card2 grid />
+          </div>
+        </>
+      ) : menuStyleFor(t.key) === "split" ? (
         /* SPLIT: chapda kategoriyalar, o'ngda mahsulotlar */
         <div className="mt-2 flex gap-1.5">
           <div className="w-[28%] space-y-1">

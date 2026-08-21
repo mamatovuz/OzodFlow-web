@@ -19,6 +19,7 @@ import {
   MENU_THEMES,
   categoryStyleFor,
   headerStyleFor,
+  menuStyleFor,
   type MenuTheme,
   type ThemeKey,
 } from "@/lib/themes";
@@ -549,15 +550,42 @@ function ThemeMock({ theme: t, large = false }: { theme: MenuTheme; large?: bool
       )}
       {/* search */}
       <div style={{ background: c.surface, border: `1px solid ${c.border}`, height: 12 * scale, borderRadius: 999, marginTop: 6 }} />
-      {/* kategoriyalar */}
-      {CatMock}
-      {/* cards (kategoriya ochilganda) */}
-      <div className={`mt-2 ${t.layout === "grid" ? "grid grid-cols-2 gap-1.5" : "space-y-1.5"}`}>
-        <Card2 grid={t.layout === "grid"} />
-        <Card2 grid={t.layout === "grid"} />
-        {t.layout === "grid" && <Card2 grid />}
-        {t.layout === "grid" && <Card2 grid />}
-      </div>
+      {menuStyleFor(t.key) === "split" ? (
+        /* SPLIT: chapda kategoriyalar, o'ngda mahsulotlar */
+        <div className="mt-2 flex gap-1.5">
+          <div className="w-[28%] space-y-1">
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                style={{
+                  background: i === 0 ? accent : c.card,
+                  border: `1px solid ${c.border}`,
+                  borderRadius: r * 0.7,
+                  height: 12 * scale,
+                }}
+              />
+            ))}
+          </div>
+          <div className="grid flex-1 grid-cols-2 gap-1.5">
+            <Card2 grid />
+            <Card2 grid />
+            <Card2 grid />
+            <Card2 grid />
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* kategoriyalar */}
+          {CatMock}
+          {/* cards (kategoriya ochilganda) */}
+          <div className={`mt-2 ${t.layout === "grid" ? "grid grid-cols-2 gap-1.5" : "space-y-1.5"}`}>
+            <Card2 grid={t.layout === "grid"} />
+            <Card2 grid={t.layout === "grid"} />
+            {t.layout === "grid" && <Card2 grid />}
+            {t.layout === "grid" && <Card2 grid />}
+          </div>
+        </>
+      )}
       {/* bottom bar */}
       <div
         style={{ background: accent, height: 14 * scale, borderRadius: r, marginTop: 6 }}

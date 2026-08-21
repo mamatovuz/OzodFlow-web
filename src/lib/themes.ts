@@ -11,7 +11,8 @@ export type ThemeKey =
   | "royal"
   | "coffee"
   | "noir"
-  | "ocean";
+  | "ocean"
+  | "classic";
 
 export type ThemeLayout = "list" | "grid";
 
@@ -207,6 +208,27 @@ export const MENU_THEMES: MenuTheme[] = [
       border: "#1a3d4a",
     },
   },
+  {
+    // Klassik: chapda kategoriyalar r"raili", o'ngda mahsulotlar (split layout).
+    // Bosh sahifa (hero) + chap-o'ng menyu tuzilishi bilan alohida yangi dizayn.
+    key: "classic",
+    name: "Klassik",
+    premium: false,
+    isDark: false,
+    layout: "grid",
+    radius: 14,
+    accent: "#111827",
+    accentText: "#ffffff",
+    colors: {
+      background: "#ffffff",
+      surface: "#f6f7f9",
+      surface2: "#eef0f3",
+      card: "#ffffff",
+      foreground: "#111827",
+      muted: "#6b7280",
+      border: "#e6e8ec",
+    },
+  },
 ];
 
 export function getTheme(key: string | null | undefined): MenuTheme {
@@ -235,6 +257,7 @@ const CATEGORY_STYLE: Record<ThemeKey, CategoryStyle> = {
   coffee: "list",
   noir: "banner",
   ocean: "list",
+  classic: "list",
 };
 
 const HEADER_STYLE: Record<ThemeKey, HeaderStyle> = {
@@ -247,6 +270,7 @@ const HEADER_STYLE: Record<ThemeKey, HeaderStyle> = {
   coffee: "minimal",
   noir: "center",
   ocean: "minimal",
+  classic: "minimal",
 };
 
 export function categoryStyleFor(key: string): CategoryStyle {
@@ -254,6 +278,27 @@ export function categoryStyleFor(key: string): CategoryStyle {
 }
 export function headerStyleFor(key: string): HeaderStyle {
   return HEADER_STYLE[key as ThemeKey] ?? "overlap";
+}
+
+// ─── Menyu tuzilishi: browse (kategoriyaga kirish) yoki split (chap kategoriya + o'ng mahsulot) ───
+// split = chap tomonda kategoriyalar roili, o'ngda tanlangan kategoriya mahsulotlari (bir vaqtda).
+export type MenuStyle = "browse" | "split";
+
+const MENU_STYLE: Record<ThemeKey, MenuStyle> = {
+  light: "browse",
+  dark: "browse",
+  ziravor: "browse",
+  emerald: "browse",
+  sunset: "browse",
+  royal: "browse",
+  coffee: "browse",
+  noir: "browse",
+  ocean: "browse",
+  classic: "split",
+};
+
+export function menuStyleFor(key: string): MenuStyle {
+  return MENU_STYLE[key as ThemeKey] ?? "browse";
 }
 
 export const FREE_THEMES: ThemeKey[] = ["light", "dark"];

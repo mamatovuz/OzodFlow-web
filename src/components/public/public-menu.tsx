@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { formatPrice, parseJson } from "@/lib/utils";
 import type { MenuTheme } from "@/lib/themes";
-import { categoryStyleFor, headerStyleFor } from "@/lib/themes";
+import { categoryStyleFor, headerStyleFor, menuStyleFor } from "@/lib/themes";
 import { resolveDesign, backgroundCss, shadowCss } from "@/lib/design";
 import { loc, LANGS, UI, type Lang } from "@/lib/i18n";
 import {
@@ -124,6 +124,8 @@ export function PublicMenu({
   // Ochilgan (ichiga kirilgan) kategoriya. null bo'lsa — barcha kategoriyalar
   // grid ko'rinishida ko'rinadi.
   const [selectedCat, setSelectedCat] = useState<string | null>(null);
+  // Split (chap-o'ng) layout uchun tanlangan kategoriya
+  const [splitCat, setSplitCat] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [detail, setDetail] = useState<PublicProduct | null>(null);
@@ -176,6 +178,8 @@ export function PublicMenu({
   const R = design.radius;
   const catStyle = categoryStyleFor(theme.key);
   const headerStyle = headerStyleFor(theme.key);
+  const menuStyle = menuStyleFor(theme.key);
+  const isSplit = menuStyle === "split";
   const cardShadow = shadowCss(design.card.shadow, theme.isDark);
 
   // Menyu foni (standart / rang / rasm / gradient + overlay)
@@ -387,6 +391,9 @@ export function PublicMenu({
           desc={restaurantDesc}
           accent={accent}
           accentText={accentText}
+          background={dc.background}
+          foreground={dc.foreground}
+          muted={dc.muted}
           card={dc.card}
           radius={R}
           onEnter={() => setShowIntro(false)}
@@ -503,7 +510,7 @@ export function PublicMenu({
         </div>
 
         {/* ─── Combo takliflar ─── */}
-        {showBrowse && combos.length > 0 && (
+        {showBrowse && !isSplit && combos.length > 0 && (
           <div className="mt-4">
             <h2 className="mb-3 text-lg font-bold text-foreground">Combo takliflar</h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -560,7 +567,7 @@ export function PublicMenu({
         )}
 
         {/* ─── Tavsiya etamiz ─── */}
-        {showBrowse && recommended.length > 0 && (
+        {showBrowse && !isSplit && recommended.length > 0 && (
           <div className="mt-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-bold text-foreground">{t.recommended}</h2>
@@ -598,8 +605,21 @@ export function PublicMenu({
               </div>
             ))}
 
+          {/* ─── SPLIT layout: chapda kategoriyalar, o'ngda mahsulotlar ─── */}
+          {!searching && isSplit && grouped.length > 0 && (
+            <SplitMenu
+              groups={grouped}
+              activeId={splitCat ?? grouped[0].category.id}
+              onSelect={setSplitCat}
+              renderItems={renderItems}
+              accent={accent}
+              accentText={accentText}
+              radius={R}
+            />
+          )}
+
           {/* Kategoriya ichi: orqaga tugma + shu kategoriya mahsulotlari */}
-          {!searching && currentGroup && (
+          {!searching && !isSplit && currentGroup && (
             <div className="animate-fade-up">
               <button
                 onClick={exitCat}
@@ -626,7 +646,7 @@ export function PublicMenu({
           )}
 
           {/* Barcha kategoriyalar — shablonga qarab (banner / grid / list) */}
-          {showBrowse && (
+          {showBrowse && !isSplit && (
             <div className={catStyle === "grid" ? "grid grid-cols-2 gap-3" : "space-y-3"}>
               {grouped.map((g) => (
                 <CategoryCard
@@ -759,6 +779,7 @@ export function PublicMenu({
 }
 
 // ─────────── Bosh sahifa (intro) — QR ochilganda birinchi to'liq ekran ───────────
+// Tuzilishi: TEPADA rasm/video (yarimdan kamroq), PASTIDA logo + ma'lumot + CTA.
 function HeroIntro({
   media,
   autoplay,
@@ -767,6 +788,9 @@ function HeroIntro({
   desc,
   accent,
   accentText,
+  background,
+  foreground,
+  muted,
   card,
   radius,
   onEnter,
@@ -778,6 +802,9 @@ function HeroIntro({
   desc: string;
   accent: string;
   accentText: string;
+  background: string;
+  foreground: string;
+  muted: string;
   card: string;
   radius: number;
   onEnter: () => void;
@@ -794,9 +821,12 @@ function HeroIntro({
   }, [autoplay, images.length, hasVideo, i]);
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-black">
-      {/* Media qatlami */}
-      <div className="absolute inset-0">
+    <div
+      className="fixed inset-0 z-[60] flex flex-col"
+      style={{ background }}
+    >
+      {/* ─── TEPA: media (ekranning ~45% i — yarimdan kamroq) ─── */}
+      <div className="relative h-[45vh] w-full shrink-0 overflow-hidden bg-black">
         {images.map((m, idx) => (
           <div
             key={m.id}
@@ -821,57 +851,158 @@ function HeroIntro({
             )}
           </div>
         ))}
-        {/* pastdan qorayadigan gradient — matn o'qilishi uchun */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/40" />
+        {/* pastga yumshoq o'tish */}
+        <div
+          className="absolute inset-x-0 bottom-0 h-24"
+          style={{ background: `linear-gradient(to top, ${background}, transparent)` }}
+        />
+        {/* Slayd nuqtalari */}
+        {images.length > 1 && (
+          <div className="absolute left-1/2 bottom-4 z-10 flex -translate-x-1/2 gap-1.5">
+            {images.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setI(idx)}
+                aria-label={`${idx + 1}-slayd`}
+                className={`h-1.5 rounded-full transition-all ${
+                  idx === i ? "w-6 bg-white" : "w-1.5 bg-white/60"
+                }`}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Slayd nuqtalari */}
-      {images.length > 1 && (
-        <div className="absolute left-1/2 top-5 z-10 flex -translate-x-1/2 gap-1.5">
-          {images.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setI(idx)}
-              aria-label={`${idx + 1}-slayd`}
-              className={`h-1.5 rounded-full transition-all ${
-                idx === i ? "w-6 bg-white" : "w-1.5 bg-white/50"
-              }`}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Kontent */}
-      <div className="relative z-10 mt-auto flex flex-col items-center px-6 pb-10 text-center">
+      {/* ─── PAST: logo + ma'lumot + CTA ─── */}
+      <div className="relative z-10 flex flex-1 flex-col items-center px-6 pb-8 pt-2 text-center">
         {restaurant.logo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={restaurant.logo}
             alt={restaurant.name}
-            className="h-20 w-20 rounded-2xl border-2 object-cover shadow-2xl"
-            style={{ borderColor: card }}
+            className="-mt-12 h-24 w-24 rounded-2xl border-4 object-cover shadow-xl"
+            style={{ borderColor: background }}
           />
         ) : (
           <div
-            className="flex h-20 w-20 items-center justify-center rounded-2xl text-2xl font-bold shadow-2xl"
-            style={{ background: accent, color: accentText }}
+            className="-mt-12 flex h-24 w-24 items-center justify-center rounded-2xl border-4 text-3xl font-bold shadow-xl"
+            style={{ borderColor: background, background: accent, color: accentText }}
           >
             {restaurant.name.slice(0, 1)}
           </div>
         )}
-        <h1 className="mt-4 text-2xl font-bold text-white drop-shadow-md">
+        <h1 className="mt-4 text-2xl font-bold" style={{ color: foreground }}>
           {restaurant.name}
         </h1>
         {desc && (
-          <p className="mt-2 max-w-xs text-sm text-white/80 drop-shadow-sm">{desc}</p>
+          <p className="mt-2 max-w-xs text-sm leading-relaxed" style={{ color: muted }}>
+            {desc}
+          </p>
         )}
+
+        {/* restoran aloqa (ixtiyoriy, ortiqcha to'ldirmaydi) */}
+        {(restaurant.phone || restaurant.address) && (
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs" style={{ color: muted }}>
+            {restaurant.phone && (
+              <span className="flex items-center gap-1">
+                <Phone className="h-3.5 w-3.5" /> {restaurant.phone}
+              </span>
+            )}
+            {restaurant.address && (
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" /> {restaurant.address}
+              </span>
+            )}
+          </div>
+        )}
+
         <button
           onClick={onEnter}
-          className="mt-7 flex w-full max-w-xs items-center justify-center gap-2 py-4 text-base font-semibold shadow-xl transition-transform active:scale-[0.98]"
+          className="mt-auto flex w-full max-w-xs items-center justify-center gap-2 py-4 text-base font-semibold shadow-lg transition-transform active:scale-[0.98]"
           style={{ background: accent, color: accentText, borderRadius: radius }}
         >
           {ctaText || "Menyuni ko'rish"} <ArrowRight className="h-5 w-5" />
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────── SPLIT menyu: chapda kategoriyalar, o'ngda mahsulotlar ───────────
+function SplitMenu({
+  groups,
+  activeId,
+  onSelect,
+  renderItems,
+  accent,
+  accentText,
+  radius,
+}: {
+  groups: { category: { id: string; name: string; image: string | null }; items: PublicProduct[] }[];
+  activeId: string;
+  onSelect: (id: string) => void;
+  renderItems: (list: PublicProduct[]) => React.ReactNode;
+  accent: string;
+  accentText: string;
+  radius: number;
+}) {
+  const active = groups.find((g) => g.category.id === activeId) ?? groups[0];
+  return (
+    <div className="grid grid-cols-[96px_1fr] gap-3 sm:grid-cols-[168px_1fr] sm:gap-4">
+      {/* CHAP: kategoriyalar roili (yopishqoq) */}
+      <div className="sticky top-[72px] self-start max-h-[calc(100vh-88px)] space-y-1.5 overflow-y-auto pb-4 pr-0.5">
+        {groups.map((g) => {
+          const on = g.category.id === active.category.id;
+          return (
+            <button
+              key={g.category.id}
+              onClick={() => onSelect(g.category.id)}
+              className="flex w-full flex-col items-start gap-1 border px-2.5 py-2.5 text-left transition-colors sm:flex-row sm:items-center sm:gap-2.5"
+              style={
+                on
+                  ? { background: accent, color: accentText, borderColor: accent, borderRadius: radius }
+                  : { borderRadius: radius, borderColor: "var(--border)", background: "var(--card)" }
+              }
+            >
+              {g.category.image ? (
+                <span
+                  className="h-9 w-9 shrink-0 overflow-hidden bg-surface-2"
+                  style={{ borderRadius: radius * 0.6 }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={g.category.image}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-cover"
+                  />
+                </span>
+              ) : null}
+              <span className="min-w-0">
+                <span
+                  className={`block text-xs font-semibold leading-tight sm:text-sm ${
+                    on ? "" : "text-foreground"
+                  }`}
+                >
+                  {g.category.name}
+                </span>
+                <span
+                  className="text-[10px] sm:text-[11px]"
+                  style={{ color: on ? accentText : "var(--muted)", opacity: on ? 0.85 : 1 }}
+                >
+                  {g.items.length}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* O'NG: tanlangan kategoriya mahsulotlari */}
+      <div className="min-w-0">
+        <h2 className="mb-3 text-lg font-bold text-foreground">{active.category.name}</h2>
+        {renderItems(active.items)}
       </div>
     </div>
   );

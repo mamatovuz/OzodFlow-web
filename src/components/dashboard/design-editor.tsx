@@ -18,7 +18,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui";
-import { getTheme } from "@/lib/themes";
+import { getTheme, menuStyleFor } from "@/lib/themes";
 import {
   resolveDesign,
   defaultDesignFromTheme,
@@ -937,8 +937,8 @@ function IntroPreview({
 
   return (
     <div className="flex min-h-full flex-col">
-      {/* Hero media */}
-      <div className="relative h-[52%] min-h-[240px] w-full overflow-hidden bg-black/10">
+      {/* Hero media — yarimdan kamroq (tepada) */}
+      <div className="relative h-[45%] min-h-[210px] w-full overflow-hidden bg-black/10">
         {enabled && first ? (
           first.kind === "video" ? (
             <video
@@ -1011,6 +1011,7 @@ function IntroPreview({
 
 function MenuPreview({
   design,
+  theme,
   restaurant,
   cardShadow,
   R,
@@ -1022,13 +1023,45 @@ function MenuPreview({
   R: number;
 }) {
   const c = design.colors;
-  const cats = ["🥗 Salatlar", "🍔 Burger", "🍕 Pitsa", "🍜 Sho'rva"];
+  const split = menuStyleFor(theme.key) === "split";
+  const cats = ["🥗 Salatlar", "🍔 Burger", "🍕 Pitsa", "🍜 Sho'rva", "🥤 Ichimlik"];
   const items = [
     { n: "Osh", p: "45 000" },
     { n: "Lag'mon", p: "38 000" },
     { n: "Somsa", p: "12 000" },
     { n: "Choy", p: "5 000" },
   ];
+
+  const ProductCard = ({ it }: { it: { n: string; p: string } }) => (
+    <div
+      className="overflow-hidden"
+      style={{
+        background: c.card,
+        border: `1px solid ${c.border}`,
+        borderRadius: design.card.radius,
+        boxShadow: cardShadow,
+      }}
+    >
+      <div style={{ background: c.surface2, aspectRatio: "4/3" }} />
+      <div className="p-2">
+        <div className="text-xs font-semibold" style={{ color: c.foreground }}>
+          {it.n}
+        </div>
+        <div className="mt-0.5 flex items-center justify-between">
+          <span className="text-[11px] font-bold" style={{ color: c.accent }}>
+            {it.p}
+          </span>
+          <span
+            className="flex h-5 w-5 items-center justify-center text-xs font-bold"
+            style={{ background: c.accent, color: c.accentText, borderRadius: Math.min(R, 999) }}
+          >
+            +
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="px-3 py-3">
       {/* header */}
@@ -1057,60 +1090,66 @@ function MenuPreview({
         Qidirish...
       </div>
 
-      {/* kategoriyalar */}
-      <div className="mt-3 flex gap-1.5 overflow-hidden">
-        {cats.map((cat, i) => (
-          <span
-            key={cat}
-            className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium"
-            style={
-              i === 0
-                ? { background: c.accent, color: c.accentText }
-                : { background: c.surface2, color: c.foreground }
-            }
-          >
-            {cat}
-          </span>
-        ))}
-      </div>
-
-      {/* mahsulotlar grid */}
-      <div className="mt-3 grid grid-cols-2 gap-2.5">
-        {items.map((it) => (
-          <div
-            key={it.n}
-            className="overflow-hidden"
-            style={{
-              background: c.card,
-              border: `1px solid ${c.border}`,
-              borderRadius: design.card.radius,
-              boxShadow: cardShadow,
-            }}
-          >
-            <div style={{ background: c.surface2, aspectRatio: "4/3" }} />
-            <div className="p-2">
-              <div className="text-xs font-semibold" style={{ color: c.foreground }}>
-                {it.n}
+      {split ? (
+        /* ─── SPLIT: chapda kategoriyalar, o'ngda mahsulotlar ─── */
+        <div className="mt-3 grid grid-cols-[64px_1fr] gap-2">
+          <div className="space-y-1.5">
+            {cats.map((cat, i) => (
+              <div
+                key={cat}
+                className="px-1.5 py-2 text-center text-[9px] font-semibold leading-tight"
+                style={
+                  i === 0
+                    ? { background: c.accent, color: c.accentText, borderRadius: design.card.radius }
+                    : {
+                        background: c.card,
+                        color: c.foreground,
+                        border: `1px solid ${c.border}`,
+                        borderRadius: design.card.radius,
+                      }
+                }
+              >
+                {cat}
               </div>
-              <div className="mt-0.5 flex items-center justify-between">
-                <span className="text-[11px] font-bold" style={{ color: c.accent }}>
-                  {it.p}
-                </span>
-                <span
-                  className="flex h-5 w-5 items-center justify-center text-xs font-bold"
-                  style={{
-                    background: c.accent,
-                    color: c.accentText,
-                    borderRadius: Math.min(R, 999),
-                  }}
-                >
-                  +
-                </span>
-              </div>
+            ))}
+          </div>
+          <div>
+            <div className="mb-1.5 text-xs font-bold" style={{ color: c.foreground }}>
+              Salatlar
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {items.map((it) => (
+                <ProductCard key={it.n} it={it} />
+              ))}
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+      ) : (
+        <>
+          {/* kategoriya chiplari */}
+          <div className="mt-3 flex gap-1.5 overflow-hidden">
+            {cats.slice(0, 4).map((cat, i) => (
+              <span
+                key={cat}
+                className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium"
+                style={
+                  i === 0
+                    ? { background: c.accent, color: c.accentText }
+                    : { background: c.surface2, color: c.foreground }
+                }
+              >
+                {cat}
+              </span>
+            ))}
+          </div>
+          {/* mahsulotlar grid */}
+          <div className="mt-3 grid grid-cols-2 gap-2.5">
+            {items.map((it) => (
+              <ProductCard key={it.n} it={it} />
+            ))}
+          </div>
+        </>
+      )}
 
       {/* pastki savat bar */}
       <div

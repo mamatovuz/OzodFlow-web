@@ -505,7 +505,7 @@ export function PublicMenu({
       </div>
       )}
 
-      <div className={isSplit ? "mx-auto max-w-5xl px-3 sm:px-4" : "mx-auto max-w-2xl px-4"}>
+      <div className={isSplit ? "mx-auto max-w-6xl pl-2 pr-3 sm:pl-3 sm:pr-5" : "mx-auto max-w-2xl px-4"}>
         {/* ─── Restoran profili (split'da ko'rsatilmaydi) ─── */}
         {!isSplit && (
           <ProfileHeader
@@ -1011,29 +1011,34 @@ function SplitMenu({
   radius: number;
 }) {
   const active = groups.find((g) => g.category.id === activeId) ?? groups[0];
+  const rad = Math.min(radius, 18);
   return (
-    <div className="grid grid-cols-[96px_1fr] gap-3 sm:grid-cols-[168px_1fr] sm:gap-4">
-      {/* CHAP: kategoriyalar roili (yopishqoq) */}
-      <div className="sticky top-[60px] self-start max-h-[calc(100vh-72px)] space-y-1.5 overflow-y-auto pb-4 pr-0.5">
+    <div className="grid grid-cols-[64px_1fr] gap-2.5 sm:grid-cols-[104px_1fr] sm:gap-5">
+      {/* CHAP: kategoriyalar roili (ixcham, yopishqoq — faqat rasm/nom) */}
+      <div className="sticky top-[56px] self-start max-h-[calc(100vh-64px)] space-y-1 overflow-y-auto py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {groups.map((g) => {
           const on = g.category.id === active.category.id;
           return (
             <button
               key={g.category.id}
               onClick={() => onSelect(g.category.id)}
-              className="flex w-full flex-col items-start gap-1 border px-2.5 py-2.5 text-left transition-colors sm:flex-row sm:items-center sm:gap-2.5"
+              title={g.category.name}
+              className="flex w-full flex-col items-center gap-1 px-0.5 py-2 text-center transition-colors sm:px-1.5"
               style={
                 on
-                  ? { background: accent, color: accentText, borderColor: accent, borderRadius: radius }
-                  : { borderRadius: radius, borderColor: "var(--border)", background: "var(--card)" }
+                  ? { background: accent, color: accentText, borderRadius: rad }
+                  : { borderRadius: rad, color: "var(--foreground)" }
               }
             >
-              {g.category.image ? (
-                <span
-                  className="h-9 w-9 shrink-0 overflow-hidden bg-surface-2"
-                  style={{ borderRadius: radius * 0.6 }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
+              <span
+                className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden sm:h-12 sm:w-12"
+                style={{
+                  borderRadius: rad * 0.7,
+                  background: on ? "rgba(255,255,255,0.22)" : "var(--surface-2)",
+                }}
+              >
+                {g.category.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={g.category.image}
                     alt=""
@@ -1041,22 +1046,15 @@ function SplitMenu({
                     decoding="async"
                     className="h-full w-full object-cover"
                   />
-                </span>
-              ) : null}
-              <span className="min-w-0">
-                <span
-                  className={`block text-xs font-semibold leading-tight sm:text-sm ${
-                    on ? "" : "text-foreground"
-                  }`}
-                >
-                  {g.category.name}
-                </span>
-                <span
-                  className="text-[10px] sm:text-[11px]"
-                  style={{ color: on ? accentText : "var(--muted)", opacity: on ? 0.85 : 1 }}
-                >
-                  {g.items.length}
-                </span>
+                ) : (
+                  <UtensilsCrossed
+                    className="h-5 w-5"
+                    style={{ color: on ? accentText : "var(--muted)" }}
+                  />
+                )}
+              </span>
+              <span className="line-clamp-2 text-[10px] font-medium leading-tight sm:text-[11px]">
+                {g.category.name}
               </span>
             </button>
           );
@@ -1065,7 +1063,7 @@ function SplitMenu({
 
       {/* O'NG: tanlangan kategoriya mahsulotlari */}
       <div className="min-w-0">
-        <h2 className="mb-3 text-base font-bold text-foreground sm:text-lg">{active.category.name}</h2>
+        <h2 className="mb-3 text-lg font-bold text-foreground sm:text-xl">{active.category.name}</h2>
         {renderItems(active.items, "grid-cols-2 lg:grid-cols-3")}
       </div>
     </div>

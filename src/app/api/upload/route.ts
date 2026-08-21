@@ -7,10 +7,13 @@ import { randomCode } from "@/lib/utils";
 import { UPLOAD_DIR } from "@/lib/uploads";
 import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
-const MAX_SIZE = 10 * 1024 * 1024; // 10MB kiruvchi (siqishdan oldin)
+const MAX_SIZE = 10 * 1024 * 1024; // 10MB kiruvchi rasm (siqishdan oldin)
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_DIM = 1280; // eng katta tomon (px) — menyu uchun yetarli
 const WEBP_QUALITY = 78;
+// Bosh sahifa (hero) videosi uchun — sharp ishlamaydi, to'g'ridan-to'g'ri saqlanadi
+const VIDEO_ALLOWED = ["video/mp4", "video/webm", "video/quicktime"];
+const VIDEO_MAX_SIZE = 30 * 1024 * 1024; // 30MB
 
 export async function POST(req: NextRequest) {
   // Disk to'ldirish/spam himoyasi: IP bo'yicha daqiqasiga 30 yuklash
@@ -24,8 +27,21 @@ export async function POST(req: NextRequest) {
   const file = form?.get("file");
   if (!file || !(file instanceof File)) return fail("Fayl topilmadi", 422);
 
+  // ─── Video (hero) — siqilmasdan saqlanadi ───
+  if (VIDEO_ALLOWED.includes(file.type)) {
+    if (file.size > VIDEO_MAX_SIZE) {
+      return fail("Video hajmi 30MB dan oshmasligi kerak", 422);
+    }
+    const vbuf = Buffer.from(await file.arrayBuffer());
+    const vext = file.type === "video/webm" ? "webm" : "mp4";
+    const vname = `${Date.now()}-${randomCode(6).toLowerCase()}.${vext}`;
+    await mkdir(UPLOAD_DIR, { recursive: true });
+    await writeFile(path.join(UPLOAD_DIR, vname), vbuf);
+    return ok({ url: `/media/${vname}`, kind: "video" });
+  }
+
   if (!ALLOWED.includes(file.type)) {
-    return fail("Faqat rasm fayllari (JPG, PNG, WEBP)", 422);
+    return fail("Faqat rasm (JPG, PNG, WEBP) yoki video (MP4, WEBM) fayllari", 422);
   }
   if (file.size > MAX_SIZE) {
     return fail("Fayl hajmi 10MB dan oshmasligi kerak", 422);
@@ -66,5 +82,5 @@ export async function POST(req: NextRequest) {
   await writeFile(path.join(UPLOAD_DIR, filename), bytes);
 
   // Fayl /media/<nom> orqali xizmat qilinadi (volume'da ham ishlaydi)
-  return ok({ url: `/media/${filename}` });
+  return ok({ url: `/media/${filename}`, kind: "image" });
 }

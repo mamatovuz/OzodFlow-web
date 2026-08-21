@@ -32,6 +32,7 @@ export const restaurantSchema = z.object({
   payMethods: z.string().optional(),
   primaryColor: z.string().optional(),
   menuTheme: z.string().optional(),
+  designConfig: z.string().optional(),
   customDomain: z.string().optional().nullable(),
 });
 

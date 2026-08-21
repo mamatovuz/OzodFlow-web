@@ -22,6 +22,7 @@ import {
 import { formatPrice, parseJson } from "@/lib/utils";
 import type { MenuTheme } from "@/lib/themes";
 import { categoryStyleFor, headerStyleFor } from "@/lib/themes";
+import { resolveDesign, backgroundCss, shadowCss } from "@/lib/design";
 import { loc, LANGS, UI, type Lang } from "@/lib/i18n";
 import {
   CheckoutModal,
@@ -90,6 +91,7 @@ type PublicRestaurant = {
   currency: string;
   primaryColor: string;
   hasDelivery: boolean;
+  designConfig?: string | null;
 };
 
 const filters = [
@@ -162,22 +164,45 @@ export function PublicMenu({
     lang
   );
 
-  const accent = theme.accent || restaurant.primaryColor || "#2563EB";
-  const accentText = theme.accentText || "#ffffff";
-  const R = theme.radius;
+  // ─── Restoran moslagan dizayn (ranglar, fon, hero, radius) ───
+  const design = useMemo(
+    () => resolveDesign(theme, restaurant.designConfig),
+    [theme, restaurant.designConfig]
+  );
+  const dc = design.colors;
+
+  const accent = dc.accent || restaurant.primaryColor || "#2563EB";
+  const accentText = dc.accentText || "#ffffff";
+  const R = design.radius;
   const catStyle = categoryStyleFor(theme.key);
   const headerStyle = headerStyleFor(theme.key);
+  const cardShadow = shadowCss(design.card.shadow, theme.isDark);
+
+  // Menyu foni (standart / rang / rasm / gradient + overlay)
+  const pageBg = backgroundCss(design.background, dc.background);
+  const bgOverlay =
+    (design.background.type === "image" || design.background.type === "gradient") &&
+    design.background.overlay > 0
+      ? design.background.overlay / 100
+      : 0;
+
+  // Bosh sahifa (intro) — yoqilgan va media bo'lsa, birinchi ekran sifatida ko'rsatiladi
+  const heroMedia = design.hero.media;
+  const [showIntro, setShowIntro] = useState(
+    design.hero.enabled && heroMedia.length > 0
+  );
 
   const themeStyle: React.CSSProperties = {
     ["--accent" as string]: accent,
-    ["--background" as string]: theme.colors.background,
-    ["--surface" as string]: theme.colors.surface,
-    ["--surface-2" as string]: theme.colors.surface2,
-    ["--card" as string]: theme.colors.card,
-    ["--foreground" as string]: theme.colors.foreground,
-    ["--muted" as string]: theme.colors.muted,
-    ["--border" as string]: theme.colors.border,
+    ["--background" as string]: dc.background,
+    ["--surface" as string]: dc.surface,
+    ["--surface-2" as string]: dc.surface2,
+    ["--card" as string]: dc.card,
+    ["--foreground" as string]: dc.foreground,
+    ["--muted" as string]: dc.muted,
+    ["--border" as string]: dc.border,
     ["--accent-soft" as string]: theme.isDark ? "#ffffff14" : "#0000000d",
+    ["--card-shadow" as string]: cardShadow,
   };
 
   function addToCart(id: string, qty = 1) {
@@ -333,7 +358,43 @@ export function PublicMenu({
   const cardProps = { currency: restaurant.currency, accent, accentText, radius: R };
 
   return (
-    <div className="min-h-screen bg-background pb-28" style={themeStyle}>
+    <div
+      className="relative min-h-screen bg-background pb-28"
+      style={{
+        ...themeStyle,
+        backgroundColor: pageBg.backgroundColor,
+        backgroundImage: pageBg.backgroundImage,
+        backgroundSize: pageBg.backgroundImage ? "cover" : undefined,
+        backgroundPosition: "center",
+        backgroundAttachment: pageBg.backgroundImage ? "fixed" : undefined,
+      }}
+    >
+      {/* Fon rasmi/gradient ustidagi qoraytirish (overlay) */}
+      {bgOverlay > 0 && (
+        <div
+          className="pointer-events-none fixed inset-0 z-0"
+          style={{ background: `rgba(0,0,0,${bgOverlay})` }}
+        />
+      )}
+
+      {/* ─── Bosh sahifa (intro) — QR ochilganda birinchi ekran ─── */}
+      {showIntro && (
+        <HeroIntro
+          media={heroMedia}
+          autoplay={design.hero.autoplay}
+          ctaText={design.hero.ctaText}
+          restaurant={restaurant}
+          desc={restaurantDesc}
+          accent={accent}
+          accentText={accentText}
+          card={dc.card}
+          radius={R}
+          onEnter={() => setShowIntro(false)}
+        />
+      )}
+
+      {/* menyu tarkibi overlay ustida bo'lishi uchun */}
+      <div className="relative z-[1]">
       {/* ─── Cover banner ─── */}
       <div className="relative h-48 w-full overflow-hidden sm:h-64">
         {restaurant.cover ? (
@@ -628,6 +689,8 @@ export function PublicMenu({
           OzodFlow bilan yaratilgan
         </a>
       </div>
+      </div>
+      {/* /menyu tarkibi (z-[1]) */}
 
       {/* ─── Pastki savat bar ─── */}
       {cartCount > 0 && (
@@ -691,6 +754,125 @@ export function PublicMenu({
           onClose={clearTracked}
         />
       )}
+    </div>
+  );
+}
+
+// ─────────── Bosh sahifa (intro) — QR ochilganda birinchi to'liq ekran ───────────
+function HeroIntro({
+  media,
+  autoplay,
+  ctaText,
+  restaurant,
+  desc,
+  accent,
+  accentText,
+  card,
+  radius,
+  onEnter,
+}: {
+  media: { id: string; kind: "image" | "video"; url: string }[];
+  autoplay: boolean;
+  ctaText: string;
+  restaurant: PublicRestaurant;
+  desc: string;
+  accent: string;
+  accentText: string;
+  card: string;
+  radius: number;
+  onEnter: () => void;
+}) {
+  const [i, setI] = useState(0);
+  const images = media; // rasm + video aralash
+  const hasVideo = images[i]?.kind === "video";
+
+  // Faqat rasmlar bo'lganda avtomatik almashadi (video o'zi tugaydi/loop)
+  useEffect(() => {
+    if (!autoplay || images.length < 2 || hasVideo) return;
+    const tmr = setInterval(() => setI((v) => (v + 1) % images.length), 4500);
+    return () => clearInterval(tmr);
+  }, [autoplay, images.length, hasVideo, i]);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col bg-black">
+      {/* Media qatlami */}
+      <div className="absolute inset-0">
+        {images.map((m, idx) => (
+          <div
+            key={m.id}
+            className="absolute inset-0 transition-opacity duration-700"
+            style={{ opacity: idx === i ? 1 : 0 }}
+          >
+            {m.kind === "video" ? (
+              <video
+                src={m.url}
+                className="h-full w-full object-cover"
+                autoPlay
+                muted
+                loop
+                playsInline
+                onEnded={() =>
+                  images.length > 1 && setI((v) => (v + 1) % images.length)
+                }
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={m.url} alt="" className="h-full w-full object-cover" />
+            )}
+          </div>
+        ))}
+        {/* pastdan qorayadigan gradient — matn o'qilishi uchun */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/40" />
+      </div>
+
+      {/* Slayd nuqtalari */}
+      {images.length > 1 && (
+        <div className="absolute left-1/2 top-5 z-10 flex -translate-x-1/2 gap-1.5">
+          {images.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setI(idx)}
+              aria-label={`${idx + 1}-slayd`}
+              className={`h-1.5 rounded-full transition-all ${
+                idx === i ? "w-6 bg-white" : "w-1.5 bg-white/50"
+              }`}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Kontent */}
+      <div className="relative z-10 mt-auto flex flex-col items-center px-6 pb-10 text-center">
+        {restaurant.logo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={restaurant.logo}
+            alt={restaurant.name}
+            className="h-20 w-20 rounded-2xl border-2 object-cover shadow-2xl"
+            style={{ borderColor: card }}
+          />
+        ) : (
+          <div
+            className="flex h-20 w-20 items-center justify-center rounded-2xl text-2xl font-bold shadow-2xl"
+            style={{ background: accent, color: accentText }}
+          >
+            {restaurant.name.slice(0, 1)}
+          </div>
+        )}
+        <h1 className="mt-4 text-2xl font-bold text-white drop-shadow-md">
+          {restaurant.name}
+        </h1>
+        {desc && (
+          <p className="mt-2 max-w-xs text-sm text-white/80 drop-shadow-sm">{desc}</p>
+        )}
+        <button
+          onClick={onEnter}
+          className="mt-7 flex w-full max-w-xs items-center justify-center gap-2 py-4 text-base font-semibold shadow-xl transition-transform active:scale-[0.98]"
+          style={{ background: accent, color: accentText, borderRadius: radius }}
+        >
+          {ctaText || "Menyuni ko'rish"} <ArrowRight className="h-5 w-5" />
+        </button>
+      </div>
     </div>
   );
 }
@@ -1200,10 +1382,10 @@ function ListCard({
   return (
     <div
       onClick={onOpen}
-      className={`flex cursor-pointer gap-3 border border-border bg-card p-3 shadow-soft transition-all active:scale-[0.99] ${
+      className={`flex cursor-pointer gap-3 border border-border bg-card p-3 transition-all active:scale-[0.99] ${
         !p.isAvailable ? "opacity-60" : ""
       }`}
-      style={{ borderRadius: radius }}
+      style={{ borderRadius: radius, boxShadow: "var(--card-shadow)" }}
     >
       <div className="h-24 w-24 shrink-0 overflow-hidden bg-surface-2" style={{ borderRadius: radius - 4 }}>
         {imgs[0] ? (
@@ -1279,10 +1461,10 @@ function GridCard({
   return (
     <div
       onClick={onOpen}
-      className={`flex cursor-pointer flex-col overflow-hidden border border-border bg-card shadow-soft transition-all active:scale-[0.99] ${
+      className={`flex cursor-pointer flex-col overflow-hidden border border-border bg-card transition-all active:scale-[0.99] ${
         !p.isAvailable ? "opacity-60" : ""
       }`}
-      style={{ borderRadius: radius }}
+      style={{ borderRadius: radius, boxShadow: "var(--card-shadow)" }}
     >
       <div className="relative aspect-square w-full overflow-hidden bg-surface-2">
         {imgs[0] ? (

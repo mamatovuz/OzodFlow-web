@@ -93,6 +93,7 @@ model Restaurant {
   primaryColor    String    @default("#2563EB")
   menuTheme       String    @default("light") // light | dark | + premium temalar
   purchasedThemes String    @default("[]") // alohida sotib olingan premium dizaynlar (JSON key massivi)
+  designConfig    String    @default("{}") // tanlangan dizaynni moslash (JSON): ranglar, fon, hero media, tugma va h.k.
   customDomain    String?   @unique // o'z domeni (Pro/Pro Max)
   plan            String    @default("FREE") // FREE | PRO | PROMAX
   planUntil       DateTime? // FREE trial muddati; pullik tariflarda null = umrbod

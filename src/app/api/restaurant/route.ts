@@ -4,6 +4,7 @@ import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
 import { restaurantSchema } from "@/lib/validation";
 import { getEffectivePlan } from "@/lib/plans";
 import { getTheme, FREE_THEMES, parsePurchasedThemes, type ThemeKey } from "@/lib/themes";
+import { isValidDesignConfigJson } from "@/lib/design";
 
 export async function GET() {
   const { user, res } = await authGuard();
@@ -44,6 +45,13 @@ export async function PATCH(req: NextRequest) {
     if (!isFree && !theme.premium) {
       // noma'lum tema — light'ga qaytaramiz
       data.menuTheme = "light";
+    }
+  }
+
+  // Dizaynni moslash (JSON) — hajm va format tekshiruvi
+  if (data.designConfig !== undefined) {
+    if (!isValidDesignConfigJson(data.designConfig)) {
+      return fail("Dizayn sozlamalari noto'g'ri yoki juda katta", 422);
     }
   }
 

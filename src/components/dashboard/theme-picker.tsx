@@ -11,6 +11,7 @@ import {
   Upload,
   ShoppingBag,
   Clock,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Card, Badge, Button, Label } from "@/components/ui";
 import { Modal } from "@/components/ui-modal";
@@ -36,10 +37,12 @@ export function ThemePicker({
   current,
   canPremium,
   purchased,
+  onCustomize,
 }: {
   current: string;
   canPremium: boolean;
   purchased: string[];
+  onCustomize?: (key: string) => void;
 }) {
   const [owned] = useState<string[]>(purchased);
   const [selected, setSelected] = useState<string>(current);
@@ -139,9 +142,18 @@ export function ThemePicker({
                   )}
                 </span>
                 {active ? (
-                  <span className="flex h-5 items-center gap-1 rounded-full bg-success/10 px-2 text-xs font-medium text-success">
-                    <Check className="h-3 w-3" /> Faol
-                  </span>
+                  onCustomize ? (
+                    <button
+                      onClick={() => onCustomize(t.key)}
+                      className="flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-xs font-semibold text-white"
+                    >
+                      <SlidersHorizontal className="h-3 w-3" /> Sozlash
+                    </button>
+                  ) : (
+                    <span className="flex h-5 items-center gap-1 rounded-full bg-success/10 px-2 text-xs font-medium text-success">
+                      <Check className="h-3 w-3" /> Faol
+                    </span>
+                  )
                 ) : locked ? (
                   pending ? (
                     <span className="flex items-center gap-1 text-xs font-medium text-warning">
@@ -205,14 +217,42 @@ export function ThemePicker({
                   </Button>
                 )
               ) : selected === preview.key ? (
-                <Button className="w-full" variant="outline" disabled>
-                  <Check className="h-4 w-4" /> Joriy dizayn
-                </Button>
+                onCustomize ? (
+                  <Button
+                    className="w-full"
+                    onClick={() => {
+                      const k = preview.key;
+                      setPreview(null);
+                      onCustomize(k);
+                    }}
+                  >
+                    <SlidersHorizontal className="h-4 w-4" /> Dizaynni sozlash
+                  </Button>
+                ) : (
+                  <Button className="w-full" variant="outline" disabled>
+                    <Check className="h-4 w-4" /> Joriy dizayn
+                  </Button>
+                )
               ) : (
-                <Button className="w-full" onClick={() => apply(preview.key)} disabled={saving}>
-                  {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Shu dizaynni qo'llash
-                </Button>
+                <div className="flex gap-2">
+                  <Button className="flex-1" onClick={() => apply(preview.key)} disabled={saving}>
+                    {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Tanlash
+                  </Button>
+                  {onCustomize && (
+                    <Button
+                      variant="outline"
+                      onClick={async () => {
+                        await apply(preview.key);
+                        const k = preview.key;
+                        onCustomize(k);
+                      }}
+                      disabled={saving}
+                    >
+                      <SlidersHorizontal className="h-4 w-4" /> Sozlash
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           </div>

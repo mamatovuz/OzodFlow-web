@@ -60,6 +60,7 @@ export default async function DashboardLayout({
       <Sidebar
         user={{ name: user.name, email: user.email, phone: user.phone }}
         restaurantSlug={restaurant.slug}
+        waiterCodeEnabled={restaurant.waiterCodeEnabled}
       />
       <main className="flex-1">
         <div className="hidden items-center justify-end gap-2 border-b border-border bg-card px-6 py-3 lg:flex">

@@ -65,6 +65,7 @@ export function CheckoutModal({
   tableCode,
   tableName,
   hasDelivery = false,
+  waiterCodeEnabled = false,
   lang = "uz",
   onSetQty,
   onClear,
@@ -80,6 +81,7 @@ export function CheckoutModal({
   tableCode: string | null;
   tableName: string | null;
   hasDelivery?: boolean;
+  waiterCodeEnabled?: boolean;
   lang?: Lang;
   onSetQty: (id: string, qty: number) => void;
   onClear: () => void;
@@ -93,6 +95,7 @@ export function CheckoutModal({
   const [orderNo, setOrderNo] = useState<number | null>(null);
   const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [wantDelivery, setWantDelivery] = useState(false);
+  const [waiterCode, setWaiterCode] = useState("");
 
   const t = UI[lang];
   // Yetkazib berishni tanlash mumkinmi: restoranda yoqilgan + stol tanlanmagan
@@ -120,6 +123,7 @@ export function CheckoutModal({
         orderType: wantDelivery ? "DELIVERY" : "DINE_IN",
         lat: wantDelivery ? loc?.lat : undefined,
         lng: wantDelivery ? loc?.lng : undefined,
+        waiterCode: waiterCodeEnabled && waiterCode.trim() ? waiterCode.trim() : undefined,
         items: items.map((i) => ({ productId: i.productId, qty: i.qty })),
       }),
     });
@@ -143,6 +147,7 @@ export function CheckoutModal({
     setError("");
     setLoc(null);
     setWantDelivery(false);
+    setWaiterCode("");
     onClose();
   }
 
@@ -274,6 +279,21 @@ export function CheckoutModal({
                           />
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {/* Ofitsant kodi (funksiya yoqilgan bo'lsa) */}
+                  {waiterCodeEnabled && (
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-muted">
+                        Ofitsant kodi (ixtiyoriy)
+                      </label>
+                      <input
+                        value={waiterCode}
+                        onChange={(e) => setWaiterCode(e.target.value)}
+                        placeholder="Sizga xizmat ko'rsatayotgan ofitsant kodi"
+                        className="w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus:border-accent"
+                      />
                     </div>
                   )}
                 </div>

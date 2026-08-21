@@ -94,6 +94,7 @@ model Restaurant {
   menuTheme       String    @default("light") // light | dark | + premium temalar
   purchasedThemes String    @default("[]") // alohida sotib olingan premium dizaynlar (JSON key massivi)
   designConfig    String    @default("{}") // tanlangan dizaynni moslash (JSON): ranglar, fon, hero media, tugma va h.k.
+  waiterCodeEnabled Boolean @default(false) // "Ofitsant uchun kod" funksiyasi yoqilganmi
   customDomain    String?   @unique // o'z domeni (Pro/Pro Max)
   plan            String    @default("FREE") // FREE | PRO | PROMAX
   planUntil       DateTime? // FREE trial muddati; pullik tariflarda null = umrbod
@@ -126,8 +127,27 @@ model Restaurant {
   instagramLogs    InstagramLog[]
   instagramMedia   InstagramMedia[]
   instagramStats   InstagramStatistic[]
+  waiters          Waiter[]
 
   @@index([ownerId])
+}
+
+// Ofitsantlar — restoran egasi qo'shadi, har biri alohida kod bilan.
+// Mijoz buyurtma rasmiylashtirishda ofitsant kodini kiritadi → statistikaga tushadi.
+model Waiter {
+  id           String   @id @default(cuid())
+  restaurantId String
+  name         String
+  lastName     String?
+  age          Int?
+  code         String // egasi belgilaydi (raqam/harf/belgi): 1, A5, @kamron ...
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, code])
+  @@index([restaurantId])
 }
 
 // Restoran egasi ↔ bosh admin yozishmalari (blok, to'lov, aloqa)
@@ -246,6 +266,9 @@ model Order {
   status       String   @default("NEW") // NEW | ACCEPTED | PREPARING | READY | DELIVERED | CANCELLED
   total        Float    @default(0)
   items        String // JSON: [{productId, name, price, qty}]
+  // ─── Ofitsant (kod kiritilgan bo'lsa) ───
+  waiterId     String? // qaysi ofitsant qabul qildi
+  waiterCode   String? // kiritilgan kod (audit uchun)
   // ─── POS ga yuborish holati ───
   posOrderId   String? // POS tizimidagi buyurtma ID (yuborilgan bo'lsa)
   posError     String? // POS ga yuborishda xato (bo'lsa)

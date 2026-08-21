@@ -33,7 +33,20 @@ export const restaurantSchema = z.object({
   primaryColor: z.string().optional(),
   menuTheme: z.string().optional(),
   designConfig: z.string().optional(),
+  waiterCodeEnabled: z.boolean().optional(),
   customDomain: z.string().optional().nullable(),
+});
+
+export const waiterSchema = z.object({
+  name: z.string().min(1, "Ism kiriting").max(60),
+  lastName: z.string().max(60).optional().nullable(),
+  age: z.number().int().min(10).max(120).optional().nullable(),
+  code: z
+    .string()
+    .min(1, "Kod kiriting")
+    .max(24, "Kod juda uzun")
+    .regex(/^\S+$/, "Kodda bo'sh joy bo'lmasin"),
+  isActive: z.boolean().optional(),
 });
 
 export const categorySchema = z.object({

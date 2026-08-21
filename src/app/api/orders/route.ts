@@ -18,6 +18,7 @@ const createSchema = z.object({
   address: z.string().optional().nullable(),
   lat: z.number().min(-90).max(90).optional().nullable(),
   lng: z.number().min(-180).max(180).optional().nullable(),
+  waiterCode: z.string().max(24).optional().nullable(),
   items: z
     .array(z.object({ productId: z.string(), qty: z.number().int().min(1).max(99) }))
     .min(1, "Savat bo'sh"),
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return fail("Ma'lumotlar noto'g'ri", 422, parsed.error.flatten().fieldErrors);
   }
-  const { slug, tableCode, phone, comment, items, orderType, address, lat, lng } = parsed.data;
+  const { slug, tableCode, phone, comment, items, orderType, address, lat, lng, waiterCode } = parsed.data;
   const isDelivery = orderType === "DELIVERY";
 
   // ─── Idempotency: takroriy yuborishda dublikat buyurtma yaratmaymiz ───
@@ -72,6 +73,22 @@ export async function POST(req: NextRequest) {
     tableName = t?.name ?? null;
   }
 
+  // ─── Ofitsant kodi (funksiya yoqilgan bo'lsa) ───
+  let waiterId: string | null = null;
+  let waiterCodeStored: string | null = null;
+  if (restaurant.waiterCodeEnabled) {
+    const code = (waiterCode || "").trim();
+    if (code) {
+      const w = await prisma.waiter.findFirst({
+        where: { restaurantId: restaurant.id, code, isActive: true },
+        select: { id: true, code: true },
+      });
+      if (!w) return fail("Ofitsant kodi noto'g'ri", 422);
+      waiterId = w.id;
+      waiterCodeStored = w.code;
+    }
+  }
+
   // Ketma-ket raqam
   const last = await prisma.order.findFirst({
     where: { restaurantId: restaurant.id },
@@ -95,6 +112,8 @@ export async function POST(req: NextRequest) {
       status: "NEW",
       total,
       items: JSON.stringify(orderItems),
+      waiterId,
+      waiterCode: waiterCodeStored,
     },
   });
 

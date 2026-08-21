@@ -5,6 +5,7 @@ import { Card } from "@/components/ui";
 import { Billing } from "@/components/dashboard/billing";
 import { SlugEditor } from "@/components/dashboard/slug-editor";
 import { ResetStats } from "@/components/dashboard/reset-stats";
+import { WaiterCodeToggle } from "@/components/dashboard/waiter-code-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,9 @@ export default async function SettingsPage() {
           <SlugEditor current={restaurant.slug} />
         </div>
       </Card>
+
+      {/* Funksiyalar — ofitsant kodi */}
+      <WaiterCodeToggle enabled={restaurant.waiterCodeEnabled} />
 
       {/* Obuna / to'lov */}
       <Billing

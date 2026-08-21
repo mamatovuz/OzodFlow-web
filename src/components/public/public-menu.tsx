@@ -92,6 +92,7 @@ type PublicRestaurant = {
   primaryColor: string;
   hasDelivery: boolean;
   designConfig?: string | null;
+  waiterCodeEnabled?: boolean;
 };
 
 const filters = [
@@ -192,9 +193,8 @@ export function PublicMenu({
 
   // Bosh sahifa (intro) — yoqilgan va media bo'lsa, birinchi ekran sifatida ko'rsatiladi
   const heroMedia = design.hero.media;
-  const [showIntro, setShowIntro] = useState(
-    design.hero.enabled && heroMedia.length > 0
-  );
+  const canReturnHome = design.hero.enabled && heroMedia.length > 0;
+  const [showIntro, setShowIntro] = useState(canReturnHome);
 
   const themeStyle: React.CSSProperties = {
     ["--accent" as string]: accent,
@@ -323,9 +323,10 @@ export function PublicMenu({
   }
 
   // Mahsulotlarni tema layoutiga qarab chizadi.
-  function renderItems(list: PublicProduct[]) {
+  // gridClass — ixtiyoriy ustun sinfi (split layout o'ng tomonini responsive qiladi).
+  function renderItems(list: PublicProduct[], gridClass = "grid-cols-2") {
     return theme.layout === "grid" ? (
-      <div className="grid grid-cols-2 gap-3">
+      <div className={`grid ${gridClass} gap-3`}>
         {list.map((p) => (
           <GridCard
             key={p.id}
@@ -402,7 +403,64 @@ export function PublicMenu({
 
       {/* menyu tarkibi overlay ustida bo'lishi uchun */}
       <div className="relative z-[1]">
-      {/* ─── Cover banner ─── */}
+      {/* ─── SPLIT (Klassik) uchun ixcham tepa bar: orqaga + til + savat ─── */}
+      {isSplit && (
+        <div
+          className="sticky top-0 z-40 flex items-center justify-between gap-2 border-b border-border px-3 py-2.5 backdrop-blur"
+          style={{ background: `color-mix(in srgb, ${dc.background} 92%, transparent)` }}
+        >
+          <div className="flex items-center gap-2">
+            {canReturnHome && (
+              <button
+                onClick={() => setShowIntro(true)}
+                aria-label={t.back}
+                className="flex h-9 w-9 items-center justify-center rounded-full"
+                style={{ background: accent, color: accentText }}
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+            )}
+            {restaurant.logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={restaurant.logo} alt="" className="h-8 w-8 rounded-lg object-cover" />
+            ) : null}
+            <span className="max-w-[38vw] truncate text-sm font-semibold text-foreground">
+              {restaurant.name}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="flex gap-0.5 rounded-full border border-border p-0.5">
+              {LANGS.map((l) => (
+                <button
+                  key={l.key}
+                  onClick={() => changeLang(l.key)}
+                  className="rounded-full px-2 py-0.5 text-xs font-medium transition-colors"
+                  style={lang === l.key ? { background: accent, color: accentText } : { color: dc.muted }}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setCartOpen(true)}
+              className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border text-foreground"
+            >
+              <ShoppingBag className="h-5 w-5" />
+              {cartCount > 0 && (
+                <span
+                  className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold"
+                  style={{ background: accent, color: accentText }}
+                >
+                  {cartCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Cover banner (split'da ko'rsatilmaydi) ─── */}
+      {!isSplit && (
       <div className="relative h-48 w-full overflow-hidden sm:h-64">
         {restaurant.cover ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -445,18 +503,21 @@ export function PublicMenu({
           )}
         </button>
       </div>
+      )}
 
-      <div className="mx-auto max-w-2xl px-4">
-        {/* ─── Restoran profili (shablonga qarab) ─── */}
-        <ProfileHeader
-          restaurant={restaurant}
-          desc={restaurantDesc}
-          productCount={products.length}
-          accent={accent}
-          accentText={accentText}
-          radius={R}
-          variant={headerStyle}
-        />
+      <div className={isSplit ? "mx-auto max-w-5xl px-3 sm:px-4" : "mx-auto max-w-2xl px-4"}>
+        {/* ─── Restoran profili (split'da ko'rsatilmaydi) ─── */}
+        {!isSplit && (
+          <ProfileHeader
+            restaurant={restaurant}
+            desc={restaurantDesc}
+            productCount={products.length}
+            accent={accent}
+            accentText={accentText}
+            radius={R}
+            variant={headerStyle}
+          />
+        )}
 
         {/* ─── Stol bar ─── */}
         {table && (
@@ -469,14 +530,15 @@ export function PublicMenu({
           </div>
         )}
 
-        {/* ─── Banner slider ─── */}
-        {banners.length > 0 && (
+        {/* ─── Banner slider (split'da ko'rsatilmaydi) ─── */}
+        {!isSplit && banners.length > 0 && (
           <div className="mt-5">
             <BannerSlider banners={banners} accent={accent} accentText={accentText} radius={R} />
           </div>
         )}
 
-        {/* ─── Search + kategoriya chips (sticky) ─── */}
+        {/* ─── Search + kategoriya chips (sticky) — split'da yashirin ─── */}
+        {!isSplit && (
         <div className="sticky top-0 z-30 -mx-4 mt-4 bg-background/95 px-4 py-3 backdrop-blur">
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
@@ -508,6 +570,7 @@ export function PublicMenu({
             </div>
           )}
         </div>
+        )}
 
         {/* ─── Combo takliflar ─── */}
         {showBrowse && !isSplit && combos.length > 0 && (
@@ -759,6 +822,7 @@ export function PublicMenu({
         tableCode={table?.code ?? null}
         tableName={table?.name ?? null}
         hasDelivery={restaurant.hasDelivery}
+        waiterCodeEnabled={restaurant.waiterCodeEnabled}
         lang={lang}
         onSetQty={setQty}
         onClear={() => setCart({})}
@@ -941,7 +1005,7 @@ function SplitMenu({
   groups: { category: { id: string; name: string; image: string | null }; items: PublicProduct[] }[];
   activeId: string;
   onSelect: (id: string) => void;
-  renderItems: (list: PublicProduct[]) => React.ReactNode;
+  renderItems: (list: PublicProduct[], gridClass?: string) => React.ReactNode;
   accent: string;
   accentText: string;
   radius: number;
@@ -950,7 +1014,7 @@ function SplitMenu({
   return (
     <div className="grid grid-cols-[96px_1fr] gap-3 sm:grid-cols-[168px_1fr] sm:gap-4">
       {/* CHAP: kategoriyalar roili (yopishqoq) */}
-      <div className="sticky top-[72px] self-start max-h-[calc(100vh-88px)] space-y-1.5 overflow-y-auto pb-4 pr-0.5">
+      <div className="sticky top-[60px] self-start max-h-[calc(100vh-72px)] space-y-1.5 overflow-y-auto pb-4 pr-0.5">
         {groups.map((g) => {
           const on = g.category.id === active.category.id;
           return (
@@ -1001,8 +1065,8 @@ function SplitMenu({
 
       {/* O'NG: tanlangan kategoriya mahsulotlari */}
       <div className="min-w-0">
-        <h2 className="mb-3 text-lg font-bold text-foreground">{active.category.name}</h2>
-        {renderItems(active.items)}
+        <h2 className="mb-3 text-base font-bold text-foreground sm:text-lg">{active.category.name}</h2>
+        {renderItems(active.items, "grid-cols-2 lg:grid-cols-3")}
       </div>
     </div>
   );

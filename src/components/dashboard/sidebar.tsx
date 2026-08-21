@@ -21,6 +21,7 @@ import {
   Menu,
   X,
   ExternalLink,
+  Users,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -42,12 +43,17 @@ const nav = [
   { href: "/dashboard/settings", label: "Sozlamalar", icon: Settings },
 ];
 
+// "Ofitsantlar" — faqat funksiya yoqilganda ko'rinadi (Statistika'dan keyin)
+const WAITERS_ITEM = { href: "/dashboard/waiters", label: "Ofitsantlar", icon: Users };
+
 export function Sidebar({
   user,
   restaurantSlug,
+  waiterCodeEnabled = false,
 }: {
   user: { name: string; email: string | null; phone: string | null };
   restaurantSlug: string;
+  waiterCodeEnabled?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -59,9 +65,18 @@ export function Sidebar({
     router.refresh();
   }
 
+  // Funksiya yoqilgan bo'lsa "Ofitsantlar"ni Statistika'dan keyin qo'shamiz
+  const navItems = waiterCodeEnabled
+    ? [
+        ...nav.slice(0, 10), // ... Statistika gacha (indeks 9)
+        WAITERS_ITEM,
+        ...nav.slice(10),
+      ]
+    : nav;
+
   const NavItems = () => (
     <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
-      {nav.map((item) => {
+      {navItems.map((item) => {
         const active =
           item.href === "/dashboard"
             ? pathname === "/dashboard"

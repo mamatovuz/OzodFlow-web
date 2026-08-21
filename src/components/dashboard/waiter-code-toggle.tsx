@@ -1,0 +1,71 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, Users } from "lucide-react";
+import { Card } from "@/components/ui";
+
+export function WaiterCodeToggle({ enabled }: { enabled: boolean }) {
+  const router = useRouter();
+  const [on, setOn] = useState(enabled);
+  const [saving, setSaving] = useState(false);
+
+  async function toggle(next: boolean) {
+    setSaving(true);
+    setOn(next); // optimistik
+    const res = await fetch("/api/restaurant", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ waiterCodeEnabled: next }),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      setOn(!next); // qaytarish
+      return;
+    }
+    // Sidebar'da "Ofitsantlar" bo'limi paydo bo'lishi/yo'qolishi uchun
+    router.refresh();
+  }
+
+  return (
+    <Card className="p-6">
+      <h2 className="mb-1 font-semibold text-foreground">Funksiyalar</h2>
+      <p className="mb-4 text-sm text-muted">Qo'shimcha imkoniyatlarni yoqing yoki o'chiring.</p>
+
+      <div className="flex items-start justify-between gap-4 rounded-xl border border-border p-4">
+        <div className="flex gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
+            <Users className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="font-medium text-foreground">Ofitsant kodi</p>
+            <p className="mt-0.5 text-sm text-muted">
+              Yoqilsa, panelda &ldquo;Ofitsantlar&rdquo; bo'limi paydo bo'ladi. Har ofitsantga
+              alohida kod berasiz, mijoz buyurtmada shu kodni kiritadi va kim
+              qancha sotgani statistikada ko'rinadi.
+            </p>
+          </div>
+        </div>
+        <button
+          role="switch"
+          aria-checked={on}
+          onClick={() => !saving && toggle(!on)}
+          disabled={saving}
+          className={`relative mt-1 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+            on ? "bg-accent" : "bg-surface-2"
+          }`}
+        >
+          {saving ? (
+            <Loader2 className="mx-auto h-3.5 w-3.5 animate-spin text-white" />
+          ) : (
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                on ? "translate-x-5" : "translate-x-0.5"
+              }`}
+            />
+          )}
+        </button>
+      </div>
+    </Card>
+  );
+}

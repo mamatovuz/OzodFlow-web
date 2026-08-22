@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { getUserRestaurant } from "@/lib/api";
 import { getEffectivePlan } from "@/lib/plans";
@@ -6,13 +7,16 @@ import { Billing } from "@/components/dashboard/billing";
 import { SlugEditor } from "@/components/dashboard/slug-editor";
 import { ResetStats } from "@/components/dashboard/reset-stats";
 import { WaiterCodeToggle } from "@/components/dashboard/waiter-code-toggle";
+import { PhoneRequestToggle } from "@/components/dashboard/phone-request-toggle";
 import { OrderChannel } from "@/components/dashboard/order-channel";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const user = (await getSessionUser())!;
-  const restaurant = (await getUserRestaurant(user.id))!;
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const restaurant = await getUserRestaurant(user.id);
+  if (!restaurant) redirect("/login");
   const access = getEffectivePlan(restaurant);
 
   return (
@@ -37,6 +41,9 @@ export default async function SettingsPage() {
 
       {/* Funksiyalar — ofitsant kodi */}
       <WaiterCodeToggle enabled={restaurant.waiterCodeEnabled} />
+
+      {/* Buyurtmada telefon raqam so'rash */}
+      <PhoneRequestToggle enabled={restaurant.askPhone} />
 
       {/* Buyurtmalarni Telegram kanaliga yuborish */}
       <OrderChannel

@@ -59,6 +59,8 @@
 
 html {
   scroll-behavior: smooth;
+  /* Telefonda chetga tortilganda "qimirlash"/cho'zilish (rubber-band) bo'lmasin */
+  overscroll-behavior: none;
 }
 
 body {
@@ -67,6 +69,9 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* Faqat vertikal skrol — chapga/o'ngga qimirlamasin va boundary bounce bo'lmasin */
+  overscroll-behavior: none;
+  overflow-x: hidden;
 }
 
 ::selection {

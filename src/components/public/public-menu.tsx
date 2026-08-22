@@ -93,6 +93,7 @@ type PublicRestaurant = {
   hasDelivery: boolean;
   designConfig?: string | null;
   waiterCodeEnabled?: boolean;
+  askPhone?: boolean;
 };
 
 const filters = [
@@ -849,6 +850,7 @@ export function PublicMenu({
         tableName={table?.name ?? null}
         hasDelivery={restaurant.hasDelivery}
         waiterCodeEnabled={restaurant.waiterCodeEnabled}
+        askPhone={restaurant.askPhone !== false}
         lang={lang}
         onSetQty={setQty}
         onClear={() => setCart({})}

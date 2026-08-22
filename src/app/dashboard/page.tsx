@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   QrCode,
   UtensilsCrossed,
@@ -26,8 +27,12 @@ const planNames: Record<string, string> = {
 };
 
 export default async function DashboardHome() {
-  const user = (await getSessionUser())!;
-  const restaurant = (await getUserRestaurant(user.id))!;
+  // Layout va page Next.js'da parallel render bo'ladi — layout redirect qilsa ham
+  // bu yerda "!" ishlatish null'da crash beradi. Shuning uchun bu yerda ham guard.
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const restaurant = await getUserRestaurant(user.id);
+  if (!restaurant) redirect("/login");
   const stats = await getDashboardStats(restaurant.id);
 
   const cards = [

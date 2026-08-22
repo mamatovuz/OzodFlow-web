@@ -66,6 +66,7 @@ export function CheckoutModal({
   tableName,
   hasDelivery = false,
   waiterCodeEnabled = false,
+  askPhone = true,
   lang = "uz",
   onSetQty,
   onClear,
@@ -82,6 +83,7 @@ export function CheckoutModal({
   tableName: string | null;
   hasDelivery?: boolean;
   waiterCodeEnabled?: boolean;
+  askPhone?: boolean;
   lang?: Lang;
   onSetQty: (id: string, qty: number) => void;
   onClear: () => void;
@@ -220,13 +222,15 @@ export function CheckoutModal({
 
               {items.length > 0 && (
                 <div className="mt-5 space-y-3">
-                  <input
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="Telefon (ixtiyoriy)"
-                    inputMode="tel"
-                    className="h-11 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-accent"
-                  />
+                  {askPhone && (
+                    <input
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="Telefon (ixtiyoriy)"
+                      inputMode="tel"
+                      className="h-11 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-accent"
+                    />
+                  )}
                   <textarea
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}

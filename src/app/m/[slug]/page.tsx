@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { prisma } from "@/lib/prisma";
 import { getMenuBySlug, resolveTable } from "@/lib/menu";
 import { PublicMenu } from "@/components/public/public-menu";
@@ -7,6 +7,15 @@ import { BlockedMenu } from "@/components/public/blocked-menu";
 import { restaurantJsonLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
+
+// Menyuda mijoz sahifani yaqin-uzoq (pinch/double-tap zoom) qila olmasin —
+// menyu telefonda ilova kabi barqaror ko'rinsin. Faqat shu sahifaga tegishli.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
 
 export async function generateMetadata({
   params,

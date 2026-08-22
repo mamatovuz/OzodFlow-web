@@ -96,6 +96,7 @@ model Restaurant {
   purchasedThemes String    @default("[]") // alohida sotib olingan premium dizaynlar (JSON key massivi)
   designConfig    String    @default("{}") // tanlangan dizaynni moslash (JSON): ranglar, fon, hero media, tugma va h.k.
   waiterCodeEnabled Boolean @default(false) // "Ofitsant uchun kod" funksiyasi yoqilganmi
+  askPhone        Boolean   @default(true) // buyurtmada mijozdan telefon raqam so'ralsinmi
   orderBotToken   String? // buyurtmalarni Telegram kanaliga yuborish uchun bot tokeni
   orderChatId     String? // buyurtmalar tushadigan kanal/guruh ID si (@channel yoki -100...)
   customDomain    String?   @unique // o'z domeni (Pro/Pro Max)

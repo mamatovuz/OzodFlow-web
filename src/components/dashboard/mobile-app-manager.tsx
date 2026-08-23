@@ -37,6 +37,7 @@ export function MobileAppManager() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [building, setBuilding] = useState(false);
+  const [buildErr, setBuildErr] = useState<string | null>(null);
   const [copied, setCopied] = useState<"share" | "menu" | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -46,6 +47,11 @@ export function MobileAppManager() {
     if (json?.success) {
       setApp(json.data.app);
       setRestaurant(json.data.restaurant);
+      // Build davom etayotgan bo'lsa (masalan sahifa yangilandi) — kuzatishни tiklaymiz.
+      if (json.data.app?.status === "BUILDING" && !building) {
+        setBuilding(true);
+        pollUntilDone();
+      }
     }
     setLoading(false);
   }
@@ -69,15 +75,47 @@ export function MobileAppManager() {
     }, 600);
   }
 
+  // BUILDING holatida serverni har 5s so'rab, tayyor/xato bo'lguncha kuzatadi.
+  function pollUntilDone() {
+    let tries = 0;
+    const max = 90; // ~7.5 daqiqa
+    const timer = setInterval(async () => {
+      tries++;
+      const res = await fetch("/api/mobile-app", { cache: "no-store" });
+      const json = await res.json().catch(() => null);
+      const next = json?.data?.app as App | undefined;
+      if (next) setApp(next);
+      if (!next || next.status === "READY" || next.status === "FAILED" || tries >= max) {
+        clearInterval(timer);
+        setBuilding(false);
+      }
+    }, 5000);
+  }
+
   async function build() {
     setBuilding(true);
-    // BUILDING holatini ko'rsatamiz (backend deyarli darhol qaytaradi, lekin his qilinsin)
+    setBuildErr(null);
     setApp((a) => (a ? { ...a, status: "BUILDING" } : a));
     const res = await fetch("/api/mobile-app/build", { method: "POST" });
     const json = await res.json().catch(() => null);
-    // Build hissi uchun kichik kechikish
-    await new Promise((r) => setTimeout(r, 1400));
-    if (json?.success) setApp(json.data.app);
+
+    if (!json?.success) {
+      setBuildErr(json?.error || "Xatolik yuz berdi. Qayta urining.");
+      if (json?.details?.app) setApp(json.details.app);
+      setBuilding(false);
+      return;
+    }
+
+    // CI (haqiqiy APK) — build fon rejimida davom etadi, natijani kuzatamiz.
+    if (json.data?.building) {
+      setApp(json.data.app);
+      pollUntilDone();
+      return;
+    }
+
+    // CI sozlanmagan (PWA rejimi) — darhol tayyor.
+    await new Promise((r) => setTimeout(r, 800));
+    setApp(json.data.app);
     setBuilding(false);
   }
 
@@ -196,10 +234,15 @@ export function MobileAppManager() {
             )}
           </div>
 
-          <Button onClick={build} disabled={building} className="mt-4" size="lg">
-            {building ? (
+          <Button
+            onClick={build}
+            disabled={building || app.status === "BUILDING"}
+            className="mt-4"
+            size="lg"
+          >
+            {building || app.status === "BUILDING" ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" /> Yaratilmoqda…
+                <Loader2 className="h-4 w-4 animate-spin" /> Qurilmoqda…
               </>
             ) : isReady ? (
               <>
@@ -211,6 +254,25 @@ export function MobileAppManager() {
               </>
             )}
           </Button>
+
+          {(building || app.status === "BUILDING") && (
+            <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-accent/20 bg-accent-soft/40 p-3.5 text-sm text-foreground">
+              <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-accent" />
+              <div>
+                <p className="font-medium">Ilova qurilmoqda…</p>
+                <p className="mt-0.5 text-xs text-muted">
+                  Bu ~3–5 daqiqa oladi. Bu sahifani yopsangiz ham build davom etadi —
+                  keyinroq qaytib «yuklab olish»ni ko'rasiz.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {buildErr && app.status !== "BUILDING" && (
+            <div className="mt-4 rounded-xl border border-error/30 bg-error/10 p-3.5 text-sm text-error">
+              {buildErr}
+            </div>
+          )}
 
           {isReady && (
             <div className="mt-5 space-y-4 border-t border-border pt-5">

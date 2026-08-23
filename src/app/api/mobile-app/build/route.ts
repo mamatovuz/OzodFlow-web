@@ -3,7 +3,8 @@ import { route, ok, fail, authGuard, getUserRestaurant } from "@/lib/api";
 import {
   getOrCreateMobileApp,
   estimateApkSize,
-  isBuildServiceConfigured,
+  isCiBuildConfigured,
+  dispatchApkBuild,
 } from "@/lib/mobile-app";
 import { log } from "@/lib/log";
 
@@ -21,47 +22,51 @@ export const POST = route(async () => {
 
   const current = await getOrCreateMobileApp(restaurant);
 
-  // BUILDING holatini belgilaymiz
-  await prisma.mobileApp.update({
-    where: { restaurantId: restaurant.id },
-    data: { status: "BUILDING" },
-  });
+  // ── Haqiqiy APK build (GitHub Actions) ────────────────────────────────
+  if (isCiBuildConfigured()) {
+    await prisma.mobileApp.update({
+      where: { restaurantId: restaurant.id },
+      data: { status: "BUILDING", version: { increment: 1 } },
+    });
 
-  let apkUrl: string | null = current.apkUrl;
+    const dispatch = await dispatchApkBuild({
+      slug: restaurant.slug,
+      appName: current.appName,
+      packageName: current.packageName,
+      themeColor: current.themeColor,
+    });
 
-  // Tashqi build xizmati ulangan bo'lsa — unga so'rov yuboramiz (best-effort).
-  if (isBuildServiceConfigured()) {
-    try {
-      const base = process.env.NEXT_PUBLIC_APP_URL || "https://ozodflow.uz";
-      const r = await fetch(process.env.MOBILE_APP_BUILD_URL!, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          appName: current.appName,
-          packageName: current.packageName,
-          themeColor: current.themeColor,
-          startUrl: `${base}/m/${restaurant.slug}?source=app`,
-          iconUrl: `${base}/m/${restaurant.slug}/app-icon?s=512`,
-        }),
+    if (!dispatch.ok) {
+      log.error("mobile_app_dispatch", { err: dispatch.error });
+      const app = await prisma.mobileApp.update({
+        where: { restaurantId: restaurant.id },
+        data: { status: "FAILED" },
       });
-      const j = await r.json().catch(() => null);
-      if (r.ok && j?.apkUrl) apkUrl = j.apkUrl as string;
-    } catch (e) {
-      log.error("mobile_app_build", { err: e instanceof Error ? e.message : String(e) });
+      return fail(
+        "Ilovani qurishni boshlab bo'lmadi. Birozdan so'ng qayta urining.",
+        502,
+        { app }
+      );
     }
+
+    // BUILDING holatida qoladi — GitHub Actions tugagach `/api/mobile-app/upload`
+    // orqali status READY + apkUrl o'rnatiladi (dashboard polling bilan kuzatadi).
+    const app = await prisma.mobileApp.findUnique({
+      where: { restaurantId: restaurant.id },
+    });
+    return ok({ app, building: true, ci: true });
   }
 
-  // READY — versiyani oshiramiz, hajm/vaqtni yozamiz.
+  // ── CI sozlanmagan: PWA rejimi (ulashish sahifasi orqali o'rnatiladi) ──
   const app = await prisma.mobileApp.update({
     where: { restaurantId: restaurant.id },
     data: {
       status: "READY",
       version: { increment: 1 },
-      apkUrl,
       apkSize: estimateApkSize(current.appName),
       lastBuiltAt: new Date(),
     },
   });
 
-  return ok({ app, buildService: isBuildServiceConfigured() });
+  return ok({ app, building: false, ci: false });
 });

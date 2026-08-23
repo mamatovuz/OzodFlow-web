@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PwaRegister } from "@/components/pwa-register";
 import { InstallButton } from "@/components/install-button";
+import { VisitTracker } from "@/components/visit-tracker";
 import "./globals.css";
 
 const inter = Inter({
@@ -66,6 +67,7 @@ export default function RootLayout({
         <ThemeProvider>{children}</ThemeProvider>
         <PwaRegister />
         <InstallButton />
+        <VisitTracker />
       </body>
     </html>
   );

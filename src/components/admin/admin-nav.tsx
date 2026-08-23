@@ -19,12 +19,14 @@ import {
   MessageSquare,
   Handshake,
   BarChart3,
+  LineChart,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/admins", label: "Bosh sahifa", icon: LayoutDashboard },
+  { href: "/admins/analytics", label: "Analitika", icon: LineChart },
   { href: "/admins/payments", label: "To'lovlar", icon: Wallet },
   { href: "/admins/cards", label: "Kartalar", icon: CreditCard },
   { href: "/admins/plans", label: "Tariflar", icon: Crown },

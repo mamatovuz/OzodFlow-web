@@ -30,6 +30,7 @@ model User {
   paymentRequests PaymentRequest[]
   domainRequests  DomainRequest[]
   resetCodes      PasswordReset[]
+  blockedDevices  BlockedDevice[]
 }
 
 // Tarif narxlari (admin paneldan o'zgartiriladi)
@@ -55,16 +56,36 @@ model PasswordReset {
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
-  userAgent String?
-  ip        String?
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  token      String   @unique
+  userAgent  String?
+  ip         String?
+  deviceId   String? // qurilma barmoq izi (userAgent asosida) — bloklash uchun
+  lastSeenAt DateTime @default(now()) // oxirgi faollik (throttled yangilanadi)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([deviceId])
+}
+
+// Restoran egasi tomonidan bloklangan qurilmalar.
+// Bloklangan qurilma barmoq izi (userAgent hash) qayta kira olmaydi.
+model BlockedDevice {
+  id          String   @id @default(cuid())
+  userId      String
+  fingerprint String // deviceId (userAgent hash)
+  label       String // "iPhone", "Windows noutbuk" ...
+  userAgent   String?
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fingerprint])
   @@index([userId])
 }
 
@@ -132,8 +153,30 @@ model Restaurant {
   instagramMedia   InstagramMedia[]
   instagramStats   InstagramStatistic[]
   waiters          Waiter[]
+  mobileApp        MobileApp?
 
   @@index([ownerId])
+}
+
+// Restoran mobil ilovasi (Android APK/PWA "shell") — menyuni WebView'da ochadi.
+// Egasi paneldan sozlaydi, "ilova yaratadi" va mijozlarga tarqatish uchun link/APK oladi.
+model MobileApp {
+  id           String    @id @default(cuid())
+  restaurantId String    @unique
+  appName      String // ilova nomi (default: restoran nomi)
+  packageName  String // uz.ozodflow.<slug>
+  themeColor   String    @default("#2563EB") // splash/status bar rangi
+  splashText   String? // splash ekran ostidagi matn
+  status       String    @default("NONE") // NONE | BUILDING | READY | FAILED
+  version      Int       @default(1) // har build'da oshadi
+  apkUrl       String? // tayyor APK havolasi (build xizmati ulanganda)
+  apkSize      String? // "8.4 MB"
+  downloads    Int       @default(0) // yuklab olishlar soni
+  lastBuiltAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 }
 
 // Ofitsantlar — restoran egasi qo'shadi, har biri alohida kod bilan.
@@ -409,6 +452,22 @@ model PaymentCard {
   cardHolder String
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
+}
+
+// Sayt tashrifi — ozodflow.uz sahifalariga kim, qachon, qaysi sahifaga kirgani.
+// Admin analitikasi uchun (davr bo'yicha tashriflar, noyob mehmonlar, top sahifalar).
+// Dashboard/admin ichki sahifalari YOZILMAYDI — faqat ommaviy sayt trafigi.
+model SiteVisit {
+  id        String   @id @default(cuid())
+  visitorId String? // brauzer barqaror ID (noyob mehmonlar uchun)
+  path      String // "/", "/login", "/m/osh-markazi" ...
+  referrer  String? // qayerdan keldi (ixtiyoriy)
+  country   String? // ixtiyoriy (kelajakda GeoIP)
+  device    String? // "phone" | "tablet" | "desktop"
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([visitorId])
 }
 
 // Bosh sahifa ko'rsatkichlari (500+ restoran, 1M+ skan ...) — admin boshqaradi

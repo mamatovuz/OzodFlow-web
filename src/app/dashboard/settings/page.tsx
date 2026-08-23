@@ -9,6 +9,7 @@ import { ResetStats } from "@/components/dashboard/reset-stats";
 import { WaiterCodeToggle } from "@/components/dashboard/waiter-code-toggle";
 import { PhoneRequestToggle } from "@/components/dashboard/phone-request-toggle";
 import { OrderChannel } from "@/components/dashboard/order-channel";
+import { SessionsManager } from "@/components/dashboard/sessions-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +51,9 @@ export default async function SettingsPage() {
         connected={!!restaurant.orderBotToken && !!restaurant.orderChatId}
         chatId={restaurant.orderChatId}
       />
+
+      {/* Faol seanslar / qurilmalar */}
+      <SessionsManager />
 
       {/* Obuna / to'lov */}
       <Billing

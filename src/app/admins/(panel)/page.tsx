@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Wallet, Store, Clock, CheckCircle2, Globe } from "lucide-react";
+import { Wallet, Store, Clock, CheckCircle2, Globe, Eye } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { Card, Badge } from "@/components/ui";
 import { formatPrice } from "@/lib/utils";
@@ -7,30 +7,37 @@ import { formatPrice } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 export default async function AdminHome() {
-  const [pending, domainsPending, restaurants, approvedAgg, recent] = await Promise.all([
-    prisma.paymentRequest.count({ where: { status: "PENDING" } }),
-    prisma.domainRequest.count({ where: { status: "PENDING" } }),
-    prisma.restaurant.count(),
-    prisma.paymentRequest.aggregate({
-      where: { status: "APPROVED" },
-      _sum: { amount: true },
-    }),
-    prisma.paymentRequest.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      include: { restaurant: { select: { name: true } } },
-    }),
-  ]);
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const [pending, domainsPending, restaurants, approvedAgg, recent, visitsToday] =
+    await Promise.all([
+      prisma.paymentRequest.count({ where: { status: "PENDING" } }),
+      prisma.domainRequest.count({ where: { status: "PENDING" } }),
+      prisma.restaurant.count(),
+      prisma.paymentRequest.aggregate({
+        where: { status: "APPROVED" },
+        _sum: { amount: true },
+      }),
+      prisma.paymentRequest.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        include: { restaurant: { select: { name: true } } },
+      }),
+      prisma.siteVisit.count({ where: { createdAt: { gte: todayStart } } }),
+    ]);
 
   const cards = [
+    { label: "Bugungi tashriflar", value: visitsToday, icon: Eye, href: "/admins/analytics" },
     { label: "Kutilayotgan to'lovlar", value: pending, icon: Clock, href: "/admins/payments" },
-    { label: "Domen so'rovlari", value: domainsPending, icon: Globe, href: "/admins/domains" },
     { label: "Restoranlar", value: restaurants, icon: Store, href: "/admins/restaurants" },
     {
       label: "Jami tushum",
       value: formatPrice(approvedAgg._sum.amount || 0, "UZS"),
       icon: CheckCircle2,
+      href: "/admins/analytics",
     },
+    { label: "Domen so'rovlari", value: domainsPending, icon: Globe, href: "/admins/domains" },
   ];
 
   return (

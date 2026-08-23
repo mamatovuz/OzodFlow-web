@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { verifyPassword, createSession } from "@/lib/auth";
 import { loginSchema } from "@/lib/validation";
 import { ok, fail } from "@/lib/api";
-import { limitOrReject, WINDOW } from "@/lib/rate-limit";
+import { limitOrReject, WINDOW, clientIp } from "@/lib/rate-limit";
+import { deviceFingerprint } from "@/lib/device";
 
 export async function POST(req: NextRequest) {
   // Brute-force himoyasi: IP bo'yicha daqiqasiga 10 urinish
@@ -36,9 +37,20 @@ export async function POST(req: NextRequest) {
     return fail("Email/telefon yoki parol noto'g'ri", 401);
   }
 
-  await createSession(user.id, {
-    userAgent: req.headers.get("user-agent") || undefined,
-  });
+  // Qurilma bloklanganmi? Egasi bu qurilmani bloklagan bo'lsa — kira olmaydi.
+  const userAgent = req.headers.get("user-agent") || undefined;
+  const ip = clientIp(req);
+  const fingerprint = deviceFingerprint(userAgent);
+  const blocked = await prisma.blockedDevice
+    .findUnique({
+      where: { userId_fingerprint: { userId: user.id, fingerprint } },
+    })
+    .catch(() => null);
+  if (blocked) {
+    return fail("Bu qurilma bloklangan. Restoran egasi bilan bog'laning.", 403);
+  }
+
+  await createSession(user.id, { userAgent, ip });
 
   // Yo'naltirish manzilini aniqlaymiz
   let redirect = "/dashboard";

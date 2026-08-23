@@ -2,6 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
+import { deviceFingerprint } from "./device";
 
 /**
  * JWT maxfiy kaliti. Ishlab chiqarishda `JWT_SECRET` MAJBURIY —
@@ -72,6 +73,7 @@ export async function createSession(
       token: jwt,
       userAgent: meta?.userAgent,
       ip: meta?.ip,
+      deviceId: deviceFingerprint(meta?.userAgent),
       expiresAt,
     },
   });
@@ -95,7 +97,10 @@ export async function destroySession() {
   cookieStore.delete(COOKIE);
 }
 
-export async function getSessionUser(): Promise<SessionUser | null> {
+// lastSeenAt'ni har so'rovda emas, faqat 2 daqiqadan oshsa yangilaymiz (yozuvni tejaymiz)
+const LAST_SEEN_THROTTLE_MS = 2 * 60 * 1000;
+
+async function loadSession(): Promise<{ user: SessionUser; sessionId: string } | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE)?.value;
   if (!token) return null;
@@ -111,17 +116,51 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 
     if (!session || session.expiresAt < new Date()) return null;
 
+    // Qurilma egasi tomonidan bloklanganmi? Bloklangan bo'lsa — darhol chiqarib yuboramiz.
+    if (session.deviceId) {
+      const blocked = await prisma.blockedDevice
+        .findUnique({
+          where: { userId_fingerprint: { userId: session.userId, fingerprint: session.deviceId } },
+        })
+        .catch(() => null);
+      if (blocked) {
+        await prisma.session.delete({ where: { id: sid } }).catch(() => {});
+        return null;
+      }
+    }
+
+    // Oxirgi faollikni throttled yangilaymiz
+    if (Date.now() - new Date(session.lastSeenAt).getTime() > LAST_SEEN_THROTTLE_MS) {
+      prisma.session
+        .update({ where: { id: sid }, data: { lastSeenAt: new Date() } })
+        .catch(() => {});
+    }
+
     return {
-      id: session.user.id,
-      name: session.user.name,
-      email: session.user.email,
-      phone: session.user.phone,
-      role: session.user.role,
-      avatar: session.user.avatar,
+      user: {
+        id: session.user.id,
+        name: session.user.name,
+        email: session.user.email,
+        phone: session.user.phone,
+        role: session.user.role,
+        avatar: session.user.avatar,
+      },
+      sessionId: sid,
     };
   } catch {
     return null;
   }
+}
+
+export async function getSessionUser(): Promise<SessionUser | null> {
+  const s = await loadSession();
+  return s?.user ?? null;
+}
+
+/** Joriy sessiya ID'si — "Faol seanslar" ro'yxatida shu qurilmani belgilash uchun. */
+export async function getCurrentSessionId(): Promise<string | null> {
+  const s = await loadSession();
+  return s?.sessionId ?? null;
 }
 
 export async function requireUser(): Promise<SessionUser> {

@@ -15,7 +15,10 @@ export type ThemeKey =
   | "classic"
   | "aurora"
   | "carbon"
-  | "botanic";
+  | "botanic"
+  | "neon"
+  | "rose"
+  | "mono";
 
 export type ThemeLayout = "list" | "grid";
 
@@ -292,6 +295,70 @@ export const MENU_THEMES: MenuTheme[] = [
       border: "#dde3cd",
     },
   },
+  {
+    // Neon — to'q qora fon + elektr yashil (lime) urg'u. Zamonaviy dark food-app
+    // uslubi: tepada tab qatori, grid kartalar, o'tkir kontrast.
+    key: "neon",
+    name: "Neon",
+    premium: true,
+    isDark: true,
+    layout: "grid",
+    radius: 16,
+    accent: "#a3e635",
+    accentText: "#14210a",
+    colors: {
+      background: "#0c0d0a",
+      surface: "#14150f",
+      surface2: "#1d1f16",
+      card: "#131410",
+      foreground: "#f2f5ea",
+      muted: "#a3a89a",
+      border: "#262820",
+    },
+  },
+  {
+    // Rose — yumshoq pushti/qaymoqrang, juda yumaloq burchaklar. Shirinlik,
+    // qandolat va kafe uslubi: markazlashgan header, banner kategoriyalar.
+    key: "rose",
+    name: "Rose",
+    premium: true,
+    isDark: false,
+    layout: "grid",
+    radius: 26,
+    accent: "#e11d48",
+    accentText: "#ffffff",
+    colors: {
+      background: "#fff5f7",
+      surface: "#ffe9ef",
+      surface2: "#ffdbe6",
+      card: "#ffffff",
+      foreground: "#3d0713",
+      muted: "#9f6478",
+      border: "#ffd0dd",
+    },
+  },
+  {
+    // Mono — editorial "oq qog'oz" uslubi: o'tkir burchaklar (kichik radius),
+    // chapda kategoriya raili + o'ngda mahsulot (split), overlap header, list.
+    // Nafis steakhouse/fine-dining ko'rinishi.
+    key: "mono",
+    name: "Mono",
+    premium: true,
+    isDark: false,
+    layout: "list",
+    radius: 6,
+    accent: "#1c1917",
+    accentText: "#ffffff",
+    colors: {
+      background: "#faf9f6",
+      surface: "#f2f0ea",
+      surface2: "#e9e6dd",
+      card: "#ffffff",
+      foreground: "#1c1917",
+      muted: "#78716c",
+      border: "#e2ded4",
+    },
+  },
 ];
 
 export function getTheme(key: string | null | undefined): MenuTheme {
@@ -324,6 +391,9 @@ const CATEGORY_STYLE: Record<ThemeKey, CategoryStyle> = {
   aurora: "grid",
   carbon: "list",
   botanic: "banner",
+  neon: "grid",
+  rose: "banner",
+  mono: "list",
 };
 
 const HEADER_STYLE: Record<ThemeKey, HeaderStyle> = {
@@ -340,6 +410,9 @@ const HEADER_STYLE: Record<ThemeKey, HeaderStyle> = {
   aurora: "center",
   carbon: "minimal",
   botanic: "center",
+  neon: "minimal",
+  rose: "center",
+  mono: "overlap",
 };
 
 export function categoryStyleFor(key: string): CategoryStyle {
@@ -368,6 +441,9 @@ const MENU_STYLE: Record<ThemeKey, MenuStyle> = {
   aurora: "tabs",
   carbon: "browse",
   botanic: "browse",
+  neon: "tabs",
+  rose: "browse",
+  mono: "split",
 };
 
 export function menuStyleFor(key: string): MenuStyle {

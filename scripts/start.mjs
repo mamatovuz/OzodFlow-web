@@ -7,6 +7,17 @@
 import { spawnSync, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 
+// ─── RAM cheklovi (Railway xarajatini kamaytirish) ───
+// V8 konteynerda host RAM'ini (8GB) ko'rib heap'ini ~1-2GB gacha shishiradi
+// va orqaga qaytarmaydi — Railway RAM bo'yicha pul oladi. NODE_OPTIONS bilan
+// heap'ni cheklaymiz: V8 tez-tez GC qilib RAM'ni past ushlaydi.
+// Kerak bo'lsa Railway env'da NODE_OPTIONS berib bu qiymatni bekor qilish mumkin.
+// OOM (xotira yetmay qulash) bo'lsa — chegarani oshiring (640/768).
+if (!process.env.NODE_OPTIONS) {
+  process.env.NODE_OPTIONS = "--max-old-space-size=512";
+  console.log("[start] NODE_OPTIONS =", process.env.NODE_OPTIONS, "(RAM cheklovi)");
+}
+
 const vol = process.env.RAILWAY_VOLUME_MOUNT_PATH;
 
 if (vol) {

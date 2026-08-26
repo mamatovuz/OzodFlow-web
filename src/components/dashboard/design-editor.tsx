@@ -18,7 +18,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui";
-import { getTheme, menuStyleFor } from "@/lib/themes";
+import { getTheme, menuStyleFor, menuHasCart } from "@/lib/themes";
 import {
   resolveDesign,
   defaultDesignFromTheme,
@@ -53,7 +53,7 @@ const COLOR_FIELDS: { key: keyof DesignColors; label: string }[] = [
 ];
 
 type SectionKey = "home" | "colors" | "background" | "cards";
-const SECTIONS: { key: SectionKey; label: string; icon: typeof Home }[] = [
+const ALL_SECTIONS: { key: SectionKey; label: string; icon: typeof Home }[] = [
   { key: "home", label: "Bosh sahifa", icon: Home },
   { key: "colors", label: "Ranglar", icon: Palette },
   { key: "background", label: "Fon", icon: ImageIcon },
@@ -74,9 +74,16 @@ export function DesignEditor({
   onSaved: (config: DesignConfig) => void;
 }) {
   const theme = useMemo(() => getTheme(themeKey), [themeKey]);
+  // Bosh sahifa (hero/intro) faqat split (Klassik) dizaynida bor.
+  // Scroll (planshet) dizaynida hero yo'q — o'sha bo'lim ko'rsatilmaydi.
+  const hasHome = menuStyleFor(themeKey) === "split";
+  const SECTIONS = useMemo(
+    () => (hasHome ? ALL_SECTIONS : ALL_SECTIONS.filter((s) => s.key !== "home")),
+    [hasHome]
+  );
   const [config, setConfig] = useState<DesignConfig>(initialConfig);
-  const [section, setSection] = useState<SectionKey>("home");
-  const [previewMode, setPreviewMode] = useState<"intro" | "menu">("intro");
+  const [section, setSection] = useState<SectionKey>(hasHome ? "home" : "colors");
+  const [previewMode, setPreviewMode] = useState<"intro" | "menu">(hasHome ? "intro" : "menu");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -249,24 +256,26 @@ export function DesignEditor({
 
         {/* ─── O'NG: telefon live preview ─── */}
         <div className="flex min-h-0 flex-1 flex-col items-center justify-start overflow-y-auto bg-surface-2 p-4 sm:p-6">
-          <div className="mb-4 inline-flex rounded-full border border-border bg-card p-1">
-            <button
-              onClick={() => setPreviewMode("intro")}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium ${
-                previewMode === "intro" ? "bg-accent text-white" : "text-muted"
-              }`}
-            >
-              Bosh sahifa
-            </button>
-            <button
-              onClick={() => setPreviewMode("menu")}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium ${
-                previewMode === "menu" ? "bg-accent text-white" : "text-muted"
-              }`}
-            >
-              Menyu
-            </button>
-          </div>
+          {hasHome && (
+            <div className="mb-4 inline-flex rounded-full border border-border bg-card p-1">
+              <button
+                onClick={() => setPreviewMode("intro")}
+                className={`rounded-full px-4 py-1.5 text-sm font-medium ${
+                  previewMode === "intro" ? "bg-accent text-white" : "text-muted"
+                }`}
+              >
+                Bosh sahifa
+              </button>
+              <button
+                onClick={() => setPreviewMode("menu")}
+                className={`rounded-full px-4 py-1.5 text-sm font-medium ${
+                  previewMode === "menu" ? "bg-accent text-white" : "text-muted"
+                }`}
+              >
+                Menyu
+              </button>
+            </div>
+          )}
           <PhonePreview
             design={design}
             theme={theme}
@@ -1216,14 +1225,16 @@ function MenuPreview({
         </>
       )}
 
-      {/* pastki savat bar */}
-      <div
-        className="mt-3 flex items-center justify-between px-3 py-2.5 text-xs font-semibold"
-        style={{ background: c.accent, color: c.accentText, borderRadius: design.card.radius }}
-      >
-        <span>Savat · 2</span>
-        <span>83 000 so'm</span>
-      </div>
+      {/* pastki savat bar (savatsiz dizaynda ko'rinmaydi) */}
+      {menuHasCart(theme.key) && (
+        <div
+          className="mt-3 flex items-center justify-between px-3 py-2.5 text-xs font-semibold"
+          style={{ background: c.accent, color: c.accentText, borderRadius: design.card.radius }}
+        >
+          <span>Savat · 2</span>
+          <span>83 000 so'm</span>
+        </div>
+      )}
     </div>
   );
 }

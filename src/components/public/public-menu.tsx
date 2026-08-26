@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { formatPrice, parseJson } from "@/lib/utils";
 import type { MenuTheme } from "@/lib/themes";
-import { categoryStyleFor, headerStyleFor, menuStyleFor } from "@/lib/themes";
+import { categoryStyleFor, headerStyleFor, menuStyleFor, menuHasCart } from "@/lib/themes";
 import { resolveDesign, backgroundCss, shadowCss, youtubeEmbed, heroMediaType } from "@/lib/design";
 import { loc, LANGS, UI, type Lang } from "@/lib/i18n";
 import {
@@ -131,6 +131,8 @@ export function PublicMenu({
   // Tabs (tepa tab) layout uchun tanlangan kategoriya
   const [tabsCat, setTabsCat] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  // Scroll (planshet) dizaynida qidiruv maydoni ochiq/yopiqligi
+  const [scrollSearchOpen, setScrollSearchOpen] = useState(false);
   const [filter, setFilter] = useState("all");
   const [detail, setDetail] = useState<PublicProduct | null>(null);
   const [cart, setCart] = useState<Record<string, number>>({});
@@ -185,6 +187,9 @@ export function PublicMenu({
   const menuStyle = menuStyleFor(theme.key);
   const isSplit = menuStyle === "split";
   const isTabs = menuStyle === "tabs";
+  const isScroll = menuStyle === "scroll";
+  // Savat bor-yo'qligi (vitrina dizayni — faqat ko'rish, savatsiz)
+  const showCart = menuHasCart(theme.key);
   const cardShadow = shadowCss(design.card.shadow, theme.isDark);
 
   // Menyu foni (standart / rang / rasm / gradient + overlay)
@@ -374,7 +379,7 @@ export function PublicMenu({
   const currentGroup = grouped.find((g) => g.category.id === selectedCat) ?? null;
   const showBrowse = !searching && !selectedCat;
 
-  const cardProps = { currency: restaurant.currency, accent, accentText, radius: R };
+  const cardProps = { currency: restaurant.currency, accent, accentText, radius: R, showCart };
 
   return (
     <div
@@ -473,8 +478,94 @@ export function PublicMenu({
         </div>
       )}
 
-      {/* ─── Cover banner (split'da ko'rsatilmaydi) ─── */}
-      {!isSplit && (
+      {/* ─── SCROLL (planshet) tepa bar: logo + til + qidiruv + savat ─── */}
+      {isScroll && (
+        <div
+          className="sticky top-0 z-40 flex h-14 items-center gap-2 border-b border-border px-3 backdrop-blur sm:px-5"
+          style={{ background: `color-mix(in srgb, ${dc.background} 92%, transparent)` }}
+        >
+          {scrollSearchOpen ? (
+            <>
+              <Search className="h-5 w-5 shrink-0 text-muted" />
+              <input
+                autoFocus
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t.search}
+                className="h-9 min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none"
+              />
+              <button
+                onClick={() => {
+                  setSearch("");
+                  setScrollSearchOpen(false);
+                }}
+                aria-label={t.back}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground"
+                style={{ background: "var(--surface-2)" }}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </>
+          ) : (
+            <>
+              {restaurant.logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={restaurant.logo} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+              ) : (
+                <div
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold"
+                  style={{ background: accent, color: accentText }}
+                >
+                  {restaurant.name.slice(0, 1)}
+                </div>
+              )}
+              <span className="min-w-0 flex-1 truncate text-sm font-bold text-foreground">
+                {restaurant.name}
+              </span>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <div className="flex gap-0.5 rounded-full border border-border p-0.5">
+                  {LANGS.map((l) => (
+                    <button
+                      key={l.key}
+                      onClick={() => changeLang(l.key)}
+                      className="rounded-full px-2 py-0.5 text-xs font-medium transition-colors"
+                      style={lang === l.key ? { background: accent, color: accentText } : { color: dc.muted }}
+                    >
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setScrollSearchOpen(true)}
+                  aria-label={t.search}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-foreground"
+                >
+                  <Search className="h-5 w-5" />
+                </button>
+                {showCart && (
+                  <button
+                    onClick={() => setCartOpen(true)}
+                    className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border text-foreground"
+                  >
+                    <ShoppingBag className="h-5 w-5" />
+                    {cartCount > 0 && (
+                      <span
+                        className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold"
+                        style={{ background: accent, color: accentText }}
+                      >
+                        {cartCount}
+                      </span>
+                    )}
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ─── Cover banner (split / scroll'da ko'rsatilmaydi) ─── */}
+      {!isSplit && !isScroll && (
       <div className="relative h-48 w-full overflow-hidden sm:h-64">
         {restaurant.cover ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -519,9 +610,17 @@ export function PublicMenu({
       </div>
       )}
 
-      <div className={isSplit ? "mx-auto max-w-6xl pl-2 pr-3 sm:pl-3 sm:pr-5" : "mx-auto max-w-2xl px-4"}>
-        {/* ─── Restoran profili (split'da ko'rsatilmaydi) ─── */}
-        {!isSplit && (
+      <div
+        className={
+          isSplit
+            ? "mx-auto max-w-6xl pl-2 pr-3 sm:pl-3 sm:pr-5"
+            : isScroll
+            ? "mx-auto max-w-5xl px-3 sm:px-4"
+            : "mx-auto max-w-2xl px-4"
+        }
+      >
+        {/* ─── Restoran profili (split / scroll'da ko'rsatilmaydi) ─── */}
+        {!isSplit && !isScroll && (
           <ProfileHeader
             restaurant={restaurant}
             desc={restaurantDesc}
@@ -544,15 +643,15 @@ export function PublicMenu({
           </div>
         )}
 
-        {/* ─── Banner slider (split'da ko'rsatilmaydi) ─── */}
-        {!isSplit && banners.length > 0 && (
+        {/* ─── Banner slider (split / scroll'da ko'rsatilmaydi) ─── */}
+        {!isSplit && !isScroll && banners.length > 0 && (
           <div className="mt-5">
             <BannerSlider banners={banners} accent={accent} accentText={accentText} radius={R} />
           </div>
         )}
 
-        {/* ─── Search + kategoriya chips (sticky) — split'da yashirin ─── */}
-        {!isSplit && (
+        {/* ─── Search + kategoriya chips (sticky) — split / scroll'da yashirin ─── */}
+        {!isSplit && !isScroll && (
         <div className="sticky top-0 z-30 -mx-4 mt-4 bg-background/95 px-4 py-3 backdrop-blur">
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
@@ -587,7 +686,7 @@ export function PublicMenu({
         )}
 
         {/* ─── Combo takliflar ─── */}
-        {showBrowse && !isSplit && combos.length > 0 && (
+        {showBrowse && !isSplit && !isScroll && combos.length > 0 && (
           <div className="mt-4">
             <h2 className="mb-3 text-lg font-bold text-foreground">Combo takliflar</h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -644,7 +743,7 @@ export function PublicMenu({
         )}
 
         {/* ─── Tavsiya etamiz ─── */}
-        {showBrowse && !isSplit && recommended.length > 0 && (
+        {showBrowse && !isSplit && !isScroll && recommended.length > 0 && (
           <div className="mt-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-lg font-bold text-foreground">{t.recommended}</h2>
@@ -708,8 +807,19 @@ export function PublicMenu({
             />
           )}
 
+          {/* ─── SCROLL layout: uzun kategoriya tablari + scroll-spy sections ─── */}
+          {!searching && isScroll && grouped.length > 0 && (
+            <ScrollMenu
+              groups={grouped}
+              renderItems={renderItems}
+              accent={accent}
+              accentText={accentText}
+              radius={R}
+            />
+          )}
+
           {/* Kategoriya ichi: orqaga tugma + shu kategoriya mahsulotlari */}
-          {!searching && !isSplit && !isTabs && currentGroup && (
+          {!searching && !isSplit && !isTabs && !isScroll && currentGroup && (
             <div className="animate-fade-up">
               <button
                 onClick={exitCat}
@@ -736,7 +846,7 @@ export function PublicMenu({
           )}
 
           {/* Barcha kategoriyalar — shablonga qarab (banner / grid / list) */}
-          {showBrowse && !isSplit && !isTabs && (
+          {showBrowse && !isSplit && !isTabs && !isScroll && (
             <div className={catStyle === "grid" ? "grid grid-cols-2 gap-3" : "space-y-3"}>
               {grouped.map((g) => (
                 <CategoryCard
@@ -802,8 +912,8 @@ export function PublicMenu({
       </div>
       {/* /menyu tarkibi (z-[1]) */}
 
-      {/* ─── Pastki savat bar ─── */}
-      {cartCount > 0 && (
+      {/* ─── Pastki savat bar (savatsiz dizaynda ko'rinmaydi) ─── */}
+      {showCart && cartCount > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 px-4 pb-4">
           <button
             onClick={() => setCartOpen(true)}
@@ -830,6 +940,7 @@ export function PublicMenu({
           accent={accent}
           accentText={accentText}
           radius={R}
+          showCart={showCart}
           onAdd={(q) => {
             addToCart(detail.id, q);
             setDetail(null);
@@ -838,24 +949,26 @@ export function PublicMenu({
         />
       )}
 
-      <CheckoutModal
-        open={cartOpen}
-        onClose={() => setCartOpen(false)}
-        items={cartLines}
-        currency={restaurant.currency}
-        accent={accent}
-        accentText={accentText}
-        slug={restaurant.slug}
-        tableCode={table?.code ?? null}
-        tableName={table?.name ?? null}
-        hasDelivery={restaurant.hasDelivery}
-        waiterCodeEnabled={restaurant.waiterCodeEnabled}
-        askPhone={restaurant.askPhone !== false}
-        lang={lang}
-        onSetQty={setQty}
-        onClear={() => setCart({})}
-        onOrdered={onOrdered}
-      />
+      {showCart && (
+        <CheckoutModal
+          open={cartOpen}
+          onClose={() => setCartOpen(false)}
+          items={cartLines}
+          currency={restaurant.currency}
+          accent={accent}
+          accentText={accentText}
+          slug={restaurant.slug}
+          tableCode={table?.code ?? null}
+          tableName={table?.name ?? null}
+          hasDelivery={restaurant.hasDelivery}
+          waiterCodeEnabled={restaurant.waiterCodeEnabled}
+          askPhone={restaurant.askPhone !== false}
+          lang={lang}
+          onSetQty={setQty}
+          onClear={() => setCart({})}
+          onOrdered={onOrdered}
+        />
+      )}
 
       {/* Buyurtma kuzatuvi */}
       {trackedOrder && (
@@ -925,6 +1038,133 @@ function TabsMenu({
       <div className="mt-4">
         <h2 className="mb-3 text-xl font-bold text-foreground">{active.category.name}</h2>
         {renderItems(active.items, "grid-cols-2 lg:grid-cols-3")}
+      </div>
+    </div>
+  );
+}
+
+// ─────────── SCROLL menyu: uzun kategoriya tablari + scroll-spy ───────────
+// Planshet menyusi uslubi (rasmdagidek): tepada yopishqoq uzun kategoriya
+// qatori, ostida barcha kategoriyalar ketma-ket. Pastga tushgan sari
+// (scroll-spy) faol kategoriya tabi avtomatik almashadi va o'rtaga suriladi.
+function ScrollMenu({
+  groups,
+  renderItems,
+  accent,
+  accentText,
+  radius,
+}: {
+  groups: { category: { id: string; name: string; image: string | null }; items: PublicProduct[] }[];
+  renderItems: (list: PublicProduct[], gridClass?: string) => React.ReactNode;
+  accent: string;
+  accentText: string;
+  radius: number;
+}) {
+  const [active, setActive] = useState(groups[0]?.category.id ?? "");
+  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const tabRowRef = useRef<HTMLDivElement | null>(null);
+  const clickLock = useRef(false);
+  const rafRef = useRef(0);
+
+  // Faol kategoriya tabi bosilgan yoki string o'zgargan bo'lsa — o'rtaga surish
+  const groupIds = groups.map((g) => g.category.id).join(",");
+
+  // Scroll-spy: qaysi kategoriya tab qatori ostiga yaqinligini aniqlaydi
+  useEffect(() => {
+    function lineY() {
+      const bar = tabRowRef.current;
+      return (bar ? bar.getBoundingClientRect().bottom : 104) + 6;
+    }
+    function compute() {
+      if (clickLock.current) return;
+      const line = lineY();
+      let current = groups[0]?.category.id ?? "";
+      for (const g of groups) {
+        const el = sectionRefs.current[g.category.id];
+        if (el && el.getBoundingClientRect().top <= line) current = g.category.id;
+      }
+      if (current) setActive(current);
+    }
+    function onScroll() {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(compute);
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    compute();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(rafRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupIds]);
+
+  // Faol tab qatorda ko'rinib turishi uchun uni o'rtaga suradi (faqat gorizontal)
+  useEffect(() => {
+    const tab = tabRefs.current[active];
+    const row = tabRowRef.current;
+    if (!tab || !row) return;
+    const target = tab.offsetLeft - row.clientWidth / 2 + tab.clientWidth / 2;
+    row.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
+  }, [active]);
+
+  function goTo(id: string) {
+    setActive(id);
+    clickLock.current = true;
+    const bar = tabRowRef.current;
+    const line = bar ? bar.getBoundingClientRect().bottom : 104;
+    const el = sectionRefs.current[id];
+    if (el) {
+      const y = el.getBoundingClientRect().top + window.scrollY - line - 2;
+      window.scrollTo({ top: y, behavior: "smooth" });
+    }
+    window.setTimeout(() => {
+      clickLock.current = false;
+    }, 700);
+  }
+
+  return (
+    <div>
+      {/* Yopishqoq uzun kategoriya qatori (tepa bar ostida, top-14) */}
+      <div
+        ref={tabRowRef}
+        className="sticky top-14 z-30 -mx-3 flex gap-2 overflow-x-auto border-b border-border bg-background/95 px-3 py-2.5 backdrop-blur sm:-mx-4 sm:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {groups.map((g) => {
+          const on = g.category.id === active;
+          return (
+            <button
+              key={g.category.id}
+              ref={(el) => {
+                tabRefs.current[g.category.id] = el;
+              }}
+              onClick={() => goTo(g.category.id)}
+              className="shrink-0 whitespace-nowrap px-4 py-2 text-sm font-semibold transition-colors"
+              style={
+                on
+                  ? { background: accent, color: accentText, borderRadius: 999 }
+                  : { borderRadius: 999, background: "var(--surface-2)", color: "var(--foreground)" }
+              }
+            >
+              {g.category.name}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Barcha kategoriyalar ketma-ket (scroll-spy uchun refli bo'limlar) */}
+      <div className="mt-4 space-y-8">
+        {groups.map((g) => (
+          <div
+            key={g.category.id}
+            ref={(el) => {
+              sectionRefs.current[g.category.id] = el;
+            }}
+          >
+            <h2 className="mb-3 text-xl font-bold text-foreground">{g.category.name}</h2>
+            {renderItems(g.items, "grid-cols-2 md:grid-cols-3")}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1657,6 +1897,7 @@ function ListCard({
   accentText,
   radius,
   qty,
+  showCart = true,
   onOpen,
   onAdd,
   onSetQty,
@@ -1667,6 +1908,7 @@ function ListCard({
   accentText: string;
   radius: number;
   qty: number;
+  showCart?: boolean;
   onOpen: () => void;
   onAdd: () => void;
   onSetQty: (q: number) => void;
@@ -1705,7 +1947,9 @@ function ListCard({
               </span>
             )}
           </div>
-          {p.isAvailable ? (
+          {!showCart ? (
+            !p.isAvailable && <span className="text-xs font-medium text-error">Mavjud emas</span>
+          ) : p.isAvailable ? (
             <div onClick={(e) => e.stopPropagation()}>
               {qty > 0 ? (
                 <QtyControl qty={qty} accent={accent} accentText={accentText} onChange={onSetQty} size="sm" />
@@ -1736,6 +1980,7 @@ function GridCard({
   accentText,
   radius,
   qty,
+  showCart = true,
   onOpen,
   onAdd,
   onSetQty,
@@ -1746,6 +1991,7 @@ function GridCard({
   accentText: string;
   radius: number;
   qty: number;
+  showCart?: boolean;
   onOpen: () => void;
   onAdd: () => void;
   onSetQty: (q: number) => void;
@@ -1771,7 +2017,7 @@ function GridCard({
         <div className="absolute left-2 top-2">
           <ProductBadges p={p} />
         </div>
-        {p.isAvailable && (
+        {showCart && p.isAvailable && (
           <div className="absolute bottom-2 right-2" onClick={(e) => e.stopPropagation()}>
             {qty > 0 ? (
               <div className="bg-card/95 p-1 backdrop-blur" style={{ borderRadius: radius - 4 }}>
@@ -1920,6 +2166,7 @@ function ProductDetail({
   accent,
   accentText,
   radius,
+  showCart = true,
   onAdd,
   onClose,
 }: {
@@ -1928,6 +2175,7 @@ function ProductDetail({
   accent: string;
   accentText: string;
   radius: number;
+  showCart?: boolean;
   onAdd: (qty: number) => void;
   onClose: () => void;
 }) {
@@ -1997,7 +2245,7 @@ function ProductDetail({
             {p.isHalal && <Meta label="Belgi" value="Halol 🥩" />}
           </div>
         </div>
-        {p.isAvailable && (
+        {showCart && p.isAvailable && (
           <div className="flex items-center gap-3 border-t border-border bg-card p-4">
             <QtyControl qty={qty} accent={accent} accentText={accentText} onChange={(q) => setQtyLocal(Math.max(1, q))} />
             <button

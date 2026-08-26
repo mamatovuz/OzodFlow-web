@@ -20,6 +20,7 @@ import {
   categoryStyleFor,
   headerStyleFor,
   menuStyleFor,
+  menuHasCart,
   type MenuTheme,
   type ThemeKey,
 } from "@/lib/themes";
@@ -69,9 +70,10 @@ export function ThemePicker({
     return !t.premium || canPremium || owned.includes(t.key);
   }
 
-  // Faqat Klassik (split) dizaynда sozlash + bosh sahifa bor
+  // Sozlash (ranglar/fon/kartalar) — split va scroll (planshet) dizaynlarida bor
   function customizable(key: string) {
-    return menuStyleFor(key) === "split";
+    const s = menuStyleFor(key);
+    return s === "split" || s === "scroll";
   }
   const canCustomize = (key: string) => !!onCustomize && customizable(key);
 
@@ -146,6 +148,11 @@ export function ThemePicker({
                     <Badge variant="warning" className="px-1.5 py-0">
                       Premium
                     </Badge>
+                  )}
+                  {menuStyleFor(t.key) === "scroll" && (
+                    <span className="rounded-full bg-surface-2 px-1.5 py-0 text-[10px] font-medium text-muted">
+                      {menuHasCart(t.key) ? "Savatli" : "Savatsiz"}
+                    </span>
                   )}
                 </span>
                 {active ? (
@@ -579,6 +586,31 @@ function ThemeMock({ theme: t, large = false }: { theme: MenuTheme; large?: bool
             <Card2 grid />
           </div>
         </>
+      ) : menuStyleFor(t.key) === "scroll" ? (
+        /* SCROLL: uzun kategoriya qatori + 3 ustunli grid (planshet) */
+        <>
+          <div className="mt-2 flex gap-1 overflow-hidden">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                style={{
+                  background: i === 0 ? accent : c.surface2,
+                  borderRadius: 999,
+                  height: 10 * scale,
+                  width: 22 * scale,
+                }}
+              />
+            ))}
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-1.5">
+            <Card2 grid />
+            <Card2 grid />
+            <Card2 grid />
+            <Card2 grid />
+            <Card2 grid />
+            <Card2 grid />
+          </div>
+        </>
       ) : menuStyleFor(t.key) === "split" ? (
         /* SPLIT: chapda kategoriyalar, o'ngda mahsulotlar */
         <div className="mt-2 flex gap-1.5">
@@ -615,14 +647,16 @@ function ThemeMock({ theme: t, large = false }: { theme: MenuTheme; large?: bool
           </div>
         </>
       )}
-      {/* bottom bar */}
-      <div
-        style={{ background: accent, height: 14 * scale, borderRadius: r, marginTop: 6 }}
-        className="flex items-center justify-between px-2"
-      >
-        <div style={{ background: at, opacity: 0.9, height: 4 * scale, width: "30%", borderRadius: 2 }} />
-        <div style={{ background: at, opacity: 0.9, height: 4 * scale, width: "25%", borderRadius: 2 }} />
-      </div>
+      {/* bottom bar (savatsiz dizaynda ko'rinmaydi) */}
+      {menuHasCart(t.key) && (
+        <div
+          style={{ background: accent, height: 14 * scale, borderRadius: r, marginTop: 6 }}
+          className="flex items-center justify-between px-2"
+        >
+          <div style={{ background: at, opacity: 0.9, height: 4 * scale, width: "30%", borderRadius: 2 }} />
+          <div style={{ background: at, opacity: 0.9, height: 4 * scale, width: "25%", borderRadius: 2 }} />
+        </div>
+      )}
     </div>
   );
 }

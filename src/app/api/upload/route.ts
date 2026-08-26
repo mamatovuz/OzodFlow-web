@@ -7,7 +7,7 @@ import { randomCode } from "@/lib/utils";
 import { UPLOAD_DIR } from "@/lib/uploads";
 import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
-const MAX_SIZE = 10 * 1024 * 1024; // 10MB kiruvchi rasm (siqishdan oldin)
+const MAX_SIZE = 50 * 1024 * 1024; // 50MB kiruvchi rasm (siqishdan oldin) — qabul qilingach webp'ga siqiladi
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_DIM = 1280; // eng katta tomon (px) — menyu uchun yetarli
 const WEBP_QUALITY = 78;
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     return fail("Faqat rasm (JPG, PNG, WEBP) yoki video (MP4, WEBM) fayllari", 422);
   }
   if (file.size > MAX_SIZE) {
-    return fail("Fayl hajmi 10MB dan oshmasligi kerak", 422);
+    return fail("Fayl hajmi 50MB dan oshmasligi kerak", 422);
   }
 
   const input = Buffer.from(await file.arrayBuffer());

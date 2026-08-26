@@ -18,7 +18,9 @@ export type ThemeKey =
   | "botanic"
   | "neon"
   | "rose"
-  | "mono";
+  | "mono"
+  | "restoran"
+  | "vitrina";
 
 export type ThemeLayout = "list" | "grid";
 
@@ -359,6 +361,51 @@ export const MENU_THEMES: MenuTheme[] = [
       border: "#e2ded4",
     },
   },
+  {
+    // Restoran — planshet menyusi uslubi (rasmdagidek): tepada logo + til +
+    // qidiruv, ostida uzun kategoriya tablari, pastga tushgan sari kategoriya
+    // avtomatik almashadi (scroll-spy), 3 ustunli grid kartalar. SAVATLI —
+    // mijoz taom tanlab buyurtma bera oladi.
+    key: "restoran",
+    name: "Restoran",
+    premium: true,
+    isDark: false,
+    layout: "grid",
+    radius: 18,
+    accent: "#E1A200",
+    accentText: "#231705",
+    colors: {
+      background: "#ffffff",
+      surface: "#f7f7f5",
+      surface2: "#efefea",
+      card: "#ffffff",
+      foreground: "#1a1a1a",
+      muted: "#7a7a76",
+      border: "#ececE6",
+    },
+  },
+  {
+    // Vitrina — Restoran bilan bir xil ko'rinish, lekin SAVATSIZ (faqat ko'rish).
+    // Digital menyu-taxta uslubi: mijoz taomlarni ko'radi, buyurtma bermaydi.
+    // Taomga bosilganda batafsil oyna ochiladi ("Savatga" tugmasisiz).
+    key: "vitrina",
+    name: "Vitrina",
+    premium: true,
+    isDark: false,
+    layout: "grid",
+    radius: 18,
+    accent: "#E1A200",
+    accentText: "#231705",
+    colors: {
+      background: "#ffffff",
+      surface: "#f7f7f5",
+      surface2: "#efefea",
+      card: "#ffffff",
+      foreground: "#1a1a1a",
+      muted: "#7a7a76",
+      border: "#ececE6",
+    },
+  },
 ];
 
 export function getTheme(key: string | null | undefined): MenuTheme {
@@ -394,6 +441,8 @@ const CATEGORY_STYLE: Record<ThemeKey, CategoryStyle> = {
   neon: "grid",
   rose: "banner",
   mono: "list",
+  restoran: "grid",
+  vitrina: "grid",
 };
 
 const HEADER_STYLE: Record<ThemeKey, HeaderStyle> = {
@@ -413,6 +462,8 @@ const HEADER_STYLE: Record<ThemeKey, HeaderStyle> = {
   neon: "minimal",
   rose: "center",
   mono: "overlap",
+  restoran: "center",
+  vitrina: "center",
 };
 
 export function categoryStyleFor(key: string): CategoryStyle {
@@ -425,7 +476,9 @@ export function headerStyleFor(key: string): HeaderStyle {
 // ─── Menyu tuzilishi: browse (kategoriyaga kirish) yoki split (chap kategoriya + o'ng mahsulot) ───
 // split = chap tomonda kategoriyalar roili, o'ngda tanlangan kategoriya mahsulotlari (bir vaqtda).
 // browse = kategoriyaga kirish; split = chap rail; tabs = tepada tab + bitta kategoriya
-export type MenuStyle = "browse" | "split" | "tabs";
+// scroll = planshet uslubi: uzun kategoriya tablari + scroll-spy (pastga tushgani
+//          sari kategoriya avtomatik almashadi), barcha kategoriyalar ketma-ket.
+export type MenuStyle = "browse" | "split" | "tabs" | "scroll";
 
 const MENU_STYLE: Record<ThemeKey, MenuStyle> = {
   light: "browse",
@@ -444,10 +497,21 @@ const MENU_STYLE: Record<ThemeKey, MenuStyle> = {
   neon: "tabs",
   rose: "browse",
   mono: "split",
+  restoran: "scroll",
+  vitrina: "scroll",
 };
 
 export function menuStyleFor(key: string): MenuStyle {
   return MENU_STYLE[key as ThemeKey] ?? "browse";
+}
+
+// ─── Savat bor-yo'qligi: "vitrina" (faqat ko'rish) dizaynida savat yo'q ───
+// Savatsiz dizaynda mijoz taomlarni ko'radi, lekin buyurtma bermaydi
+// (savat tugmasi, "Qo'shish" tugmalari va pastki savat bari ko'rinmaydi).
+const NO_CART_THEMES: ThemeKey[] = ["vitrina"];
+
+export function menuHasCart(key: string): boolean {
+  return !NO_CART_THEMES.includes(key as ThemeKey);
 }
 
 export const FREE_THEMES: ThemeKey[] = ["light", "dark", "classic"];

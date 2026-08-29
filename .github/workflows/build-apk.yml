@@ -71,7 +71,12 @@ jobs:
           test -s "$GITHUB_WORKSPACE/android.keystore"
 
       - name: Write TWA manifest
+        env:
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
+          # Secret oxiridagi yangi qator/bo'shliqni tozalaymiz — aks holda JSON buziladi
+          # va imzo aliasi (keystore) mos kelmaydi.
+          ALIAS=$(printf '%s' "$KEY_ALIAS" | tr -d '\r\n[:space:]')
           cat > "$GITHUB_WORKSPACE/twa-manifest.json" <<EOF
           {
             "packageId": "${{ github.event.inputs.packageName }}",
@@ -94,7 +99,7 @@ jobs:
             "splashScreenFadeOutDuration": 300,
             "signingKey": {
               "path": "$GITHUB_WORKSPACE/android.keystore",
-              "alias": "${{ secrets.ANDROID_KEY_ALIAS }}"
+              "alias": "$ALIAS"
             },
             "appVersionName": "1.0.${{ github.run_number }}",
             "appVersionCode": ${{ github.run_number }},
@@ -118,11 +123,20 @@ jobs:
 
       - name: Build & sign APK
         env:
-          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          RAW_STORE_PW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          RAW_KEY_PW: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          # Parol secretlaridan yangi qator/bo'shliqni tozalaymiz (imzo xato bermasligi uchun)
+          export BUBBLEWRAP_KEYSTORE_PASSWORD=$(printf '%s' "$RAW_STORE_PW" | tr -d '\r\n')
+          export BUBBLEWRAP_KEY_PASSWORD=$(printf '%s' "$RAW_KEY_PW" | tr -d '\r\n')
+
           mkdir -p build && cd build
-          bubblewrap init --manifest "$GITHUB_WORKSPACE/twa-manifest.json" --directory . --skipPwaValidation
+          cp "$GITHUB_WORKSPACE/twa-manifest.json" ./twa-manifest.json
+
+          # MUHIM: `bubblewrap init --manifest` faqat URL qabul qiladi (lokal faylni
+          # URL sifatida o'qib "Invalid URL" beradi). Tayyor twa-manifest.json dan
+          # Android loyihasini generatsiya qilish uchun `update` ishlatiladi.
+          bubblewrap update --skipPwaValidation
           bubblewrap build --skipPwaValidation
 
       - name: Locate signed APK

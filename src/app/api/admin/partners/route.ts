@@ -11,7 +11,7 @@ const schema = z.object({
 });
 
 export async function GET() {
-  const { user, res } = await adminGuard();
+  const { user, res } = await adminGuard("partners");
   if (!user) return res;
   const partners = await prisma.partner.findMany({
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
@@ -20,7 +20,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { user, res } = await adminGuard();
+  const { user, res } = await adminGuard("partners");
   if (!user) return res;
 
   const body = await req.json().catch(() => null);

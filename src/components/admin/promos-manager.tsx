@@ -9,10 +9,13 @@ import { formatPrice } from "@/lib/utils";
 type Promo = {
   id: string;
   code: string;
+  name: string | null;
   discountPercent: number;
   scope: string;
   maxUses: number | null;
   usedCount: number;
+  perUserMonths: number | null;
+  expiresAt: string | null;
   isActive: boolean;
   paidCount: number;
   totalDiscount: number;
@@ -48,9 +51,12 @@ export function PromosManager() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         code: f.get("code"),
+        name: f.get("name") || null,
         discountPercent: Number(f.get("discountPercent")),
         scope: f.get("scope"),
         maxUses: f.get("maxUses") ? Number(f.get("maxUses")) : null,
+        perUserMonths: f.get("perUserMonths") ? Number(f.get("perUserMonths")) : null,
+        expiresAt: f.get("expiresAt") || null,
       }),
     });
     setSaving(false);
@@ -158,11 +164,22 @@ export function PromosManager() {
                           <Copy className="h-3.5 w-3.5 text-muted" />
                         )}
                       </button>
-                      {p.maxUses && (
-                        <p className="text-xs text-muted">
-                          {p.usedCount}/{p.maxUses} ishlatilgan
-                        </p>
-                      )}
+                      {p.name && <p className="text-xs text-foreground/70">{p.name}</p>}
+                      <div className="mt-0.5 space-y-0.5">
+                        {p.maxUses && (
+                          <p className="text-xs text-muted">
+                            {p.usedCount}/{p.maxUses} ishlatilgan
+                          </p>
+                        )}
+                        {p.perUserMonths && (
+                          <p className="text-xs text-muted">Har {p.perUserMonths} oyda 1 marta</p>
+                        )}
+                        {p.expiresAt && (
+                          <p className={`text-xs ${new Date(p.expiresAt) < new Date() ? "text-error" : "text-muted"}`}>
+                            {new Date(p.expiresAt) < new Date() ? "Muddati tugagan" : `Muddat: ${new Date(p.expiresAt).toLocaleDateString("uz")}`}
+                          </p>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 font-medium text-foreground">{p.discountPercent}%</td>
                     <td className="px-4 py-3">
@@ -189,9 +206,15 @@ export function PromosManager() {
       <Modal open={modal} onClose={() => setModal(false)} title="Yangi promo kod">
         <form onSubmit={create} className="space-y-4">
           {error && <div className="rounded-lg bg-error/10 px-3 py-2 text-sm text-error">{error}</div>}
-          <div>
-            <Label>Kod</Label>
-            <Input name="code" placeholder="RAMADAN2026" required className="font-mono uppercase" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label>Kod</Label>
+              <Input name="code" placeholder="RAMADAN2026" required className="font-mono uppercase" />
+            </div>
+            <div>
+              <Label>Nomi (ixtiyoriy)</Label>
+              <Input name="name" placeholder="Ramazon aksiyasi" maxLength={60} />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -207,12 +230,23 @@ export function PromosManager() {
               </Select>
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Har foydalanuvchi (necha oyda 1)</Label>
+              <Input name="perUserMonths" type="number" min={1} max={60} placeholder="Cheklovsiz" />
+            </div>
+            <div>
+              <Label>Amal qilish muddati</Label>
+              <Input name="expiresAt" type="date" />
+            </div>
+          </div>
           <div>
-            <Label>Maksimal ishlatish (bo'sh = cheksiz)</Label>
+            <Label>Umumiy maksimal ishlatish (bo'sh = cheksiz)</Label>
             <Input name="maxUses" type="number" min={1} placeholder="Cheksiz" />
           </div>
           <p className="text-xs text-muted">
-            Bu kod saytda ko'rinmaydi — faqat kiritganlar ishlatadi.
+            Bu kod saytda ko'rinmaydi — faqat kiritganlar ishlatadi. &quot;Necha oyda
+            1&quot; — bitta mijoz kodni shu muddatda faqat bir marta ishlata oladi.
           </p>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => setModal(false)}>

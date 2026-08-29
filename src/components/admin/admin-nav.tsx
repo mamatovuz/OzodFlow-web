@@ -20,29 +20,57 @@ import {
   Handshake,
   BarChart3,
   LineChart,
+  Users,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
+import type { AdminPerm } from "@/lib/admin-perms";
 
-const nav = [
+// perm — bo'limni ko'rish uchun kerakli ruxsat.
+//   super — faqat bosh admin ko'radi.
+//   perm/super yo'q bo'lsa — barcha adminlar ko'radi (Bosh sahifa, Sozlamalar).
+const nav: {
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  perm?: AdminPerm;
+  super?: boolean;
+}[] = [
   { href: "/admins", label: "Bosh sahifa", icon: LayoutDashboard },
-  { href: "/admins/analytics", label: "Analitika", icon: LineChart },
-  { href: "/admins/payments", label: "To'lovlar", icon: Wallet },
-  { href: "/admins/cards", label: "Kartalar", icon: CreditCard },
-  { href: "/admins/plans", label: "Tariflar", icon: Crown },
-  { href: "/admins/promos", label: "Promo kodlar", icon: Ticket },
-  { href: "/admins/domains", label: "Domenlar", icon: Globe },
-  { href: "/admins/restaurants", label: "Restoranlar", icon: Store },
-  { href: "/admins/partners", label: "Hamkorlar", icon: Handshake },
-  { href: "/admins/stats", label: "Ko'rsatkichlar", icon: BarChart3 },
-  { href: "/admins/messages", label: "Xabarlar", icon: MessageSquare },
+  { href: "/admins/analytics", label: "Analitika", icon: LineChart, perm: "analytics" },
+  { href: "/admins/payments", label: "To'lovlar", icon: Wallet, perm: "payments" },
+  { href: "/admins/cards", label: "Kartalar", icon: CreditCard, perm: "cards" },
+  { href: "/admins/plans", label: "Tariflar", icon: Crown, perm: "plans" },
+  { href: "/admins/promos", label: "Promo kodlar", icon: Ticket, perm: "promos" },
+  { href: "/admins/domains", label: "Domenlar", icon: Globe, perm: "domains" },
+  { href: "/admins/restaurants", label: "Restoranlar", icon: Store, perm: "restaurants" },
+  { href: "/admins/partners", label: "Hamkorlar", icon: Handshake, perm: "partners" },
+  { href: "/admins/stats", label: "Ko'rsatkichlar", icon: BarChart3, perm: "stats" },
+  { href: "/admins/messages", label: "Xabarlar", icon: MessageSquare, perm: "messages" },
+  { href: "/admins/admins", label: "Adminlar", icon: Users, super: true },
   { href: "/admins/settings", label: "Sozlamalar", icon: Settings },
 ];
 
-export function AdminNav({ name }: { name: string }) {
+export function AdminNav({
+  name,
+  isSuperAdmin,
+  perms,
+}: {
+  name: string;
+  isSuperAdmin: boolean;
+  perms: string[] | null; // null = super (hammasi)
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+
+  // Ko'rinadigan bo'limlar: super hammasini, sub-admin faqat ruxsat berilganini.
+  const visibleNav = nav.filter((item) => {
+    if (item.super) return isSuperAdmin;
+    if (!item.perm) return true; // Bosh sahifa, Sozlamalar
+    if (isSuperAdmin) return true;
+    return (perms || []).includes(item.perm);
+  });
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -59,7 +87,7 @@ export function AdminNav({ name }: { name: string }) {
         <span className="font-semibold text-foreground">Admin panel</span>
       </div>
       <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
-        {nav.map((item) => {
+        {visibleNav.map((item) => {
           const active =
             item.href === "/admins"
               ? pathname === "/admins"
@@ -88,7 +116,7 @@ export function AdminNav({ name }: { name: string }) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-foreground">{name}</p>
-          <p className="text-xs text-muted">Administrator</p>
+          <p className="text-xs text-muted">{isSuperAdmin ? "Bosh admin" : "Administrator"}</p>
         </div>
         <button onClick={logout} className="text-muted hover:text-error">
           <LogOut className="h-4 w-4" />

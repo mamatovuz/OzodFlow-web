@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { deviceFingerprint } from "./device";
+import { parseAdminPerms } from "./admin-perms";
 
 /**
  * JWT maxfiy kaliti. Ishlab chiqarishda `JWT_SECRET` MAJBURIY —
@@ -35,6 +36,8 @@ export type SessionUser = {
   phone: string | null;
   role: string;
   avatar: string | null;
+  isSuperAdmin: boolean;
+  adminPerms: string[] | null; // qo'shimcha admin ruxsatlari (JSON'dan)
 };
 
 export async function hashPassword(password: string) {
@@ -144,6 +147,8 @@ async function loadSession(): Promise<{ user: SessionUser; sessionId: string } |
         phone: session.user.phone,
         role: session.user.role,
         avatar: session.user.avatar,
+        isSuperAdmin: session.user.isSuperAdmin,
+        adminPerms: parseAdminPerms(session.user.adminPerms),
       },
       sessionId: sid,
     };

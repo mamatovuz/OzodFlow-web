@@ -10,7 +10,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { user, res } = await adminGuard();
+  const { user, res } = await adminGuard("payments");
   if (!user) return res;
   const { id } = await params;
 

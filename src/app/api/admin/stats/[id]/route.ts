@@ -6,7 +6,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { user, res } = await adminGuard();
+  const { user, res } = await adminGuard("stats");
   if (!user) return res;
   const { id } = await params;
 
@@ -28,7 +28,7 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { user, res } = await adminGuard();
+  const { user, res } = await adminGuard("stats");
   if (!user) return res;
   const { id } = await params;
   await prisma.siteStat.delete({ where: { id } }).catch(() => {});

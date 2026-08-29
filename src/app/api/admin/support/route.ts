@@ -6,7 +6,7 @@ const TOPICS = ["BLOCK", "PAYMENT", "CONTACT", "GENERAL"];
 
 // Bosh admin: barcha yozishmalar yoki bitta restoran bo'yicha
 export async function GET(req: NextRequest) {
-  const { user, res } = await adminGuard();
+  const { user, res } = await adminGuard("messages");
   if (!user) return res;
 
   const restaurantId = req.nextUrl.searchParams.get("restaurantId");
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
 
 // Bosh admin javob yozadi (yoki "nega to'lamadingiz?" so'roviga xabar)
 export async function POST(req: NextRequest) {
-  const { user, res } = await adminGuard();
+  const { user, res } = await adminGuard("messages");
   if (!user) return res;
 
   const body = await req.json().catch(() => null);
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
 
 // Restoran yozishmalarini o'qilgan deb belgilash
 export async function PATCH(req: NextRequest) {
-  const { user, res } = await adminGuard();
+  const { user, res } = await adminGuard("messages");
   if (!user) return res;
   const body = await req.json().catch(() => null);
   const restaurantId = String(body?.restaurantId || "");

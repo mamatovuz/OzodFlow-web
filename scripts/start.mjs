@@ -57,14 +57,18 @@ try {
         email,
         password: await bcrypt.hash(password, 10),
         role: "ADMIN",
+        isSuperAdmin: true, // bosh admin — hamma narsani boshqaradi
       },
     });
-    console.log("[start] Admin yaratildi:", email);
-  } else if (existing.role !== "ADMIN") {
-    await prisma.user.update({ where: { email }, data: { role: "ADMIN" } });
-    console.log("[start] Admin roli tiklandi:", email);
+    console.log("[start] Bosh admin yaratildi:", email);
+  } else if (existing.role !== "ADMIN" || !existing.isSuperAdmin) {
+    await prisma.user.update({
+      where: { email },
+      data: { role: "ADMIN", isSuperAdmin: true },
+    });
+    console.log("[start] Bosh admin roli tiklandi:", email);
   } else {
-    console.log("[start] Admin mavjud:", email);
+    console.log("[start] Bosh admin mavjud:", email);
   }
 
   // Eski tarif qiymatlarini yangi tizimga o'tkazish (PROMAX -> BUSINESS)

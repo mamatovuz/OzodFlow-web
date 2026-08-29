@@ -3,6 +3,7 @@ import { ZodError, type ZodType } from "zod";
 import { getSessionUser } from "./auth";
 import { prisma } from "./prisma";
 import { log, newRequestId } from "./log";
+import { hasPerm, type AdminPerm } from "./admin-perms";
 
 export function ok(data: unknown, status = 200) {
   return NextResponse.json({ success: true, data }, { status });
@@ -120,12 +121,27 @@ export async function authGuard() {
   return { user, res: null };
 }
 
-/** Faqat admin uchun — aks holda 403 */
-export async function adminGuard() {
+/**
+ * Faqat admin uchun — aks holda 403.
+ * `perm` berilsa — qo'shimcha (sub) admin uchun o'sha ruxsat yoqilgan bo'lishi
+ * shart. Bosh admin (isSuperAdmin) har doim o'tadi.
+ */
+export async function adminGuard(perm?: AdminPerm) {
   const user = await getSessionUser();
   if (!user) return { user: null, res: fail("Avtorizatsiya talab qilinadi", 401) };
   if (user.role !== "ADMIN")
     return { user: null, res: fail("Ruxsat yo'q", 403) };
+  if (perm && !hasPerm(user, perm))
+    return { user: null, res: fail("Bu bo'lim uchun ruxsatingiz yo'q", 403) };
+  return { user, res: null };
+}
+
+/** Faqat bosh admin (isSuperAdmin) — adminlarni/seanslarni boshqarish uchun. */
+export async function superAdminGuard() {
+  const user = await getSessionUser();
+  if (!user) return { user: null, res: fail("Avtorizatsiya talab qilinadi", 401) };
+  if (user.role !== "ADMIN" || !user.isSuperAdmin)
+    return { user: null, res: fail("Faqat bosh admin uchun", 403) };
   return { user, res: null };
 }
 

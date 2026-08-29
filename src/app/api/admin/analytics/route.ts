@@ -25,7 +25,7 @@ function dayKey(d: Date): string {
 }
 
 export const GET = route(async (req) => {
-  const { res } = await adminGuard();
+  const { res } = await adminGuard("analytics");
   if (res) return res;
 
   const url = new URL(req.url);

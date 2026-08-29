@@ -2198,17 +2198,32 @@ function ProductDetail({
         >
           <X className="h-5 w-5" />
         </button>
-        <div className="relative h-60 w-full shrink-0 overflow-hidden bg-surface-2">
+        <div className="relative h-56 w-full shrink-0 overflow-hidden bg-black sm:h-72">
           {imgs[activeImg] ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={imgs[activeImg]} alt={p.name} className="h-full w-full object-cover" />
+            <>
+              {/* Xira (blur) fon — rasm to'liq ko'rinishi uchun bo'sh joyni to'ldiradi */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imgs[activeImg]}
+                alt=""
+                aria-hidden
+                className="absolute inset-0 h-full w-full scale-110 object-cover opacity-30 blur-xl"
+              />
+              {/* To'liq rasm — kesilmasdan (object-contain) markazda */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imgs[activeImg]}
+                alt={p.name}
+                className="relative z-1 h-full w-full object-contain"
+              />
+            </>
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-muted/40">
+            <div className="flex h-full w-full items-center justify-center bg-surface-2 text-muted/40">
               <UtensilsCrossed className="h-14 w-14" />
             </div>
           )}
           {imgs.length > 1 && (
-            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
+            <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-1.5">
               {imgs.map((_, i) => (
                 <button
                   key={i}

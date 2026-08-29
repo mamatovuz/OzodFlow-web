@@ -13,7 +13,11 @@ export default async function AdminLayout({
 
   return (
     <div className="flex min-h-screen flex-col bg-surface lg:flex-row">
-      <AdminNav name={user.name} />
+      <AdminNav
+        name={user.name}
+        isSuperAdmin={user.isSuperAdmin}
+        perms={user.isSuperAdmin ? null : user.adminPerms || []}
+      />
       <main className="flex-1">
         <div className="hidden items-center justify-end gap-2 border-b border-border bg-card px-6 py-3 lg:flex">
           <ThemeToggle />

@@ -9,7 +9,7 @@ import {
 import type { PlanKey } from "@/lib/plans";
 
 export async function GET() {
-  const { user, res } = await adminGuard();
+  const { user, res } = await adminGuard("plans");
   if (!user) return res;
   const [prices, lifetime] = await Promise.all([getPlanPrices(), getLifetimePricesRaw()]);
   return ok({ ...prices, lifetime });
@@ -17,7 +17,7 @@ export async function GET() {
 
 // Body: { plan: "STARTER"|"BUSINESS", price?: number, lifetimePrice?: number }
 export async function PATCH(req: NextRequest) {
-  const { user, res } = await adminGuard();
+  const { user, res } = await adminGuard("plans");
   if (!user) return res;
 
   const body = await req.json().catch(() => null);

@@ -4,7 +4,7 @@ import { adminGuard, ok } from "@/lib/api";
 
 // To'lov so'rovlari ro'yxati (status bo'yicha filtr)
 export async function GET(req: NextRequest) {
-  const { user, res } = await adminGuard();
+  const { user, res } = await adminGuard("payments");
   if (!user) return res;
 
   const status = req.nextUrl.searchParams.get("status"); // PENDING | APPROVED | REJECTED

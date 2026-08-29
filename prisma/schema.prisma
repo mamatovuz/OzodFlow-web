@@ -21,6 +21,12 @@ model User {
   password  String
   role      String   @default("OWNER") // OWNER | STAFF | ADMIN
   avatar    String?
+  // ─── Admin RBAC ───
+  // isSuperAdmin — bosh admin (hamma narsani qila oladi, adminlarni boshqaradi).
+  // adminPerms — qo'shimcha (sub) admin uchun yoqilgan ruxsatlar (JSON massiv).
+  //   null/[] = ruxsat yo'q; super admin uchun e'tiborga olinmaydi (hammasi ochiq).
+  isSuperAdmin Boolean @default(false)
+  adminPerms   String? // JSON: ["payments","promos",...]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -519,16 +525,19 @@ model PaymentRequest {
 
 // Promo kodlar (admin yaratadi yoki mijoz yiliga 1 marta oladi)
 model PromoCode {
-  id              String   @id @default(cuid())
-  code            String   @unique
+  id              String    @id @default(cuid())
+  code            String    @unique
+  name            String? // ichki nom/izoh (masalan "Ramazon aksiyasi")
   discountPercent Int // chegirma foizi
-  scope           String   @default("ALL") // ALL | PRO | PROMAX
-  source          String   @default("ADMIN") // ADMIN | USER
+  scope           String    @default("ALL") // ALL | STARTER | BUSINESS
+  source          String    @default("ADMIN") // ADMIN | USER
   ownerId         String? // USER kodi kimga tegishli
-  maxUses         Int? // null = cheksiz
-  usedCount       Int      @default(0)
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
+  maxUses         Int? // umumiy maksimal ishlatish (null = cheksiz)
+  usedCount       Int       @default(0)
+  perUserMonths   Int? // bir foydalanuvchi shu kodni har N oyda 1 marta ishlata oladi (null = cheklovsiz)
+  expiresAt       DateTime? // amal qilish muddati (null = muddatsiz)
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
 
   @@index([ownerId])
   @@index([source])

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { adminGuard, ok } from "@/lib/api";
 
 export async function GET(req: NextRequest) {
-  const { user, res } = await adminGuard();
+  const { user, res } = await adminGuard("domains");
   if (!user) return res;
 
   const status = req.nextUrl.searchParams.get("status");

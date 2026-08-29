@@ -4,7 +4,7 @@ import { adminGuard, ok, fail } from "@/lib/api";
 
 // Admin promo kodlari + analitika
 export async function GET() {
-  const { user, res } = await adminGuard();
+  const { user, res } = await adminGuard("promos");
   if (!user) return res;
 
   const promos = await prisma.promoCode.findMany({
@@ -37,9 +37,9 @@ export async function GET() {
 }
 
 // Yangi admin promo kod
-// Body: { code?, discountPercent, scope?, maxUses? }
+// Body: { code, name?, discountPercent, scope?, maxUses?, perUserMonths?, expiresAt? }
 export async function POST(req: NextRequest) {
-  const { user, res } = await adminGuard();
+  const { user, res } = await adminGuard("promos");
   if (!user) return res;
 
   const body = await req.json().catch(() => null);
@@ -49,8 +49,23 @@ export async function POST(req: NextRequest) {
   }
   const scope = ["ALL", "STARTER", "BUSINESS"].includes(body?.scope) ? body.scope : "ALL";
   const maxUses = body?.maxUses ? Math.max(1, Number(body.maxUses)) : null;
+  const name = (body?.name || "").toString().trim().slice(0, 60) || null;
 
-  let code = (body?.code || "").trim().toUpperCase();
+  // "N oyda 1 marta" — har foydalanuvchi uchun cheklov (1-60 oy, bo'sh = cheklovsiz)
+  const perUserMonths = body?.perUserMonths
+    ? Math.min(60, Math.max(1, Number(body.perUserMonths)))
+    : null;
+
+  // Amal qilish muddati (ixtiyoriy). Kelajakdagi sana bo'lishi kerak.
+  let expiresAt: Date | null = null;
+  if (body?.expiresAt) {
+    const d = new Date(body.expiresAt);
+    if (isNaN(d.getTime())) return fail("Muddat sanasi noto'g'ri", 422);
+    if (d.getTime() < Date.now()) return fail("Muddat kelajakda bo'lishi kerak", 422);
+    expiresAt = d;
+  }
+
+  const code = (body?.code || "").trim().toUpperCase();
   if (!code) {
     return fail("Kodni kiriting", 422);
   }
@@ -61,7 +76,7 @@ export async function POST(req: NextRequest) {
   if (exists) return fail("Bu kod allaqachon mavjud", 409);
 
   const promo = await prisma.promoCode.create({
-    data: { code, discountPercent, scope, source: "ADMIN", maxUses },
+    data: { code, name, discountPercent, scope, source: "ADMIN", maxUses, perUserMonths, expiresAt },
   });
   return ok(promo, 201);
 }

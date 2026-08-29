@@ -11,7 +11,7 @@ const schema = z.object({
 });
 
 export async function GET() {
-  const { user, res } = await adminGuard();
+  const { user, res } = await adminGuard("cards");
   if (!user) return res;
   const cards = await prisma.paymentCard.findMany({
     orderBy: { createdAt: "asc" },
@@ -20,7 +20,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { user, res } = await adminGuard();
+  const { user, res } = await adminGuard("cards");
   if (!user) return res;
 
   const body = await req.json().catch(() => null);

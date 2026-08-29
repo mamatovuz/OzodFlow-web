@@ -2210,12 +2210,12 @@ function ProductDetail({
               aria-label="Rasmni to'liq ko'rish"
             >
               {/* Rasm butun maydonni to'ldiradi (chekada bo'sh joy qolmaydi).
-                  object-top — kesish tepadan boshlanadi (taomning ustki qismi ko'rinadi). */}
+                  object-center — taom markazda turadi (pastga/tepaga siljimaydi). */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={imgs[activeImg]}
                 alt={p.name}
-                className="h-full w-full object-cover object-top transition-transform duration-300 group-active:scale-[1.02]"
+                className="h-full w-full object-cover object-center transition-transform duration-300 group-active:scale-[1.02]"
               />
               {/* "Kattalashtirish" ishorasi */}
               <span className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur">

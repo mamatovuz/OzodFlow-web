@@ -2201,21 +2201,22 @@ function ProductDetail({
         >
           <X className="h-5 w-5" />
         </button>
-        <div className="relative h-80 w-full shrink-0 overflow-hidden bg-surface-2 sm:h-96">
+        <div className="relative flex w-full shrink-0 justify-center overflow-hidden bg-surface-2">
           {imgs[activeImg] ? (
             <button
               type="button"
               onClick={() => setZoom(true)}
-              className="group block h-full w-full"
+              className="group relative block w-full"
               aria-label="Rasmni to'liq ko'rish"
             >
-              {/* Rasm butun maydonni to'ldiradi (chekada bo'sh joy qolmaydi).
-                  object-center — taom markazda turadi (pastga/tepaga siljimaydi). */}
+              {/* Rasm o'z tabiiy nisbatida to'liq ko'rinadi — hech qayeri (pasti
+                  ham) kesilmaydi, enini to'la egallaydi (chekada bo'sh joy yo'q).
+                  Juda baland rasm max-h bilan cheklanadi. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={imgs[activeImg]}
                 alt={p.name}
-                className="h-full w-full object-cover object-center transition-transform duration-300 group-active:scale-[1.02]"
+                className="block max-h-[60vh] w-full object-contain transition-transform duration-300 group-active:scale-[1.01]"
               />
               {/* "Kattalashtirish" ishorasi */}
               <span className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur">
@@ -2223,7 +2224,7 @@ function ProductDetail({
               </span>
             </button>
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-muted/40">
+            <div className="flex h-56 w-full items-center justify-center text-muted/40">
               <UtensilsCrossed className="h-14 w-14" />
             </div>
           )}

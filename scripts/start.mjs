@@ -132,29 +132,3 @@ if (process.env.POS_AUTO_SYNC !== "off") {
     setInterval(runCron, 5 * 60 * 1000);
   }, 45_000);
 }
-
-// ─── Instagram fon xizmati (token yangilash + profil sinxroni) ───
-// Comment/DM javoblari real-time WEBHOOK orqali keladi (cron kerak emas).
-// Bu cron faqat long-lived token'larни muddati tugashidan oldin yangilaydi
-// va followers kabi profil ma'lumotlarини yangilab turadi. O'chirish: IG_AUTO_SYNC=off
-if (process.env.IG_AUTO_SYNC !== "off") {
-  const port = process.env.PORT || 3000;
-  const igCronUrl = `http://127.0.0.1:${port}/api/instagram/cron`;
-  const runIgCron = async () => {
-    try {
-      const res = await fetch(igCronUrl, {
-        headers: { "x-cron-secret": process.env.CRON_SECRET },
-      });
-      if (!res.ok && res.status !== 401) {
-        console.error("[cron] Instagram sync javob:", res.status);
-      }
-    } catch {
-      // server hali tayyor bo'lmasligi mumkin
-    }
-  };
-  // Har 6 soatda (token ~60 kun yashaydi, tez-tez shart emas)
-  setTimeout(() => {
-    runIgCron();
-    setInterval(runIgCron, 6 * 60 * 60 * 1000);
-  }, 60_000);
-}

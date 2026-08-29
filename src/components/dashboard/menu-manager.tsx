@@ -7,7 +7,8 @@ import {
   Trash2,
   Loader2,
   UtensilsCrossed,
-  GripVertical,
+  ChevronUp,
+  ChevronDown,
   Search,
   EyeOff,
   Flame,
@@ -90,6 +91,20 @@ export function MenuManager({ currency }: { currency: string }) {
     loadProducts();
   }, [loadCategories, loadProducts]);
 
+  // Kategoriyani tepaga (-1) yoki pastga (+1) siljitadi
+  async function moveCategory(index: number, dir: -1 | 1) {
+    const target = index + dir;
+    if (target < 0 || target >= categories.length) return;
+    const next = [...categories];
+    [next[index], next[target]] = [next[target], next[index]];
+    setCategories(next); // darhol ko'rsatamiz
+    await fetch("/api/categories/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: next.map((c) => c.id) }),
+    });
+  }
+
   async function deleteCategory(id: string) {
     if (!confirm("Kategoriya va undagi barcha mahsulotlar o'chiriladi. Davom etilsinmi?"))
       return;
@@ -143,7 +158,7 @@ export function MenuManager({ currency }: { currency: string }) {
               Kategoriya yo'q. Qo'shing.
             </p>
           )}
-          {categories.map((c) => (
+          {categories.map((c, index) => (
             <div
               key={c.id}
               onClick={() => setActiveCat(c.id)}
@@ -153,7 +168,30 @@ export function MenuManager({ currency }: { currency: string }) {
                   : "border-border bg-card hover:bg-surface-2"
               }`}
             >
-              <GripVertical className="h-4 w-4 shrink-0 text-muted/50" />
+              <div className="flex shrink-0 flex-col">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    moveCategory(index, -1);
+                  }}
+                  disabled={index === 0}
+                  className="rounded p-0.5 text-muted hover:text-foreground disabled:opacity-30 disabled:hover:text-muted"
+                  title="Tepaga"
+                >
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    moveCategory(index, 1);
+                  }}
+                  disabled={index === categories.length - 1}
+                  className="rounded p-0.5 text-muted hover:text-foreground disabled:opacity-30 disabled:hover:text-muted"
+                  title="Pastga"
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </button>
+              </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <span className="truncate text-sm font-medium text-foreground">

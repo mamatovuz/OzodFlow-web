@@ -19,6 +19,7 @@ import {
   ChevronRight,
   ArrowRight,
   Maximize2,
+  WifiOff,
 } from "lucide-react";
 import { formatPrice, parseJson } from "@/lib/utils";
 import type { MenuTheme } from "@/lib/themes";
@@ -139,6 +140,8 @@ export function PublicMenu({
   const [cart, setCart] = useState<Record<string, number>>({});
   const [cartOpen, setCartOpen] = useState(false);
   const [trackedOrder, setTrackedOrder] = useState<string | null>(null);
+  // Internet yo'qligi (offline) — "oxirgi menyu" belgisini ko'rsatish uchun
+  const [offline, setOffline] = useState(false);
   const menuTopRef = useRef<HTMLDivElement | null>(null);
 
   const t = UI[lang];
@@ -146,6 +149,18 @@ export function PublicMenu({
   useEffect(() => {
     const saved = localStorage.getItem("ozf_lang") as Lang | null;
     if (saved && ["uz", "ru", "en"].includes(saved)) setLang(saved);
+  }, []);
+
+  // Internet holatini kuzatish (offline rejimi)
+  useEffect(() => {
+    const sync = () => setOffline(!navigator.onLine);
+    sync();
+    window.addEventListener("online", sync);
+    window.addEventListener("offline", sync);
+    return () => {
+      window.removeEventListener("online", sync);
+      window.removeEventListener("offline", sync);
+    };
   }, []);
   function changeLang(l: Lang) {
     setLang(l);
@@ -912,6 +927,24 @@ export function PublicMenu({
       </div>
       </div>
       {/* /menyu tarkibi (z-[1]) */}
+
+      {/* ─── Offline belgisi: internet yo'q — oxirgi keshlangan menyu ─── */}
+      {offline && (
+        <div
+          className={`fixed inset-x-0 z-[45] flex justify-center px-4 ${
+            showCart && cartCount > 0 ? "bottom-24" : "bottom-4"
+          }`}
+        >
+          <span className="flex items-center gap-1.5 rounded-full bg-foreground/90 px-3.5 py-2 text-xs font-medium text-background shadow-card backdrop-blur">
+            <WifiOff className="h-3.5 w-3.5" />
+            {lang === "ru"
+              ? "Без интернета — последнее меню"
+              : lang === "en"
+              ? "Offline — last menu"
+              : "Internetsiz — oxirgi menyu"}
+          </span>
+        </div>
+      )}
 
       {/* ─── Pastki savat bar (savatsiz dizaynda ko'rinmaydi) ─── */}
       {showCart && cartCount > 0 && (

@@ -43,10 +43,12 @@ export async function POST(req: NextRequest) {
   if (!user) return res;
 
   const body = await req.json().catch(() => null);
-  const discountPercent = Number(body?.discountPercent);
-  if (!Number.isFinite(discountPercent) || discountPercent < 1 || discountPercent > 100) {
-    return fail("Chegirma foizi 1-100 orasida bo'lishi kerak", 422);
+  const rawPercent = Number(body?.discountPercent);
+  if (!Number.isFinite(rawPercent) || rawPercent <= 0 || rawPercent > 100) {
+    return fail("Chegirma foizi 0 dan katta va 100 dan kichik bo'lishi kerak", 422);
   }
+  // Kasrli foizga ruxsat (masalan 26.55) — 2 xonagacha yaxlitlaymiz
+  const discountPercent = Math.round(rawPercent * 100) / 100;
   const scope = ["ALL", "STARTER", "BUSINESS"].includes(body?.scope) ? body.scope : "ALL";
   const maxUses = body?.maxUses ? Math.max(1, Number(body.maxUses)) : null;
   const name = (body?.name || "").toString().trim().slice(0, 60) || null;

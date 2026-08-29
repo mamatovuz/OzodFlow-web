@@ -13,8 +13,9 @@ export async function PATCH(
   const body = await req.json().catch(() => null);
   const data: Record<string, unknown> = {};
   if (typeof body?.isActive === "boolean") data.isActive = body.isActive;
-  if (Number.isFinite(Number(body?.discountPercent)))
-    data.discountPercent = Number(body.discountPercent);
+  const dp = Number(body?.discountPercent);
+  if (Number.isFinite(dp) && dp > 0 && dp <= 100)
+    data.discountPercent = Math.round(dp * 100) / 100;
 
   const promo = await prisma.promoCode
     .update({ where: { id }, data })

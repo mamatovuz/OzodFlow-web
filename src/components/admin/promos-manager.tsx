@@ -219,7 +219,15 @@ export function PromosManager() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Chegirma (%)</Label>
-              <Input name="discountPercent" type="number" min={1} max={100} defaultValue={10} required />
+              <Input
+                name="discountPercent"
+                type="number"
+                min={0.01}
+                max={100}
+                step={0.01}
+                defaultValue={10}
+                required
+              />
             </div>
             <div>
               <Label>Tarif</Label>

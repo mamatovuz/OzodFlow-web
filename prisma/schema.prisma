@@ -528,7 +528,7 @@ model PromoCode {
   id              String    @id @default(cuid())
   code            String    @unique
   name            String? // ichki nom/izoh (masalan "Ramazon aksiyasi")
-  discountPercent Int // chegirma foizi
+  discountPercent Float // chegirma foizi (kasrli bo'lishi mumkin: 26.55)
   scope           String    @default("ALL") // ALL | STARTER | BUSINESS
   source          String    @default("ADMIN") // ADMIN | USER
   ownerId         String? // USER kodi kimga tegishli

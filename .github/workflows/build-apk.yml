@@ -136,8 +136,12 @@ jobs:
           # MUHIM: `bubblewrap init --manifest` faqat URL qabul qiladi (lokal faylni
           # URL sifatida o'qib "Invalid URL" beradi). Tayyor twa-manifest.json dan
           # Android loyihasini generatsiya qilish uchun `update` ishlatiladi.
-          bubblewrap update --skipPwaValidation
-          bubblewrap build --skipPwaValidation
+          #
+          # `update`/`build` interaktiv savol beradi (masalan "versionName ...").
+          # CI'da TTY yo'q — `yes ''` bilan har savolga standart (Enter) javob beramiz,
+          # shunda barcha qiymatlar twa-manifest.json dan olinadi.
+          yes '' | bubblewrap update --skipPwaValidation
+          yes '' | bubblewrap build --skipPwaValidation
 
       - name: Locate signed APK
         id: apk

@@ -2201,7 +2201,7 @@ function ProductDetail({
         >
           <X className="h-5 w-5" />
         </button>
-        <div className="relative h-60 w-full shrink-0 overflow-hidden bg-surface-2 sm:h-72">
+        <div className="relative h-80 w-full shrink-0 overflow-hidden bg-surface-2 sm:h-96">
           {imgs[activeImg] ? (
             <button
               type="button"
@@ -2209,12 +2209,13 @@ function ProductDetail({
               className="group block h-full w-full"
               aria-label="Rasmni to'liq ko'rish"
             >
-              {/* Rasm butun maydonni to'ldiradi (chekada bo'sh joy qolmaydi) */}
+              {/* Rasm butun maydonni to'ldiradi (chekada bo'sh joy qolmaydi).
+                  object-top — kesish tepadan boshlanadi (taomning ustki qismi ko'rinadi). */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={imgs[activeImg]}
                 alt={p.name}
-                className="h-full w-full object-cover transition-transform duration-300 group-active:scale-[1.02]"
+                className="h-full w-full object-cover object-top transition-transform duration-300 group-active:scale-[1.02]"
               />
               {/* "Kattalashtirish" ishorasi */}
               <span className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur">

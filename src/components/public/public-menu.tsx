@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowRight,
+  Maximize2,
 } from "lucide-react";
 import { formatPrice, parseJson } from "@/lib/utils";
 import type { MenuTheme } from "@/lib/themes";
@@ -2182,6 +2183,8 @@ function ProductDetail({
   const imgs = parseJson<string[]>(p.images, []);
   const [qty, setQtyLocal] = useState(1);
   const [activeImg, setActiveImg] = useState(0);
+  // To'liq ekran rasm ko'rish (rasm ustiga bosilganda ochiladi)
+  const [zoom, setZoom] = useState(false);
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -2194,31 +2197,32 @@ function ProductDetail({
       <div className="relative z-10 flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-card animate-fade-up sm:rounded-3xl">
         <button
           onClick={onClose}
-          className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur"
+          className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur"
         >
           <X className="h-5 w-5" />
         </button>
-        <div className="relative h-56 w-full shrink-0 overflow-hidden bg-black sm:h-72">
+        <div className="relative h-60 w-full shrink-0 overflow-hidden bg-surface-2 sm:h-72">
           {imgs[activeImg] ? (
-            <>
-              {/* Xira (blur) fon — rasm to'liq ko'rinishi uchun bo'sh joyni to'ldiradi */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={imgs[activeImg]}
-                alt=""
-                aria-hidden
-                className="absolute inset-0 h-full w-full scale-110 object-cover opacity-30 blur-xl"
-              />
-              {/* To'liq rasm — kesilmasdan (object-contain) markazda */}
+            <button
+              type="button"
+              onClick={() => setZoom(true)}
+              className="group block h-full w-full"
+              aria-label="Rasmni to'liq ko'rish"
+            >
+              {/* Rasm butun maydonni to'ldiradi (chekada bo'sh joy qolmaydi) */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={imgs[activeImg]}
                 alt={p.name}
-                className="relative z-1 h-full w-full object-contain"
+                className="h-full w-full object-cover transition-transform duration-300 group-active:scale-[1.02]"
               />
-            </>
+              {/* "Kattalashtirish" ishorasi */}
+              <span className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur">
+                <Maximize2 className="h-4 w-4" />
+              </span>
+            </button>
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-surface-2 text-muted/40">
+            <div className="flex h-full w-full items-center justify-center text-muted/40">
               <UtensilsCrossed className="h-14 w-14" />
             </div>
           )}
@@ -2234,6 +2238,46 @@ function ProductDetail({
             </div>
           )}
         </div>
+
+        {/* To'liq ekran rasm ko'rish (lightbox) */}
+        {zoom && imgs[activeImg] && (
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/95"
+            onClick={() => setZoom(false)}
+          >
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setZoom(false);
+              }}
+              aria-label="Yopish"
+              className="absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur transition-colors hover:bg-white/25"
+            >
+              <X className="h-6 w-6" />
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imgs[activeImg]}
+              alt={p.name}
+              className="max-h-[92vh] max-w-[96vw] object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+            {imgs.length > 1 && (
+              <div className="absolute bottom-5 left-1/2 flex -translate-x-1/2 gap-2">
+                {imgs.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveImg(i);
+                    }}
+                    className={`h-2 rounded-full transition-all ${i === activeImg ? "w-6 bg-white" : "w-2 bg-white/50"}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <div className="flex-1 overflow-y-auto p-5">
           <div className="flex items-start justify-between gap-3">
             <h2 className="text-xl font-bold text-foreground">{p.name}</h2>

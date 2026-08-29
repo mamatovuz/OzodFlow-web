@@ -125,6 +125,7 @@ jobs:
         env:
           RAW_STORE_PW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           RAW_KEY_PW: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
           # Parol secretlaridan yangi qator/bo'shliqni tozalaymiz (imzo xato bermasligi uchun)
           export BUBBLEWRAP_KEYSTORE_PASSWORD=$(printf '%s' "$RAW_STORE_PW" | tr -d '\r\n')
@@ -137,11 +138,12 @@ jobs:
           # URL sifatida o'qib "Invalid URL" beradi). Tayyor twa-manifest.json dan
           # Android loyihasini generatsiya qilish uchun `update` ishlatiladi.
           #
-          # `update`/`build` interaktiv savol beradi (masalan "versionName ...").
-          # CI'da TTY yo'q — `yes ''` bilan har savolga standart (Enter) javob beramiz,
-          # shunda barcha qiymatlar twa-manifest.json dan olinadi.
-          yes '' | bubblewrap update --skipPwaValidation
-          yes '' | bubblewrap build --skipPwaValidation
+          # `update` interaktiv "versionName"/"versionCode" so'raydi. Bo'sh javob
+          # "Minimum length is 1" bilan CHEKSIZ takrorlanadi — shuning uchun aniq
+          # qiymatlarni stdin orqali beramiz (versionName, versionCode), qolgan
+          # tasdiqlarga bo'sh (Enter=default). Kirish CHEKLI — osilib qolmaydi.
+          printf '1.0.%s\n%s\n\n\n' "$RUN_NUMBER" "$RUN_NUMBER" | bubblewrap update --skipPwaValidation
+          bubblewrap build --skipPwaValidation
 
       - name: Locate signed APK
         id: apk

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata, Viewport } from "next";
 import { prisma } from "@/lib/prisma";
 import { getMenuBySlug, resolveTable } from "@/lib/menu";
+import { getTheme, MENU_THEMES } from "@/lib/themes";
 import { PublicMenu } from "@/components/public/public-menu";
 import { BlockedMenu } from "@/components/public/blocked-menu";
 import { restaurantJsonLd } from "@/lib/seo";
@@ -61,10 +62,10 @@ export default async function PublicMenuPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ t?: string }>;
+  searchParams: Promise<{ t?: string; preview?: string }>;
 }) {
   const { slug } = await params;
-  const { t } = await searchParams;
+  const { t, preview } = await searchParams;
   const data = await getMenuBySlug(slug);
   if (!data) notFound();
 
@@ -73,6 +74,20 @@ export default async function PublicMenuPage({
   }
 
   const table = await resolveTable(data.restaurant.id, t);
+
+  // Oldindan ko'rish (dizayn tanlash): ?preview=<themeKey> berilsa — o'sha dizayn
+  // bilan (haqiqiy taomlar/logo) faqat ko'rsatiladi, savat/buyurtma o'chirilgan.
+  // Dizayn saqlanmaydi — restoran uchun hech narsa o'zgarmaydi.
+  const isPreview =
+    !!preview && MENU_THEMES.some((th) => th.key === preview);
+  const activeTheme = isPreview ? getTheme(preview) : data.theme;
+  // Boshqa dizaynni ko'rayotganda — o'sha dizaynning o'z ko'rinishini ko'rsatamiz
+  // (joriy dizaynning saqlangan rang sozlamalari aralashmasin). Xuddi shu dizaynni
+  // ko'rayotganda esa restoran sozlamalari qo'llanadi.
+  const restaurantForRender =
+    isPreview && preview !== data.restaurant.menuTheme
+      ? { ...data.restaurant, designConfig: null }
+      : data.restaurant;
 
   const jsonLd = restaurantJsonLd(
     data.restaurant,
@@ -87,14 +102,15 @@ export default async function PublicMenuPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <PublicMenu
-        restaurant={data.restaurant}
+        restaurant={restaurantForRender}
         categories={data.categories}
         products={data.products}
-        theme={data.theme}
+        theme={activeTheme}
         table={table}
         banners={data.banners}
         gallery={data.gallery}
         combos={data.combos}
+        preview={isPreview}
       />
     </>
   );

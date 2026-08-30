@@ -28,6 +28,7 @@ export default async function DesignPage() {
         canPremium={access.canPremiumThemes}
         purchased={parsePurchasedThemes(restaurant.purchasedThemes)}
         designConfig={restaurant.designConfig}
+        slug={restaurant.slug}
         restaurant={{
           name: restaurant.name,
           description: restaurant.description,

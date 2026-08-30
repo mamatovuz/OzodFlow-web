@@ -130,9 +130,20 @@ export function MenuManager({ currency }: { currency: string }) {
     loadProducts();
   }
 
+  // ─── Global qidiruv ───
+  // Qidiruv yozilganda — kategoriyadan qat'i nazar BARCHA taomlar orasidan
+  // qidiradi (nom uz/ru/en bo'yicha). Bo'sh bo'lsa — tanlangan kategoriya ichida.
+  const q = search.trim().toLowerCase();
+  const catNameById = new Map(categories.map((c) => [c.id, c.name]));
   const visibleProducts = products
-    .filter((p) => (activeCat ? p.categoryId === activeCat : true))
-    .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
+    .filter((p) => (q ? true : activeCat ? p.categoryId === activeCat : true))
+    .filter((p) =>
+      !q
+        ? true
+        : [p.name, p.nameRu, p.nameEn]
+            .filter(Boolean)
+            .some((n) => n!.toLowerCase().includes(q))
+    );
 
   if (loading) {
     return (
@@ -237,7 +248,7 @@ export function MenuManager({ currency }: { currency: string }) {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Mahsulot qidirish..."
+              placeholder="Barcha taomlardan qidirish..."
               className="pl-9"
             />
           </div>
@@ -252,9 +263,13 @@ export function MenuManager({ currency }: { currency: string }) {
         {visibleProducts.length === 0 ? (
           <Card className="flex flex-col items-center justify-center py-16 text-center">
             <UtensilsCrossed className="h-10 w-10 text-muted/40" />
-            <p className="mt-3 font-medium text-foreground">Mahsulot yo'q</p>
+            <p className="mt-3 font-medium text-foreground">
+              {q ? `"${search}" bo'yicha hech narsa topilmadi` : "Mahsulot yo'q"}
+            </p>
             <p className="mt-1 text-sm text-muted">
-              {categories.length === 0
+              {q
+                ? "Boshqa nom bilan qidirib ko'ring"
+                : categories.length === 0
                 ? "Avval kategoriya qo'shing"
                 : "Birinchi mahsulotni qo'shing"}
             </p>
@@ -300,6 +315,11 @@ export function MenuManager({ currency }: { currency: string }) {
                           </button>
                         </div>
                       </div>
+                      {q && (
+                        <p className="mt-0.5 truncate text-xs text-muted">
+                          {catNameById.get(p.categoryId) || "Kategoriyasiz"}
+                        </p>
+                      )}
                       <div className="mt-1 flex items-center gap-1.5">
                         <span className="font-semibold text-foreground">
                           {formatPrice(p.price, currency)}

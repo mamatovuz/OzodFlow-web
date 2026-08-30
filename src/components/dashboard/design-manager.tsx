@@ -17,12 +17,14 @@ export function DesignManager({
   canPremium,
   purchased,
   designConfig,
+  slug,
   restaurant,
 }: {
   current: string;
   canPremium: boolean;
   purchased: string[];
   designConfig: string;
+  slug: string;
   restaurant: RestaurantLite;
 }) {
   const [config, setConfig] = useState<DesignConfig>(() =>
@@ -43,6 +45,7 @@ export function DesignManager({
         current={current}
         canPremium={canPremium}
         purchased={purchased}
+        slug={slug}
         onCustomize={(key) => {
           setSaved(false);
           setEditing(key);

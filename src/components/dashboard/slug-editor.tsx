@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Link2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui";
+import { BASE_DOMAIN } from "@/lib/urls";
 
 export function SlugEditor({ current }: { current: string }) {
   const router = useRouter();
@@ -43,8 +44,8 @@ export function SlugEditor({ current }: { current: string }) {
       </div>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="flex flex-1 items-center overflow-hidden rounded-lg border border-border bg-card focus-within:border-accent">
-          <span className="select-none whitespace-nowrap bg-surface-2 px-3 py-2 text-sm text-muted">
-            ozodflow.uz/m/
+          <span className="select-none whitespace-nowrap px-2 pl-3 text-sm text-muted">
+            https://
           </span>
           <input
             value={value}
@@ -55,9 +56,12 @@ export function SlugEditor({ current }: { current: string }) {
               setError("");
               setSaved(false);
             }}
-            className="h-10 flex-1 bg-transparent px-2 text-sm text-foreground outline-none"
+            className="h-10 min-w-0 flex-1 bg-transparent px-1 text-sm font-medium text-foreground outline-none"
             placeholder="restoran-nomi"
           />
+          <span className="select-none whitespace-nowrap bg-surface-2 px-3 py-2 text-sm text-muted">
+            .{BASE_DOMAIN}
+          </span>
         </div>
         <Button onClick={save} disabled={saving || !changed || !value.trim()}>
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}

@@ -18,6 +18,7 @@ import { Card, Badge } from "@/components/ui";
 type Session = {
   id: string;
   current: boolean;
+  count?: number; // shu qurilmadagi seanslar soni (dedup)
   type: "phone" | "tablet" | "laptop" | "desktop" | "unknown";
   os: string;
   browser: string;
@@ -60,6 +61,9 @@ export function SessionsManager() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null); // ish ketayotgan id/fingerprint
   const [confirmBlock, setConfirmBlock] = useState<Session | null>(null);
+  const [showAll, setShowAll] = useState(false); // boshida faqat 4 ta, keyin hammasi
+
+  const VISIBLE = 4;
 
   async function load() {
     const res = await fetch("/api/sessions", { cache: "no-store" });
@@ -125,7 +129,7 @@ export function SessionsManager() {
         </div>
       ) : (
         <div className="space-y-3">
-          {sessions.map((s) => {
+          {(showAll ? sessions : sessions.slice(0, VISIBLE)).map((s) => {
             const Icon = ICONS[s.type] || HelpCircle;
             return (
               <div
@@ -182,6 +186,18 @@ export function SessionsManager() {
               </div>
             );
           })}
+
+          {/* Ko'proq ko'rish — boshida faqat 4 ta qurilma ko'rinadi */}
+          {sessions.length > VISIBLE && (
+            <button
+              onClick={() => setShowAll((v) => !v)}
+              className="w-full rounded-xl border border-border py-2.5 text-sm font-medium text-accent transition hover:bg-surface-2"
+            >
+              {showAll
+                ? "Kamroq ko'rsatish"
+                : `Ko'proq ko'rish (yana ${sessions.length - VISIBLE} ta)`}
+            </button>
+          )}
         </div>
       )}
 

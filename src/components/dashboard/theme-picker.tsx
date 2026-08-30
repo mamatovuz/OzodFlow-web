@@ -39,11 +39,13 @@ export function ThemePicker({
   current,
   canPremium,
   purchased,
+  slug,
   onCustomize,
 }: {
   current: string;
   canPremium: boolean;
   purchased: string[];
+  slug?: string;
   onCustomize?: (key: string) => void;
 }) {
   const [owned] = useState<string[]>(purchased);
@@ -70,10 +72,12 @@ export function ThemePicker({
     return !t.premium || canPremium || owned.includes(t.key);
   }
 
-  // Sozlash (ranglar/fon/kartalar) — split va scroll (planshet) dizaynlarida bor
+  // Sozlash (ranglar/fon/kartalar) — split va scroll (planshet) dizaynlari, hamda
+  // yangi dizaynlar (Nordic, Sahra, Delever, Sultan, Fiesta) ranglarni almashtira oladi.
+  const COLOR_EDITABLE = ["nordic", "sahra", "delever", "sultan", "fiesta"];
   function customizable(key: string) {
     const s = menuStyleFor(key);
-    return s === "split" || s === "scroll";
+    return s === "split" || s === "scroll" || COLOR_EDITABLE.includes(key);
   }
   const canCustomize = (key: string) => !!onCustomize && customizable(key);
 
@@ -209,8 +213,12 @@ export function ThemePicker({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="max-h-[60vh] overflow-y-auto p-4">
-              <ThemeMock theme={preview} large />
+            <div className="max-h-[62vh] overflow-y-auto bg-surface-2 p-4">
+              {slug ? (
+                <LivePreview slug={slug} themeKey={preview.key} />
+              ) : (
+                <ThemeMock theme={preview} large />
+              )}
             </div>
             <div className="border-t border-border p-4">
               {preview.premium && !isOwned(preview) ? (
@@ -469,6 +477,39 @@ function PurchaseModal({
         </div>
       </div>
     </Modal>
+  );
+}
+
+// Haqiqiy menyuni telefon ramkasida oldindan ko'rish (iframe).
+// Restoranning haqiqiy logosi, taomlari va ma'lumotlari — aynan qo'llangandek
+// ko'rinadi, lekin savat/buyurtma o'chirilgan (faqat ko'rish). Dizayn saqlanmaydi.
+function LivePreview({ slug, themeKey }: { slug: string; themeKey: string }) {
+  const [loaded, setLoaded] = useState(false);
+  const src = `/m/${slug}?preview=${themeKey}`;
+  return (
+    <div className="mx-auto w-full max-w-[300px]">
+      <div className="relative mx-auto overflow-hidden rounded-[2rem] border-[6px] border-foreground/85 bg-card shadow-card">
+        {/* telefon "notch" */}
+        <div className="pointer-events-none absolute left-1/2 top-0 z-10 h-4 w-24 -translate-x-1/2 rounded-b-xl bg-foreground/85" />
+        {!loaded && (
+          <div className="absolute inset-0 z-[5] flex items-center justify-center bg-surface-2">
+            <Loader2 className="h-6 w-6 animate-spin text-accent" />
+          </div>
+        )}
+        <iframe
+          key={src}
+          src={src}
+          title="Menyu namoyishi"
+          onLoad={() => setLoaded(true)}
+          className="block h-[560px] w-full bg-card"
+          loading="lazy"
+        />
+      </div>
+      <p className="mt-3 text-center text-xs text-muted">
+        Bu — sizning haqiqiy menyungiz shu dizaynda qanday ko'rinishi. Hozircha
+        qo'llanmagan — pastda tanlasangiz qo'llanadi.
+      </p>
+    </div>
   );
 }
 

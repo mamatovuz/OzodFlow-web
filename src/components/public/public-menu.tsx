@@ -224,6 +224,7 @@ export function PublicMenu({
   banners,
   gallery = [],
   combos = [],
+  preview = false,
 }: {
   restaurant: PublicRestaurant;
   categories: PublicCategory[];
@@ -233,6 +234,8 @@ export function PublicMenu({
   banners: PublicBanner[];
   gallery?: PublicGallery[];
   combos?: PublicCombo[];
+  // Oldindan ko'rish rejimi (dizayn tanlashda): faqat ko'rsatiladi, savat/buyurtma o'chirilgan.
+  preview?: boolean;
 }) {
   const [lang, setLang] = useState<Lang>("uz");
   // Ochilgan (ichiga kirilgan) kategoriya. null bo'lsa — barcha kategoriyalar
@@ -314,8 +317,9 @@ export function PublicMenu({
   const isSplit = menuStyle === "split";
   const isTabs = menuStyle === "tabs";
   const isScroll = menuStyle === "scroll";
-  // Savat bor-yo'qligi (vitrina dizayni — faqat ko'rish, savatsiz)
-  const showCart = menuHasCart(theme.key);
+  // Savat bor-yo'qligi (vitrina dizayni — faqat ko'rish, savatsiz).
+  // Oldindan ko'rish rejimida ham savat/buyurtma o'chiriladi (faqat ko'rsatish uchun).
+  const showCart = preview ? false : menuHasCart(theme.key);
   const cardShadow = shadowCss(design.card.shadow, theme.isDark);
 
   // Menyu foni (standart / rang / rasm / gradient + overlay)
@@ -525,6 +529,18 @@ export function PublicMenu({
           className="pointer-events-none fixed inset-0 z-0"
           style={{ background: `rgba(0,0,0,${bgOverlay})` }}
         />
+      )}
+
+      {/* ─── Oldindan ko'rish belgisi (dizayn tanlash uchun namoyish) ─── */}
+      {preview && (
+        <div className="pointer-events-none fixed inset-x-0 top-0 z-[60] flex justify-center p-2">
+          <span
+            className="rounded-full px-3 py-1 text-[11px] font-semibold shadow-card backdrop-blur"
+            style={{ background: accent, color: accentText }}
+          >
+            Namoyish — bu qanday ko'rinishini ko'rsatadi
+          </span>
+        </div>
       )}
 
       {/* ─── Bosh sahifa (intro) — QR ochilganda birinchi ekran ─── */}

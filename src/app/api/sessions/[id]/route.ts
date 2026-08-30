@@ -19,6 +19,14 @@ export const DELETE = route(async (_req, ctx) => {
   const session = await prisma.session.findFirst({ where: { id, userId: user!.id } });
   if (!session) return fail("Seans topilmadi", 404);
 
+  // Bir qurilma bitta qatorda ko'rsatiladi (dedup) — chiqarganda shu qurilmaning
+  // barcha seanslarini o'chiramiz (bittasi qolib ketmasin). Iz yo'q bo'lsa — faqat shu.
+  if (session.deviceId) {
+    const r = await prisma.session.deleteMany({
+      where: { userId: user!.id, deviceId: session.deviceId },
+    });
+    return ok({ removed: true, count: r.count });
+  }
   await prisma.session.delete({ where: { id } });
-  return ok({ removed: true });
+  return ok({ removed: true, count: 1 });
 });

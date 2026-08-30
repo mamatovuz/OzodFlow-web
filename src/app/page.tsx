@@ -1,6 +1,8 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { getMenuByDomain, resolveTable } from "@/lib/menu";
+import { getMenuByDomain, getMenuBySlug, resolveTable } from "@/lib/menu";
+import { slugFromHost } from "@/lib/urls";
 import { PublicMenu } from "@/components/public/public-menu";
 import { BlockedMenu } from "@/components/public/blocked-menu";
 import { getPlanPrices, getLifetimePrices } from "@/lib/plan-prices";
@@ -139,6 +141,40 @@ const PLATFORM_HOSTS = (process.env.PLATFORM_HOSTS || "")
   .map((h) => h.trim().toLowerCase())
   .filter(Boolean);
 
+// Subdomen/maxsus domenda ochilganda — brauzer tabida restoran nomi va logosi
+// ko'rinsin (platforma nomi emas). Menyu "o'z sayti" kabi ko'rinadi.
+export async function generateMetadata(): Promise<Metadata> {
+  const h = await headers();
+  const host = (h.get("host") || "").split(":")[0].toLowerCase();
+  const sub = slugFromHost(host);
+  const menu = sub
+    ? await getMenuBySlug(sub)
+    : host && !host.endsWith("ozodflow.uz") && host !== "localhost"
+    ? await getMenuByDomain(host)
+    : null;
+  if (!menu || "blocked" in menu) return {};
+  const r = menu.restaurant;
+  const title = `${r.name} — Menyu`;
+  const description = r.description || `${r.name} elektron menyusi`;
+  return {
+    title,
+    description,
+    appleWebApp: { capable: true, title: r.name },
+    manifest: `/m/${r.slug}/manifest.webmanifest`,
+    openGraph: { title, description, type: "website" },
+    twitter: { card: "summary_large_image", title, description },
+    ...(r.logo
+      ? {
+          icons: {
+            icon: [{ url: r.logo }],
+            shortcut: [{ url: r.logo }],
+            apple: [{ url: r.logo }],
+          },
+        }
+      : {}),
+  };
+}
+
 export default async function LandingPage({
   searchParams,
 }: {
@@ -153,6 +189,32 @@ export default async function LandingPage({
     host.endsWith(".railway.app") ||
     host.endsWith("ozodflow.uz") ||
     PLATFORM_HOSTS.includes(host);
+
+  // ─── Subdomen menyu: test.ozodflow.uz → "test" restorani menyusi ───
+  const subSlug = slugFromHost(host);
+  if (subSlug) {
+    const menu = await getMenuBySlug(subSlug);
+    if (menu && "blocked" in menu) {
+      return <BlockedMenu name={menu.restaurant.name} slug={menu.restaurant.slug} />;
+    }
+    if (menu) {
+      const { t } = await searchParams;
+      const table = await resolveTable(menu.restaurant.id, t);
+      return (
+        <PublicMenu
+          restaurant={menu.restaurant}
+          categories={menu.categories}
+          products={menu.products}
+          theme={menu.theme}
+          table={table}
+          banners={menu.banners}
+          gallery={menu.gallery}
+          combos={menu.combos}
+        />
+      );
+    }
+    // Subdomen bor, lekin bunday menyu topilmadi — landing ko'rsatamiz
+  }
 
   if (!isPlatform) {
     const menu = await getMenuByDomain(host);

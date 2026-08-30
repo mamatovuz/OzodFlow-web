@@ -20,7 +20,12 @@ export type ThemeKey =
   | "rose"
   | "mono"
   | "restoran"
-  | "vitrina";
+  | "vitrina"
+  | "nordic"
+  | "sahra"
+  | "delever"
+  | "sultan"
+  | "fiesta";
 
 export type ThemeLayout = "list" | "grid";
 
@@ -406,6 +411,116 @@ export const MENU_THEMES: MenuTheme[] = [
       border: "#ececE6",
     },
   },
+  {
+    // Nordic — skandinav minimalizm: sovuq oq-kulrang, o'tkir (kichik radius),
+    // ko'p bo'sh joy, qora urg'u. Tepada toza tab qatori, bitta kategoriya.
+    // Nafis va sokin — kofexona/bistro uslubi.
+    key: "nordic",
+    name: "Nordic",
+    premium: true,
+    isDark: false,
+    layout: "list",
+    radius: 8,
+    accent: "#1c1c1e",
+    accentText: "#ffffff",
+    colors: {
+      background: "#fafafa",
+      surface: "#f2f2f0",
+      surface2: "#e9e9e6",
+      card: "#ffffff",
+      foreground: "#1a1a1a",
+      muted: "#8a8a88",
+      border: "#eae9e5",
+    },
+  },
+  {
+    // Sahra — issiq qog'oz minimalizm: krem/qog'ozrang fon, loyrang urg'u,
+    // o'tkir burchaklar, markazlashgan sokin header. Kategoriyalar ro'yxat.
+    // Choyxona/qadimiy oshxona uslubining zamonaviy, sof ko'rinishi.
+    key: "sahra",
+    name: "Sahra",
+    premium: true,
+    isDark: false,
+    layout: "list",
+    radius: 6,
+    accent: "#9a6a4b",
+    accentText: "#ffffff",
+    colors: {
+      background: "#f6f1e7",
+      surface: "#efe8da",
+      surface2: "#e6ddcb",
+      card: "#fbf7ef",
+      foreground: "#2b2117",
+      muted: "#8c7a64",
+      border: "#e5dac6",
+    },
+  },
+  {
+    // Delever — zamonaviy yetkazib berish ilovasi uslubi (delever.io kabi):
+    // toza oq fon, jonli marjon urg'u, planshet-uslub uzun kategoriya tablari +
+    // katta grid kartalar (scroll-spy). Savatli — buyurtma beriladi.
+    key: "delever",
+    name: "Delever",
+    premium: true,
+    isDark: false,
+    layout: "grid",
+    radius: 20,
+    accent: "#ff5a3c",
+    accentText: "#ffffff",
+    colors: {
+      background: "#ffffff",
+      surface: "#f6f7f9",
+      surface2: "#eef0f3",
+      card: "#ffffff",
+      foreground: "#16181d",
+      muted: "#6b7280",
+      border: "#eaecef",
+    },
+  },
+  {
+    // Sultan — sharqona premium: to'q zumrad fon + oltin urg'u, krem matn.
+    // Katta banner kategoriyalar, markazlashgan boy header. Milliy restoran,
+    // ziyofatxona uslubi — hashamat va nafislik.
+    key: "sultan",
+    name: "Sultan",
+    premium: true,
+    isDark: true,
+    layout: "grid",
+    radius: 16,
+    accent: "#c9a227",
+    accentText: "#171206",
+    colors: {
+      background: "#0c1a16",
+      surface: "#12241e",
+      surface2: "#183029",
+      card: "#10221c",
+      foreground: "#f4eedd",
+      muted: "#9fb3a8",
+      border: "#1f3a31",
+    },
+  },
+  {
+    // Fiesta — jonli va quvnoq: issiq oq fon, moshrang (magenta) urg'u, juda
+    // yumaloq burchaklar. Tepada rangli tablar + banner kategoriyalar.
+    // Fast-food, shirinlik, quvnoq kafe uslubi.
+    key: "fiesta",
+    name: "Fiesta",
+    premium: true,
+    isDark: false,
+    layout: "grid",
+    radius: 24,
+    accent: "#ec4899",
+    accentText: "#ffffff",
+    colors: {
+      background: "#fffdf7",
+      surface: "#fbf3ea",
+      surface2: "#f6e7dc",
+      card: "#ffffff",
+      foreground: "#2a0e1e",
+      muted: "#8a6b78",
+      border: "#f3e4dc",
+    },
+  },
 ];
 
 export function getTheme(key: string | null | undefined): MenuTheme {
@@ -443,6 +558,11 @@ const CATEGORY_STYLE: Record<ThemeKey, CategoryStyle> = {
   mono: "list",
   restoran: "grid",
   vitrina: "grid",
+  nordic: "list",
+  sahra: "list",
+  delever: "grid",
+  sultan: "banner",
+  fiesta: "banner",
 };
 
 const HEADER_STYLE: Record<ThemeKey, HeaderStyle> = {
@@ -464,6 +584,11 @@ const HEADER_STYLE: Record<ThemeKey, HeaderStyle> = {
   mono: "overlap",
   restoran: "center",
   vitrina: "center",
+  nordic: "minimal",
+  sahra: "center",
+  delever: "center",
+  sultan: "center",
+  fiesta: "center",
 };
 
 export function categoryStyleFor(key: string): CategoryStyle {
@@ -499,6 +624,11 @@ const MENU_STYLE: Record<ThemeKey, MenuStyle> = {
   mono: "split",
   restoran: "scroll",
   vitrina: "scroll",
+  nordic: "tabs",
+  sahra: "browse",
+  delever: "scroll",
+  sultan: "browse",
+  fiesta: "tabs",
 };
 
 export function menuStyleFor(key: string): MenuStyle {

@@ -1,6 +1,8 @@
 // SEO yordamchilari: sayt manzili, absolyut URL va restoran uchun JSON-LD
 // (Google boy natijalari — Restaurant + Menu strukturasi).
 
+import { menuUrl } from "./urls";
+
 export const SITE_URL = (
   process.env.NEXT_PUBLIC_APP_URL ||
   process.env.NEXT_PUBLIC_SITE_URL ||
@@ -58,7 +60,7 @@ export function restaurantJsonLd(
   categories: Category[],
   products: Product[]
 ): Record<string, unknown> {
-  const url = `${SITE_URL}/m/${r.slug}`;
+  const url = menuUrl(r.slug, (r as { customDomain?: string | null }).customDomain);
   const currency = r.currency || "UZS";
 
   const images = [absUrl(r.cover), absUrl(r.logo)].filter(Boolean);

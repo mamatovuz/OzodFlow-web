@@ -66,22 +66,33 @@ export default async function DashboardHome() {
 
   return (
     <div className="space-y-6">
-      {/* Sarlavha */}
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            Salom, {user.name.split(" ")[0]} 👋
-          </h1>
-          <p className="mt-1 text-sm text-muted">
-            {restaurant.name} — bugungi ko'rsatkichlar
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/dashboard/menu">
-            <Button>
-              <Plus className="h-4 w-4" /> Mahsulot qo'shish
-            </Button>
-          </Link>
+      {/* Sarlavha — gradient hero */}
+      <div
+        className="relative overflow-hidden rounded-2xl p-6 text-white shadow-card sm:p-7"
+        style={{
+          backgroundImage:
+            "linear-gradient(135deg, var(--accent), var(--accent-hover))",
+        }}
+      >
+        {/* dekorativ doiralar */}
+        <div className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full bg-white/10" />
+        <div className="pointer-events-none absolute -bottom-20 right-16 h-40 w-40 rounded-full bg-white/10" />
+        <div className="relative flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div>
+            <h1 className="text-2xl font-bold sm:text-3xl">
+              Salom, {user.name.split(" ")[0]} 👋
+            </h1>
+            <p className="mt-1 flex items-center gap-1.5 text-sm text-white/85">
+              <Store className="h-4 w-4" /> {restaurant.name} — bugungi ko'rsatkichlar
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Link href="/dashboard/menu">
+              <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-accent shadow-soft transition-transform active:scale-[0.98]">
+                <Plus className="h-4 w-4" /> Mahsulot qo'shish
+              </span>
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -91,7 +102,7 @@ export default async function DashboardHome() {
       {/* Buyurtma kartalari */}
       <div className="grid gap-4 sm:grid-cols-3">
         <Link href="/dashboard/orders">
-          <Card className="p-5 transition-all hover:shadow-card">
+          <Card className="p-5 transition-all hover:-translate-y-0.5 hover:shadow-card">
             <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
               <ClipboardList className="h-5 w-5" />
             </div>
@@ -109,7 +120,7 @@ export default async function DashboardHome() {
           <p className="mt-0.5 text-sm text-muted">Bugungi daromad</p>
         </Card>
         <Link href="/dashboard/orders">
-          <Card className="p-5 transition-all hover:shadow-card">
+          <Card className="p-5 transition-all hover:-translate-y-0.5 hover:shadow-card">
             <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-warning/10 text-warning">
               <Flame className="h-5 w-5" />
             </div>
@@ -122,13 +133,16 @@ export default async function DashboardHome() {
       {/* Statistika kartalari */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
-          <Card key={c.label} className="p-5">
+          <Card
+            key={c.label}
+            className="p-5 transition-all hover:-translate-y-0.5 hover:shadow-card"
+          >
             <div
-              className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${c.color}`}
+              className={`mb-3 flex h-11 w-11 items-center justify-center rounded-xl ${c.color}`}
             >
               <c.icon className="h-5 w-5" />
             </div>
-            <p className="text-2xl font-bold text-foreground">{c.value}</p>
+            <p className="text-3xl font-bold tracking-tight text-foreground">{c.value}</p>
             <p className="mt-0.5 text-sm text-muted">{c.label}</p>
           </Card>
         ))}
@@ -146,8 +160,12 @@ export default async function DashboardHome() {
               <div key={i} className="flex flex-1 flex-col items-center gap-2">
                 <div className="flex w-full flex-1 items-end">
                   <div
-                    style={{ height: `${Math.max((d.count / maxDaily) * 100, d.count > 0 ? 6 : 2)}%` }}
-                    className="w-full min-h-[4px] rounded-t-md bg-accent/80 transition-all hover:bg-accent"
+                    style={{
+                      height: `${Math.max((d.count / maxDaily) * 100, d.count > 0 ? 6 : 2)}%`,
+                      backgroundImage:
+                        "linear-gradient(to top, var(--accent), var(--accent-hover))",
+                    }}
+                    className="w-full min-h-[4px] rounded-t-md opacity-90 transition-all hover:opacity-100"
                     title={`${d.count} skan`}
                   />
                 </div>
@@ -234,7 +252,7 @@ export default async function DashboardHome() {
             },
           ].map((a) => (
             <Link key={a.href} href={a.href}>
-              <Card className="flex items-center gap-4 p-5 transition-all hover:shadow-card">
+              <Card className="flex items-center gap-4 p-5 transition-all hover:-translate-y-0.5 hover:shadow-card">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
                   <a.icon className="h-5 w-5" />
                 </div>

@@ -24,12 +24,32 @@ export const GET = route(async () => {
     }),
   ]);
 
+  // ── Bir qurilmani bitta qilib ko'rsatish (dedup) ──
+  // Bir noutbukdan bir necha marta kirilsa — deviceId (barmoq izi) bir xil bo'ladi.
+  // Shu izga qarab guruhlab, faqat eng so'nggi seansni ko'rsatamiz (nechta ekanini
+  // ham qaytaramiz). Iz yo'q eski seanslar o'z holicha qoladi.
+  type Grp = { rep: (typeof sessions)[number]; count: number; current: boolean };
+  const groups = new Map<string, Grp>();
+  for (const s of sessions) {
+    const key = s.deviceId || `id:${s.id}`;
+    const cur = s.id === currentId;
+    const g = groups.get(key);
+    if (!g) {
+      // Sessions lastSeenAt bo'yicha kamayish tartibida — birinchisi = eng so'nggi (rep)
+      groups.set(key, { rep: s, count: 1, current: cur });
+    } else {
+      g.count += 1;
+      g.current = g.current || cur;
+    }
+  }
+
   return ok({
-    sessions: sessions.map((s) => {
+    sessions: Array.from(groups.values()).map(({ rep: s, count, current }) => {
       const d = parseUserAgent(s.userAgent);
       return {
         id: s.id,
-        current: s.id === currentId,
+        current,
+        count,
         type: d.type,
         os: d.os,
         browser: d.browser,

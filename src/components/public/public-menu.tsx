@@ -154,17 +154,11 @@ function SmartImage({
     // Keshdan darhol kelgan rasm (onLoad ishlamay qolishi mumkin)
     if (ref.current?.complete) setLoaded(true);
   }, []);
-  const isLocal = !!src && (src.startsWith("/media/") || src.startsWith("/uploads/"));
-  // Faqat 2 variant (1x va retina 2x) — serverда kamroq alohida kodlash bo'ladi
-  const srcSet = isLocal
-    ? [w, Math.min(w * 2, 1600)]
-        .map((ww) => `${smartImg(src, ww, Math.round((ww * h) / w), crop)} ${ww}w`)
-        .join(", ")
-    : undefined;
   return (
     <>
-      {/* Xira peshko'rinish (LQIP) — sahifa bilan darhol chiqadi, ortida turadi */}
-      {lqip && (
+      {/* Xira peshko'rinish (LQIP) — sahifa bilan darhol chiqadi, ortida turadi.
+          Aniq rasm yuklangач darhol yashiriladi (kutish bo'lmasin). */}
+      {lqip && !loaded && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={lqip}
@@ -177,13 +171,13 @@ function SmartImage({
       <img
         ref={ref}
         src={smartImg(src, w, h, crop)}
-        srcSet={srcSet}
         sizes={sizes}
         alt={alt}
         loading={eager ? "eager" : "lazy"}
         decoding="async"
+        fetchPriority={eager ? "high" : undefined}
         onLoad={() => setLoaded(true)}
-        className={`relative ${className} transition-opacity duration-500 ${loaded ? "opacity-100" : "opacity-0"}`}
+        className={`relative ${className} transition-opacity duration-150 ${loaded ? "opacity-100" : "opacity-0"}`}
       />
     </>
   );
@@ -2042,7 +2036,7 @@ function ListCard({
     >
       <div className="relative h-24 w-24 shrink-0 overflow-hidden bg-surface-2" style={{ borderRadius: radius - 4 }}>
         {imgs[0] ? (
-          <SmartImage src={imgs[0]} alt={p.name} w={240} h={240} crop={p.crop || undefined} lqip={p.lqip} sizes="96px" className="h-full w-full object-cover" />
+          <SmartImage src={imgs[0]} alt={p.name} w={200} h={200} crop={p.crop || undefined} lqip={p.lqip} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted/40">
             <UtensilsCrossed className="h-7 w-7" />
@@ -2124,7 +2118,7 @@ function GridCard({
     >
       <div className="relative aspect-square w-full overflow-hidden bg-surface-2">
         {imgs[0] ? (
-          <SmartImage src={imgs[0]} alt={p.name} w={600} h={600} crop={p.crop || undefined} lqip={p.lqip} sizes="(min-width:768px) 33vw, 50vw" className="h-full w-full object-cover" />
+          <SmartImage src={imgs[0]} alt={p.name} w={500} h={500} crop={p.crop || undefined} lqip={p.lqip} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted/40">
             <UtensilsCrossed className="h-9 w-9" />
@@ -2196,7 +2190,7 @@ function RecommendCard({
     >
       <div className="relative h-28 w-full overflow-hidden bg-surface-2">
         {imgs[0] ? (
-          <SmartImage src={imgs[0]} alt={p.name} w={400} h={280} crop={p.crop || undefined} lqip={p.lqip} sizes="160px" className="h-full w-full object-cover" />
+          <SmartImage src={imgs[0]} alt={p.name} w={340} h={240} crop={p.crop || undefined} lqip={p.lqip} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted/40">
             <UtensilsCrossed className="h-7 w-7" />
@@ -2328,11 +2322,10 @@ function ProductDetail({
               <SmartImage
                 src={imgs[activeImg]}
                 alt={p.name}
-                w={900}
-                h={1125}
+                w={720}
+                h={900}
                 crop={p.crop || undefined}
                 lqip={activeImg === 0 ? p.lqip : undefined}
-                sizes="(min-width:448px) 448px, 100vw"
                 eager
                 className="h-full w-full object-cover"
               />

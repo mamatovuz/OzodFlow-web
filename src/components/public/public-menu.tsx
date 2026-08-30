@@ -44,6 +44,7 @@ type PublicProduct = {
   descriptionEn: string | null;
   images: string | null;
   crop?: string | null;
+  lqip?: string | null;
   price: number;
   oldPrice: number | null;
   weight: string | null;
@@ -133,6 +134,7 @@ function SmartImage({
   h,
   sizes,
   crop,
+  lqip,
   className = "",
   eager = false,
 }: {
@@ -142,6 +144,7 @@ function SmartImage({
   h: number;
   sizes?: string;
   crop?: string;
+  lqip?: string | null;
   className?: string;
   eager?: boolean;
 }) {
@@ -159,18 +162,30 @@ function SmartImage({
         .join(", ")
     : undefined;
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      ref={ref}
-      src={smartImg(src, w, h, crop)}
-      srcSet={srcSet}
-      sizes={sizes}
-      alt={alt}
-      loading={eager ? "eager" : "lazy"}
-      decoding="async"
-      onLoad={() => setLoaded(true)}
-      className={`${className} transition-opacity duration-500 ${loaded ? "opacity-100" : "opacity-0"}`}
-    />
+    <>
+      {/* Xira peshko'rinish (LQIP) — sahifa bilan darhol chiqadi, ortida turadi */}
+      {lqip && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={lqip}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 h-full w-full scale-105 object-cover blur-lg"
+        />
+      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        ref={ref}
+        src={smartImg(src, w, h, crop)}
+        srcSet={srcSet}
+        sizes={sizes}
+        alt={alt}
+        loading={eager ? "eager" : "lazy"}
+        decoding="async"
+        onLoad={() => setLoaded(true)}
+        className={`relative ${className} transition-opacity duration-500 ${loaded ? "opacity-100" : "opacity-0"}`}
+      />
+    </>
   );
 }
 
@@ -2025,9 +2040,9 @@ function ListCard({
       }`}
       style={{ borderRadius: radius, boxShadow: "var(--card-shadow)" }}
     >
-      <div className="h-24 w-24 shrink-0 overflow-hidden bg-surface-2" style={{ borderRadius: radius - 4 }}>
+      <div className="relative h-24 w-24 shrink-0 overflow-hidden bg-surface-2" style={{ borderRadius: radius - 4 }}>
         {imgs[0] ? (
-          <SmartImage src={imgs[0]} alt={p.name} w={240} h={240} crop={p.crop || undefined} sizes="96px" className="h-full w-full object-cover" />
+          <SmartImage src={imgs[0]} alt={p.name} w={240} h={240} crop={p.crop || undefined} lqip={p.lqip} sizes="96px" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted/40">
             <UtensilsCrossed className="h-7 w-7" />
@@ -2109,7 +2124,7 @@ function GridCard({
     >
       <div className="relative aspect-square w-full overflow-hidden bg-surface-2">
         {imgs[0] ? (
-          <SmartImage src={imgs[0]} alt={p.name} w={600} h={600} crop={p.crop || undefined} sizes="(min-width:768px) 33vw, 50vw" className="h-full w-full object-cover" />
+          <SmartImage src={imgs[0]} alt={p.name} w={600} h={600} crop={p.crop || undefined} lqip={p.lqip} sizes="(min-width:768px) 33vw, 50vw" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted/40">
             <UtensilsCrossed className="h-9 w-9" />
@@ -2181,7 +2196,7 @@ function RecommendCard({
     >
       <div className="relative h-28 w-full overflow-hidden bg-surface-2">
         {imgs[0] ? (
-          <SmartImage src={imgs[0]} alt={p.name} w={400} h={280} crop={p.crop || undefined} sizes="160px" className="h-full w-full object-cover" />
+          <SmartImage src={imgs[0]} alt={p.name} w={400} h={280} crop={p.crop || undefined} lqip={p.lqip} sizes="160px" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted/40">
             <UtensilsCrossed className="h-7 w-7" />
@@ -2316,6 +2331,7 @@ function ProductDetail({
                 w={900}
                 h={1125}
                 crop={p.crop || undefined}
+                lqip={activeImg === 0 ? p.lqip : undefined}
                 sizes="(min-width:448px) 448px, 100vw"
                 eager
                 className="h-full w-full object-cover"

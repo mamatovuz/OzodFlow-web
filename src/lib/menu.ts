@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { getTheme } from "./themes";
+import { lqipForImages } from "./lqip";
 
 async function buildMenu(restaurant: NonNullable<Awaited<ReturnType<typeof prisma.restaurant.findUnique>>>) {
   const [categories, products, banners, gallery, combos] = await Promise.all([
@@ -25,10 +26,16 @@ async function buildMenu(restaurant: NonNullable<Awaited<ReturnType<typeof prism
       orderBy: { sortOrder: "asc" },
     }),
   ]);
+  // Har mahsulotga LQIP (xira peshko'rinish) qo'shamiz — rasm sahifa bilan
+  // birga (darhol) chiqishi uchun. Keshli, shuning uchun tez.
+  const productsWithLqip = await Promise.all(
+    products.map(async (p) => ({ ...p, lqip: await lqipForImages(p.images) }))
+  );
+
   return {
     restaurant,
     categories,
-    products,
+    products: productsWithLqip,
     banners,
     gallery,
     combos,

@@ -149,31 +149,51 @@ function SmartImage({
   eager?: boolean;
 }) {
   const [loaded, setLoaded] = useState(false);
+  // Ko'rinishga yetmasдан ~800px oldin yuklaymiz (scroll'ga yetganда tayyor
+  // bo'lsin — xira ko'rinmasin). eager bo'lsa darhol.
+  const [inView, setInView] = useState(eager);
   const ref = useRef<HTMLImageElement | null>(null);
+
   useEffect(() => {
-    // Keshdan darhol kelgan rasm (onLoad ishlamay qolishi mumkin)
-    if (ref.current?.complete) setLoaded(true);
+    if (ref.current?.complete && ref.current.currentSrc) setLoaded(true);
   }, []);
+
+  useEffect(() => {
+    if (eager || inView) return;
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setInView(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "800px 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [eager, inView]);
+
+  const realSrc = inView ? smartImg(src, w, h, crop) : undefined;
   return (
     <>
-      {/* Xira peshko'rinish (LQIP) — sahifa bilan darhol chiqadi, ortida turadi.
-          Aniq rasm yuklangач darhol yashiriladi (kutish bo'lmasin). */}
+      {/* Xira peshko'rinish (LQIP) — aniq rasm yuklangач darhol yashiriladi */}
       {lqip && !loaded && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={lqip}
           alt=""
           aria-hidden
-          className="absolute inset-0 h-full w-full scale-105 object-cover blur-lg"
+          className="absolute inset-0 h-full w-full scale-105 object-cover blur-md"
         />
       )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         ref={ref}
-        src={smartImg(src, w, h, crop)}
+        src={realSrc}
         sizes={sizes}
         alt={alt}
-        loading={eager ? "eager" : "lazy"}
         decoding="async"
         fetchPriority={eager ? "high" : undefined}
         onLoad={() => setLoaded(true)}

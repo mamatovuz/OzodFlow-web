@@ -121,7 +121,7 @@ export async function GET(req: NextRequest) {
       // ── Taomni "jonlantirish" (yengil — tabiiylikni buzmaydi) ──
       .modulate({ saturation: 1.06, brightness: 1.02 }) // rang jozibasi
       .sharpen({ sigma: 0.7 }) // yumshoq o'tkirlik
-      .webp({ quality: 80, effort: 2 }) // effort past = tezroq kodlash
+      .webp({ quality: 76, effort: 2 }) // past sifat/effort = kichik + tez
       .toBuffer();
 
     mkdir(CACHE_DIR, { recursive: true })

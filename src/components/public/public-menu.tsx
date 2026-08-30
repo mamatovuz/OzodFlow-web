@@ -135,6 +135,7 @@ function SmartImage({
   sizes,
   crop,
   lqip,
+  previewSrc,
   className = "",
   eager = false,
 }: {
@@ -145,6 +146,7 @@ function SmartImage({
   sizes?: string;
   crop?: string;
   lqip?: string | null;
+  previewSrc?: string; // darhol ko'rsatiladigan (odatда keshdagi) past o'lchamli rasm
   className?: string;
   eager?: boolean;
 }) {
@@ -186,6 +188,16 @@ function SmartImage({
           alt=""
           aria-hidden
           className="absolute inset-0 h-full w-full scale-105 object-cover blur-md"
+        />
+      )}
+      {/* Darhol rasm (keshdagi past o'lchamli) — kutish bo'lmasin; aniqi ustidan yuklanadi */}
+      {previewSrc && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={previewSrc}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 h-full w-full object-cover"
         />
       )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -2342,10 +2354,11 @@ function ProductDetail({
               <SmartImage
                 src={imgs[activeImg]}
                 alt={p.name}
-                w={720}
-                h={900}
+                w={640}
+                h={800}
                 crop={p.crop || undefined}
                 lqip={activeImg === 0 ? p.lqip : undefined}
+                previewSrc={smartImg(imgs[activeImg], 500, 500, p.crop || undefined)}
                 eager
                 className="h-full w-full object-cover"
               />

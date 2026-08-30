@@ -105,6 +105,17 @@ const filters = [
   { key: "vegetarian", label: "🥬 Vegetarian" },
 ];
 
+// Aqlli rasm: yuklangan menyu rasmlarini /api/img orqali bir xil nisbatga
+// (aqlli kesish bilan) keltiradi — taomni saqlab, to'la va toza ko'rsatadi.
+// Tashqi (POS) yoki bo'sh manba asl holida qoladi.
+function smartImg(src: string | undefined, w: number, h: number): string | undefined {
+  if (!src) return src;
+  if (src.startsWith("/media/") || src.startsWith("/uploads/")) {
+    return `/api/img?src=${encodeURIComponent(src)}&w=${w}&h=${h}`;
+  }
+  return src;
+}
+
 export function PublicMenu({
   restaurant,
   categories: rawCategories,
@@ -1959,7 +1970,7 @@ function ListCard({
       <div className="h-24 w-24 shrink-0 overflow-hidden bg-surface-2" style={{ borderRadius: radius - 4 }}>
         {imgs[0] ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={imgs[0]} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+          <img src={smartImg(imgs[0], 240, 240)} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted/40">
             <UtensilsCrossed className="h-7 w-7" />
@@ -2042,7 +2053,7 @@ function GridCard({
       <div className="relative aspect-square w-full overflow-hidden bg-surface-2">
         {imgs[0] ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={imgs[0]} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+          <img src={smartImg(imgs[0], 600, 600)} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted/40">
             <UtensilsCrossed className="h-9 w-9" />
@@ -2115,7 +2126,7 @@ function RecommendCard({
       <div className="relative h-28 w-full overflow-hidden bg-surface-2">
         {imgs[0] ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={imgs[0]} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+          <img src={smartImg(imgs[0], 400, 280)} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted/40">
             <UtensilsCrossed className="h-7 w-7" />
@@ -2234,29 +2245,21 @@ function ProductDetail({
         >
           <X className="h-5 w-5" />
         </button>
-        <div className="relative h-80 w-full shrink-0 overflow-hidden bg-surface-2 sm:h-96">
+        <div className="relative aspect-[4/5] max-h-[60vh] w-full shrink-0 overflow-hidden bg-surface-2">
           {imgs[activeImg] ? (
             <button
               type="button"
               onClick={() => setZoom(true)}
-              className="group absolute inset-0 flex items-center justify-center"
+              className="group absolute inset-0"
               aria-label="Rasmni to'liq ko'rish"
             >
-              {/* Xira to'ldiruvchi fon — rasmning O'ZI xira holda chekalarni
-                  to'ldiradi (yon/tepada bo'sh joy qolmaydi). */}
+              {/* Aqlli 4:5 rasm (/api/img) — to'la, aniq, taom markazda, cho'zilmagan.
+                  Ustiga bosilganda pastdagi lightbox to'liq asl rasmni ochadi. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={imgs[activeImg]}
-                alt=""
-                aria-hidden
-                className="absolute inset-0 h-full w-full scale-125 object-cover blur-2xl"
-              />
-              {/* Taomning TO'LIQ rasmi — markazda, kesilmaydi, cho'zilmaydi (buzilmaydi) */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={imgs[activeImg]}
+                src={smartImg(imgs[activeImg], 900, 1125)}
                 alt={p.name}
-                className="relative z-[1] max-h-full max-w-full object-contain shadow-lg transition-transform duration-300 group-active:scale-[1.02]"
+                className="h-full w-full object-cover transition-transform duration-300 group-active:scale-[1.02]"
               />
               {/* "Kattalashtirish" ishorasi */}
               <span className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur">

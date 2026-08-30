@@ -39,6 +39,8 @@ function isStaticAsset(url) {
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/media/") ||
     url.pathname.startsWith("/uploads/") ||
+    url.pathname === "/api/img" || // aqlli rasm (transform) — offline uchun keshlanadi
+    url.pathname.endsWith("/app-icon") || // ilova ikonkasi
     /\.(png|jpg|jpeg|svg|webp|gif|ico|woff2?)$/.test(url.pathname)
   );
 }

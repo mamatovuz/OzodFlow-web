@@ -25,6 +25,25 @@ const MAX_DIM = 2000;
 const CACHE_DIR = path.join(UPLOAD_DIR, "_imgcache");
 const ENHANCE_VERSION = "v2"; // sozlama o'zgarsa kesh yangilansin
 
+// ── Concurrency limiti: bir vaqtda ko'pi bilan 4 ta rasm ishlanadi ──
+// Ko'p rasm birdan kelganda kichik serverni (RAM/CPU) bo'g'maslik uchun;
+// qolganlari qisqa navbatда kutadi. (Keshdan o'qish bunga tushmaydi — tez.)
+const MAX_CONCURRENT = 4;
+let active = 0;
+const waiters: Array<() => void> = [];
+function acquire(): Promise<void> {
+  if (active < MAX_CONCURRENT) {
+    active++;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => waiters.push(resolve));
+}
+function release(): void {
+  const next = waiters.shift();
+  if (next) next(); // slotни keyingi navbatdagiga beramiz
+  else active--;
+}
+
 function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Number.isFinite(v) ? v : min));
 }
@@ -64,10 +83,9 @@ export async function GET(req: NextRequest) {
   const h = clamp(parseInt(sp.get("h") || "800", 10), 32, MAX_DIM);
   const pos = (sp.get("pos") || "attention").toLowerCase();
 
-  // AVIF qo'llab-quvvatlanadimi? (brauzer Accept sarlavhasi)
-  const accept = req.headers.get("accept") || "";
-  const useAvif = accept.includes("image/avif");
-  const fmt = useAvif ? "avif" : "webp";
+  // WebP — tez kodlanadi va hamma joyda qo'llab-quvvatlanadi. (AVIF sekin
+  // kodlanadi va kichik serverni bo'g'adi — shuning uchun ishlatilmaydi.)
+  const fmt = "webp";
 
   const local = localUploadPath(src);
   if (!local) {
@@ -95,19 +113,16 @@ export async function GET(req: NextRequest) {
     return new Response("Not found", { status: 404 });
   }
 
+  await acquire();
   try {
-    let pipe = sharp(input)
+    const out = await sharp(input)
       .rotate() // EXIF yo'nalishini to'g'rilaydi
       .resize(w, h, { fit: "cover", position: resolvePosition(pos) })
       // ── Taomni "jonlantirish" (yengil — tabiiylikni buzmaydi) ──
       .modulate({ saturation: 1.06, brightness: 1.02 }) // rang jozibasi
-      .sharpen({ sigma: 0.7 }); // yumshoq o'tkirlik
-
-    pipe = useAvif
-      ? pipe.avif({ quality: 62, effort: 4 })
-      : pipe.webp({ quality: 82 });
-
-    const out = await pipe.toBuffer();
+      .sharpen({ sigma: 0.7 }) // yumshoq o'tkirlik
+      .webp({ quality: 80, effort: 2 }) // effort past = tezroq kodlash
+      .toBuffer();
 
     mkdir(CACHE_DIR, { recursive: true })
       .then(() => writeFile(cachePath, out))
@@ -124,6 +139,8 @@ export async function GET(req: NextRequest) {
     } catch {
       return new Response("Process failed", { status: 500 });
     }
+  } finally {
+    release();
   }
 }
 

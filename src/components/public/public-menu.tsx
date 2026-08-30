@@ -152,8 +152,9 @@ function SmartImage({
     if (ref.current?.complete) setLoaded(true);
   }, []);
   const isLocal = !!src && (src.startsWith("/media/") || src.startsWith("/uploads/"));
+  // Faqat 2 variant (1x va retina 2x) — serverда kamroq alohida kodlash bo'ladi
   const srcSet = isLocal
-    ? [w, Math.round(w * 1.5), w * 2]
+    ? [w, Math.min(w * 2, 1600)]
         .map((ww) => `${smartImg(src, ww, Math.round((ww * h) / w), crop)} ${ww}w`)
         .join(", ")
     : undefined;
@@ -2345,9 +2346,17 @@ function ProductDetail({
         {/* To'liq ekran rasm ko'rish (lightbox) */}
         {zoom && imgs[activeImg] && (
           <div
-            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/95"
+            className="fixed inset-0 z-[70] flex items-center justify-center overflow-hidden bg-black"
             onClick={() => setZoom(false)}
           >
+            {/* Xira fon — bo'sh (qora) chekalarni rasmning o'zi bilan to'ldiradi */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imgs[activeImg]}
+              alt=""
+              aria-hidden
+              className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-40 blur-3xl"
+            />
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -2362,7 +2371,7 @@ function ProductDetail({
             <img
               src={imgs[activeImg]}
               alt={p.name}
-              className="max-h-[92vh] max-w-[96vw] object-contain"
+              className="relative max-h-[92vh] max-w-[96vw] object-contain"
               onClick={(e) => e.stopPropagation()}
             />
             {imgs.length > 1 && (

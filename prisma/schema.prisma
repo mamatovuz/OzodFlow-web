@@ -381,6 +381,7 @@ model Product {
   descriptionRu String?
   descriptionEn String?
   images        String? // JSON array of image urls
+  crop          String   @default("auto") // rasm kesish pozitsiyasi: auto|center|top|bottom
   price         Float    @default(0)
   oldPrice      Float?
   ingredients   String?

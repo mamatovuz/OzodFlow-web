@@ -43,6 +43,7 @@ type PublicProduct = {
   descriptionRu: string | null;
   descriptionEn: string | null;
   images: string | null;
+  crop?: string | null;
   price: number;
   oldPrice: number | null;
   weight: string | null;
@@ -108,10 +109,17 @@ const filters = [
 // Aqlli rasm: yuklangan menyu rasmlarini /api/img orqali bir xil nisbatga
 // (aqlli kesish bilan) keltiradi — taomni saqlab, to'la va toza ko'rsatadi.
 // Tashqi (POS) yoki bo'sh manba asl holida qoladi.
-function smartImg(src: string | undefined, w: number, h: number): string | undefined {
+function smartImg(
+  src: string | undefined,
+  w: number,
+  h: number,
+  crop?: string
+): string | undefined {
   if (!src) return src;
   if (src.startsWith("/media/") || src.startsWith("/uploads/")) {
-    return `/api/img?src=${encodeURIComponent(src)}&w=${w}&h=${h}`;
+    // crop: auto (default) | center | top | bottom — kesish pozitsiyasi
+    const pos = crop && crop !== "auto" ? `&pos=${crop}` : "";
+    return `/api/img?src=${encodeURIComponent(src)}&w=${w}&h=${h}${pos}`;
   }
   return src;
 }
@@ -124,6 +132,7 @@ function SmartImage({
   w,
   h,
   sizes,
+  crop,
   className = "",
   eager = false,
 }: {
@@ -132,6 +141,7 @@ function SmartImage({
   w: number;
   h: number;
   sizes?: string;
+  crop?: string;
   className?: string;
   eager?: boolean;
 }) {
@@ -144,14 +154,14 @@ function SmartImage({
   const isLocal = !!src && (src.startsWith("/media/") || src.startsWith("/uploads/"));
   const srcSet = isLocal
     ? [w, Math.round(w * 1.5), w * 2]
-        .map((ww) => `${smartImg(src, ww, Math.round((ww * h) / w))} ${ww}w`)
+        .map((ww) => `${smartImg(src, ww, Math.round((ww * h) / w), crop)} ${ww}w`)
         .join(", ")
     : undefined;
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       ref={ref}
-      src={smartImg(src, w, h)}
+      src={smartImg(src, w, h, crop)}
       srcSet={srcSet}
       sizes={sizes}
       alt={alt}
@@ -2016,7 +2026,7 @@ function ListCard({
     >
       <div className="h-24 w-24 shrink-0 overflow-hidden bg-surface-2" style={{ borderRadius: radius - 4 }}>
         {imgs[0] ? (
-          <SmartImage src={imgs[0]} alt={p.name} w={240} h={240} sizes="96px" className="h-full w-full object-cover" />
+          <SmartImage src={imgs[0]} alt={p.name} w={240} h={240} crop={p.crop || undefined} sizes="96px" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted/40">
             <UtensilsCrossed className="h-7 w-7" />
@@ -2098,7 +2108,7 @@ function GridCard({
     >
       <div className="relative aspect-square w-full overflow-hidden bg-surface-2">
         {imgs[0] ? (
-          <SmartImage src={imgs[0]} alt={p.name} w={600} h={600} sizes="(min-width:768px) 33vw, 50vw" className="h-full w-full object-cover" />
+          <SmartImage src={imgs[0]} alt={p.name} w={600} h={600} crop={p.crop || undefined} sizes="(min-width:768px) 33vw, 50vw" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted/40">
             <UtensilsCrossed className="h-9 w-9" />
@@ -2170,7 +2180,7 @@ function RecommendCard({
     >
       <div className="relative h-28 w-full overflow-hidden bg-surface-2">
         {imgs[0] ? (
-          <SmartImage src={imgs[0]} alt={p.name} w={400} h={280} sizes="160px" className="h-full w-full object-cover" />
+          <SmartImage src={imgs[0]} alt={p.name} w={400} h={280} crop={p.crop || undefined} sizes="160px" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted/40">
             <UtensilsCrossed className="h-7 w-7" />
@@ -2304,6 +2314,7 @@ function ProductDetail({
                 alt={p.name}
                 w={900}
                 h={1125}
+                crop={p.crop || undefined}
                 sizes="(min-width:448px) 448px, 100vw"
                 eager
                 className="h-full w-full object-cover"

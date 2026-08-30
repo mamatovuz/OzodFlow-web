@@ -42,6 +42,7 @@ type Product = {
   descriptionRu: string | null;
   descriptionEn: string | null;
   images: string | null;
+  crop: string | null;
   price: number;
   oldPrice: number | null;
   weight: string | null;
@@ -535,6 +536,7 @@ function ProductModal({
       ingredients: f.get("ingredients"),
       spicyLevel: Number(f.get("spicyLevel") || 0),
       images,
+      crop: (f.get("crop") as string) || "auto",
       isVegetarian: f.get("isVegetarian") === "on",
       isHalal: f.get("isHalal") === "on",
       isNew: f.get("isNew") === "on",
@@ -578,6 +580,23 @@ function ProductModal({
           <Label>Rasmlar</Label>
           <MultiImageUpload images={images} onChange={setImages} max={5} />
         </div>
+
+        {/* Rasm kesish pozitsiyasi — taom noto'g'ri kesilsa shu yerda tuzatiladi */}
+        {images.length > 0 && (
+          <div>
+            <Label>Rasm kesish (menyuda qaysi qismi ko'rinsin)</Label>
+            <Select name="crop" defaultValue={edit?.crop || "auto"}>
+              <option value="auto">Avtomatik (aqlli — taomni o'zi topadi)</option>
+              <option value="center">Markaz</option>
+              <option value="top">Tepa</option>
+              <option value="bottom">Past</option>
+            </Select>
+            <p className="mt-1 text-xs text-muted">
+              Agar taom rasmda noto'g'ri (masalan tepaga) kesilib qolsa —
+              &quot;Markaz&quot; yoki &quot;Past&quot;ni tanlang.
+            </p>
+          </div>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">

@@ -71,6 +71,7 @@ export const productSchema = z.object({
   descriptionRu: z.string().optional(),
   descriptionEn: z.string().optional(),
   images: z.array(z.string()).optional(),
+  crop: z.enum(["auto", "center", "top", "bottom"]).optional(),
   price: z.number().min(0),
   oldPrice: z.number().min(0).optional().nullable(),
   ingredients: z.string().optional(),

@@ -156,13 +156,22 @@ export async function generateMetadata(): Promise<Metadata> {
   const r = menu.restaurant;
   const title = `${r.name} — Menyu`;
   const description = r.description || `${r.name} elektron menyusi`;
+  // Ijtimoiy tarmoq (Telegram/WhatsApp/Facebook) ulashuvida ko'rinadigan rasm.
+  // Subdomen/custom domenda `/m/[slug]/opengraph-image` avtomatik ulanmaydi —
+  // shuning uchun bu yerda qo'lda ko'rsatamiz (aynan shu host orqali).
+  const ogImage = `https://${host}/m/${r.slug}/opengraph-image`;
   return {
     title,
     description,
     appleWebApp: { capable: true, title: r.name },
     manifest: `/m/${r.slug}/manifest.webmanifest`,
-    openGraph: { title, description, type: "website" },
-    twitter: { card: "summary_large_image", title, description },
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      images: [{ url: ogImage, width: 1200, height: 630 }],
+    },
+    twitter: { card: "summary_large_image", title, description, images: [ogImage] },
     ...(r.logo
       ? {
           icons: {
@@ -462,12 +471,12 @@ export default async function LandingPage({
               </div>
             </div>
 
-            {/* Telefon ramkasida real menyu (iframe) — kattaroq */}
+            {/* Telefon ramkasida real menyu (iframe) — kattaroq, siqilmaydigan */}
             <div className="flex justify-center">
-              <div className="relative w-[330px] shrink-0 sm:w-[380px]">
+              <div className="relative w-[320px] shrink-0 sm:w-[420px]">
                 <div className="absolute -inset-6 -z-10 rounded-[3rem] bg-accent/10 blur-2xl" />
-                <div className="rounded-[2.8rem] border-[12px] border-foreground/80 bg-foreground/80 shadow-card">
-                  <div className="relative h-[680px] overflow-hidden rounded-[1.9rem] bg-card sm:h-[760px]">
+                <div className="rounded-[3rem] border-[12px] border-foreground/80 bg-foreground/80 shadow-card">
+                  <div className="relative h-[640px] overflow-hidden rounded-[2.1rem] bg-card sm:h-[820px]">
                     <span className="absolute left-1/2 top-2 z-10 h-1.5 w-16 -translate-x-1/2 rounded-full bg-black/30" />
                     <iframe
                       src="/m/test"

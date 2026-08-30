@@ -203,7 +203,7 @@ export function ThemePicker({
       {preview && (
         <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
           <div className="absolute inset-0 bg-black/60" onClick={() => setPreview(null)} />
-          <div className="relative z-10 max-h-[92vh] w-full max-w-sm overflow-hidden rounded-t-3xl bg-card animate-fade-up sm:rounded-3xl">
+          <div className="relative z-10 max-h-[94vh] w-full max-w-md overflow-hidden rounded-t-3xl bg-card animate-fade-up sm:rounded-3xl">
             <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
               <span className="flex items-center gap-2 font-semibold text-foreground">
                 {preview.name}
@@ -213,7 +213,7 @@ export function ThemePicker({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="max-h-[62vh] overflow-y-auto bg-surface-2 p-4">
+            <div className="max-h-[72vh] overflow-y-auto bg-surface-2 p-4">
               {slug ? (
                 <LivePreview slug={slug} themeKey={preview.key} />
               ) : (
@@ -486,11 +486,24 @@ function PurchaseModal({
 function LivePreview({ slug, themeKey }: { slug: string; themeKey: string }) {
   const [loaded, setLoaded] = useState(false);
   const src = `/m/${slug}?preview=${themeKey}`;
+  // Menyuni HAQIQIY mobil kenglikda (390px) render qilib, silliq kichraytiramiz —
+  // shunda tugmalar/kartalar siqilib qolmaydi, aynan telefondagidek joylashadi.
+  const W = 390;
+  const H = 800;
+  const S = 0.92;
+  const bw = 10; // ramka (border) qalinligi
   return (
-    <div className="mx-auto w-full max-w-[300px]">
-      <div className="relative mx-auto overflow-hidden rounded-[2rem] border-[6px] border-foreground/85 bg-card shadow-card">
+    <div className="mx-auto" style={{ width: W * S }}>
+      <div
+        className="relative overflow-hidden rounded-[2.4rem] border-foreground/85 bg-foreground/85 shadow-card"
+        style={{
+          width: W * S + bw * 2,
+          height: H * S + bw * 2,
+          borderWidth: bw,
+        }}
+      >
         {/* telefon "notch" */}
-        <div className="pointer-events-none absolute left-1/2 top-0 z-10 h-4 w-24 -translate-x-1/2 rounded-b-xl bg-foreground/85" />
+        <div className="pointer-events-none absolute left-1/2 top-0 z-10 h-4 w-24 -translate-x-1/2 rounded-b-2xl bg-foreground/85" />
         {!loaded && (
           <div className="absolute inset-0 z-[5] flex items-center justify-center bg-surface-2">
             <Loader2 className="h-6 w-6 animate-spin text-accent" />
@@ -501,8 +514,15 @@ function LivePreview({ slug, themeKey }: { slug: string; themeKey: string }) {
           src={src}
           title="Menyu namoyishi"
           onLoad={() => setLoaded(true)}
-          className="block h-[560px] w-full bg-card"
+          className="bg-card"
           loading="lazy"
+          style={{
+            width: W,
+            height: H,
+            border: 0,
+            transform: `scale(${S})`,
+            transformOrigin: "top left",
+          }}
         />
       </div>
       <p className="mt-3 text-center text-xs text-muted">

@@ -101,9 +101,65 @@ export default async function Image({
             inset: 0,
             display: "flex",
             background:
-              "linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.85) 100%)",
+              "linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.55) 55%, rgba(0,0,0,0.9) 100%)",
           }}
         />
+
+        {/* Dekorativ rang halqalari — jonli, zamonaviy ko'rinish */}
+        <div
+          style={{
+            position: "absolute",
+            top: -160,
+            right: -120,
+            width: 520,
+            height: 520,
+            borderRadius: 520,
+            display: "flex",
+            background: `radial-gradient(circle at center, ${color}66 0%, ${color}00 70%)`,
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: -200,
+            left: -140,
+            width: 560,
+            height: 560,
+            borderRadius: 560,
+            display: "flex",
+            background: `radial-gradient(circle at center, ${color}4d 0%, ${color}00 70%)`,
+          }}
+        />
+        {/* Yuqori chap — brend tasmasi */}
+        <div
+          style={{
+            position: "absolute",
+            top: 56,
+            left: 64,
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            padding: "12px 24px",
+            borderRadius: 999,
+            background: "rgba(255,255,255,0.14)",
+            border: "1px solid rgba(255,255,255,0.28)",
+            color: "#fff",
+            fontSize: 26,
+            fontWeight: 700,
+          }}
+        >
+          <div
+            style={{
+              width: 16,
+              height: 16,
+              borderRadius: 16,
+              display: "flex",
+              background: color,
+              boxShadow: `0 0 18px ${color}`,
+            }}
+          />
+          OzodFlow
+        </div>
 
         {/* Kontent */}
         <div
@@ -127,12 +183,12 @@ export default async function Image({
                 width={160}
                 height={160}
                 style={{
-                  width: 160,
-                  height: 160,
-                  borderRadius: 32,
+                  width: 168,
+                  height: 168,
+                  borderRadius: 36,
                   objectFit: "cover",
-                  border: "4px solid rgba(255,255,255,0.9)",
-                  boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
+                  border: `5px solid ${color}`,
+                  boxShadow: "0 8px 50px rgba(0,0,0,0.55)",
                 }}
               />
             ) : null}
@@ -173,28 +229,47 @@ export default async function Image({
             </div>
           </div>
 
-          {/* Brend badge */}
+          {/* Teglar + CTA */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              marginTop: 40,
-              gap: 12,
+              marginTop: 44,
+              gap: 16,
             }}
           >
+            {["🍽  Menyu", "🚚  Yetkazib berish", "📱  QR-kod"].map((tag) => (
+              <div
+                key={tag}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "12px 24px",
+                  borderRadius: 999,
+                  background: "rgba(255,255,255,0.14)",
+                  border: "1px solid rgba(255,255,255,0.25)",
+                  fontSize: 26,
+                  fontWeight: 600,
+                }}
+              >
+                {tag}
+              </div>
+            ))}
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                padding: "10px 22px",
+                marginLeft: "auto",
+                padding: "14px 30px",
                 borderRadius: 999,
-                background: "rgba(255,255,255,0.14)",
-                border: "1px solid rgba(255,255,255,0.25)",
-                fontSize: 26,
-                fontWeight: 600,
+                background: color,
+                color: "#fff",
+                fontSize: 28,
+                fontWeight: 800,
+                boxShadow: `0 8px 30px ${color}80`,
               }}
             >
-              📱 QR menyu · OzodFlow
+              Menyuni ochish →
             </div>
           </div>
         </div>

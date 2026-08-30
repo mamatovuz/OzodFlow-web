@@ -116,6 +116,53 @@ function smartImg(src: string | undefined, w: number, h: number): string | undef
   return src;
 }
 
+// Premium rasm: responsive srcset (retina/aniqlik + tejam) + "blur-up" (kulrang
+// fonda yumshoq paydo bo'lish). AVIF/WebP va aqlli kesish /api/img ichida.
+function SmartImage({
+  src,
+  alt,
+  w,
+  h,
+  sizes,
+  className = "",
+  eager = false,
+}: {
+  src: string | undefined;
+  alt: string;
+  w: number;
+  h: number;
+  sizes?: string;
+  className?: string;
+  eager?: boolean;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  const ref = useRef<HTMLImageElement | null>(null);
+  useEffect(() => {
+    // Keshdan darhol kelgan rasm (onLoad ishlamay qolishi mumkin)
+    if (ref.current?.complete) setLoaded(true);
+  }, []);
+  const isLocal = !!src && (src.startsWith("/media/") || src.startsWith("/uploads/"));
+  const srcSet = isLocal
+    ? [w, Math.round(w * 1.5), w * 2]
+        .map((ww) => `${smartImg(src, ww, Math.round((ww * h) / w))} ${ww}w`)
+        .join(", ")
+    : undefined;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      ref={ref}
+      src={smartImg(src, w, h)}
+      srcSet={srcSet}
+      sizes={sizes}
+      alt={alt}
+      loading={eager ? "eager" : "lazy"}
+      decoding="async"
+      onLoad={() => setLoaded(true)}
+      className={`${className} transition-opacity duration-500 ${loaded ? "opacity-100" : "opacity-0"}`}
+    />
+  );
+}
+
 export function PublicMenu({
   restaurant,
   categories: rawCategories,
@@ -728,7 +775,7 @@ export function PublicMenu({
                     <div className="relative aspect-video w-full overflow-hidden bg-surface-2">
                       {c.image ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={c.image} alt={c.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                        <img src={smartImg(c.image, 640, 360)} alt={c.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-muted/40">
                           <UtensilsCrossed className="h-8 w-8" />
@@ -905,7 +952,7 @@ export function PublicMenu({
                   style={{ borderRadius: R }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={g.image} alt={g.caption || ""} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                  <img src={smartImg(g.image, 560, 400)} alt={g.caption || ""} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                   {g.caption && (
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-2">
                       <p className="text-xs font-medium text-white">{g.caption}</p>
@@ -1425,7 +1472,7 @@ function SplitMenu({
                 {g.category.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={g.category.image}
+                    src={smartImg(g.category.image, 120, 120)}
                     alt=""
                     loading="lazy"
                     decoding="async"
@@ -1661,7 +1708,7 @@ function CategoryCard({
         >
           {image ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={image} alt={name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+            <img src={smartImg(image, 200, 200)} alt={name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
           ) : (
             <div className="h-full w-full" style={{ background: bg }} />
           )}
@@ -1690,7 +1737,7 @@ function CategoryCard({
       {image ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={image}
+          src={smartImg(image, isBanner ? 1000 : 800, isBanner ? 500 : 600)}
           alt={name}
           loading="lazy"
           decoding="async"
@@ -1764,7 +1811,7 @@ function CategoryHero({
     >
       {image ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={image} alt={name} className="h-full w-full object-cover" />
+        <img src={smartImg(image, 1000, 500)} alt={name} className="h-full w-full object-cover" />
       ) : (
         <div
           className="h-full w-full"
@@ -1969,8 +2016,7 @@ function ListCard({
     >
       <div className="h-24 w-24 shrink-0 overflow-hidden bg-surface-2" style={{ borderRadius: radius - 4 }}>
         {imgs[0] ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={smartImg(imgs[0], 240, 240)} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+          <SmartImage src={imgs[0]} alt={p.name} w={240} h={240} sizes="96px" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted/40">
             <UtensilsCrossed className="h-7 w-7" />
@@ -2052,8 +2098,7 @@ function GridCard({
     >
       <div className="relative aspect-square w-full overflow-hidden bg-surface-2">
         {imgs[0] ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={smartImg(imgs[0], 600, 600)} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+          <SmartImage src={imgs[0]} alt={p.name} w={600} h={600} sizes="(min-width:768px) 33vw, 50vw" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted/40">
             <UtensilsCrossed className="h-9 w-9" />
@@ -2125,8 +2170,7 @@ function RecommendCard({
     >
       <div className="relative h-28 w-full overflow-hidden bg-surface-2">
         {imgs[0] ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={smartImg(imgs[0], 400, 280)} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+          <SmartImage src={imgs[0]} alt={p.name} w={400} h={280} sizes="160px" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted/40">
             <UtensilsCrossed className="h-7 w-7" />
@@ -2255,11 +2299,14 @@ function ProductDetail({
             >
               {/* Aqlli 4:5 rasm (/api/img) — to'la, aniq, taom markazda, cho'zilmagan.
                   Ustiga bosilganda pastdagi lightbox to'liq asl rasmni ochadi. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={smartImg(imgs[activeImg], 900, 1125)}
+              <SmartImage
+                src={imgs[activeImg]}
                 alt={p.name}
-                className="h-full w-full object-cover transition-transform duration-300 group-active:scale-[1.02]"
+                w={900}
+                h={1125}
+                sizes="(min-width:448px) 448px, 100vw"
+                eager
+                className="h-full w-full object-cover"
               />
               {/* "Kattalashtirish" ishorasi */}
               <span className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur">

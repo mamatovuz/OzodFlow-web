@@ -474,8 +474,10 @@ export function PublicMenu({
   // Mahsulotlarni tema layoutiga qarab chizadi.
   // gridClass — ixtiyoriy ustun sinfi (split layout o'ng tomonini responsive qiladi).
   function renderItems(list: PublicProduct[], gridClass = "grid-cols-2") {
+    // Prestij (oddmenu uslubi) — taomlar 1 ustunda, katta rasm ustida.
+    const gc = theme.key === "prestij" ? "grid-cols-1" : gridClass;
     return theme.layout === "grid" ? (
-      <div className={`grid ${gridClass} gap-3`}>
+      <div className={`grid ${gc} gap-3`}>
         {list.map((p) => (
           <GridCard
             key={p.id}
@@ -509,7 +511,17 @@ export function PublicMenu({
   const currentGroup = grouped.find((g) => g.category.id === selectedCat) ?? null;
   const showBrowse = !searching && !selectedCat;
 
-  const cardProps = { currency: restaurant.currency, accent, accentText, radius: R, showCart };
+  // Prestij (oddmenu uslubi) — narx oltin rangda, taom nomi CAPS.
+  const prestige = theme.key === "prestij";
+  const cardProps = {
+    currency: restaurant.currency,
+    accent,
+    accentText,
+    radius: R,
+    showCart,
+    accentPrice: prestige,
+    capsTitle: prestige,
+  };
 
   return (
     <div
@@ -2058,6 +2070,8 @@ function ListCard({
   radius,
   qty,
   showCart = true,
+  accentPrice: _accentPrice = false,
+  capsTitle: _capsTitle = false,
   onOpen,
   onAdd,
   onSetQty,
@@ -2069,10 +2083,14 @@ function ListCard({
   radius: number;
   qty: number;
   showCart?: boolean;
+  accentPrice?: boolean;
+  capsTitle?: boolean;
   onOpen: () => void;
   onAdd: () => void;
   onSetQty: (q: number) => void;
 }) {
+  void _accentPrice;
+  void _capsTitle;
   const imgs = parseJson<string[]>(p.images, []);
   return (
     <div
@@ -2140,6 +2158,8 @@ function GridCard({
   radius,
   qty,
   showCart = true,
+  accentPrice = false,
+  capsTitle = false,
   onOpen,
   onAdd,
   onSetQty,
@@ -2151,6 +2171,8 @@ function GridCard({
   radius: number;
   qty: number;
   showCart?: boolean;
+  accentPrice?: boolean;
+  capsTitle?: boolean;
   onOpen: () => void;
   onAdd: () => void;
   onSetQty: (q: number) => void;
@@ -2164,7 +2186,7 @@ function GridCard({
       }`}
       style={{ borderRadius: radius, boxShadow: "var(--card-shadow)" }}
     >
-      <div className="relative aspect-square w-full overflow-hidden bg-surface-2">
+      <div className={`relative w-full overflow-hidden bg-surface-2 ${capsTitle ? "aspect-[4/3]" : "aspect-square"}`}>
         {imgs[0] ? (
           <SmartImage src={imgs[0]} alt={p.name} w={500} h={500} crop={p.crop || undefined} lqip={p.lqip} className="h-full w-full object-cover" />
         ) : (
@@ -2194,10 +2216,33 @@ function GridCard({
         )}
       </div>
       <div className="flex flex-1 flex-col p-3">
-        <h3 className="line-clamp-1 font-semibold text-foreground">{p.name}</h3>
-        {p.description && <p className="mt-0.5 line-clamp-2 text-xs text-muted">{p.description}</p>}
-        <div className="mt-2">
-          <span className="font-bold text-foreground">{formatPrice(p.price, currency)}</span>
+        <h3
+          className={
+            capsTitle
+              ? "font-bold uppercase tracking-wide text-foreground"
+              : "line-clamp-1 font-semibold text-foreground"
+          }
+        >
+          {p.name}
+        </h3>
+        {p.description && (
+          <p
+            className={
+              capsTitle
+                ? "mt-1 line-clamp-2 text-xs uppercase tracking-wide text-muted"
+                : "mt-0.5 line-clamp-2 text-xs text-muted"
+            }
+          >
+            {p.description}
+          </p>
+        )}
+        <div className={capsTitle ? "mt-2.5" : "mt-2"}>
+          <span
+            className={capsTitle ? "text-lg font-extrabold" : "font-bold text-foreground"}
+            style={accentPrice ? { color: accent } : undefined}
+          >
+            {formatPrice(p.price, currency)}
+          </span>
           {p.oldPrice && (
             <span className="ml-1.5 text-xs text-muted line-through">
               {formatPrice(p.oldPrice, currency)}

@@ -21,6 +21,8 @@ import {
   BarChart3,
   LineChart,
   Users,
+  ClipboardList,
+  Newspaper,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
@@ -47,6 +49,8 @@ const nav: {
   { href: "/admins/partners", label: "Hamkorlar", icon: Handshake, perm: "partners" },
   { href: "/admins/stats", label: "Ko'rsatkichlar", icon: BarChart3, perm: "stats" },
   { href: "/admins/messages", label: "Xabarlar", icon: MessageSquare, perm: "messages" },
+  { href: "/admins/landings", label: "Arizalar", icon: ClipboardList, perm: "landings" },
+  { href: "/admins/blog", label: "Blog", icon: Newspaper, perm: "blog" },
   { href: "/admins/admins", label: "Adminlar", icon: Users, super: true },
   { href: "/admins/settings", label: "Sozlamalar", icon: Settings },
 ];

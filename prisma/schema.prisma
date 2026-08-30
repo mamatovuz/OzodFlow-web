@@ -646,3 +646,69 @@ model Webhook {
 
   @@index([restaurantId])
 }
+
+// ─────────────────────────────────────────────
+// Ariza (landing) sahifalari — bosh admin panelidan konstruktor bilan yasaladi.
+// Admin bloklardan (matn, rasm, maydonlar, yuborish tugmasi) sahifa quradi,
+// slug beradi → ozodflow.uz/<slug> da ommaviy sahifa ochiladi. Mijozlar ariza
+// to'ldiradi (ism, familiya, telefon, brend, telegram). Admin kirishlar sonini,
+// arizalar sonini va har bir mijoz ma'lumotini ko'radi hamda "Gaplashildi" qiladi.
+// ─────────────────────────────────────────────
+model LandingPage {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  isPublished Boolean  @default(false)
+  blocks      String   @default("[]") // JSON: bloklar massivi (konstruktor natijasi)
+  views       Int      @default(0) // sahifaga necha marta kirilgan
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  submissions LandingSubmission[]
+
+  @@index([isPublished])
+}
+
+// Ariza sahifasi orqali yuborilgan mijoz ma'lumoti
+model LandingSubmission {
+  id          String    @id @default(cuid())
+  pageId      String
+  name        String
+  lastName    String?
+  phone       String?
+  brand       String? // brend nomi
+  telegram    String? // telegram username (ixtiyoriy)
+  extra       String? // qo'shimcha maydonlar JSON: {"label": "qiymat"}
+  contacted   Boolean   @default(false) // admin gaplashib bo'lganmi
+  contactedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  page LandingPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
+  @@index([contacted])
+}
+
+// ─────────────────────────────────────────────
+// Blog — bosh admin panelidan yoziladi. Public: ozodflow.uz/blog va /blog/<slug>.
+// isFeatured bilan belgilangan (maks ~5) bloglar bosh sahifada ko'rsatiladi.
+// ─────────────────────────────────────────────
+model BlogPost {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  description String // qisqa tavsif (ro'yxat/karta uchun)
+  body        String? // ixtiyoriy uzun matn (batafsil oyna)
+  coverImage  String? // asosiy (muqova) rasm
+  images      String   @default("[]") // JSON: 1..10 rasm URL massivi
+  version     String? // nechanchi versiya (masalan "v1.2")
+  publishDate DateTime @default(now()) // ko'rsatiladigan sana
+  isPublished Boolean  @default(false)
+  isFeatured  Boolean  @default(false) // bosh sahifada ko'rsatilsinmi
+  views       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished])
+  @@index([isFeatured])
+}

@@ -35,6 +35,7 @@ import {
   Wand2,
   Table2,
   Printer,
+  Newspaper,
 } from "lucide-react";
 import { PROVIDER_META } from "@/lib/pos";
 import { getSessionUser } from "@/lib/auth";
@@ -268,6 +269,21 @@ export default async function LandingPage({
     stats.length >= 4
       ? stats.map((s) => ({ value: s.value, label: s.label }))
       : defaultTrustStats;
+  // Bosh sahifada ko'rsatiladigan (yulduzchali) bloglar
+  const featuredPosts = await prisma.blogPost.findMany({
+    where: { isPublished: true, isFeatured: true },
+    orderBy: [{ publishDate: "desc" }, { createdAt: "desc" }],
+    take: 5,
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      description: true,
+      coverImage: true,
+      version: true,
+      publishDate: true,
+    },
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -989,6 +1005,79 @@ export default async function LandingPage({
         </div>
       </section>
 
+      {/* Blog — yulduzchali maqolalar */}
+      {featuredPosts.length > 0 && (
+        <section id="blog" className="border-t border-border py-20">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <Badge variant="accent" className="mb-3">
+                  Blog
+                </Badge>
+                <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                  So'nggi yangiliklar
+                </h2>
+              </div>
+              <Link
+                href="/blog"
+                className="hidden shrink-0 items-center gap-1 text-sm font-medium text-accent hover:underline sm:flex"
+              >
+                Barchasi <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+            <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {featuredPosts.map((p, i) => (
+                <Reveal key={p.id} delay={i * 60}>
+                  <Link
+                    href={`/blog/${p.slug}`}
+                    className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:shadow-card"
+                  >
+                    <div className="aspect-[16/10] w-full overflow-hidden bg-surface-2">
+                      {p.coverImage ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={p.coverImage}
+                          alt={p.title}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-muted/40">
+                          <Newspaper className="h-8 w-8" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-1 flex-col p-4">
+                      <div className="mb-2 flex items-center gap-2 text-xs text-muted">
+                        <span>
+                          {new Date(p.publishDate).toLocaleDateString("uz", {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          })}
+                        </span>
+                        {p.version && <Badge variant="accent">{p.version}</Badge>}
+                      </div>
+                      <h3 className="font-semibold text-foreground group-hover:text-accent">
+                        {p.title}
+                      </h3>
+                      <p className="mt-1 line-clamp-2 text-sm text-muted">{p.description}</p>
+                    </div>
+                  </Link>
+                </Reveal>
+              ))}
+            </div>
+            <div className="mt-8 text-center sm:hidden">
+              <Link
+                href="/blog"
+                className="inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline"
+              >
+                Barcha maqolalar <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* FAQ */}
       <section id="faq" className="border-t border-border bg-surface/50 py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -1046,6 +1135,9 @@ export default async function LandingPage({
               <a href="#faq" className="hover:text-foreground">
                 Savol-javob
               </a>
+              <Link href="/blog" className="hover:text-foreground">
+                Blog
+              </Link>
               <Link href="/login" className="hover:text-foreground">
                 Kirish
               </Link>

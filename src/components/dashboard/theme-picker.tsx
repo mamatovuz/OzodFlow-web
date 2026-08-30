@@ -74,7 +74,7 @@ export function ThemePicker({
 
   // Sozlash (ranglar/fon/kartalar) — split va scroll (planshet) dizaynlari, hamda
   // yangi dizaynlar (Nordic, Sahra, Delever, Sultan, Fiesta) ranglarni almashtira oladi.
-  const COLOR_EDITABLE = ["nordic", "sahra", "delever", "sultan", "fiesta"];
+  const COLOR_EDITABLE = ["nordic", "sahra", "delever", "sultan", "fiesta", "prestij"];
   function customizable(key: string) {
     const s = menuStyleFor(key);
     return s === "split" || s === "scroll" || COLOR_EDITABLE.includes(key);

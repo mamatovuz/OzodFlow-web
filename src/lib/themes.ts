@@ -25,7 +25,8 @@ export type ThemeKey =
   | "sahra"
   | "delever"
   | "sultan"
-  | "fiesta";
+  | "fiesta"
+  | "prestij";
 
 export type ThemeLayout = "list" | "grid";
 
@@ -521,6 +522,29 @@ export const MENU_THEMES: MenuTheme[] = [
       border: "#f3e4dc",
     },
   },
+  {
+    // Prestij — oddmenu.com "Xorrot" uslubi: chuqur qora fon + oltin urg'u,
+    // krem matn. Markazlashgan boy header (logo/nom/tugmalar markazda), to'liq
+    // enli banner kategoriya kartalari, taom kartalari rasm ustida + oltin narx.
+    // Premium restoran/steakhouse uslubi — hashamatli va nafis.
+    key: "prestij",
+    name: "Prestij",
+    premium: true,
+    isDark: true,
+    layout: "grid",
+    radius: 20,
+    accent: "#E4B24C",
+    accentText: "#0a0a0b",
+    colors: {
+      background: "#0a0a0b",
+      surface: "#141416",
+      surface2: "#1e1e22",
+      card: "#141416",
+      foreground: "#f5f2ea",
+      muted: "#9a938a",
+      border: "#26262b",
+    },
+  },
 ];
 
 export function getTheme(key: string | null | undefined): MenuTheme {
@@ -563,6 +587,7 @@ const CATEGORY_STYLE: Record<ThemeKey, CategoryStyle> = {
   delever: "grid",
   sultan: "banner",
   fiesta: "banner",
+  prestij: "banner",
 };
 
 const HEADER_STYLE: Record<ThemeKey, HeaderStyle> = {
@@ -589,6 +614,7 @@ const HEADER_STYLE: Record<ThemeKey, HeaderStyle> = {
   delever: "center",
   sultan: "center",
   fiesta: "center",
+  prestij: "center",
 };
 
 export function categoryStyleFor(key: string): CategoryStyle {
@@ -629,6 +655,7 @@ const MENU_STYLE: Record<ThemeKey, MenuStyle> = {
   delever: "scroll",
   sultan: "browse",
   fiesta: "tabs",
+  prestij: "browse",
 };
 
 export function menuStyleFor(key: string): MenuStyle {

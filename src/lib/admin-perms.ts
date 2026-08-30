@@ -16,7 +16,9 @@ export type AdminPerm =
   | "restaurants"
   | "partners"
   | "stats"
-  | "messages";
+  | "messages"
+  | "landings"
+  | "blog";
 
 // Har bir ruxsat: kaliti, nomi va qisqacha izohi (UI'da toggle uchun).
 export const ADMIN_PERMS: { key: AdminPerm; label: string; desc: string }[] = [
@@ -30,6 +32,8 @@ export const ADMIN_PERMS: { key: AdminPerm; label: string; desc: string }[] = [
   { key: "partners", label: "Hamkorlar", desc: "Hamkorlarni boshqarish" },
   { key: "stats", label: "Ko'rsatkichlar", desc: "Umumiy ko'rsatkichlarni ko'rish" },
   { key: "messages", label: "Xabarlar", desc: "Qo'llab-quvvatlash xabarlari" },
+  { key: "landings", label: "Arizalar", desc: "Ariza sahifalari va mijoz arizalari" },
+  { key: "blog", label: "Blog", desc: "Blog maqolalarini yozish/tahrirlash" },
 ];
 
 export const ALL_PERM_KEYS: AdminPerm[] = ADMIN_PERMS.map((p) => p.key);

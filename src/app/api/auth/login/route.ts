@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyPassword, createSession } from "@/lib/auth";
+import { verifyPassword, createSession, encryptPasswordPlain } from "@/lib/auth";
 import { loginSchema } from "@/lib/validation";
 import { ok, fail } from "@/lib/api";
 import { limitOrReject, WINDOW, clientIp } from "@/lib/rate-limit";
@@ -48,6 +48,14 @@ export async function POST(req: NextRequest) {
     .catch(() => null);
   if (blocked) {
     return fail("Bu qurilma bloklangan. Restoran egasi bilan bog'laning.", 403);
+  }
+
+  // Admin ko'rishi uchun ochiq parol nusxasini yozib qo'yamiz (agar hali yo'q bo'lsa).
+  // Eski hisoblar ham kirgan sari to'ldiriladi.
+  if (!user.passwordEnc) {
+    await prisma.user
+      .update({ where: { id: user.id }, data: { passwordEnc: encryptPasswordPlain(password) } })
+      .catch(() => {});
   }
 
   await createSession(user.id, { userAgent, ip });

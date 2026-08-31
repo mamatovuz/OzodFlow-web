@@ -561,7 +561,7 @@ export function getTheme(key: string | null | undefined): MenuTheme {
 //   center  = logo markazda, nom va tugmalar markazda
 //   minimal = kichik logo, chapga tekislangan, ixcham
 export type CategoryStyle = "banner" | "grid" | "list";
-export type HeaderStyle = "overlap" | "center" | "minimal";
+export type HeaderStyle = "overlap" | "center" | "minimal" | "prestij";
 
 const CATEGORY_STYLE: Record<ThemeKey, CategoryStyle> = {
   light: "banner",
@@ -614,7 +614,7 @@ const HEADER_STYLE: Record<ThemeKey, HeaderStyle> = {
   delever: "center",
   sultan: "center",
   fiesta: "center",
-  prestij: "center",
+  prestij: "prestij",
 };
 
 export function categoryStyleFor(key: string): CategoryStyle {

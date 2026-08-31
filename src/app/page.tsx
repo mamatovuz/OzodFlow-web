@@ -8,6 +8,7 @@ import { BlockedMenu } from "@/components/public/blocked-menu";
 import { getPlanPrices, getLifetimePrices } from "@/lib/plan-prices";
 import { PLANS, FEATURE_MATRIX, LIFETIME_MONTHS, computePrice } from "@/lib/plans";
 import { formatPrice } from "@/lib/utils";
+import { getSiteMetricCounts, formatMetricValue, type SiteMetric } from "@/lib/stats";
 import {
   QrCode,
   LayoutDashboard,
@@ -261,13 +262,23 @@ export default async function LandingPage({
   const stats = await prisma.siteStat.findMany({
     where: { isActive: true },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    select: { id: true, value: true, label: true },
+    select: { id: true, value: true, label: true, metric: true, auto: true },
     take: 4,
   });
-  // Ishonch bo'limi: admin 4+ ko'rsatkich qo'shsa — o'shani, aks holda standart
+  // Avtomatik ("auto") ko'rsatkichlar uchun haqiqiy sonlarni hisoblaymiz.
+  const needCounts = stats.some((s) => s.auto && s.metric);
+  const counts = needCounts ? await getSiteMetricCounts() : null;
+  // Ishonch bo'limi: admin 4+ ko'rsatkich qo'shsa — o'shani, aks holda standart.
+  // auto=true bo'lgan ko'rsatkich qiymati haqiqiy sondan olinadi.
   const trustStats =
     stats.length >= 4
-      ? stats.map((s) => ({ value: s.value, label: s.label }))
+      ? stats.map((s) => ({
+          value:
+            s.auto && s.metric && counts
+              ? formatMetricValue(counts[s.metric as SiteMetric])
+              : s.value,
+          label: s.label,
+        }))
       : defaultTrustStats;
   // Bosh sahifada ko'rsatiladigan (yulduzchali) bloglar
   const featuredPosts = await prisma.blogPost.findMany({

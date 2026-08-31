@@ -11,6 +11,10 @@ import {
   Send,
   Loader2,
   AlertTriangle,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Card, Badge, Button } from "@/components/ui";
 import { Modal } from "@/components/ui-modal";
@@ -21,6 +25,7 @@ export type AdminRestaurantRow = {
   slug: string;
   ownerName: string;
   ownerContact: string;
+  ownerPassword: string | null;
   plan: string;
   planName: string;
   isBlocked: boolean;
@@ -106,6 +111,7 @@ export function RestaurantsManager({ rows }: { rows: AdminRestaurantRow[] }) {
                   <td className="px-4 py-3">
                     <p className="text-foreground">{r.ownerName}</p>
                     <p className="text-xs text-muted">{r.ownerContact}</p>
+                    <PasswordCell password={r.ownerPassword} />
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant={r.plan === "FREE" ? "default" : "accent"}>
@@ -201,6 +207,76 @@ export function RestaurantsManager({ rows }: { rows: AdminRestaurantRow[] }) {
         />
       )}
     </>
+  );
+}
+
+// Parol katakchasi: standart holatda blur (yopiq). Ko'z iconiga birinchi bosilsa
+// — parol ochiladi (blur ketadi). Ikkinchi bosilsa — buferga nusxalanadi.
+function PasswordCell({ password }: { password: string | null }) {
+  const [shown, setShown] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  if (!password) {
+    return (
+      <p className="mt-0.5 text-[11px] italic text-muted/60">
+        Parol hali saqlanmagan
+      </p>
+    );
+  }
+
+  async function onEye() {
+    if (!shown) {
+      // 1-bosish: parolni ochish
+      setShown(true);
+      return;
+    }
+    // 2-bosish: nusxalash
+    try {
+      await navigator.clipboard.writeText(password!);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard yopiq bo'lsa — jim */
+    }
+  }
+
+  return (
+    <div className="mt-1 flex items-center gap-1.5">
+      <span
+        onClick={onEye}
+        title={shown ? "Nusxalash uchun bosing" : "Ko'rish uchun bosing"}
+        className={`cursor-pointer select-none font-mono text-xs text-foreground transition-all ${
+          shown ? "" : "blur-[4px]"
+        }`}
+      >
+        {password}
+      </span>
+      <button
+        type="button"
+        onClick={onEye}
+        title={shown ? "Nusxalash" : "Ko'rsatish"}
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border text-muted hover:text-accent"
+      >
+        {copied ? (
+          <Check className="h-3.5 w-3.5 text-success" />
+        ) : shown ? (
+          <Copy className="h-3.5 w-3.5" />
+        ) : (
+          <Eye className="h-3.5 w-3.5" />
+        )}
+      </button>
+      {shown && (
+        <button
+          type="button"
+          onClick={() => setShown(false)}
+          title="Yashirish"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-border text-muted hover:text-accent"
+        >
+          <EyeOff className="h-3.5 w-3.5" />
+        </button>
+      )}
+      {copied && <span className="text-[11px] text-success">Nusxalandi</span>}
+    </div>
   );
 }
 

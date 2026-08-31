@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { adminGuard, ok, fail } from "@/lib/api";
 import { slugify } from "@/lib/utils";
-import { MAX_FEATURED } from "../route";
+import { MAX_FEATURED } from "@/lib/blog";
 
 export const dynamic = "force-dynamic";
 

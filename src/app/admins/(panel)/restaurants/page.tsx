@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { decryptPasswordPlain } from "@/lib/auth";
 import { PLANS, type PlanKey, getPaymentStatus } from "@/lib/plans";
 import {
   RestaurantsManager,
@@ -12,7 +13,7 @@ export default async function AdminRestaurantsPage() {
     prisma.restaurant.findMany({
       orderBy: { createdAt: "desc" },
       include: {
-        owner: { select: { name: true, email: true, phone: true } },
+        owner: { select: { name: true, email: true, phone: true, passwordEnc: true } },
         _count: { select: { products: true } },
       },
     }),
@@ -35,6 +36,7 @@ export default async function AdminRestaurantsPage() {
       slug: r.slug,
       ownerName: r.owner.name,
       ownerContact: r.owner.email || r.owner.phone || "—",
+      ownerPassword: decryptPasswordPlain(r.owner.passwordEnc),
       plan: r.plan,
       planName: PLANS[r.plan as PlanKey]?.name || r.plan,
       isBlocked: r.isBlocked,

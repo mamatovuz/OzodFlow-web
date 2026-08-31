@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { ok, fail } from "@/lib/api";
-import { hashPassword } from "@/lib/auth";
+import { hashPassword, encryptPasswordPlain } from "@/lib/auth";
 
 const schema = z.object({
   email: z.string().min(3),
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   await prisma.$transaction([
     prisma.user.update({
       where: { id: user.id },
-      data: { password: await hashPassword(password) },
+      data: { password: await hashPassword(password), passwordEnc: encryptPasswordPlain(password) },
     }),
     prisma.passwordReset.update({
       where: { id: reset.id },

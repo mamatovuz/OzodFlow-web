@@ -3,11 +3,9 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { adminGuard, ok, fail } from "@/lib/api";
 import { slugify } from "@/lib/utils";
+import { MAX_FEATURED } from "@/lib/blog";
 
 export const dynamic = "force-dynamic";
-
-// Bosh sahifada ko'rsatiladigan (yulduzchali) bloglar maksimal soni
-export const MAX_FEATURED = 5;
 
 const schema = z.object({
   title: z.string().min(1, "Sarlavha kiritilishi shart"),

@@ -20,8 +20,9 @@ import {
   ArrowRight,
   Maximize2,
   WifiOff,
+  ExternalLink,
 } from "lucide-react";
-import { formatPrice, parseJson } from "@/lib/utils";
+import { formatPrice, formatPriceParts, parseJson } from "@/lib/utils";
 import type { MenuTheme } from "@/lib/themes";
 import { categoryStyleFor, headerStyleFor, menuStyleFor, menuHasCart } from "@/lib/themes";
 import { resolveDesign, backgroundCss, shadowCss, youtubeEmbed, heroMediaType } from "@/lib/design";
@@ -732,6 +733,17 @@ export function PublicMenu({
         )}
         {/* Pastga qarab qorayadigan gradient — karta bilan yumshoq ajralish uchun */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-background/95" />
+        {/* Prestij: logo cover markazida (rasimdagidek) */}
+        {prestige && restaurant.logo && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={restaurant.logo}
+              alt={restaurant.name}
+              className="max-h-[60%] max-w-[70%] object-contain drop-shadow-[0_2px_16px_rgba(0,0,0,0.6)]"
+            />
+          </div>
+        )}
         {/* Til almashtirish */}
         <div className="absolute left-4 top-4 flex gap-1 rounded-full bg-black/40 p-1 backdrop-blur">
           {LANGS.map((l) => (
@@ -1014,6 +1026,7 @@ export function PublicMenu({
                   accentText={accentText}
                   radius={R}
                   label={t.items}
+                  hideCount={prestige}
                 />
               ))}
             </div>
@@ -1113,6 +1126,7 @@ export function PublicMenu({
           accentText={accentText}
           radius={R}
           showCart={showCart}
+          prestige={prestige}
           onAdd={(q) => {
             addToCart(detail.id, q);
             setDetail(null);
@@ -1598,7 +1612,7 @@ function ProfileHeader({
   accent: string;
   accentText: string;
   radius: number;
-  variant: "overlap" | "center" | "minimal";
+  variant: "overlap" | "center" | "minimal" | "prestij";
 }) {
   const R = radius;
   const logo = restaurant.logo ? (
@@ -1649,6 +1663,88 @@ function ProfileHeader({
       {restaurant.workHours && <InfoChip icon={Clock} text={restaurant.workHours} />}
     </div>
   );
+
+  // ── PRESTIJ (oddmenu "Xorrot" uslubi): to'liq enli chuqur-qora panel, chapga
+  //    tekislangan nom, manzil/telefon qatorlari, tekis ijtimoiy ikonalar va
+  //    "Google reviews" havolasi. Logo — tepadagi cover bannerda (bu yerda emas).
+  if (variant === "prestij") {
+    const reviewUrl = restaurant.mapUrl || undefined;
+    return (
+      <div className="relative -mx-4 -mt-16 bg-background px-5 pb-6 pt-14 sm:-mt-20 sm:pt-16">
+        <h1 className="text-3xl font-extrabold uppercase tracking-wide text-foreground sm:text-4xl">
+          {restaurant.name}
+        </h1>
+
+        <div className="mt-4 space-y-2.5">
+          {restaurant.address && (
+            <a
+              href={restaurant.mapUrl || undefined}
+              target={restaurant.mapUrl ? "_blank" : undefined}
+              rel="noreferrer"
+              className="flex items-start gap-2.5 text-sm text-muted"
+            >
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0" style={{ color: accent }} />
+              <span className="leading-snug">{restaurant.address}</span>
+            </a>
+          )}
+          {restaurant.phone && (
+            <a href={`tel:${restaurant.phone}`} className="flex items-center gap-2.5 text-sm text-muted">
+              <Phone className="h-4 w-4 shrink-0" style={{ color: accent }} />
+              <span>{restaurant.phone}</span>
+            </a>
+          )}
+          {restaurant.workHours && (
+            <div className="flex items-center gap-2.5 text-sm text-muted">
+              <Clock className="h-4 w-4 shrink-0" style={{ color: accent }} />
+              <span>{restaurant.workHours}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Tekis ijtimoiy ikonalar (rasimdagidek) */}
+        {(restaurant.instagram || restaurant.telegram) && (
+          <div className="mt-4 flex items-center gap-4 text-muted">
+            {restaurant.instagram && (
+              <a
+                href={`https://instagram.com/${restaurant.instagram.replace("@", "")}`}
+                target="_blank"
+                rel="noreferrer"
+                className="transition-colors hover:text-foreground"
+                aria-label="Instagram"
+              >
+                <Instagram className="h-6 w-6" />
+              </a>
+            )}
+            {restaurant.telegram && (
+              <a
+                href={`https://t.me/${restaurant.telegram.replace("@", "")}`}
+                target="_blank"
+                rel="noreferrer"
+                className="transition-colors hover:text-foreground"
+                aria-label="Telegram"
+              >
+                <Send className="h-6 w-6" />
+              </a>
+            )}
+          </div>
+        )}
+
+        {reviewUrl && (
+          <a
+            href={reviewUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-4 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-foreground"
+          >
+            Google reviews
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        )}
+
+        {desc && <p className="mt-4 text-sm leading-relaxed text-muted">{desc}</p>}
+      </div>
+    );
+  }
 
   // ── CENTER: logo markazda, nom + ijtimoiy tugmalar markazda (rasimdagidek) ──
   if (variant === "center") {
@@ -1761,6 +1857,7 @@ function CategoryCard({
   accentText,
   radius,
   label,
+  hideCount = false,
 }: {
   variant: "banner" | "grid" | "list";
   name: string;
@@ -1771,6 +1868,7 @@ function CategoryCard({
   accentText: string;
   radius: number;
   label: string;
+  hideCount?: boolean;
 }) {
   const bg = `linear-gradient(135deg, ${accent}, ${accent}22, #0b0b0b)`;
 
@@ -1832,14 +1930,22 @@ function CategoryCard({
       {isBanner ? (
         <>
           {/* Markazda nom (rasimdagidek) */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/25 to-black/10" />
+          <div
+            className={
+              hideCount
+                ? "absolute inset-0 bg-gradient-to-t from-black/55 via-black/20 to-black/5"
+                : "absolute inset-0 bg-gradient-to-t from-black/60 via-black/25 to-black/10"
+            }
+          />
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-5 text-center">
-            <h3 className="text-2xl font-extrabold uppercase tracking-[0.1em] text-white [text-shadow:0_2px_12px_rgba(0,0,0,0.5)] sm:text-4xl">
+            <h3 className="text-2xl font-extrabold uppercase tracking-[0.12em] text-white [text-shadow:0_2px_14px_rgba(0,0,0,0.6)] sm:text-4xl">
               {name}
             </h3>
-            <span className="rounded-full bg-white/20 px-3 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
-              {count} {label}
-            </span>
+            {!hideCount && (
+              <span className="rounded-full bg-white/20 px-3 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
+                {count} {label}
+              </span>
+            )}
           </div>
         </>
       ) : (
@@ -2150,6 +2256,37 @@ function ListCard({
 }
 
 // ─────────── Grid card (rasm tepada) ───────────
+// Prestij uslubidagi narx: katta oltin son + kichik yuqori indeks valyuta (сум).
+function PriceTag({
+  price,
+  currency,
+  accent,
+  size = "lg",
+}: {
+  price: number;
+  currency: string;
+  accent: string;
+  size?: "lg" | "xl";
+}) {
+  const { num, sym, prefix } = formatPriceParts(price, currency);
+  const numCls = size === "xl" ? "text-2xl" : "text-lg";
+  return (
+    <span className="inline-flex items-start leading-none">
+      {prefix && (
+        <sup className="mr-0.5 mt-1 text-[0.62em] font-semibold text-muted">{sym}</sup>
+      )}
+      <span className={`${numCls} font-extrabold tracking-tight`} style={{ color: accent }}>
+        {num}
+      </span>
+      {!prefix && (
+        <sup className="ml-1 mt-1 text-[0.6em] font-semibold uppercase text-muted">
+          {sym}
+        </sup>
+      )}
+    </span>
+  );
+}
+
 function GridCard({
   product: p,
   currency,
@@ -2237,12 +2374,13 @@ function GridCard({
           </p>
         )}
         <div className={capsTitle ? "mt-2.5" : "mt-2"}>
-          <span
-            className={capsTitle ? "text-lg font-extrabold" : "font-bold text-foreground"}
-            style={accentPrice ? { color: accent } : undefined}
-          >
-            {formatPrice(p.price, currency)}
-          </span>
+          {accentPrice ? (
+            <PriceTag price={p.price} currency={currency} accent={accent} />
+          ) : (
+            <span className="font-bold text-foreground">
+              {formatPrice(p.price, currency)}
+            </span>
+          )}
           {p.oldPrice && (
             <span className="ml-1.5 text-xs text-muted line-through">
               {formatPrice(p.oldPrice, currency)}
@@ -2369,6 +2507,7 @@ function ProductDetail({
   accentText,
   radius,
   showCart = true,
+  prestige = false,
   onAdd,
   onClose,
 }: {
@@ -2378,6 +2517,7 @@ function ProductDetail({
   accentText: string;
   radius: number;
   showCart?: boolean;
+  prestige?: boolean;
   onAdd: (qty: number) => void;
   onClose: () => void;
 }) {
@@ -2495,9 +2635,21 @@ function ProductDetail({
         )}
         <div className="flex-1 overflow-y-auto p-5">
           <div className="flex items-start justify-between gap-3">
-            <h2 className="text-xl font-bold text-foreground">{p.name}</h2>
-            <div className="text-right">
-              <div className="text-xl font-bold text-foreground">{formatPrice(p.price, currency)}</div>
+            <h2
+              className={
+                prestige
+                  ? "text-xl font-bold uppercase tracking-wide text-foreground"
+                  : "text-xl font-bold text-foreground"
+              }
+            >
+              {p.name}
+            </h2>
+            <div className="shrink-0 text-right">
+              {prestige ? (
+                <PriceTag price={p.price} currency={currency} accent={accent} size="xl" />
+              ) : (
+                <div className="text-xl font-bold text-foreground">{formatPrice(p.price, currency)}</div>
+              )}
               {p.oldPrice && (
                 <div className="text-sm text-muted line-through">{formatPrice(p.oldPrice, currency)}</div>
               )}
@@ -2506,7 +2658,17 @@ function ProductDetail({
           <div className="mt-2">
             <ProductBadges p={p} />
           </div>
-          {p.description && <p className="mt-3 text-sm leading-relaxed text-muted">{p.description}</p>}
+          {p.description && (
+            <p
+              className={
+                prestige
+                  ? "mt-3 text-sm uppercase leading-relaxed tracking-wide text-muted"
+                  : "mt-3 text-sm leading-relaxed text-muted"
+              }
+            >
+              {p.description}
+            </p>
+          )}
           {p.ingredients && (
             <div className="mt-4">
               <p className="text-xs font-medium text-muted">Tarkibi</p>

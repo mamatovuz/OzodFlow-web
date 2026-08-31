@@ -15,7 +15,11 @@ export async function PATCH(
   if (typeof body?.value === "string") data.value = body.value;
   if (typeof body?.label === "string") data.label = body.label;
   if (typeof body?.isActive === "boolean") data.isActive = body.isActive;
+  if (typeof body?.auto === "boolean") data.auto = body.auto;
   if (typeof body?.sortOrder === "number") data.sortOrder = body.sortOrder;
+  if (body?.metric === null) data.metric = null;
+  else if (["restaurants", "products", "scans"].includes(body?.metric))
+    data.metric = body.metric;
 
   const stat = await prisma.siteStat
     .update({ where: { id }, data })

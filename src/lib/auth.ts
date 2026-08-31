@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { deviceFingerprint } from "./device";
 import { parseAdminPerms } from "./admin-perms";
+import { encryptCredentials, decryptCredentials } from "./pos/crypto";
 
 /**
  * JWT maxfiy kaliti. Ishlab chiqarishda `JWT_SECRET` MAJBURIY —
@@ -46,6 +47,26 @@ export async function hashPassword(password: string) {
 
 export async function verifyPassword(password: string, hash: string) {
   return bcrypt.compare(password, hash);
+}
+
+/**
+ * Admin panelida restoran egasining parolini ko'rsatish uchun ochiq parolni
+ * qaytariluvchi (AES-GCM) ko'rinishda shifrlaydi. bcrypt hash orqaga
+ * qaytmagani sababli parolni register/login vaqtida shu yerda saqlaymiz.
+ * Kalit — POS shifrlash bilan bir xil manba (POS_ENCRYPTION_KEY/JWT_SECRET).
+ */
+export function encryptPasswordPlain(password: string): string {
+  return encryptCredentials({ p: password });
+}
+
+/** Shifrlangan parolni ochadi; xato bo'lsa null. */
+export function decryptPasswordPlain(enc: string | null | undefined): string | null {
+  if (!enc) return null;
+  try {
+    return decryptCredentials(enc).p ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function signToken(payload: { sub: string; sid: string }) {

@@ -97,6 +97,35 @@ export async function getDashboardStats(restaurantId: string) {
   };
 }
 
+// ─── Bosh sahifa "Ishonch raqamlari" uchun haqiqiy (jonli) ko'rsatkichlar ───
+export type SiteMetric = "restaurants" | "products" | "scans";
+
+/** Platformadagi haqiqiy sonlar: restoranlar, menyu mahsulotlari, QR skanerlar. */
+export async function getSiteMetricCounts(): Promise<Record<SiteMetric, number>> {
+  const [restaurants, products, scans] = await Promise.all([
+    prisma.restaurant.count(),
+    prisma.product.count(),
+    prisma.scanEvent.count(),
+  ]);
+  return { restaurants, products, scans };
+}
+
+/**
+ * Katta sonni ixcham ko'rinishga keltiradi: 1234 → "1.2K+", 1_200_000 → "1.2M+".
+ * Bosh sahifadagi "500+" uslubidagi ko'rsatkichlar uchun.
+ */
+export function formatMetricValue(n: number): string {
+  if (n >= 1_000_000) {
+    const v = n / 1_000_000;
+    return `${v >= 10 ? Math.round(v) : v.toFixed(1).replace(/\.0$/, "")}M+`;
+  }
+  if (n >= 1_000) {
+    const v = n / 1_000;
+    return `${v >= 10 ? Math.round(v) : v.toFixed(1).replace(/\.0$/, "")}K+`;
+  }
+  return `${n}+`;
+}
+
 export async function getTopProducts(restaurantId: string, limit = 5) {
   return prisma.product.findMany({
     where: { restaurantId },

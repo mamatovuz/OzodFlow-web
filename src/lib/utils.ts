@@ -32,6 +32,24 @@ export function formatPrice(amount: number, currency = "UZS") {
     : `${formatted} ${sym}`;
 }
 
+/**
+ * Narxni qismlarga ajratadi: son + valyuta belgisi + belgisi old/keyinmi.
+ * Prestij uslubida son katta/oltin, valyuta esa kichik yuqori indeks (сум) qilib
+ * ko'rsatish uchun ishlatiladi.
+ */
+export function formatPriceParts(amount: number, currency = "UZS") {
+  const num = new Intl.NumberFormat("ru-RU").format(Math.round(amount));
+  const symbols: Record<string, string> = {
+    UZS: "so'm",
+    USD: "$",
+    RUB: "₽",
+    EUR: "€",
+  };
+  const sym = symbols[currency] ?? currency;
+  const prefix = currency === "USD" || currency === "EUR";
+  return { num, sym, prefix };
+}
+
 export function randomCode(len = 6) {
   const chars = "ABCDEFGHIJKLMNPQRSTUVWXYZ23456789";
   let out = "";

@@ -19,6 +19,10 @@ model User {
   phone     String?  @unique
   name      String
   password  String
+  // Admin panelida restoran egasining parolini ko'rsatish uchun — AES-GCM
+  // shifrlangan ochiq parol nusxasi (bcrypt hash qaytarilmasligi sababli).
+  // Register / login / parolni tiklash paytida yoziladi.
+  passwordEnc String?
   role      String   @default("OWNER") // OWNER | STAFF | ADMIN
   avatar    String?
   // ─── Admin RBAC ───
@@ -477,6 +481,11 @@ model SiteStat {
   id        String   @id @default(cuid())
   value     String
   label     String
+  // Haqiqiy ko'rsatkichga bog'lash: "restaurants" | "products" | "scans" | null.
+  // auto=true bo'lsa — bosh sahifada bu metrika bo'yicha jonli (haqiqiy) son
+  // ko'rsatiladi, `value` esa e'tiborga olinmaydi.
+  metric    String?
+  auto      Boolean  @default(false)
   sortOrder Int      @default(0)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())

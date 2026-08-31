@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, createSession } from "@/lib/auth";
+import { hashPassword, createSession, encryptPasswordPlain } from "@/lib/auth";
 import { registerSchema } from "@/lib/validation";
 import { ok, fail } from "@/lib/api";
 import { slugify, randomCode } from "@/lib/utils";
@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
       email: email || null,
       phone: phone || null,
       password: hashed,
+      passwordEnc: encryptPasswordPlain(password),
       restaurants: {
         create: {
           name: restaurantName,

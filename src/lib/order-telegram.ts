@@ -97,6 +97,36 @@ export async function sendOrderToChannel(opts: {
   return ok;
 }
 
+// Mijoz izohini (otziv) Telegram kanaliga yuboradi. Hech qachon throw qilmaydi.
+export async function sendReviewToChannel(opts: {
+  token: string;
+  chatId: string;
+  restaurantName: string;
+  rating: number;
+  name?: string | null;
+  phone?: string | null;
+  text?: string | null;
+}): Promise<boolean> {
+  const { token, chatId, restaurantName, rating, name, phone, text } = opts;
+  if (!token || !chatId) return false;
+  const stars = "⭐️".repeat(Math.max(1, Math.min(5, rating)));
+  const lines: string[] = [];
+  lines.push(`💬 <b>Yangi izoh</b> — ${esc(restaurantName)}`);
+  lines.push(`${stars} (${rating}/5)`);
+  if (name) lines.push(`👤 ${esc(name)}`);
+  if (phone) lines.push(`📞 ${esc(phone)}`);
+  if (text) {
+    lines.push("");
+    lines.push(esc(text));
+  }
+  return tgCall(token, "sendMessage", {
+    chat_id: chatId,
+    text: lines.join("\n"),
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+  });
+}
+
 // Ulanishni tekshirish uchun test xabari
 export async function sendTestMessage(token: string, chatId: string, restaurantName: string): Promise<boolean> {
   return tgCall(token, "sendMessage", {

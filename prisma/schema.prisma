@@ -130,6 +130,12 @@ model Restaurant {
   askPhone        Boolean   @default(true) // buyurtmada mijozdan telefon raqam so'ralsinmi
   orderBotToken   String? // buyurtmalarni Telegram kanaliga yuborish uchun bot tokeni
   orderChatId     String? // buyurtmalar tushadigan kanal/guruh ID si (@channel yoki -100...)
+  reviewEnabled   Boolean   @default(true) // izoh (otziv) sahifasi yoqilganmi
+  reviewBotToken  String? // izohlar uchun alohida bot tokeni (bo'sh bo'lsa orderBotToken ishlatiladi)
+  reviewChatId    String? // izohlar tushadigan kanal (bo'sh bo'lsa orderChatId ishlatiladi)
+  reviewGoogleUrl String? // Google Maps'da baho qoldirish havolasi
+  reviewYandexUrl String? // Yandex Maps'da baho qoldirish havolasi
+  reviewThreshold Int       @default(4) // shu baho va undan yuqorida — xaritaga yo'naltiriladi
   customDomain    String?   @unique // o'z domeni (Pro/Pro Max)
   plan            String    @default("FREE") // FREE | PRO | PROMAX
   planUntil       DateTime? // FREE trial muddati; pullik tariflarda null = umrbod
@@ -159,8 +165,57 @@ model Restaurant {
   webhooks         Webhook[]
   waiters          Waiter[]
   mobileApp        MobileApp?
+  taplink          Taplink?
+  reviews          Review[]
 
   @@index([ownerId])
+}
+
+// Mijoz izohi (otziv) — QR orqali baho + fikr qoldiradi.
+// Yuqori baho bo'lsa Google/Yandex xaritasiga yo'naltiriladi (ommaviy baho uchun).
+model Review {
+  id           String   @id @default(cuid())
+  restaurantId String
+  rating       Int // 1–5
+  name         String?
+  phone        String?
+  text         String?
+  redirected   Boolean  @default(false) // xaritaga yo'naltirilganmi (yuqori baho)
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@index([createdAt])
+}
+
+// Taplink (link-in-bio) — restoran uchun bitta commonda ochiladigan sahifa:
+// ozodflow.uz/<handle>. Logo, ism/familiya, tugmalar (telefon/telegram/instagram...),
+// video, menyu tugmasi, QR va tanlanadigan dizayn. Vizitka ham shu yerdan chiqadi.
+model Taplink {
+  id             String   @id @default(cuid())
+  restaurantId   String   @unique
+  handle         String   @unique // ozodflow.uz/<handle> — band bo'lsa safirun1, safirun2...
+  enabled        Boolean  @default(true)
+  // Profil
+  displayName    String // ko'rsatiladigan nom (default: restoran nomi)
+  firstName      String? // ism
+  lastName       String? // familiya
+  bio            String? // qisqa tavsif / lavozim
+  logo           String? // taplink logosi (default: restaurant.logo)
+  videoUrl       String? // yuklangan video yoki YouTube havolasi
+  // Tugmalar/havolalar (JSON): [{id, type, label, value}]
+  links          String   @default("[]")
+  showMenuButton Boolean  @default(true) // menyuga alohida tugma
+  // Dizayn (JSON): fon, tugma shakli/rangi, matn rangi, shrift
+  design         String   @default("{}")
+  // Vizitka (JSON): shablon, ranglar, ko'rsatiladigan kontaktlar
+  cardConfig     String   @default("{}")
+  views          Int      @default(0) // sahifa ko'rishlari
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 }
 
 // Restoran mobil ilovasi (Android APK/PWA "shell") — menyuni WebView'da ochadi.

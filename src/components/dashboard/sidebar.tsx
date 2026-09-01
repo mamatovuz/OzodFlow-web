@@ -22,6 +22,8 @@ import {
   ExternalLink,
   Users,
   Smartphone,
+  Link2,
+  Star,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -36,6 +38,8 @@ const nav = [
   { href: "/dashboard/design", label: "Menyu dizayni", icon: Palette },
   { href: "/dashboard/banners", label: "Bannerlar", icon: ImageIcon },
   { href: "/dashboard/gallery", label: "Galereya", icon: Images },
+  { href: "/dashboard/taplink", label: "Taplink", icon: Link2 },
+  { href: "/dashboard/reviews", label: "Izohlar", icon: Star },
   { href: "/dashboard/qr", label: "QR kod", icon: QrCode },
   { href: "/dashboard/stats", label: "Statistika", icon: BarChart3 },
   { href: "/dashboard/integrations", label: "Integratsiyalar", icon: Plug },
@@ -66,13 +70,12 @@ export function Sidebar({
   }
 
   // Funksiya yoqilgan bo'lsa "Ofitsantlar"ni Statistika'dan keyin qo'shamiz
-  const navItems = waiterCodeEnabled
-    ? [
-        ...nav.slice(0, 10), // ... Statistika gacha (indeks 9)
-        WAITERS_ITEM,
-        ...nav.slice(10),
-      ]
-    : nav;
+  const navItems = (() => {
+    if (!waiterCodeEnabled) return nav;
+    const statsIdx = nav.findIndex((n) => n.href === "/dashboard/stats");
+    const at = statsIdx >= 0 ? statsIdx + 1 : nav.length;
+    return [...nav.slice(0, at), WAITERS_ITEM, ...nav.slice(at)];
+  })();
 
   const NavItems = () => (
     <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">

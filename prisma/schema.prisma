@@ -130,6 +130,14 @@ model Restaurant {
   askPhone        Boolean   @default(true) // buyurtmada mijozdan telefon raqam so'ralsinmi
   orderBotToken   String? // buyurtmalarni Telegram kanaliga yuborish uchun bot tokeni
   orderChatId     String? // buyurtmalar tushadigan kanal/guruh ID si (@channel yoki -100...)
+  // ─── Mijozlar boti + Telegram Mini App ───
+  // Egasi BotFather'dan token beradi → OzodFlow webhook/menyu tugmasini sozlaydi.
+  // Mijoz bot ichida "Menyu"ni ochadi (Mini App = /m/<slug>?tg=1), buyurtma beradi,
+  // holat o'zgarganda bot mijozga xabar yozadi (bepul push).
+  botToken        String? // mijozlar boti tokeni (shifrlanmagan — API chaqiruv uchun)
+  botUsername     String? // @bot username (getMe orqali)
+  botSecret       String? // webhook manzilidagi tasodifiy sir (/api/tg/<secret>)
+  botEnabled      Boolean   @default(false)
   reviewEnabled   Boolean   @default(true) // izoh (otziv) sahifasi yoqilganmi
   reviewBotToken  String? // izohlar uchun alohida bot tokeni (bo'sh bo'lsa orderBotToken ishlatiladi)
   reviewChatId    String? // izohlar tushadigan kanal (bo'sh bo'lsa orderChatId ishlatiladi)
@@ -167,8 +175,29 @@ model Restaurant {
   mobileApp        MobileApp?
   taplink          Taplink?
   reviews          Review[]
+  botCustomers     BotCustomer[]
 
   @@index([ownerId])
+}
+
+// Telegram bot orqali menyuni ochgan/buyurtma bergan mijozlar.
+// tgUserId = Telegram foydalanuvchi ID (shaxsiy chat ID bilan bir xil) —
+// unga buyurtma holatini push qilish va kelajakda sodiqlik/CRM uchun.
+model BotCustomer {
+  id           String    @id @default(cuid())
+  restaurantId String
+  tgUserId     String // Telegram user id (= shaxsiy chat id)
+  firstName    String?
+  username     String? // @username (ixtiyoriy)
+  phone        String?
+  orders       Int       @default(0)
+  lastOrderAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, tgUserId])
+  @@index([restaurantId])
 }
 
 // Mijoz izohi (otziv) — QR orqali baho + fikr qoldiradi.
@@ -376,6 +405,8 @@ model Order {
   // ─── Ofitsant (kod kiritilgan bo'lsa) ───
   waiterId     String? // qaysi ofitsant qabul qildi
   waiterCode   String? // kiritilgan kod (audit uchun)
+  // ─── Telegram Mini App (bot orqali kelgan buyurtma) ───
+  tgChatId     String? // mijoz Telegram chat ID si — holat o'zgarishini push qilish uchun
   // ─── POS ga yuborish holati ───
   posOrderId   String? // POS tizimidagi buyurtma ID (yuborilgan bo'lsa)
   posError     String? // POS ga yuborishda xato (bo'lsa)

@@ -9,6 +9,7 @@ import { ResetStats } from "@/components/dashboard/reset-stats";
 import { WaiterCodeToggle } from "@/components/dashboard/waiter-code-toggle";
 import { PhoneRequestToggle } from "@/components/dashboard/phone-request-toggle";
 import { OrderChannel } from "@/components/dashboard/order-channel";
+import { TelegramBotManager } from "@/components/dashboard/telegram-bot-manager";
 import { SessionsManager } from "@/components/dashboard/sessions-manager";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +46,9 @@ export default async function SettingsPage() {
 
       {/* Buyurtmada telefon raqam so'rash */}
       <PhoneRequestToggle enabled={restaurant.askPhone} />
+
+      {/* Mijozlar boti + Telegram Mini App */}
+      <TelegramBotManager connected={restaurant.botEnabled && !!restaurant.botToken} username={restaurant.botUsername} />
 
       {/* Buyurtmalarni Telegram kanaliga yuborish */}
       <OrderChannel

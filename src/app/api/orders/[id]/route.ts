@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { authGuard, guardRestaurant, ok, fail } from "@/lib/api";
 import { ORDER_STATUSES } from "@/lib/orders";
 import { dispatchWebhook } from "@/lib/webhooks";
+import { sendOrderStatusToCustomer } from "@/lib/telegram-bot";
 
 const VALID = ORDER_STATUSES.map((s) => s.key);
 
@@ -27,6 +28,22 @@ export async function PATCH(
     where: { id },
     data: { status },
   });
+
+  // Buyurtma Telegram Mini App orqali kelgan bo'lsa — mijozga holatni push qilamiz
+  if (updated.tgChatId && status !== order.status) {
+    const bot = await prisma.restaurant.findUnique({
+      where: { id: order.restaurantId },
+      select: { botToken: true, botEnabled: true },
+    });
+    if (bot?.botEnabled && bot.botToken) {
+      void sendOrderStatusToCustomer({
+        token: bot.botToken,
+        chatId: updated.tgChatId,
+        orderNumber: updated.number,
+        status,
+      });
+    }
+  }
 
   // Holat o'zgarishini webhooklarga xabar qilamiz (fon rejimda)
   void dispatchWebhook(order.restaurantId, "order.status", {

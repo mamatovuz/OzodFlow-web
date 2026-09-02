@@ -5,6 +5,7 @@ import { getMenuBySlug, resolveTable } from "@/lib/menu";
 import { getTheme, MENU_THEMES } from "@/lib/themes";
 import { PublicMenu } from "@/components/public/public-menu";
 import { BlockedMenu } from "@/components/public/blocked-menu";
+import { TelegramWebApp } from "@/components/public/telegram-webapp";
 import { restaurantJsonLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -62,10 +63,10 @@ export default async function PublicMenuPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ t?: string; preview?: string }>;
+  searchParams: Promise<{ t?: string; preview?: string; tg?: string }>;
 }) {
   const { slug } = await params;
-  const { t, preview } = await searchParams;
+  const { t, preview, tg } = await searchParams;
   const data = await getMenuBySlug(slug);
   if (!data) notFound();
 
@@ -101,6 +102,7 @@ export default async function PublicMenuPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      {tg === "1" && <TelegramWebApp />}
       <PublicMenu
         restaurant={restaurantForRender}
         categories={data.categories}

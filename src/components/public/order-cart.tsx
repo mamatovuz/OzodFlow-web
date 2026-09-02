@@ -5,6 +5,7 @@ import { ShoppingCart, Minus, Plus, X, Loader2, CheckCircle2, Trash2, MapPin } f
 import { formatPrice } from "@/lib/utils";
 import { UI, type Lang } from "@/lib/i18n";
 import { LocationPicker } from "@/components/public/location-picker";
+import { getTelegramInitData } from "@/components/public/telegram-webapp";
 
 export type CartLine = {
   productId: string;
@@ -126,6 +127,8 @@ export function CheckoutModal({
         lat: wantDelivery ? loc?.lat : undefined,
         lng: wantDelivery ? loc?.lng : undefined,
         waiterCode: waiterCodeEnabled && waiterCode.trim() ? waiterCode.trim() : undefined,
+        // Telegram Mini App ichida bo'lsa — mijozni aniqlash uchun
+        tgInitData: getTelegramInitData(),
         items: items.map((i) => ({ productId: i.productId, qty: i.qty })),
       }),
     });

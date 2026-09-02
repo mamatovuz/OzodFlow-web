@@ -6,7 +6,9 @@ import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 import { pushOrderToPos } from "@/lib/pos";
 import { dispatchWebhook } from "@/lib/webhooks";
 import { sendOrderToChannel } from "@/lib/order-telegram";
+import { verifyInitData, sendBotMessage } from "@/lib/telegram-bot";
 import { idempotentGet, idempotentSet } from "@/lib/idempotency";
+import { formatPrice } from "@/lib/utils";
 import type { OrderItem } from "@/lib/orders";
 
 // ─── Ommaviy: buyurtma yaratish ───
@@ -20,6 +22,8 @@ const createSchema = z.object({
   lat: z.number().min(-90).max(90).optional().nullable(),
   lng: z.number().min(-180).max(180).optional().nullable(),
   waiterCode: z.string().max(24).optional().nullable(),
+  // Telegram Mini App orqali kelgan buyurtma — mijozni aniqlash uchun initData
+  tgInitData: z.string().max(4096).optional().nullable(),
   items: z
     .array(z.object({ productId: z.string(), qty: z.number().int().min(1).max(99) }))
     .min(1, "Savat bo'sh"),
@@ -35,7 +39,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return fail("Ma'lumotlar noto'g'ri", 422, parsed.error.flatten().fieldErrors);
   }
-  const { slug, tableCode, phone, comment, items, orderType, address, lat, lng, waiterCode } = parsed.data;
+  const { slug, tableCode, phone, comment, items, orderType, address, lat, lng, waiterCode, tgInitData } = parsed.data;
   const isDelivery = orderType === "DELIVERY";
 
   // ─── Idempotency: takroriy yuborishda dublikat buyurtma yaratmaymiz ───
@@ -92,6 +96,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // ─── Telegram Mini App mijozi (initData tasdiqlansa) ───
+  let tgChatId: string | null = null;
+  let tgUser: { id: number; first_name?: string; username?: string } | null = null;
+  if (tgInitData && restaurant.botToken) {
+    const u = verifyInitData(tgInitData, restaurant.botToken);
+    if (u) {
+      tgUser = u;
+      tgChatId = String(u.id);
+    }
+  }
+
   // Ketma-ket raqam
   const last = await prisma.order.findFirst({
     where: { restaurantId: restaurant.id },
@@ -117,8 +132,37 @@ export async function POST(req: NextRequest) {
       items: JSON.stringify(orderItems),
       waiterId,
       waiterCode: waiterCodeStored,
+      tgChatId,
     },
   });
+
+  // ─── Telegram mijozini saqlab, unga tasdiq xabarini yuboramiz ───
+  if (tgUser && tgChatId && restaurant.botToken) {
+    void prisma.botCustomer
+      .upsert({
+        where: { restaurantId_tgUserId: { restaurantId: restaurant.id, tgUserId: tgChatId } },
+        create: {
+          restaurantId: restaurant.id,
+          tgUserId: tgChatId,
+          firstName: tgUser.first_name || null,
+          username: tgUser.username || null,
+          phone: phone || null,
+          orders: 1,
+          lastOrderAt: new Date(),
+        },
+        update: {
+          orders: { increment: 1 },
+          lastOrderAt: new Date(),
+          ...(phone ? { phone } : {}),
+        },
+      })
+      .catch(() => {});
+    void sendBotMessage(
+      restaurant.botToken,
+      tgChatId,
+      `✅ <b>Buyurtmangiz qabul qilindi!</b>\n\nBuyurtma #${number}\n💰 Jami: ${formatPrice(total, restaurant.currency)}\n\nHolat o'zgarishi haqida shu yerda xabar beramiz.`
+    );
+  }
 
   // Restoranда POS ulangan bo'lsa — buyurtmani POS ga ham yuboramiz.
   // Xato bo'lsa mijoz buyurtmasi buzilmaydi (posError ga yoziladi).

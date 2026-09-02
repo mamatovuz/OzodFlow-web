@@ -107,6 +107,18 @@ body {
   animation: fade-in 0.6s ease both;
 }
 
+/* Oshxona ekranida kechikkan buyurtma kartasi — sekin miltillash */
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.animate-pulse-slow {
+  animation: pulse-slow 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-slow { animation: none; }
+}
+
 /* Hamkorlar tasmasi — o'ngdan chapga uzluksiz aylanish */
 @keyframes marquee-rtl {
   from { transform: translateX(0); }

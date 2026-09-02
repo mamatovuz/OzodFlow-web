@@ -21,6 +21,7 @@ import {
   X,
   ExternalLink,
   Users,
+  UserCog,
   Smartphone,
   Link2,
   Star,
@@ -43,6 +44,7 @@ const nav = [
   { href: "/dashboard/qr", label: "QR kod", icon: QrCode },
   { href: "/dashboard/stats", label: "Statistika", icon: BarChart3 },
   { href: "/dashboard/integrations", label: "Integratsiyalar", icon: Plug },
+  { href: "/dashboard/staff", label: "Xodimlar", icon: UserCog },
   { href: "/dashboard/mobile-app", label: "Mobil ilova", icon: Smartphone },
   { href: "/dashboard/settings", label: "Sozlamalar", icon: Settings },
 ];

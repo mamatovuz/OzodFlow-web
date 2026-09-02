@@ -255,12 +255,13 @@ function KitchenCard({
   const timeColor = late ? "text-error" : warn ? "text-muted" : "text-muted";
   const isDelivery = order.orderType === "DELIVERY";
 
+  // Oshxona faqat NEW→PREPARING→READY qiladi; yetkazish (DELIVERED) — ofitsant ishi
   const action =
     col === "new"
       ? { to: "PREPARING", label: "Boshlash" }
       : col === "prep"
       ? { to: "READY", label: "Tayyor" }
-      : { to: "DELIVERED", label: "Berildi" };
+      : null;
 
   return (
     <div className={`rounded-xl border bg-card p-3.5 transition ${late ? "border-error/40" : "border-border"}`}>
@@ -302,13 +303,19 @@ function KitchenCard({
         <p className="mt-2.5 border-l-2 border-border pl-2 text-xs text-muted">{order.comment}</p>
       )}
 
-      <button
-        disabled={busy}
-        onClick={() => onAdvance(order.id, action.to)}
-        className="mt-3.5 flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2.5 text-[15px] font-medium text-white transition hover:bg-accent-hover active:scale-[0.99] disabled:opacity-50"
-      >
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : action.label}
-      </button>
+      {action ? (
+        <button
+          disabled={busy}
+          onClick={() => onAdvance(order.id, action.to)}
+          className="mt-3.5 flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2.5 text-[15px] font-medium text-white transition hover:bg-accent-hover active:scale-[0.99] disabled:opacity-50"
+        >
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : action.label}
+        </button>
+      ) : (
+        <p className="mt-3.5 rounded-lg bg-surface-2 py-2 text-center text-[13px] font-medium text-muted">
+          Ofitsant yetkazadi
+        </p>
+      )}
     </div>
   );
 }

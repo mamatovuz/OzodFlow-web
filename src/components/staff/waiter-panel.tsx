@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
-  Loader2, Volume2, VolumeX, LogOut, Bell, Receipt, ChevronLeft, Plus, Minus,
+  Loader2, Volume2, VolumeX, LogOut, Bell, BellRing, Receipt, ChevronLeft, Plus, Minus,
   X, Check, Utensils, Coins, CreditCard, Wallet, Search, ConciergeBell, Armchair,
 } from "lucide-react";
 import { parseJson, formatPrice } from "@/lib/utils";
@@ -10,6 +10,7 @@ import type { OrderItem } from "@/lib/orders";
 
 type TableRow = { id: string; name: string; code: string; status: string; orders: number; total: number };
 type SvcCall = { id: string; type: string; tableName: string | null; createdAt: string };
+type ReadyOrder = { id: string; number: number; tableName: string | null; items: string; waiterName: string | null; staffId: string | null };
 type BillOrder = { id: string; number: number; status: string; total: number; items: string; waiterName: string | null; createdAt: string };
 type MenuCat = { id: string; name: string; image: string | null };
 type MenuProd = { id: string; name: string; price: number; categoryId: string; images: string | null };
@@ -25,19 +26,24 @@ function firstImg(images: string | null): string | null {
 export function WaiterPanel({
   restaurantName,
   staffName,
+  staffId,
   currency,
 }: {
   restaurantName: string;
   staffName: string;
+  staffId: string;
   currency: string;
 }) {
   const [tables, setTables] = useState<TableRow[]>([]);
   const [calls, setCalls] = useState<SvcCall[]>([]);
+  const [ready, setReady] = useState<ReadyOrder[]>([]);
   const [stats, setStats] = useState({ active: 0, sales: 0, orders: 0 });
   const [loading, setLoading] = useState(true);
   const [soundOn, setSoundOn] = useState(true);
   const [openCode, setOpenCode] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const lastCallRef = useRef(0);
+  const lastReadyRef = useRef(0);
   const first = useRef(true);
   const soundRef = useRef(soundOn);
   soundRef.current = soundOn;
@@ -60,9 +66,14 @@ export function WaiterPanel({
 
   const load = useCallback(async () => {
     try {
-      const [tRes, cRes] = await Promise.all([fetch("/api/staff/tables"), fetch("/api/service")]);
+      const [tRes, cRes, rRes] = await Promise.all([
+        fetch("/api/staff/tables"),
+        fetch("/api/service"),
+        fetch("/api/orders?status=READY&limit=50"),
+      ]);
       const t = await tRes.json();
       const c = await cRes.json();
+      const r = await rRes.json();
       if (t.success) {
         setTables(t.data.tables);
         setStats({ active: t.data.activeCount, sales: t.data.todaySales, orders: t.data.todayOrders });
@@ -72,6 +83,13 @@ export function WaiterPanel({
         if (!first.current && list.length > lastCallRef.current && soundRef.current) beep();
         lastCallRef.current = list.length;
         setCalls(list);
+      }
+      if (r.success) {
+        const list: ReadyOrder[] = r.data.orders;
+        // Yangi "tayyor" buyurtma paydo bo'lsa — ovoz
+        if (!first.current && list.length > lastReadyRef.current && soundRef.current) beep();
+        lastReadyRef.current = list.length;
+        setReady(list);
       }
       first.current = false;
     } catch { /* ignore */ }
@@ -87,6 +105,18 @@ export function WaiterPanel({
   async function resolveCall(id: string) {
     setCalls((p) => p.filter((c) => c.id !== id));
     await fetch(`/api/service/${id}`, { method: "PATCH" }).catch(() => {});
+    load();
+  }
+  // Ofitsant tayyor taomni stolga oborib berdi → DELIVERED
+  async function deliver(id: string) {
+    setBusyId(id);
+    setReady((p) => p.filter((o) => o.id !== id));
+    await fetch(`/api/orders/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "DELIVERED" }),
+    }).catch(() => {});
+    setBusyId(null);
     load();
   }
   async function logout() {
@@ -129,6 +159,50 @@ export function WaiterPanel({
               <h1 className="text-lg font-bold text-foreground">Salom, {staffName} 👋</h1>
               <p className="mt-0.5 text-sm text-muted">Stolni bosing → taom qo'shing → oshxonaga yuboring → to'lov</p>
             </div>
+
+            {/* TAYYOR — yetkazish kerak (oshxona tayyorlab bo'ldi) */}
+            {ready.length > 0 && (
+              <div className="mb-4 rounded-2xl border-2 border-success/50 bg-success/5 p-3">
+                <p className="mb-2.5 flex items-center gap-1.5 px-0.5 text-sm font-bold text-success">
+                  <BellRing className="h-4 w-4" /> Tayyor — stolga yetkazing ({ready.length})
+                </p>
+                <div className="space-y-2.5">
+                  {[...ready]
+                    .sort((a, b) => Number(b.staffId === staffId) - Number(a.staffId === staffId))
+                    .map((o) => {
+                      const items = parseJson<OrderItem[]>(o.items, []);
+                      const mine = o.staffId === staffId;
+                      return (
+                        <div key={o.id} className="rounded-xl border border-border bg-card p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-base font-bold text-foreground">{o.tableName || "Zalda"}</span>
+                              <span className="text-xs text-muted">#{o.number}</span>
+                              {mine && <span className="rounded-md bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent">Siz qabul qilgan</span>}
+                            </div>
+                            <span className="flex items-center gap-1 rounded-md bg-success/10 px-2 py-0.5 text-[11px] font-semibold text-success">
+                              <Check className="h-3 w-3" /> Tayyor
+                            </span>
+                          </div>
+                          <p className="mt-1.5 flex flex-wrap gap-x-2.5 text-sm text-foreground">
+                            {items.map((it, i) => (
+                              <span key={i}><b className="text-accent">{it.qty}×</b> {it.name}</span>
+                            ))}
+                          </p>
+                          <button
+                            disabled={busyId === o.id}
+                            onClick={() => deliver(o.id)}
+                            className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-success py-2.5 text-[15px] font-semibold text-white active:scale-[0.98] disabled:opacity-50"
+                          >
+                            {busyId === o.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                            Oborib berdim
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
             <div className="mb-4 grid grid-cols-3 gap-2.5">
               <StatBox label="Faol stol" value={String(stats.active)} icon={Armchair} />
               <StatBox label="Bugungi savdo" value={formatPrice(stats.sales, currency)} icon={Coins} highlight />

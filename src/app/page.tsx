@@ -355,13 +355,13 @@ export default async function LandingPage({
               ))}
             </div>
 
-            {/* Ko'rsatkichlar — admin paneldan boshqariladi (bo'sh bo'lsa ko'rinmaydi) */}
-            {stats.length > 0 && (
+            {/* Ishonch ko'rsatkichlari (admin SiteStat yoki standart) — faqat shu yerda */}
+            {trustStats.length > 0 && (
               <div className="mx-auto mt-12 grid max-w-xl gap-4 border-t border-border pt-8"
-                style={{ gridTemplateColumns: `repeat(${Math.min(stats.length, 4)}, minmax(0, 1fr))` }}
+                style={{ gridTemplateColumns: `repeat(${Math.min(trustStats.length, 4)}, minmax(0, 1fr))` }}
               >
-                {stats.map((s) => (
-                  <div key={s.id}>
+                {trustStats.map((s) => (
+                  <div key={s.label}>
                     <p className="text-2xl font-bold text-foreground sm:text-3xl">
                       {s.value}
                     </p>
@@ -989,29 +989,6 @@ export default async function LandingPage({
                 </Button>
               </Link>
             </Reveal>
-          </div>
-        </div>
-      </section>
-
-      {/* Ishonch — real ko'rsatkichlar (soxta izohlar o'rniga) */}
-      <section className="py-20">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <SectionHeading
-            tag="Ishonch"
-            title="Raqamlar bilan"
-            subtitle="OzodFlow O'zbekiston bo'ylab restoran va kafelar tomonidan ishlatiladi."
-          />
-          <div className="mt-12 grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {trustStats.map((s, i) => (
-              <Reveal
-                key={s.label}
-                delay={i * 80}
-                className="rounded-2xl border border-border bg-card p-6 text-center shadow-soft"
-              >
-                <p className="text-3xl font-bold text-accent sm:text-4xl">{s.value}</p>
-                <p className="mt-2 text-sm text-muted">{s.label}</p>
-              </Reveal>
-            ))}
           </div>
         </div>
       </section>

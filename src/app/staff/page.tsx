@@ -33,7 +33,7 @@ export default async function StaffPage() {
   return (
     <>
       {impersonated}
-      <WaiterPanel restaurantName={r.name} staffName={user.name} currency={r.currency} />
+      <WaiterPanel restaurantName={r.name} staffName={user.name} staffId={user.id} currency={r.currency} />
     </>
   );
 }

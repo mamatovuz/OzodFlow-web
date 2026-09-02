@@ -28,11 +28,12 @@ export default async function QrPage() {
       </div>
 
       <div>
-        <h2 className="mb-1 font-semibold text-foreground">Stollar uchun alohida QR</h2>
+        <h2 className="mb-1 font-semibold text-foreground">Stollar va QR kodlari</h2>
         <p className="mb-3 text-sm text-muted">
-          Har bir stolga o'z QR kodi. Mijoz skanerlaganda buyurtma o'sha stolga bog'lanadi.
+          Stol qo'shing (bittalab yoki oraliq bilan ko'p). Bu stollar ofitsant panelida
+          jonli holati bilan ko'rinadi. Mijoz QR skanerlaganda buyurtma o'sha stolga bog'lanadi.
         </p>
-        <TableQrManager baseUrl={url} />
+        <TableQrManager baseUrl={url} currency={restaurant.currency} />
       </div>
     </div>
   );

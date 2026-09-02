@@ -210,13 +210,23 @@ export function KitchenDisplay({
                 .filter((o) => col.statuses.includes(o.status))
                 .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt));
               return (
-                <div key={col.key} className="flex min-h-[40vh] flex-col rounded-2xl bg-surface-2/60 p-2.5">
-                  <div className="mb-2 flex items-center justify-between px-1.5 py-1">
-                    <span className="flex items-center gap-2 font-semibold text-foreground">
+                <div
+                  key={col.key}
+                  className="flex min-h-[40vh] flex-col rounded-2xl bg-surface-2/60 p-2.5"
+                  style={{ boxShadow: `inset 0 3px 0 0 ${col.accent}` }}
+                >
+                  <div
+                    className="mb-2.5 flex items-center justify-between rounded-xl px-3 py-2"
+                    style={{ background: `color-mix(in srgb, ${col.accent} 12%, transparent)` }}
+                  >
+                    <span className="flex items-center gap-2 font-bold" style={{ color: col.accent }}>
                       <span className="h-2.5 w-2.5 rounded-full" style={{ background: col.accent }} />
                       {col.title}
                     </span>
-                    <span className="rounded-full bg-card px-2.5 py-0.5 text-sm font-bold text-foreground">
+                    <span
+                      className="flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-sm font-extrabold text-white"
+                      style={{ background: col.accent }}
+                    >
                       {list.length}
                     </span>
                   </div>

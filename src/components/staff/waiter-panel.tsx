@@ -15,6 +15,12 @@ type MenuCat = { id: string; name: string; image: string | null };
 type MenuProd = { id: string; name: string; price: number; categoryId: string; images: string | null };
 type Card = { number: string | null; holder: string | null };
 
+// Mahsulot rasmlari JSON'idan birinchisini oladi
+function firstImg(images: string | null): string | null {
+  const arr = parseJson<string[]>(images || "[]", []);
+  return arr[0] || null;
+}
+
 // ─── Ofitsant POS paneli ───
 export function WaiterPanel({
   restaurantName,
@@ -124,7 +130,7 @@ export function WaiterPanel({
             </div>
             <div className="mb-4 grid grid-cols-3 gap-2.5">
               <StatBox label="Faol stol" value={String(stats.active)} icon={Armchair} />
-              <StatBox label="Bugungi savdo" value={formatPrice(stats.sales, currency)} icon={Coins} />
+              <StatBox label="Bugungi savdo" value={formatPrice(stats.sales, currency)} icon={Coins} highlight />
               <StatBox label="Buyurtmam" value={String(stats.orders)} icon={Receipt} />
             </div>
 
@@ -175,25 +181,31 @@ export function WaiterPanel({
 }
 
 // ─── Stol kartasi ───
-const STATUS_STYLE: Record<string, { ring: string; dot: string; label: string }> = {
-  FREE: { ring: "border-success/40", dot: "bg-success", label: "Bo'sh" },
-  ACTIVE: { ring: "border-error/50", dot: "bg-error", label: "Buyurtma" },
-  BILL: { ring: "border-warning/50", dot: "bg-warning", label: "To'lov" },
+const STATUS_STYLE: Record<string, { ring: string; dot: string; label: string; bg: string; icon: string }> = {
+  FREE: { ring: "border-success/30", dot: "bg-success", label: "Bo'sh", bg: "bg-card", icon: "text-success/50" },
+  ACTIVE: { ring: "border-error/50", dot: "bg-error", label: "Buyurtma", bg: "bg-error/5", icon: "text-error" },
+  BILL: { ring: "border-warning/50", dot: "bg-warning", label: "To'lov", bg: "bg-warning/5", icon: "text-warning" },
 };
 
 function TableCard({ table, currency, onOpen }: { table: TableRow; currency: string; onOpen: () => void }) {
   const s = STATUS_STYLE[table.status] || STATUS_STYLE.FREE;
+  const busy = table.status !== "FREE";
   return (
     <button
       onClick={onOpen}
-      className={`flex flex-col items-center rounded-2xl border-2 bg-card p-3 shadow-soft transition active:scale-95 ${s.ring}`}
+      className={`relative flex flex-col items-center rounded-2xl border-2 p-3 shadow-soft transition active:scale-95 ${s.ring} ${s.bg}`}
     >
-      <span className={`mb-1 h-2.5 w-2.5 rounded-full ${s.dot}`} />
-      <span className="text-base font-bold text-foreground">{table.name}</span>
-      {table.status === "FREE" ? (
-        <span className="text-[11px] text-muted">{s.label}</span>
+      {busy && table.orders > 0 && (
+        <span className={`absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${table.status === "BILL" ? "bg-warning" : "bg-error"}`}>
+          {table.orders}
+        </span>
+      )}
+      <Armchair className={`h-6 w-6 ${s.icon}`} />
+      <span className="mt-1 text-base font-bold text-foreground">{table.name}</span>
+      {busy ? (
+        <span className="text-[11px] font-semibold text-foreground">{formatPrice(table.total, currency)}</span>
       ) : (
-        <span className="text-[11px] font-medium text-foreground">{formatPrice(table.total, currency)}</span>
+        <span className="text-[11px] text-muted">{s.label}</span>
       )}
     </button>
   );
@@ -209,7 +221,18 @@ function Legend() {
   );
 }
 
-function StatBox({ label, value, icon: Icon }: { label: string; value: string; icon: typeof Bell }) {
+function StatBox({ label, value, icon: Icon, highlight }: { label: string; value: string; icon: typeof Bell; highlight?: boolean }) {
+  if (highlight) {
+    return (
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-accent to-accent-hover p-3 text-white shadow-md">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20">
+          <Icon className="h-4 w-4" />
+        </span>
+        <p className="mt-2 text-sm font-extrabold leading-tight">{value}</p>
+        <p className="text-[11px] opacity-90">{label}</p>
+      </div>
+    );
+  }
   return (
     <div className="rounded-2xl border border-border bg-card p-3 shadow-soft">
       <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-soft text-accent">
@@ -435,22 +458,41 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-accent" /></div>
         ) : (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {shown.map((p) => {
               const inDraft = draft.find((x) => x.productId === p.id);
+              const img = firstImg(p.images);
               return (
                 <button
                   key={p.id}
                   onClick={() => add(p)}
-                  className={`relative rounded-xl border-2 bg-card p-3 text-left transition active:scale-95 ${inDraft ? "border-accent" : "border-border"}`}
+                  className={`group relative overflow-hidden rounded-2xl border-2 bg-card text-left shadow-soft transition active:scale-95 ${inDraft ? "border-accent" : "border-border"}`}
                 >
-                  {inDraft && (
-                    <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-[11px] font-bold text-white">
-                      {inDraft.qty}
+                  {/* Rasm */}
+                  <div className="relative aspect-[4/3] w-full overflow-hidden bg-surface-2">
+                    {img ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={img} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-muted/40">
+                        <Utensils className="h-8 w-8" />
+                      </div>
+                    )}
+                    {inDraft && (
+                      <span className="absolute right-2 top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-bold text-white shadow-md">
+                        {inDraft.qty}
+                      </span>
+                    )}
+                    {/* qo'shish belgisi */}
+                    <span className="absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-accent shadow-md">
+                      <Plus className="h-4 w-4" />
                     </span>
-                  )}
-                  <p className="text-sm font-medium leading-tight text-foreground line-clamp-2">{p.name}</p>
-                  <p className="mt-1 text-sm font-bold text-accent">{formatPrice(p.price, currency)}</p>
+                  </div>
+                  {/* Matn */}
+                  <div className="p-2.5">
+                    <p className="text-sm font-medium leading-tight text-foreground line-clamp-2">{p.name}</p>
+                    <p className="mt-1 text-sm font-bold text-accent">{formatPrice(p.price, currency)}</p>
+                  </div>
                 </button>
               );
             })}

@@ -28,6 +28,9 @@ function getSecret(): Uint8Array {
   return cachedSecret;
 }
 const COOKIE = "ozodflow_session";
+// Admin "parolsiz kirganda" — o'zining asl sessiya tokeni shu cookie'da saqlanadi,
+// "Adminga qaytish"da qaytariladi.
+const RETURN_COOKIE = "ozf_imp_return";
 const SESSION_DAYS = 30;
 
 export type SessionUser = {
@@ -39,6 +42,7 @@ export type SessionUser = {
   avatar: string | null;
   isSuperAdmin: boolean;
   adminPerms: string[] | null; // qo'shimcha admin ruxsatlari (JSON'dan)
+  impersonatedBy: string | null; // admin "parolsiz kirgan" bo'lsa — o'sha admin ID si
 };
 
 export async function hashPassword(password: string) {
@@ -170,6 +174,7 @@ async function loadSession(): Promise<{ user: SessionUser; sessionId: string } |
         avatar: session.user.avatar,
         isSuperAdmin: session.user.isSuperAdmin,
         adminPerms: parseAdminPerms(session.user.adminPerms),
+        impersonatedBy: session.impersonatedBy ?? null,
       },
       sessionId: sid,
     };
@@ -193,4 +198,81 @@ export async function requireUser(): Promise<SessionUser> {
   const user = await getSessionUser();
   if (!user) throw new Error("UNAUTHORIZED");
   return user;
+}
+
+/**
+ * Admin foydalanuvchi paneliga "parolsiz kiradi" (impersonation).
+ * Adminning asl sessiya tokeni RETURN_COOKIE'ga saqlanadi (keyin qaytarish uchun),
+ * so'ng target foydalanuvchi uchun impersonatedBy belgilangan yangi sessiya ochiladi.
+ */
+export async function createImpersonationSession(
+  targetUserId: string,
+  adminUserId: string,
+  meta?: { userAgent?: string; ip?: string }
+) {
+  const cookieStore = await cookies();
+  const adminToken = cookieStore.get(COOKIE)?.value;
+
+  const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+  const tokenId = crypto.randomUUID();
+  const jwt = await signToken({ sub: targetUserId, sid: tokenId });
+
+  await prisma.session.create({
+    data: {
+      id: tokenId,
+      userId: targetUserId,
+      token: jwt,
+      userAgent: meta?.userAgent,
+      ip: meta?.ip,
+      deviceId: deviceFingerprint(meta?.userAgent),
+      impersonatedBy: adminUserId,
+      expiresAt,
+    },
+  });
+
+  // Adminning asl tokenini saqlaymiz (qaytish uchun)
+  if (adminToken) {
+    cookieStore.set(RETURN_COOKIE, adminToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      expires: expiresAt,
+    });
+  }
+  // Asosiy sessiyani target foydalanuvchiga almashtiramiz
+  cookieStore.set(COOKIE, jwt, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    expires: expiresAt,
+  });
+}
+
+/**
+ * "Adminga qaytish" — impersonation sessiyasini yopib, adminning asl sessiyasini
+ * tiklaydi. Muvaffaqiyatli bo'lsa true. (Impersonation sessiyasidan chaqiriladi.)
+ */
+export async function stopImpersonation(): Promise<boolean> {
+  const cookieStore = await cookies();
+  const returnToken = cookieStore.get(RETURN_COOKIE)?.value;
+  if (!returnToken) return false;
+
+  // Joriy (impersonation) sessiyani DB'dan tozalaymiz
+  const current = cookieStore.get(COOKIE)?.value;
+  if (current) {
+    await prisma.session.deleteMany({ where: { token: current } }).catch(() => {});
+  }
+
+  const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+  cookieStore.set(COOKIE, returnToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    expires: expiresAt,
+  });
+  cookieStore.delete(RETURN_COOKIE);
+  return true;
 }

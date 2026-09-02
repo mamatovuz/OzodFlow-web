@@ -73,6 +73,9 @@ model Session {
   ip         String?
   deviceId   String? // qurilma barmoq izi (userAgent asosida) — bloklash uchun
   lastSeenAt DateTime @default(now()) // oxirgi faollik (throttled yangilanadi)
+  // Admin foydalanuvchi paneliga "parolsiz kirgan" bo'lsa — o'sha adminning ID si.
+  // Bo'lsa: yuqorida "admin ko'rinishi" banneri chiqadi, "Adminga qaytish" mumkin.
+  impersonatedBy String?
   expiresAt  DateTime
   createdAt  DateTime @default(now())
 

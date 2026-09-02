@@ -6,6 +6,7 @@ import { StaffHeader } from "@/components/staff/staff-header";
 import { StaffOrders } from "@/components/staff/staff-orders";
 import { KitchenDisplay } from "@/components/staff/kitchen-display";
 import { WaiterPanel } from "@/components/staff/waiter-panel";
+import { ImpersonationBanner } from "@/components/impersonation-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -19,20 +20,32 @@ export default async function StaffPage() {
   if (membership.role === "MANAGER") redirect("/dashboard");
 
   const r = membership.restaurant;
+  const impersonated = user.impersonatedBy ? <ImpersonationBanner name={user.name} /> : null;
 
   // Oshxona — to'liq ekran Kanban (KDS)
   if (membership.role === "KITCHEN") {
-    return <KitchenDisplay restaurantName={r.name} staffName={user.name} />;
+    return (
+      <>
+        {impersonated}
+        <KitchenDisplay restaurantName={r.name} staffName={user.name} />
+      </>
+    );
   }
 
   // Ofitsant — chaqiruvlar + yetkazish + kunlik statistika
   if (membership.role === "WAITER") {
-    return <WaiterPanel restaurantName={r.name} staffName={user.name} currency={r.currency} />;
+    return (
+      <>
+        {impersonated}
+        <WaiterPanel restaurantName={r.name} staffName={user.name} currency={r.currency} />
+      </>
+    );
   }
 
   // Operator / Kassir — umumiy buyurtma ro'yxati
   return (
     <div className="min-h-screen bg-surface">
+      {impersonated}
       <StaffHeader
         name={user.name}
         roleLabel={staffRoleLabel(membership.role)}

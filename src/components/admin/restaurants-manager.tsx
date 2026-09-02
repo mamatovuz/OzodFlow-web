@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ExternalLink,
@@ -15,17 +15,30 @@ import {
   EyeOff,
   Copy,
   Check,
+  LogIn,
+  ChevronDown,
+  Users,
 } from "lucide-react";
 import { Card, Badge, Button } from "@/components/ui";
 import { Modal } from "@/components/ui-modal";
+import { staffRoleLabel } from "@/lib/staff";
+
+export type AdminStaffRow = {
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+};
 
 export type AdminRestaurantRow = {
   id: string;
   name: string;
   slug: string;
+  ownerId: string;
   ownerName: string;
   ownerContact: string;
   ownerPassword: string | null;
+  staff: AdminStaffRow[];
   plan: string;
   planName: string;
   isBlocked: boolean;
@@ -55,6 +68,25 @@ export function RestaurantsManager({ rows }: { rows: AdminRestaurantRow[] }) {
   const [deleteRow, setDeleteRow] = useState<AdminRestaurantRow | null>(null);
   const [msgRow, setMsgRow] = useState<AdminRestaurantRow | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [enterId, setEnterId] = useState<string | null>(null);
+
+  // Foydalanuvchi (egasi yoki xodim) paneliga parolsiz kiradi
+  async function enterAs(userId: string) {
+    setEnterId(userId);
+    const res = await fetch("/api/admin/impersonate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    const json = await res.json().catch(() => null);
+    if (res.ok && json?.data?.redirect) {
+      window.location.href = json.data.redirect;
+      return;
+    }
+    setEnterId(null);
+    alert(json?.error || "Kirib bo'lmadi");
+  }
 
   async function toggleBlock(row: AdminRestaurantRow) {
     setBusy(row.id);
@@ -96,7 +128,8 @@ export function RestaurantsManager({ rows }: { rows: AdminRestaurantRow[] }) {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} className="border-b border-border last:border-0 align-top">
+                <Fragment key={r.id}>
+                <tr className="border-b border-border align-top data-[exp=true]:border-b-0" data-exp={expanded === r.id}>
                   <td className="px-4 py-3">
                     <p className="font-medium text-foreground">{r.name}</p>
                     <a
@@ -112,6 +145,32 @@ export function RestaurantsManager({ rows }: { rows: AdminRestaurantRow[] }) {
                     <p className="text-foreground">{r.ownerName}</p>
                     <p className="text-xs text-muted">{r.ownerContact}</p>
                     <PasswordCell password={r.ownerPassword} />
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <button
+                        onClick={() => enterAs(r.ownerId)}
+                        disabled={enterId === r.ownerId}
+                        className="inline-flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-accent-hover active:scale-95 disabled:opacity-60"
+                      >
+                        {enterId === r.ownerId ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <LogIn className="h-3.5 w-3.5" />
+                        )}
+                        Panelga kirish
+                      </button>
+                      {r.staff.length > 0 && (
+                        <button
+                          onClick={() => setExpanded((e) => (e === r.id ? null : r.id))}
+                          className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-muted transition hover:text-foreground"
+                        >
+                          <Users className="h-3.5 w-3.5" />
+                          Xodimlar ({r.staff.length})
+                          <ChevronDown
+                            className={`h-3 w-3 transition-transform ${expanded === r.id ? "rotate-180" : ""}`}
+                          />
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant={r.plan === "FREE" ? "default" : "accent"}>
@@ -165,6 +224,46 @@ export function RestaurantsManager({ rows }: { rows: AdminRestaurantRow[] }) {
                     </div>
                   </td>
                 </tr>
+                {expanded === r.id && (
+                  <tr className="border-b border-border bg-surface-2/40">
+                    <td colSpan={6} className="px-4 pb-4 pt-0">
+                      <div className="rounded-xl border border-border bg-card p-3">
+                        <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-muted">
+                          <Users className="h-3.5 w-3.5" /> Xodimlar — panellariga parolsiz kirish
+                        </p>
+                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          {r.staff.map((s) => (
+                            <div
+                              key={s.userId}
+                              className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface px-3 py-2"
+                            >
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium text-foreground">{s.name}</p>
+                                <p className="truncate text-[11px] text-muted">
+                                  {staffRoleLabel(s.role)} · {s.email}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => enterAs(s.userId)}
+                                disabled={enterId === s.userId}
+                                title="Panelga kirish"
+                                className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-accent-soft px-2.5 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent hover:text-white active:scale-95 disabled:opacity-60"
+                              >
+                                {enterId === s.userId ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <LogIn className="h-3.5 w-3.5" />
+                                )}
+                                Kirish
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </tbody>
           </table>

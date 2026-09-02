@@ -13,7 +13,11 @@ export default async function AdminRestaurantsPage() {
     prisma.restaurant.findMany({
       orderBy: { createdAt: "desc" },
       include: {
-        owner: { select: { name: true, email: true, phone: true, passwordEnc: true } },
+        owner: { select: { id: true, name: true, email: true, phone: true, passwordEnc: true } },
+        memberships: {
+          orderBy: { createdAt: "asc" },
+          include: { user: { select: { id: true, name: true, email: true } } },
+        },
         _count: { select: { products: true } },
       },
     }),
@@ -34,9 +38,16 @@ export default async function AdminRestaurantsPage() {
       id: r.id,
       name: r.name,
       slug: r.slug,
+      ownerId: r.owner.id,
       ownerName: r.owner.name,
       ownerContact: r.owner.email || r.owner.phone || "—",
       ownerPassword: decryptPasswordPlain(r.owner.passwordEnc),
+      staff: r.memberships.map((m) => ({
+        userId: m.user.id,
+        name: m.user.name,
+        email: m.user.email || "—",
+        role: m.role,
+      })),
       plan: r.plan,
       planName: PLANS[r.plan as PlanKey]?.name || r.plan,
       isBlocked: r.isBlocked,

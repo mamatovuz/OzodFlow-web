@@ -8,6 +8,7 @@ import { Sidebar } from "@/components/dashboard/sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { BlockedScreen, PaymentLockScreen } from "@/components/dashboard/lock-screen";
 import { PaymentWarning } from "@/components/dashboard/payment-warning";
+import { ImpersonationBanner } from "@/components/impersonation-banner";
 
 export default async function DashboardLayout({
   children,
@@ -28,9 +29,16 @@ export default async function DashboardLayout({
   const restaurant = await getUserRestaurant(user.id);
   if (!restaurant) redirect("/login");
 
+  const impersonated = user.impersonatedBy ? <ImpersonationBanner name={user.name} /> : null;
+
   // 1) Bloklangan bo'lsa — butun panel qulflanadi
   if (restaurant.isBlocked) {
-    return <BlockedScreen reason={restaurant.blockReason} />;
+    return (
+      <>
+        {impersonated}
+        <BlockedScreen reason={restaurant.blockReason} />
+      </>
+    );
   }
 
   // 2) To'lov muddati (qo'shimcha muhlat bilan) o'tgan bo'lsa — panel qulflanadi
@@ -50,12 +58,19 @@ export default async function DashboardLayout({
         `⚠️ To'lov muddati o'tdi\n<b>${restaurant.name}</b> (/m/${restaurant.slug}) hali ham to'lov qilmadi.\nTarif: ${restaurant.plan}`
       ).catch(() => {});
     }
-    return <PaymentLockScreen plan={restaurant.plan as PlanKey} />;
+    return (
+      <>
+        {impersonated}
+        <PaymentLockScreen plan={restaurant.plan as PlanKey} />
+      </>
+    );
   }
 
   const showWarning = pay.warning || pay.overdue;
 
   return (
+    <>
+    {impersonated}
     <div className="flex min-h-screen flex-col bg-surface lg:flex-row">
       <Sidebar
         user={{ name: user.name, email: user.email, phone: user.phone }}
@@ -80,5 +95,6 @@ export default async function DashboardLayout({
         </div>
       </main>
     </div>
+    </>
   );
 }

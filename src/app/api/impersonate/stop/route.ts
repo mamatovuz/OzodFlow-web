@@ -9,5 +9,7 @@ export async function POST() {
 
   const done = await stopImpersonation();
   if (!done) return fail("Qaytarib bo'lmadi", 400);
-  return ok({ redirect: "/admins/restaurants" });
+  // Admin → restoranlar ro'yxati; restoran egasi → xodimlar sahifasi
+  const redirect = done.role === "ADMIN" ? "/admins/restaurants" : "/dashboard/staff";
+  return ok({ redirect });
 }

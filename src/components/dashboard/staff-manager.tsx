@@ -3,12 +3,12 @@
 import { useState } from "react";
 import {
   Loader2, Plus, Trash2, X, UserPlus, ChefHat, ConciergeBell,
-  ShieldCheck, Wallet, ClipboardList, Lock, Eye, EyeOff,
+  ShieldCheck, Wallet, ClipboardList, Lock, Eye, EyeOff, LogIn,
 } from "lucide-react";
 import { Card, Button, Input, Label, Select, Badge, EmptyState } from "@/components/ui";
 import { STAFF_ROLES, type StaffRole } from "@/lib/staff";
 
-type Staff = { id: string; role: string; user: { name: string; email: string | null } };
+type Staff = { id: string; role: string; user: { id: string; name: string; email: string | null } };
 
 const ROLE_ICON: Record<string, typeof ChefHat> = {
   MANAGER: ShieldCheck,
@@ -27,11 +27,29 @@ export function StaffManager({
 }) {
   const [list, setList] = useState<Staff[]>(initial);
   const [open, setOpen] = useState(false);
+  const [enterId, setEnterId] = useState<string | null>(null);
 
   async function reload() {
     const res = await fetch("/api/staff");
     const json = await res.json();
     if (json.success) setList(json.data);
+  }
+
+  // Xodim paneliga parolsiz kirish
+  async function enterAs(userId: string) {
+    setEnterId(userId);
+    const res = await fetch("/api/staff/impersonate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    const json = await res.json().catch(() => null);
+    if (res.ok && json?.data?.redirect) {
+      window.location.href = json.data.redirect;
+      return;
+    }
+    setEnterId(null);
+    alert(json?.error || "Kirib bo'lmadi");
   }
 
   async function remove(id: string, name: string) {
@@ -108,7 +126,20 @@ export function StaffManager({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant="accent">{meta?.label || s.role}</Badge>
+                    <Badge variant="accent" className="hidden sm:inline-flex">{meta?.label || s.role}</Badge>
+                    <button
+                      onClick={() => enterAs(s.user.id)}
+                      disabled={enterId === s.user.id}
+                      title="Xodim paneliga kirish"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-accent-soft px-3 py-2 text-sm font-semibold text-accent transition hover:bg-accent hover:text-white active:scale-95 disabled:opacity-60"
+                    >
+                      {enterId === s.user.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <LogIn className="h-4 w-4" />
+                      )}
+                      Kirish
+                    </button>
                     <button
                       onClick={() => remove(s.id, s.user.name)}
                       className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:bg-error/10 hover:text-error"

@@ -251,13 +251,27 @@ export async function createImpersonationSession(
 }
 
 /**
- * "Adminga qaytish" — impersonation sessiyasini yopib, adminning asl sessiyasini
- * tiklaydi. Muvaffaqiyatli bo'lsa true. (Impersonation sessiyasidan chaqiriladi.)
+ * "Ortga qaytish" — impersonation sessiyasini yopib, asl (admin yoki egasi)
+ * sessiyasini tiklaydi. Tiklangan foydalanuvchi rolini qaytaradi (yo'naltirish
+ * uchun); tiklab bo'lmasa null. (Impersonation sessiyasidan chaqiriladi.)
  */
-export async function stopImpersonation(): Promise<boolean> {
+export async function stopImpersonation(): Promise<{ role: string } | null> {
   const cookieStore = await cookies();
   const returnToken = cookieStore.get(RETURN_COOKIE)?.value;
-  if (!returnToken) return false;
+  if (!returnToken) return null;
+
+  // Tiklanadigan foydalanuvchi rolini aniqlaymiz (yo'naltirish uchun)
+  let role = "OWNER";
+  try {
+    const { payload } = await jwtVerify(returnToken, getSecret());
+    const session = await prisma.session.findUnique({
+      where: { id: payload.sid as string },
+      include: { user: { select: { role: true } } },
+    });
+    if (session?.user) role = session.user.role;
+  } catch {
+    /* eski token — default OWNER */
+  }
 
   // Joriy (impersonation) sessiyani DB'dan tozalaymiz
   const current = cookieStore.get(COOKIE)?.value;
@@ -274,5 +288,5 @@ export async function stopImpersonation(): Promise<boolean> {
     expires: expiresAt,
   });
   cookieStore.delete(RETURN_COOKIE);
-  return true;
+  return { role };
 }

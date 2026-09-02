@@ -25,7 +25,7 @@ export async function GET() {
 
   const staff = await prisma.membership.findMany({
     where: { restaurantId: restaurant.id },
-    include: { user: { select: { name: true, email: true } } },
+    include: { user: { select: { id: true, name: true, email: true } } },
     orderBy: { createdAt: "asc" },
   });
   return ok(staff);

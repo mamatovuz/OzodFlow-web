@@ -20,7 +20,7 @@ export default async function StaffPage() {
   const staff = access.canStaff
     ? await prisma.membership.findMany({
         where: { restaurantId: restaurant.id },
-        include: { user: { select: { name: true, email: true } } },
+        include: { user: { select: { id: true, name: true, email: true } } },
         orderBy: { createdAt: "asc" },
       })
     : [];
@@ -35,7 +35,7 @@ export default async function StaffPage() {
       </div>
 
       <StaffManager
-        initial={staff.map((s) => ({ id: s.id, role: s.role, user: { name: s.user.name, email: s.user.email } }))}
+        initial={staff.map((s) => ({ id: s.id, role: s.role, user: { id: s.user.id, name: s.user.name, email: s.user.email } }))}
         canStaff={access.canStaff}
       />
     </div>

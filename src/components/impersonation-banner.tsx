@@ -33,7 +33,7 @@ export function ImpersonationBanner({ name }: { name: string }) {
           className="flex shrink-0 items-center gap-1.5 rounded-lg bg-white/20 px-3 py-1.5 text-sm font-semibold backdrop-blur transition hover:bg-white/30 active:scale-95 disabled:opacity-60"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
-          <span className="whitespace-nowrap">Adminga qaytish</span>
+          <span className="whitespace-nowrap">Ortga qaytish</span>
         </button>
       </div>
     </div>

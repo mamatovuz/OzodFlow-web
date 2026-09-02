@@ -9,7 +9,7 @@ const schema = z.object({
   name: z.string().min(2, "Ism kamida 2 belgi"),
   email: z.string().email("Email noto'g'ri"),
   password: z.string().min(6, "Parol kamida 6 belgi"),
-  role: z.enum(["MANAGER", "OPERATOR", "CASHIER", "KITCHEN", "WAITER"]),
+  role: z.enum(["MANAGER", "KITCHEN", "WAITER"]),
 });
 
 // Faqat restoran egasining o'z restorani

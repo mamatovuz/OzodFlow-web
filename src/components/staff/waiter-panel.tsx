@@ -119,7 +119,7 @@ export function WaiterPanel({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-4 sm:px-4">
+      <main className="mx-auto w-full max-w-4xl flex-1 px-3 py-4 sm:px-4">
         {loading ? (
           <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-accent" /></div>
         ) : (
@@ -127,6 +127,7 @@ export function WaiterPanel({
             {/* Salom + statistika */}
             <div className="mb-4">
               <h1 className="text-lg font-bold text-foreground">Salom, {staffName} 👋</h1>
+              <p className="mt-0.5 text-sm text-muted">Stolni bosing → taom qo'shing → oshxonaga yuboring → to'lov</p>
             </div>
             <div className="mb-4 grid grid-cols-3 gap-2.5">
               <StatBox label="Faol stol" value={String(stats.active)} icon={Armchair} />
@@ -162,7 +163,7 @@ export function WaiterPanel({
                 Stollar yo'q. Egasi QR bo'limida stol qo'shadi.
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
+              <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
                 {tables.map((t) => (
                   <TableCard key={t.id} table={t} currency={currency} onOpen={() => setOpenCode(t.code)} />
                 ))}
@@ -181,10 +182,10 @@ export function WaiterPanel({
 }
 
 // ─── Stol kartasi ───
-const STATUS_STYLE: Record<string, { ring: string; dot: string; label: string; bg: string; icon: string }> = {
-  FREE: { ring: "border-success/30", dot: "bg-success", label: "Bo'sh", bg: "bg-card", icon: "text-success/50" },
-  ACTIVE: { ring: "border-error/50", dot: "bg-error", label: "Buyurtma", bg: "bg-error/5", icon: "text-error" },
-  BILL: { ring: "border-warning/50", dot: "bg-warning", label: "To'lov", bg: "bg-warning/5", icon: "text-warning" },
+const STATUS_STYLE: Record<string, { ring: string; dot: string; label: string; bg: string; icon: string; badge: string }> = {
+  FREE: { ring: "border-success/30", dot: "bg-success", label: "Bo'sh", bg: "bg-card", icon: "text-success/60", badge: "text-success" },
+  ACTIVE: { ring: "border-error/50", dot: "bg-error", label: "Band", bg: "bg-error/5", icon: "text-error", badge: "text-error" },
+  BILL: { ring: "border-warning/50", dot: "bg-warning", label: "To'lov", bg: "bg-warning/5", icon: "text-warning", badge: "text-warning" },
 };
 
 function TableCard({ table, currency, onOpen }: { table: TableRow; currency: string; onOpen: () => void }) {
@@ -193,20 +194,20 @@ function TableCard({ table, currency, onOpen }: { table: TableRow; currency: str
   return (
     <button
       onClick={onOpen}
-      className={`relative flex flex-col items-center rounded-2xl border-2 p-3 shadow-soft transition active:scale-95 ${s.ring} ${s.bg}`}
+      className={`relative flex min-h-[104px] flex-col items-center justify-center rounded-2xl border-2 p-2.5 shadow-soft transition active:scale-95 ${s.ring} ${s.bg}`}
     >
       {busy && table.orders > 0 && (
         <span className={`absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${table.status === "BILL" ? "bg-warning" : "bg-error"}`}>
           {table.orders}
         </span>
       )}
-      <Armchair className={`h-6 w-6 ${s.icon}`} />
-      <span className="mt-1 text-base font-bold text-foreground">{table.name}</span>
-      {busy ? (
-        <span className="text-[11px] font-semibold text-foreground">{formatPrice(table.total, currency)}</span>
-      ) : (
-        <span className="text-[11px] text-muted">{s.label}</span>
-      )}
+      <Armchair className={`h-7 w-7 ${s.icon}`} />
+      <span className="mt-1 text-base font-bold leading-none text-foreground">{table.name}</span>
+      {/* Holat har doim so'z bilan — bir qarashda tushunarli */}
+      <span className={`mt-1 flex items-center gap-1 text-[11px] font-semibold ${s.badge}`}>
+        <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} /> {s.label}
+      </span>
+      {busy && <span className="text-[11px] font-medium text-foreground">{formatPrice(table.total, currency)}</span>}
     </button>
   );
 }
@@ -283,14 +284,22 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-3 py-3">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-accent" /></div>
         ) : allItems.length === 0 ? (
-          <div className="flex flex-col items-center rounded-2xl border border-dashed border-border py-16 text-center">
-            <Utensils className="h-10 w-10 text-muted/40" />
-            <p className="mt-3 text-sm font-medium text-muted">Bu stolda hali buyurtma yo'q</p>
-            <p className="text-xs text-muted">&quot;+ Taom qo'shish&quot; bilan boshlang</p>
+          <div className="mx-auto mt-6 flex max-w-sm flex-col items-center rounded-2xl border border-dashed border-border px-6 py-12 text-center">
+            <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-soft text-accent">
+              <Utensils className="h-8 w-8" />
+            </span>
+            <p className="mt-4 font-semibold text-foreground">Stol bo'sh</p>
+            <p className="mt-1 text-sm text-muted">Mijoz tanlagan taomlarni qo'shing va oshxonaga yuboring.</p>
+            <button
+              onClick={() => setPicker(true)}
+              className="mt-5 flex items-center gap-2 rounded-xl bg-accent px-6 py-3 text-[15px] font-semibold text-white active:scale-[0.98]"
+            >
+              <Plus className="h-5 w-5" /> Taom qo'shish
+            </button>
           </div>
         ) : (
           <div className="mx-auto max-w-lg space-y-3">
@@ -320,26 +329,26 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
         )}
       </div>
 
-      {/* Pastki panel */}
-      <div className="border-t border-border bg-card px-3 py-3">
-        <div className="mx-auto flex max-w-lg items-center justify-between">
-          <div>
-            <p className="text-xs text-muted">Jami</p>
-            <p className="text-xl font-extrabold text-foreground">{formatPrice(total, currency)}</p>
+      {/* Pastki panel — katta, aniq tugmalar */}
+      <div className="border-t border-border bg-card px-3 pt-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+        <div className="mx-auto max-w-lg">
+          <div className="mb-2.5 flex items-center justify-between">
+            <span className="text-sm text-muted">Jami hisob</span>
+            <span className="text-2xl font-extrabold text-foreground">{formatPrice(total, currency)}</span>
           </div>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2.5">
             <button
               onClick={() => setPicker(true)}
-              className="flex items-center gap-1.5 rounded-xl border border-accent/40 bg-accent-soft px-3.5 py-2.5 text-sm font-semibold text-accent active:scale-95"
+              className="flex items-center justify-center gap-2 rounded-xl border-2 border-accent/40 bg-accent-soft py-3.5 text-[15px] font-semibold text-accent active:scale-[0.98]"
             >
-              <Plus className="h-4 w-4" /> Taom
+              <Plus className="h-5 w-5" /> Taom qo'shish
             </button>
             <button
               onClick={() => setPay(true)}
               disabled={total <= 0}
-              className="flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white active:scale-95 disabled:opacity-40"
+              className="flex items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-[15px] font-semibold text-white active:scale-[0.98] disabled:opacity-40"
             >
-              <Wallet className="h-4 w-4" /> To'lov
+              <Wallet className="h-5 w-5" /> To'lov
             </button>
           </div>
         </div>
@@ -380,7 +389,8 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
       if (j.success) {
         setCats(j.data.categories);
         setProds(j.data.products);
-        setActiveCat(j.data.categories[0]?.id || "");
+        // Default: "Barchasi" (bo'sh) — mahsulotlar doim ko'rinadi
+        setActiveCat("");
       }
       setLoading(false);
     });
@@ -388,7 +398,9 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
 
   const shown = q.trim()
     ? prods.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase()))
-    : prods.filter((p) => p.categoryId === activeCat);
+    : activeCat
+    ? prods.filter((p) => p.categoryId === activeCat)
+    : prods; // "Barchasi"
 
   function add(p: MenuProd) {
     setDraft((d) => {
@@ -442,6 +454,12 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
       {/* Kategoriya chiplari */}
       {!q.trim() && (
         <div className="flex gap-1.5 overflow-x-auto border-b border-border bg-card px-3 py-2">
+          <button
+            onClick={() => setActiveCat("")}
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition ${activeCat === "" ? "bg-accent text-white" : "bg-surface-2 text-muted"}`}
+          >
+            Barchasi
+          </button>
           {cats.map((c) => (
             <button
               key={c.id}
@@ -454,11 +472,16 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-3 py-3">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-accent" /></div>
+        ) : shown.length === 0 ? (
+          <div className="flex flex-col items-center py-16 text-center text-muted">
+            <Utensils className="h-10 w-10 text-muted/40" />
+            <p className="mt-3 text-sm">Bu bo'limda taom yo'q</p>
+          </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+          <div className="mx-auto grid max-w-4xl grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {shown.map((p) => {
               const inDraft = draft.find((x) => x.productId === p.id);
               const img = firstImg(p.images);
@@ -602,11 +625,12 @@ function PaymentModal({ code, total, card, currency, onClose, onPaid }: { code: 
             {(method === "CARD" || method === "MIXED") && (
               <div className="mt-4">
                 {card.number ? (
-                  <div className="rounded-2xl bg-gradient-to-br from-accent to-accent-hover p-4 text-white shadow-md">
-                    <CreditCard className="h-6 w-6 opacity-80" />
-                    <p className="mt-3 font-mono text-lg tracking-widest">{card.number}</p>
-                    <p className="mt-1 text-sm uppercase tracking-wide opacity-90">{card.holder || ""}</p>
-                    <p className="mt-2 text-xs opacity-80">Mijoz shu kartaga o'tkazadi</p>
+                  <div className="flex items-center gap-3 rounded-xl bg-gradient-to-br from-accent to-accent-hover px-3.5 py-3 text-white shadow-md">
+                    <CreditCard className="h-5 w-5 shrink-0 opacity-80" />
+                    <div className="min-w-0">
+                      <p className="truncate font-mono text-sm font-semibold tracking-wider">{card.number}</p>
+                      {card.holder && <p className="truncate text-xs uppercase opacity-90">{card.holder}</p>}
+                    </div>
                   </div>
                 ) : (
                   <div className="rounded-xl bg-warning/10 px-3 py-2.5 text-sm text-warning">

@@ -64,22 +64,43 @@ export async function getDashboardStats(restaurantId: string) {
     }),
   ]);
 
-  // Haftalik grafik uchun kunlik taqsimot
+  // Haftalik grafik uchun kunlik taqsimot (skanerlar)
   const events = await prisma.scanEvent.findMany({
     where: { restaurantId, createdAt: { gte: weekAgo } },
     select: { createdAt: true },
   });
-  const daily = Array.from({ length: 7 }, (_, i) => {
-    const day = new Date(weekAgo.getTime() + i * 24 * 60 * 60 * 1000);
-    const next = new Date(day.getTime() + 24 * 60 * 60 * 1000);
-    const count = events.filter(
-      (e) => e.createdAt >= day && e.createdAt < next
-    ).length;
-    return {
-      label: ["Yak", "Du", "Se", "Cho", "Pay", "Ju", "Sha"][day.getDay()],
-      count,
-    };
+  // Haftalik buyurtmalar (daromad grafigi + naqd/karta taqsimoti uchun)
+  const weekOrders = await prisma.order.findMany({
+    where: { restaurantId, createdAt: { gte: weekAgo } },
+    select: {
+      createdAt: true, total: true, status: true,
+      paymentStatus: true, paidCash: true, paidCard: true,
+    },
   });
+  const monthRevenueAgg = await prisma.order.aggregate({
+    where: { restaurantId, createdAt: { gte: monthAgo }, status: { not: "CANCELLED" } },
+    _sum: { total: true },
+  });
+
+  const DAY = 24 * 60 * 60 * 1000;
+  const dayName = ["Yak", "Du", "Se", "Cho", "Pay", "Ju", "Sha"];
+  const daily = Array.from({ length: 7 }, (_, i) => {
+    const day = new Date(weekAgo.getTime() + i * DAY);
+    const next = new Date(day.getTime() + DAY);
+    const count = events.filter((e) => e.createdAt >= day && e.createdAt < next).length;
+    const revenue = weekOrders
+      .filter((o) => o.status !== "CANCELLED" && o.createdAt >= day && o.createdAt < next)
+      .reduce((s, o) => s + o.total, 0);
+    return { label: dayName[day.getDay()], count, revenue };
+  });
+
+  const notCancelled = weekOrders.filter((o) => o.status !== "CANCELLED");
+  const weekRevenue = notCancelled.reduce((s, o) => s + o.total, 0);
+  const todayNonCancelled = notCancelled.filter((o) => o.createdAt >= today);
+  const todayCash = todayNonCancelled.reduce((s, o) => s + (o.paidCash ?? 0), 0);
+  const todayCard = todayNonCancelled.reduce((s, o) => s + (o.paidCard ?? 0), 0);
+  const todayRevenue = todayRevenueAgg._sum.total ?? 0;
+  const avgCheck = todayNonCancelled.length ? Math.round(todayRevenue / todayNonCancelled.length) : 0;
 
   return {
     todayScans,
@@ -92,8 +113,14 @@ export async function getDashboardStats(restaurantId: string) {
     planUntil: restaurant?.planUntil ?? null,
     daily,
     todayOrders,
-    todayRevenue: todayRevenueAgg._sum.total ?? 0,
+    todayRevenue,
     activeOrders,
+    // ─── Kengaytirilgan savdo ko'rsatkichlari ───
+    weekRevenue,
+    monthRevenue: monthRevenueAgg._sum.total ?? 0,
+    todayCash,
+    todayCard,
+    avgCheck,
   };
 }
 

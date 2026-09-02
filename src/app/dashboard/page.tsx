@@ -63,6 +63,9 @@ export default async function DashboardHome() {
   ];
 
   const maxDaily = Math.max(...stats.daily.map((d) => d.count), 1);
+  const maxDailyRev = Math.max(...stats.daily.map((d) => d.revenue), 1);
+  const paidTotal = stats.todayCash + stats.todayCard;
+  const cashPct = paidTotal ? Math.round((stats.todayCash / paidTotal) * 100) : 0;
 
   return (
     <div className="space-y-6">
@@ -130,7 +133,77 @@ export default async function DashboardHome() {
         </Link>
       </div>
 
-      {/* Statistika kartalari */}
+      {/* ─── Savdo statistikasi ─── */}
+      <div>
+        <h2 className="mb-3 flex items-center gap-2 font-semibold text-foreground">
+          <TrendingUp className="h-4 w-4 text-accent" /> Savdo statistikasi
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <RevKpi label="Bugungi daromad" value={formatPrice(stats.todayRevenue, restaurant.currency)} />
+          <RevKpi label="Haftalik daromad" value={formatPrice(stats.weekRevenue, restaurant.currency)} />
+          <RevKpi label="Oylik daromad" value={formatPrice(stats.monthRevenue, restaurant.currency)} />
+          <RevKpi label="O'rtacha chek" value={formatPrice(stats.avgCheck, restaurant.currency)} />
+        </div>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          {/* Haftalik daromad grafigi */}
+          <Card className="p-6 lg:col-span-2">
+            <div className="mb-6 flex items-center justify-between">
+              <h3 className="font-semibold text-foreground">Haftalik daromad</h3>
+              <Badge variant="accent">7 kun</Badge>
+            </div>
+            <div className="flex h-44 items-stretch justify-between gap-2">
+              {stats.daily.map((d, i) => (
+                <div key={i} className="flex flex-1 flex-col items-center gap-2">
+                  <div className="flex w-full flex-1 items-end">
+                    <div
+                      style={{ height: `${Math.max((d.revenue / maxDailyRev) * 100, d.revenue > 0 ? 5 : 2)}%` }}
+                      className="w-full min-h-[4px] rounded-t-md bg-accent/80 transition-all hover:bg-accent"
+                      title={formatPrice(d.revenue, restaurant.currency)}
+                    />
+                  </div>
+                  <span className="text-xs text-muted">{d.label}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Naqd / Karta taqsimoti (bugun) */}
+          <Card className="p-6">
+            <h3 className="mb-4 font-semibold text-foreground">Bugun: Naqd / Karta</h3>
+            {paidTotal === 0 ? (
+              <p className="py-8 text-center text-sm text-muted">Bugun to'lov qabul qilinmagan</p>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-1.5 text-muted"><Wallet className="h-3.5 w-3.5" /> Naqd</span>
+                    <span className="font-semibold text-foreground">{formatPrice(stats.todayCash, restaurant.currency)}</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-surface-2">
+                    <div className="h-full rounded-full bg-success" style={{ width: `${cashPct}%` }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-1.5 text-muted"><ClipboardList className="h-3.5 w-3.5" /> Karta</span>
+                    <span className="font-semibold text-foreground">{formatPrice(stats.todayCard, restaurant.currency)}</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-surface-2">
+                    <div className="h-full rounded-full bg-accent" style={{ width: `${100 - cashPct}%` }} />
+                  </div>
+                </div>
+                <div className="border-t border-border pt-3 text-center">
+                  <p className="text-xs text-muted">Jami qabul qilingan</p>
+                  <p className="text-lg font-bold text-foreground">{formatPrice(paidTotal, restaurant.currency)}</p>
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
+
+      {/* Menyu statistikasi kartalari */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
           <Card
@@ -266,5 +339,15 @@ export default async function DashboardHome() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Savdo KPI kartasi — daromad ko'rsatkichlari uchun
+function RevKpi({ label, value }: { label: string; value: string }) {
+  return (
+    <Card className="p-5 transition-all hover:-translate-y-0.5 hover:shadow-card">
+      <p className="text-sm text-muted">{label}</p>
+      <p className="mt-1.5 text-2xl font-bold tracking-tight text-foreground">{value}</p>
+    </Card>
   );
 }

@@ -1,6 +1,8 @@
 // Xodim rollari va huquqlari
 
-export type StaffRole = "MANAGER" | "OPERATOR" | "CASHIER" | "KITCHEN" | "WAITER";
+// Faqat 2 ta operatsion rol: Oshxona (oshpaz) va Ofitsant.
+// Kassa/to'lov ishlari restoran egasi panelida bo'ladi.
+export type StaffRole = "MANAGER" | "KITCHEN" | "WAITER";
 
 export const STAFF_ROLES: {
   key: StaffRole;
@@ -8,10 +10,8 @@ export const STAFF_ROLES: {
   desc: string;
 }[] = [
   { key: "MANAGER", label: "Menejer", desc: "Menyu va restoranni boshqaradi" },
-  { key: "OPERATOR", label: "Operator", desc: "Buyurtmalarni qabul qiladi" },
-  { key: "CASHIER", label: "Kassir", desc: "To'lov va buyurtmalar" },
-  { key: "KITCHEN", label: "Oshxona", desc: "Faqat buyurtmalarni ko'radi" },
-  { key: "WAITER", label: "Ofitsiant", desc: "Tayyor buyurtmalarni yetkazadi" },
+  { key: "KITCHEN", label: "Oshxona", desc: "Buyurtmalarni tayyorlaydi (oshpaz ekrani)" },
+  { key: "WAITER", label: "Ofitsant", desc: "Stolga xizmat, buyurtma oladi va to'lovni yakunlaydi" },
 ];
 
 export function staffRoleLabel(role: string) {

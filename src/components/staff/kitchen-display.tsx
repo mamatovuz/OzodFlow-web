@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
-  Loader2, Volume2, VolumeX, Maximize2, Minimize2, LogOut, ChefHat,
-  Clock, StickyNote, Truck, Utensils, ArrowRight, Check, Ban, LayoutGrid,
+  Loader2, Volume2, VolumeX, Maximize2, Minimize2, LogOut, Clock, Ban,
 } from "lucide-react";
 import { parseJson } from "@/lib/utils";
 import type { OrderItem } from "@/lib/orders";
@@ -150,47 +149,42 @@ export function KitchenDisplay({
 
   return (
     <div className="flex min-h-screen flex-col bg-surface">
-      {/* Yuqori panel */}
+      {/* Yuqori panel — sokin, minimalist */}
       <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-card px-4 py-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-white">
-            <ChefHat className="h-5 w-5" />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate font-bold text-foreground leading-tight">Oshxona</p>
-            <p className="truncate text-xs text-muted">{restaurantName} · {staffName}</p>
-          </div>
+        <div className="flex min-w-0 items-baseline gap-2.5">
+          <h1 className="text-[15px] font-semibold tracking-tight text-foreground">Oshxona</h1>
+          <span className="truncate text-xs text-muted">{restaurantName}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="hidden rounded-lg bg-surface-2 px-3 py-1.5 text-sm font-semibold text-foreground sm:inline-flex">
-            {total} faol
+        <div className="flex items-center gap-1">
+          <span className="mr-1 text-sm tabular-nums text-muted">
+            <span className="font-semibold text-foreground">{total}</span> faol
           </span>
           <IconBtn onClick={() => setSoundOn((s) => !s)} active={soundOn} title="Ovoz">
-            {soundOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+            {soundOn ? <Volume2 className="h-[18px] w-[18px]" /> : <VolumeX className="h-[18px] w-[18px]" />}
           </IconBtn>
           <IconBtn onClick={toggleFull} title="To'liq ekran">
-            {full ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+            {full ? <Minimize2 className="h-[18px] w-[18px]" /> : <Maximize2 className="h-[18px] w-[18px]" />}
           </IconBtn>
-          <IconBtn onClick={logout} title="Chiqish" danger>
-            <LogOut className="h-5 w-5" />
+          <IconBtn onClick={logout} title="Chiqish">
+            <LogOut className="h-[18px] w-[18px]" />
           </IconBtn>
         </div>
       </header>
 
-      {/* Bo'lim (stansiya) filtri — bir nechta kategoriya bo'lsa */}
+      {/* Bo'lim (stansiya) filtri — sokin matn tablari */}
       {stations.length > 1 && (
-        <div className="flex items-center gap-1.5 overflow-x-auto border-b border-border bg-card px-3 py-2">
+        <div className="flex items-center gap-4 overflow-x-auto border-b border-border bg-card px-4 py-2.5">
           <button
             onClick={() => setStation("")}
-            className={`inline-flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium transition ${station === "" ? "bg-accent text-white" : "bg-surface-2 text-muted"}`}
+            className={`shrink-0 border-b-2 pb-0.5 text-sm transition ${station === "" ? "border-foreground font-semibold text-foreground" : "border-transparent text-muted hover:text-foreground"}`}
           >
-            <LayoutGrid className="h-3.5 w-3.5" /> Barchasi
+            Barchasi
           </button>
           {stations.map((s) => (
             <button
               key={s}
               onClick={() => setStation(s)}
-              className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition ${station === s ? "bg-accent text-white" : "bg-surface-2 text-muted"}`}
+              className={`shrink-0 border-b-2 pb-0.5 text-sm transition ${station === s ? "border-foreground font-semibold text-foreground" : "border-transparent text-muted hover:text-foreground"}`}
             >
               {s}
             </button>
@@ -210,31 +204,15 @@ export function KitchenDisplay({
                 .filter((o) => col.statuses.includes(o.status))
                 .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt));
               return (
-                <div
-                  key={col.key}
-                  className="flex min-h-[40vh] flex-col rounded-2xl bg-surface-2/60 p-2.5"
-                  style={{ boxShadow: `inset 0 3px 0 0 ${col.accent}` }}
-                >
-                  <div
-                    className="mb-2.5 flex items-center justify-between rounded-xl px-3 py-2"
-                    style={{ background: `color-mix(in srgb, ${col.accent} 12%, transparent)` }}
-                  >
-                    <span className="flex items-center gap-2 font-bold" style={{ color: col.accent }}>
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: col.accent }} />
-                      {col.title}
-                    </span>
-                    <span
-                      className="flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-sm font-extrabold text-white"
-                      style={{ background: col.accent }}
-                    >
-                      {list.length}
-                    </span>
+                <div key={col.key} className="flex flex-col md:min-h-[40vh]">
+                  <div className="mb-3 flex items-center gap-2 px-0.5">
+                    <span className="h-2 w-2 rounded-full" style={{ background: col.accent }} />
+                    <span className="text-xs font-semibold uppercase tracking-wider text-muted">{col.title}</span>
+                    <span className="text-xs tabular-nums text-muted/60">{list.length}</span>
                   </div>
                   <div className="flex flex-col gap-2.5">
                     {list.length === 0 ? (
-                      <p className="rounded-xl border border-dashed border-border py-8 text-center text-sm text-muted">
-                        Bo'sh
-                      </p>
+                      <p className="py-6 text-center text-sm text-muted/40">—</p>
                     ) : (
                       list.map((o) => (
                         <KitchenCard
@@ -271,82 +249,65 @@ function KitchenCard({
 }) {
   const items = parseJson<OrderItem[]>(order.items, []);
   const mins = Math.floor((now - +new Date(order.createdAt)) / 60000);
-  // Vaqtga qarab rang: 0-9 oddiy, 10-14 sariq, 15+ qizil
-  const level = mins >= 15 ? "danger" : mins >= 10 ? "warn" : "ok";
-  const border =
-    level === "danger" ? "border-error/60" : level === "warn" ? "border-warning/60" : "border-border";
-  const timeColor =
-    level === "danger" ? "text-error" : level === "warn" ? "text-warning" : "text-muted";
+  // Kechikish faqat vaqt matni rangi bilan bildiriladi (sokin, miltillashsiz)
+  const late = mins >= 15;
+  const warn = mins >= 10 && mins < 15;
+  const timeColor = late ? "text-error" : warn ? "text-muted" : "text-muted";
   const isDelivery = order.orderType === "DELIVERY";
 
   const action =
     col === "new"
-      ? { to: "PREPARING", label: "Boshlash", icon: ArrowRight }
+      ? { to: "PREPARING", label: "Boshlash" }
       : col === "prep"
-      ? { to: "READY", label: "Tayyor", icon: Check }
-      : { to: "DELIVERED", label: "Berildi", icon: Check };
+      ? { to: "READY", label: "Tayyor" }
+      : { to: "DELIVERED", label: "Berildi" };
 
   return (
-    <div
-      className={`rounded-xl border-2 bg-card p-3 shadow-soft transition ${border} ${
-        level === "danger" ? "animate-pulse-slow" : ""
-      }`}
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-lg font-extrabold text-foreground">#{order.number}</span>
-        <div className="flex items-center gap-2">
-          <span className={`flex items-center gap-1 text-sm font-bold tabular-nums ${timeColor}`}>
-            <Clock className="h-3.5 w-3.5" /> {mins}′
+    <div className={`rounded-xl border bg-card p-3.5 transition ${late ? "border-error/40" : "border-border"}`}>
+      <div className="flex items-baseline justify-between">
+        <div className="flex items-baseline gap-2">
+          <span className="text-base font-semibold text-foreground">#{order.number}</span>
+          <span className="text-[13px] text-muted">
+            {isDelivery ? "Yetkazish" : order.tableName || "Zalda"}
+          </span>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <span className={`flex items-center gap-1 text-[13px] tabular-nums ${timeColor}`}>
+            <Clock className="h-3 w-3" /> {mins}′
           </span>
           <button
             onClick={() => onCancel(order.id, order.number)}
-            title="Bekor qilish (taom tugadi)"
-            className="flex h-6 w-6 items-center justify-center rounded-md text-muted/60 transition hover:bg-error/10 hover:text-error"
+            title="Bekor qilish"
+            className="text-muted/40 transition hover:text-error"
           >
             <Ban className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
-      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-medium">
-        {isDelivery ? (
-          <span className="inline-flex items-center gap-1 rounded-md bg-accent-soft px-2 py-0.5 text-accent">
-            <Truck className="h-3 w-3" /> Yetkazish
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 rounded-md bg-surface-2 px-2 py-0.5 text-foreground">
-            <Utensils className="h-3 w-3" /> {order.tableName || "Zalda"}
-          </span>
-        )}
-        {order.waiterName && <span className="text-muted">👤 {order.waiterName}</span>}
-      </div>
+      {order.waiterName && <p className="mt-0.5 text-xs text-muted">{order.waiterName}</p>}
 
-      <ul className="mt-2.5 space-y-1 border-t border-border pt-2.5">
+      <ul className="mt-3 space-y-1.5">
         {items.map((it, i) => (
-          <li key={i} className="flex items-baseline gap-2 text-[15px] leading-tight text-foreground">
-            <span className="min-w-7 shrink-0 rounded-md bg-surface-2 px-1.5 text-center text-sm font-bold text-accent">
-              {it.qty}×
-            </span>
-            <span className="font-medium">
+          <li key={i} className="flex items-baseline gap-2.5 text-[15px] leading-tight text-foreground">
+            <span className="w-6 shrink-0 text-right text-sm font-semibold tabular-nums text-muted">{it.qty}×</span>
+            <span>
               {it.name}
-              {it.comment ? <span className="block text-xs font-normal text-warning">↳ {it.comment}</span> : null}
+              {it.comment ? <span className="block text-xs text-error/80">{it.comment}</span> : null}
             </span>
           </li>
         ))}
       </ul>
 
       {order.comment && (
-        <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-warning/10 px-2.5 py-1.5 text-xs text-foreground">
-          <StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" /> {order.comment}
-        </div>
+        <p className="mt-2.5 border-l-2 border-border pl-2 text-xs text-muted">{order.comment}</p>
       )}
 
       <button
         disabled={busy}
         onClick={() => onAdvance(order.id, action.to)}
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2.5 text-sm font-semibold text-white transition active:scale-[0.98] disabled:opacity-50"
+        className="mt-3.5 flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2.5 text-[15px] font-medium text-white transition hover:bg-accent-hover active:scale-[0.99] disabled:opacity-50"
       >
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <action.icon className="h-4 w-4" />}
-        {action.label}
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : action.label}
       </button>
     </div>
   );

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Loader2, Volume2, VolumeX, Maximize2, Minimize2, LogOut, ChefHat,
-  Clock, StickyNote, Truck, Utensils, ArrowRight, Check,
+  Clock, StickyNote, Truck, Utensils, ArrowRight, Check, Ban, LayoutGrid,
 } from "lucide-react";
 import { parseJson } from "@/lib/utils";
 import type { OrderItem } from "@/lib/orders";
@@ -16,6 +16,7 @@ type Order = {
   comment: string | null;
   status: string;
   items: string;
+  waiterName: string | null;
   createdAt: string;
 };
 
@@ -41,6 +42,7 @@ export function KitchenDisplay({
   const [full, setFull] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [station, setStation] = useState<string>(""); // "" = barcha bo'limlar
   const lastIdRef = useRef<string | null>(null);
   const first = useRef(true);
   const soundRef = useRef(soundOn);
@@ -103,6 +105,33 @@ export function KitchenDisplay({
     load();
   }
 
+  // Bekor qilish (masalan taom tugadi) — sabab bilan. Ofitsant ko'radi.
+  async function cancel(id: string, number: number) {
+    const reason = window.prompt(`#${number} buyurtmani bekor qilish sababi (masalan: Osh tugadi):`, "");
+    if (reason === null) return;
+    setBusyId(id);
+    setOrders((prev) => prev.filter((o) => o.id !== id));
+    await fetch(`/api/orders/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "CANCELLED", cancelReason: reason.trim() || "Bekor qilindi" }),
+    }).catch(() => {});
+    setBusyId(null);
+    load();
+  }
+
+  // Faol buyurtmalardagi bo'limlar (stansiya filtri uchun)
+  const stations = Array.from(
+    new Set(
+      orders.flatMap((o) => parseJson<OrderItem[]>(o.items, []).map((it) => it.categoryName).filter(Boolean))
+    )
+  ) as string[];
+
+  // Stansiya bo'yicha filtr: shu bo'lim taomi bo'lgan buyurtmalar
+  const visible = station
+    ? orders.filter((o) => parseJson<OrderItem[]>(o.items, []).some((it) => it.categoryName === station))
+    : orders;
+
   function toggleFull() {
     const el = document.documentElement;
     if (!document.fullscreenElement) {
@@ -148,6 +177,27 @@ export function KitchenDisplay({
         </div>
       </header>
 
+      {/* Bo'lim (stansiya) filtri — bir nechta kategoriya bo'lsa */}
+      {stations.length > 1 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto border-b border-border bg-card px-3 py-2">
+          <button
+            onClick={() => setStation("")}
+            className={`inline-flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium transition ${station === "" ? "bg-accent text-white" : "bg-surface-2 text-muted"}`}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" /> Barchasi
+          </button>
+          {stations.map((s) => (
+            <button
+              key={s}
+              onClick={() => setStation(s)}
+              className={`shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium transition ${station === s ? "bg-accent text-white" : "bg-surface-2 text-muted"}`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex flex-1 items-center justify-center">
           <Loader2 className="h-7 w-7 animate-spin text-accent" />
@@ -156,7 +206,7 @@ export function KitchenDisplay({
         <div className="flex-1 overflow-x-auto p-3 sm:p-4">
           <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
             {COLUMNS.map((col) => {
-              const list = orders
+              const list = visible
                 .filter((o) => col.statuses.includes(o.status))
                 .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt));
               return (
@@ -184,6 +234,7 @@ export function KitchenDisplay({
                           col={col.key}
                           busy={busyId === o.id}
                           onAdvance={advance}
+                          onCancel={cancel}
                         />
                       ))
                     )}
@@ -199,13 +250,14 @@ export function KitchenDisplay({
 }
 
 function KitchenCard({
-  order, now, col, busy, onAdvance,
+  order, now, col, busy, onAdvance, onCancel,
 }: {
   order: Order;
   now: number;
   col: string;
   busy: boolean;
   onAdvance: (id: string, to: string) => void;
+  onCancel: (id: string, number: number) => void;
 }) {
   const items = parseJson<OrderItem[]>(order.items, []);
   const mins = Math.floor((now - +new Date(order.createdAt)) / 60000);
@@ -232,11 +284,20 @@ function KitchenCard({
     >
       <div className="flex items-center justify-between">
         <span className="text-lg font-extrabold text-foreground">#{order.number}</span>
-        <span className={`flex items-center gap-1 text-sm font-bold tabular-nums ${timeColor}`}>
-          <Clock className="h-3.5 w-3.5" /> {mins}′
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`flex items-center gap-1 text-sm font-bold tabular-nums ${timeColor}`}>
+            <Clock className="h-3.5 w-3.5" /> {mins}′
+          </span>
+          <button
+            onClick={() => onCancel(order.id, order.number)}
+            title="Bekor qilish (taom tugadi)"
+            className="flex h-6 w-6 items-center justify-center rounded-md text-muted/60 transition hover:bg-error/10 hover:text-error"
+          >
+            <Ban className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
-      <div className="mt-1 flex items-center gap-1.5 text-xs font-medium">
+      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-medium">
         {isDelivery ? (
           <span className="inline-flex items-center gap-1 rounded-md bg-accent-soft px-2 py-0.5 text-accent">
             <Truck className="h-3 w-3" /> Yetkazish
@@ -246,6 +307,7 @@ function KitchenCard({
             <Utensils className="h-3 w-3" /> {order.tableName || "Zalda"}
           </span>
         )}
+        {order.waiterName && <span className="text-muted">👤 {order.waiterName}</span>}
       </div>
 
       <ul className="mt-2.5 space-y-1 border-t border-border pt-2.5">
@@ -254,7 +316,10 @@ function KitchenCard({
             <span className="min-w-7 shrink-0 rounded-md bg-surface-2 px-1.5 text-center text-sm font-bold text-accent">
               {it.qty}×
             </span>
-            <span className="font-medium">{it.name}</span>
+            <span className="font-medium">
+              {it.name}
+              {it.comment ? <span className="block text-xs font-normal text-warning">↳ {it.comment}</span> : null}
+            </span>
           </li>
         ))}
       </ul>

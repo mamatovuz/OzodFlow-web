@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
   const ids = items.map((i) => i.productId);
   const products = await prisma.product.findMany({
     where: { id: { in: ids }, restaurantId: restaurant.id, isAvailable: true },
+    include: { category: { select: { name: true } } },
   });
 
   const orderItems: OrderItem[] = [];
@@ -64,7 +65,13 @@ export async function POST(req: NextRequest) {
   for (const it of items) {
     const p = products.find((x) => x.id === it.productId);
     if (!p) continue;
-    orderItems.push({ productId: p.id, name: p.name, price: p.price, qty: it.qty });
+    orderItems.push({
+      productId: p.id,
+      name: p.name,
+      price: p.price,
+      qty: it.qty,
+      categoryName: p.category?.name ?? null,
+    });
     total += p.price * it.qty;
   }
   if (orderItems.length === 0) return fail("Mahsulotlar mavjud emas", 422);

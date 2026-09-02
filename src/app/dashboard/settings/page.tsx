@@ -10,6 +10,7 @@ import { WaiterCodeToggle } from "@/components/dashboard/waiter-code-toggle";
 import { PhoneRequestToggle } from "@/components/dashboard/phone-request-toggle";
 import { OrderChannel } from "@/components/dashboard/order-channel";
 import { TelegramBotManager } from "@/components/dashboard/telegram-bot-manager";
+import { PaymentCardSettings } from "@/components/dashboard/payment-card-settings";
 import { SessionsManager } from "@/components/dashboard/sessions-manager";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +41,9 @@ export default async function SettingsPage() {
           <SlugEditor current={restaurant.slug} />
         </div>
       </Card>
+
+      {/* To'lov kartasi (ofitsant panelida karta to'lovi uchun) */}
+      <PaymentCardSettings number={restaurant.cardNumber} holder={restaurant.cardHolder} />
 
       {/* Funksiyalar — ofitsant kodi */}
       <WaiterCodeToggle enabled={restaurant.waiterCodeEnabled} />

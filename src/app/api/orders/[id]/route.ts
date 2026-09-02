@@ -23,10 +23,15 @@ export async function PATCH(
   const body = await req.json().catch(() => null);
   const status = body?.status;
   if (!VALID.includes(status)) return fail("Noto'g'ri holat", 422);
+  // Bekor qilishda sabab (masalan "Osh tugadi") — ofitsant ko'radi
+  const cancelReason =
+    status === "CANCELLED" && typeof body?.cancelReason === "string"
+      ? body.cancelReason.slice(0, 200)
+      : undefined;
 
   const updated = await prisma.order.update({
     where: { id },
-    data: { status },
+    data: { status, ...(cancelReason !== undefined ? { cancelReason } : {}) },
   });
 
   // Buyurtma Telegram Mini App orqali kelgan bo'lsa — mijozga holatni push qilamiz

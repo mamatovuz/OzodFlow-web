@@ -40,4 +40,6 @@ export type OrderItem = {
   name: string;
   price: number;
   qty: number;
+  categoryName?: string | null; // oshxona bo'lim (stansiya) filtri uchun
+  comment?: string | null; // taomga izoh (masalan "achchiqroq")
 };

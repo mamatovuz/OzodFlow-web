@@ -147,6 +147,9 @@ model Restaurant {
   reviewGoogleUrl String? // Google Maps'da baho qoldirish havolasi
   reviewYandexUrl String? // Yandex Maps'da baho qoldirish havolasi
   reviewThreshold Int       @default(4) // shu baho va undan yuqorida — xaritaga yo'naltiriladi
+  // ─── Ofitsant to'lovi uchun karta (kartadan to'lovda ko'rsatiladi) ───
+  cardNumber      String? // to'lov kartasi raqami (masalan 8600 1234 5678 9012)
+  cardHolder      String? // karta egasi ismi
   customDomain    String?   @unique // o'z domeni (Pro/Pro Max)
   plan            String    @default("FREE") // FREE | PRO | PROMAX
   planUntil       DateTime? // FREE trial muddati; pullik tariflarda null = umrbod
@@ -403,11 +406,21 @@ model Order {
   lat          Float? // yetkazish nuqtasi kenglik
   lng          Float? // yetkazish nuqtasi uzunlik
   status       String   @default("NEW") // NEW | ACCEPTED | PREPARING | READY | DELIVERED | CANCELLED
+  cancelReason String? // bekor qilinganda sabab (masalan "Osh tugadi")
   total        Float    @default(0)
-  items        String // JSON: [{productId, name, price, qty}]
+  items        String // JSON: [{productId, name, price, qty, categoryName?, comment?}]
   // ─── Ofitsant (kod kiritilgan bo'lsa) ───
-  waiterId     String? // qaysi ofitsant qabul qildi
+  waiterId     String? // qaysi ofitsant qabul qildi (Waiter modeli — kod tizimi)
   waiterCode   String? // kiritilgan kod (audit uchun)
+  // ─── Panel orqali buyurtma olgan xodim (login qilgan ofitsant) ───
+  staffId      String? // membership foydalanuvchi ID si
+  waiterName   String? // ko'rsatish uchun ofitsant ismi (denormalizatsiya)
+  // ─── To'lov (ofitsant panelidan) ───
+  paymentStatus String  @default("UNPAID") // UNPAID | PAID
+  paymentMethod String? // CASH | CARD | MIXED
+  paidCash     Float? // naqd qismi
+  paidCard     Float? // karta qismi
+  paidAt       DateTime?
   // ─── Telegram Mini App (bot orqali kelgan buyurtma) ───
   tgChatId     String? // mijoz Telegram chat ID si — holat o'zgarishini push qilish uchun
   // ─── POS ga yuborish holati ───

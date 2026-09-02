@@ -37,6 +37,8 @@ export const restaurantSchema = z.object({
   askPhone: z.boolean().optional(),
   orderBotToken: z.string().max(120).optional().nullable(),
   orderChatId: z.string().max(120).optional().nullable(),
+  cardNumber: z.string().max(40).optional().nullable(),
+  cardHolder: z.string().max(80).optional().nullable(),
   customDomain: z.string().optional().nullable(),
 });
 

@@ -268,10 +268,11 @@ export default async function LandingPage({
   // Avtomatik ("auto") ko'rsatkichlar uchun haqiqiy sonlarni hisoblaymiz.
   const needCounts = stats.some((s) => s.auto && s.metric);
   const counts = needCounts ? await getSiteMetricCounts() : null;
-  // Ishonch bo'limi: admin 4+ ko'rsatkich qo'shsa — o'shani, aks holda standart.
+  // Ishonch bo'limi: admin biror ko'rsatkich qo'shsa/o'zgartirsa — DARHOL o'shani
+  // ko'rsatamiz (force-dynamic). Hech biri bo'lmasa — standart raqamlar.
   // auto=true bo'lgan ko'rsatkich qiymati haqiqiy sondan olinadi.
   const trustStats =
-    stats.length >= 4
+    stats.length > 0
       ? stats.map((s) => ({
           value:
             s.auto && s.metric && counts

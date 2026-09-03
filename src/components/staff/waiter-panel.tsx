@@ -345,6 +345,10 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
 
   // Barcha buyurtma taomlarini birlashtiramiz
   const allItems: OrderItem[] = orders.flatMap((o) => parseJson<OrderItem[]>(o.items, []));
+  // To'lov faqat oshxona tayyorlab, ofitsant yetkazgach chiqadi
+  const hasDelivered = orders.some((o) => o.status === "DELIVERED");
+  const cooking = orders.some((o) => ["NEW", "ACCEPTED", "PREPARING"].includes(o.status));
+  const readyToServe = orders.some((o) => o.status === "READY");
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-surface">
@@ -403,28 +407,44 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
         )}
       </div>
 
-      {/* Pastki panel — katta, aniq tugmalar */}
+      {/* Pastki panel — bosqichga qarab tugmalar */}
       <div className="border-t border-border bg-card px-3 pt-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
         <div className="mx-auto max-w-lg">
           <div className="mb-2.5 flex items-center justify-between">
             <span className="text-sm text-muted">Jami hisob</span>
             <span className="text-2xl font-extrabold text-foreground">{formatPrice(total, currency)}</span>
           </div>
-          <div className="grid grid-cols-2 gap-2.5">
+
+          {/* Holat izohi (nima qilish kerakligini bir qarashda) */}
+          {!hasDelivered && (cooking || readyToServe) && (
+            <p className={`mb-2.5 rounded-lg px-3 py-2 text-center text-[13px] font-medium ${readyToServe ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
+              {readyToServe ? "✅ Tayyor — stolga yetkazing, keyin to'lov" : "👨‍🍳 Oshxona tayyorlamoqda..."}
+            </p>
+          )}
+
+          {hasDelivered ? (
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                onClick={() => setPicker(true)}
+                className="flex items-center justify-center gap-2 rounded-xl border-2 border-border py-3.5 text-[15px] font-semibold text-foreground active:scale-[0.98]"
+              >
+                <Plus className="h-5 w-5" /> Taom
+              </button>
+              <button
+                onClick={() => setPay(true)}
+                className="flex items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-[15px] font-semibold text-white active:scale-[0.98]"
+              >
+                <Wallet className="h-5 w-5" /> To'lov
+              </button>
+            </div>
+          ) : (
             <button
               onClick={() => setPicker(true)}
-              className="flex items-center justify-center gap-2 rounded-xl border-2 border-accent/40 bg-accent-soft py-3.5 text-[15px] font-semibold text-accent active:scale-[0.98]"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-[15px] font-semibold text-white active:scale-[0.98]"
             >
               <Plus className="h-5 w-5" /> Taom qo'shish
             </button>
-            <button
-              onClick={() => setPay(true)}
-              disabled={total <= 0}
-              className="flex items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-[15px] font-semibold text-white active:scale-[0.98] disabled:opacity-40"
-            >
-              <Wallet className="h-5 w-5" /> To'lov
-            </button>
-          </div>
+          )}
         </div>
       </div>
 
@@ -457,6 +477,7 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
   const [draft, setDraft] = useState<Draft[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/staff/menu").then((r) => r.json()).then((j) => {
@@ -546,7 +567,8 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+      {/* Mahsulotlar — doim to'liq balandlik, scroll (hech narsa yopmaydi) */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3" style={{ paddingBottom: draft.length > 0 ? 88 : 12 }}>
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-accent" /></div>
         ) : shown.length === 0 ? (
@@ -565,7 +587,6 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
                   onClick={() => add(p)}
                   className={`group relative overflow-hidden rounded-2xl border-2 bg-card text-left shadow-soft transition active:scale-95 ${inDraft ? "border-accent" : "border-border"}`}
                 >
-                  {/* Rasm */}
                   <div className="relative aspect-[4/3] w-full overflow-hidden bg-surface-2">
                     {img ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -580,12 +601,10 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
                         {inDraft.qty}
                       </span>
                     )}
-                    {/* qo'shish belgisi */}
                     <span className="absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-accent shadow-md">
                       <Plus className="h-4 w-4" />
                     </span>
                   </div>
-                  {/* Matn */}
                   <div className="p-2.5">
                     <p className="text-sm font-medium leading-tight text-foreground line-clamp-2">{p.name}</p>
                     <p className="mt-1 text-sm font-bold text-accent">{formatPrice(p.price, currency)}</p>
@@ -597,43 +616,63 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
         )}
       </div>
 
-      {/* Draft (tanlangan taomlar) */}
-      {draft.length > 0 && (
-        <div className="max-h-[42vh] overflow-y-auto border-t border-border bg-card px-3 py-3">
-          <div className="mx-auto max-w-lg space-y-2">
-            {draft.map((x) => (
-              <div key={x.productId} className="rounded-xl bg-surface-2 p-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium text-foreground">{x.name}</span>
-                  <div className="flex items-center gap-1.5">
-                    <button onClick={() => setQty(x.productId, x.qty - 1)} className="flex h-7 w-7 items-center justify-center rounded-md bg-card text-foreground"><Minus className="h-3.5 w-3.5" /></button>
-                    <span className="min-w-6 text-center text-sm font-bold tabular-nums text-foreground">{x.qty}</span>
-                    <button onClick={() => setQty(x.productId, x.qty + 1)} className="flex h-7 w-7 items-center justify-center rounded-md bg-card text-foreground"><Plus className="h-3.5 w-3.5" /></button>
-                  </div>
-                </div>
-                <input
-                  value={x.comment}
-                  onChange={(e) => setComment(x.productId, e.target.value)}
-                  placeholder="Izoh (masalan: achchiqroq, go'shtsiz)"
-                  className="mt-2 h-8 w-full rounded-md border border-border bg-card px-2 text-xs text-foreground outline-none focus:border-accent"
-                />
-              </div>
-            ))}
-          </div>
+      {/* Pastdagi ixcham savat paneli (mahsulotlarni yopmaydi) */}
+      {draft.length > 0 && !cartOpen && (
+        <div className="absolute inset-x-0 bottom-0 border-t border-border bg-card p-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+          <button
+            onClick={() => setCartOpen(true)}
+            className="mx-auto flex w-full max-w-lg items-center justify-between gap-2 rounded-xl bg-accent px-4 py-3.5 text-white active:scale-[0.98]"
+          >
+            <span className="flex items-center gap-2 text-[15px] font-semibold">
+              <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-white/25 px-1.5 text-sm font-bold">{draftCount}</span>
+              Savatni ko'rish
+            </span>
+            <span className="text-[15px] font-bold">{formatPrice(draftTotal, currency)}</span>
+          </button>
         </div>
       )}
 
-      {/* Yuborish */}
-      <div className="border-t border-border bg-card px-3 py-3">
-        <button
-          onClick={send}
-          disabled={draft.length === 0 || sending}
-          className="mx-auto flex w-full max-w-lg items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-40"
-        >
-          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Utensils className="h-4 w-4" />}
-          Oshxonaga yuborish {draftCount > 0 && `· ${draftCount} ta · ${formatPrice(draftTotal, currency)}`}
-        </button>
-      </div>
+      {/* Savat oynasi — taomlar, miqdor, izoh, yuborish */}
+      {cartOpen && (
+        <div className="absolute inset-0 z-10 flex flex-col justify-end bg-black/40" onClick={() => setCartOpen(false)}>
+          <div className="flex max-h-[85vh] flex-col rounded-t-3xl bg-card" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <h3 className="font-semibold text-foreground">Savat · {draftCount} ta</h3>
+              <button onClick={() => setCartOpen(false)} className="text-muted hover:text-foreground"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+              {draft.map((x) => (
+                <div key={x.productId} className="rounded-xl bg-surface-2 p-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="min-w-0 flex-1 text-sm font-medium text-foreground">{x.name}</span>
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => setQty(x.productId, x.qty - 1)} className="flex h-8 w-8 items-center justify-center rounded-md bg-card text-foreground active:scale-90"><Minus className="h-4 w-4" /></button>
+                      <span className="min-w-6 text-center text-base font-bold tabular-nums text-foreground">{x.qty}</span>
+                      <button onClick={() => setQty(x.productId, x.qty + 1)} className="flex h-8 w-8 items-center justify-center rounded-md bg-card text-foreground active:scale-90"><Plus className="h-4 w-4" /></button>
+                    </div>
+                  </div>
+                  <input
+                    value={x.comment}
+                    onChange={(e) => setComment(x.productId, e.target.value)}
+                    placeholder="Izoh (achchiqroq, go'shtsiz...)"
+                    className="mt-2 h-9 w-full rounded-md border border-border bg-card px-2.5 text-xs text-foreground outline-none focus:border-accent"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-border p-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+              <button
+                onClick={send}
+                disabled={draft.length === 0 || sending}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-[15px] font-semibold text-white active:scale-[0.98] disabled:opacity-40"
+              >
+                {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Utensils className="h-5 w-5" />}
+                Oshxonaga yuborish · {formatPrice(draftTotal, currency)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

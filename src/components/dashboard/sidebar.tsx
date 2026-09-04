@@ -30,27 +30,57 @@ import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
-const nav = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/orders", label: "Buyurtmalar", icon: ClipboardList },
-  { href: "/dashboard/menu", label: "Menyu", icon: UtensilsCrossed },
-  { href: "/dashboard/combos", label: "Combo", icon: Package },
-  { href: "/dashboard/profile", label: "Restoran profili", icon: Store },
-  { href: "/dashboard/design", label: "Menyu dizayni", icon: Palette },
-  { href: "/dashboard/banners", label: "Bannerlar", icon: ImageIcon },
-  { href: "/dashboard/gallery", label: "Galereya", icon: Images },
-  { href: "/dashboard/taplink", label: "Taplink", icon: Link2 },
-  { href: "/dashboard/reviews", label: "Izohlar", icon: Star },
-  { href: "/dashboard/qr", label: "QR kod", icon: QrCode },
-  { href: "/dashboard/stats", label: "Statistika", icon: BarChart3 },
-  { href: "/dashboard/integrations", label: "Integratsiyalar", icon: Plug },
-  { href: "/dashboard/staff", label: "Xodimlar", icon: UserCog },
-  { href: "/dashboard/mobile-app", label: "Mobil ilova", icon: Smartphone },
-  { href: "/dashboard/settings", label: "Sozlamalar", icon: Settings },
+type NavItem = { href: string; label: string; icon: typeof LayoutDashboard };
+type NavGroup = { title: string | null; items: NavItem[] };
+
+// Bo'limlar mantiqiy guruhlarga ajratildi — tartibli va kengayadigan
+const navGroups: NavGroup[] = [
+  {
+    title: null, // sarlavhasiz (eng yuqori)
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/dashboard/orders", label: "Buyurtmalar", icon: ClipboardList },
+      { href: "/dashboard/stats", label: "Statistika", icon: BarChart3 },
+    ],
+  },
+  {
+    title: "Menyu",
+    items: [
+      { href: "/dashboard/menu", label: "Menyu", icon: UtensilsCrossed },
+      { href: "/dashboard/combos", label: "Combo", icon: Package },
+      { href: "/dashboard/banners", label: "Bannerlar", icon: ImageIcon },
+      { href: "/dashboard/gallery", label: "Galereya", icon: Images },
+    ],
+  },
+  {
+    title: "Sayt va ko'rinish",
+    items: [
+      { href: "/dashboard/design", label: "Menyu dizayni", icon: Palette },
+      { href: "/dashboard/profile", label: "Restoran profili", icon: Store },
+      { href: "/dashboard/taplink", label: "Taplink", icon: Link2 },
+      { href: "/dashboard/qr", label: "QR kod", icon: QrCode },
+      { href: "/dashboard/reviews", label: "Izohlar", icon: Star },
+    ],
+  },
+  {
+    title: "Xodimlar",
+    items: [
+      { href: "/dashboard/staff", label: "Xodimlar", icon: UserCog },
+      // "Ofitsantlar" shu guruhga shartli qo'shiladi (waiterCodeEnabled)
+    ],
+  },
+  {
+    title: "Qo'shimcha",
+    items: [
+      { href: "/dashboard/integrations", label: "Integratsiyalar", icon: Plug },
+      { href: "/dashboard/mobile-app", label: "Mobil ilova", icon: Smartphone },
+      { href: "/dashboard/settings", label: "Sozlamalar", icon: Settings },
+    ],
+  },
 ];
 
-// "Ofitsantlar" — faqat funksiya yoqilganda ko'rinadi (Statistika'dan keyin)
-const WAITERS_ITEM = { href: "/dashboard/waiters", label: "Ofitsantlar", icon: Users };
+// "Ofitsantlar" — faqat funksiya yoqilganda ko'rinadi ("Xodimlar" guruhida)
+const WAITERS_ITEM: NavItem = { href: "/dashboard/waiters", label: "Ofitsantlar", icon: Users };
 
 export function Sidebar({
   user,
@@ -71,38 +101,46 @@ export function Sidebar({
     router.refresh();
   }
 
-  // Funksiya yoqilgan bo'lsa "Ofitsantlar"ni Statistika'dan keyin qo'shamiz
-  const navItems = (() => {
-    if (!waiterCodeEnabled) return nav;
-    const statsIdx = nav.findIndex((n) => n.href === "/dashboard/stats");
-    const at = statsIdx >= 0 ? statsIdx + 1 : nav.length;
-    return [...nav.slice(0, at), WAITERS_ITEM, ...nav.slice(at)];
-  })();
+  // Funksiya yoqilgan bo'lsa "Ofitsantlar"ni "Xodimlar" guruhiga qo'shamiz
+  const groups: NavGroup[] = waiterCodeEnabled
+    ? navGroups.map((g) =>
+        g.title === "Xodimlar" ? { ...g, items: [...g.items, WAITERS_ITEM] } : g
+      )
+    : navGroups;
 
   const NavItems = () => (
-    <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
-      {navItems.map((item) => {
-        const active =
-          item.href === "/dashboard"
-            ? pathname === "/dashboard"
-            : pathname.startsWith(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={() => setOpen(false)}
-            className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-              active
-                ? "bg-accent-soft text-accent"
-                : "text-muted hover:bg-surface-2 hover:text-foreground"
-            )}
-          >
-            <item.icon className="h-[18px] w-[18px]" />
-            {item.label}
-          </Link>
-        );
-      })}
+    <nav className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pb-2">
+      {groups.map((group, gi) => (
+        <div key={gi} className="flex flex-col gap-0.5">
+          {group.title && (
+            <p className="px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wider text-muted/60">
+              {group.title}
+            </p>
+          )}
+          {group.items.map((item) => {
+            const active =
+              item.href === "/dashboard"
+                ? pathname === "/dashboard"
+                : pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  active
+                    ? "bg-accent-soft text-accent"
+                    : "text-muted hover:bg-surface-2 hover:text-foreground"
+                )}
+              >
+                <item.icon className="h-[18px] w-[18px]" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      ))}
     </nav>
   );
 

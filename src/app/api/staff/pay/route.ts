@@ -4,12 +4,18 @@ import { prisma } from "@/lib/prisma";
 import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
 
 // Ofitsant stol hisobini to'laydi — naqd, karta yoki aralash.
+// Chegirma va xizmat haqi (bo'lsa) yakuniy summaga qo'llanadi.
 // Stolning barcha to'lanmagan buyurtmalari PAID + DELIVERED bo'ladi.
 const schema = z.object({
   tableCode: z.string().min(1),
   method: z.enum(["CASH", "CARD", "MIXED"]),
   cash: z.number().min(0).optional(),
   card: z.number().min(0).optional(),
+  // Chegirma: summa (so'm) va turi (audit uchun)
+  discount: z.number().min(0).optional(),
+  discountType: z.enum(["PERCENT", "AMOUNT"]).optional(),
+  // Xizmat haqi: summa (so'm)
+  service: z.number().min(0).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -30,11 +36,17 @@ export async function POST(req: NextRequest) {
       paymentStatus: "UNPAID",
       status: { not: "CANCELLED" },
     },
+    orderBy: { createdAt: "asc" },
     select: { id: true, total: true },
   });
   if (orders.length === 0) return fail("To'lanmagan buyurtma yo'q", 404);
 
-  const total = orders.reduce((s, o) => s + o.total, 0);
+  const subtotal = orders.reduce((s, o) => s + o.total, 0);
+
+  // Chegirma va xizmat haqini chegaralaymiz (summadan oshmasin)
+  const discount = Math.min(Math.max(0, parsed.data.discount ?? 0), subtotal);
+  const service = Math.max(0, parsed.data.service ?? 0);
+  const total = Math.max(0, subtotal - discount + service);
 
   // To'lov qismlarini aniqlaymiz
   let paidCash = 0;
@@ -44,24 +56,45 @@ export async function POST(req: NextRequest) {
   else {
     paidCash = Math.max(0, parsed.data.cash ?? 0);
     paidCard = Math.max(0, parsed.data.card ?? 0);
-    // Aralashda qismlar jami summaga teng bo'lishi kerak (kichik xatoga yo'l qo'yamiz)
+    // Aralashda qismlar jami yakuniy summaga teng bo'lishi kerak (kichik xatoga yo'l qo'yamiz)
     if (Math.abs(paidCash + paidCard - total) > 1) {
       return fail(`Naqd va karta yig'indisi ${total} bo'lishi kerak`, 422);
     }
   }
 
   const paidAt = new Date();
-  await prisma.order.updateMany({
-    where: { id: { in: orders.map((o) => o.id) } },
-    data: {
-      paymentStatus: "PAID",
-      paymentMethod: method,
-      paidCash,
-      paidCard,
-      paidAt,
-      status: "DELIVERED",
-    },
-  });
 
-  return ok({ count: orders.length, total, method, paidCash, paidCard });
+  // Chegirma/xizmat haqi farqini (delta) oxirgi buyurtmaga yozamiz — shunda
+  // stol bo'yicha sum(total) yakuniy summaga (haqiqiy tushum) teng bo'ladi.
+  const delta = service - discount; // total - subtotal
+  const lastId = orders[orders.length - 1].id;
+  const lastOrder = orders[orders.length - 1];
+
+  await prisma.$transaction([
+    // Barcha buyurtmalarni to'langan + yetkazilgan qilamiz
+    prisma.order.updateMany({
+      where: { id: { in: orders.map((o) => o.id) } },
+      data: {
+        paymentStatus: "PAID",
+        paymentMethod: method,
+        paidAt,
+        status: "DELIVERED",
+      },
+    }),
+    // Chegirma/servis ma'lumotini va delta bilan tuzatilgan total'ni oxirgi buyurtmaga yozamiz
+    prisma.order.update({
+      where: { id: lastId },
+      data: {
+        total: Math.max(0, lastOrder.total + delta),
+        discount,
+        discountType: parsed.data.discountType ?? (discount > 0 ? "AMOUNT" : null),
+        serviceCharge: service,
+        // To'lov qismlarini oxirgi buyurtmaga yozamiz (chek uchun)
+        paidCash,
+        paidCard,
+      },
+    }),
+  ]);
+
+  return ok({ count: orders.length, subtotal, discount, service, total, method, paidCash, paidCard });
 }

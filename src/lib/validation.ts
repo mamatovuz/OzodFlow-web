@@ -39,6 +39,7 @@ export const restaurantSchema = z.object({
   orderChatId: z.string().max(120).optional().nullable(),
   cardNumber: z.string().max(40).optional().nullable(),
   cardHolder: z.string().max(80).optional().nullable(),
+  serviceRate: z.number().min(0).max(100).optional(),
   customDomain: z.string().optional().nullable(),
 });
 

@@ -43,7 +43,7 @@ export default async function SettingsPage() {
       </Card>
 
       {/* To'lov kartasi (ofitsant panelida karta to'lovi uchun) */}
-      <PaymentCardSettings number={restaurant.cardNumber} holder={restaurant.cardHolder} />
+      <PaymentCardSettings number={restaurant.cardNumber} holder={restaurant.cardHolder} serviceRate={restaurant.serviceRate} />
 
       {/* Funksiyalar — ofitsant kodi */}
       <WaiterCodeToggle enabled={restaurant.waiterCodeEnabled} />

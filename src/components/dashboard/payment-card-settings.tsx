@@ -1,29 +1,33 @@
 "use client";
 
 import { useState } from "react";
-import { CreditCard, Loader2, Check } from "lucide-react";
+import { CreditCard, Loader2, Check, Percent } from "lucide-react";
 import { Card, Button, Input, Label } from "@/components/ui";
 
 // Restoran to'lov kartasi — ofitsant "Karta" to'lovini tanlaganda shu raqam+ism chiqadi.
 export function PaymentCardSettings({
   number,
   holder,
+  serviceRate,
 }: {
   number: string | null;
   holder: string | null;
+  serviceRate?: number;
 }) {
   const [cardNumber, setCardNumber] = useState(number || "");
   const [cardHolder, setCardHolder] = useState(holder || "");
+  const [svcRate, setSvcRate] = useState(String(serviceRate ?? 0));
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
 
   async function save() {
     setBusy(true);
     setSaved(false);
+    const rate = Math.min(100, Math.max(0, Number(svcRate.replace(/\D/g, "")) || 0));
     const res = await fetch("/api/restaurant", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cardNumber: cardNumber.trim() || null, cardHolder: cardHolder.trim() || null }),
+      body: JSON.stringify({ cardNumber: cardNumber.trim() || null, cardHolder: cardHolder.trim() || null, serviceRate: rate }),
     });
     setBusy(false);
     if (res.ok) {
@@ -68,6 +72,28 @@ export function PaymentCardSettings({
             onChange={(e) => setCardHolder(e.target.value)}
             placeholder="ALIYEV KAMRON"
           />
+        </div>
+      </div>
+
+      {/* Xizmat haqi (servis) foizi */}
+      <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-2/50 p-4">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-soft text-accent">
+            <Percent className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="text-sm font-medium text-foreground">Standart xizmat haqi</p>
+            <p className="text-xs text-muted">To'lov oynasida shu foiz avtomatik taklif qilinadi (0 = o'chiq)</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Input
+            value={svcRate}
+            onChange={(e) => setSvcRate(e.target.value.replace(/\D/g, "").slice(0, 3))}
+            inputMode="numeric"
+            className="w-16 text-center font-semibold"
+          />
+          <span className="text-sm font-medium text-muted">%</span>
         </div>
       </div>
 

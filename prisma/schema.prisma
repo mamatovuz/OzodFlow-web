@@ -150,6 +150,7 @@ model Restaurant {
   // ─── Ofitsant to'lovi uchun karta (kartadan to'lovda ko'rsatiladi) ───
   cardNumber      String? // to'lov kartasi raqami (masalan 8600 1234 5678 9012)
   cardHolder      String? // karta egasi ismi
+  serviceRate     Float     @default(0) // standart xizmat haqi foizi (%), to'lovda taklif qilinadi
   customDomain    String?   @unique // o'z domeni (Pro/Pro Max)
   plan            String    @default("FREE") // FREE | PRO | PROMAX
   planUntil       DateTime? // FREE trial muddati; pullik tariflarda null = umrbod
@@ -421,6 +422,13 @@ model Order {
   paidCash     Float? // naqd qismi
   paidCard     Float? // karta qismi
   paidAt       DateTime?
+  // ─── Chegirma va xizmat haqi (stol hisobiga to'lov paytida qo'llanadi) ───
+  subtotal     Float    @default(0) // chegirma/servisdan oldingi asl summa (yaratilganda = total)
+  discount     Float    @default(0) // qo'llangan chegirma summasi (so'm)
+  discountType String? // PERCENT | AMOUNT (audit uchun)
+  serviceCharge Float   @default(0) // xizmat haqi summasi (so'm)
+  // ─── Void (bekor qilingan taomlar jurnali) ───
+  voidLog      String? // JSON: [{name, qty, reason, at, by}]
   // ─── Telegram Mini App (bot orqali kelgan buyurtma) ───
   tgChatId     String? // mijoz Telegram chat ID si — holat o'zgarishini push qilish uchun
   // ─── POS ga yuborish holati ───

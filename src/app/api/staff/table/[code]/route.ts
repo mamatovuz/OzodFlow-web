@@ -36,6 +36,7 @@ export async function GET(
     orders,
     total,
     currency: restaurant.currency,
+    serviceRate: restaurant.serviceRate ?? 0,
     card: { number: restaurant.cardNumber, holder: restaurant.cardHolder },
   });
 }

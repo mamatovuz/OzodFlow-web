@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Loader2, Volume2, VolumeX, LogOut, Bell, BellRing, Receipt, ChevronLeft, Plus, Minus,
-  X, Check, Utensils, Coins, CreditCard, Wallet, Search, ConciergeBell, Armchair,
+  X, Check, Utensils, Coins, CreditCard, Wallet, Search, ConciergeBell, Armchair, Percent,
 } from "lucide-react";
 import { parseJson, formatPrice } from "@/lib/utils";
 import type { OrderItem } from "@/lib/orders";
@@ -325,9 +325,12 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
   const [tableName, setTableName] = useState("");
   const [total, setTotal] = useState(0);
   const [card, setCard] = useState<Card>({ number: null, holder: null });
+  const [serviceRate, setServiceRate] = useState(0);
   const [loading, setLoading] = useState(true);
   const [picker, setPicker] = useState(false);
   const [pay, setPay] = useState(false);
+  // Void — bekor qilinayotgan taom { orderId, item }
+  const [voiding, setVoiding] = useState<{ orderId: string; item: OrderItem } | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/staff/table/${code}`);
@@ -337,6 +340,7 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
       setTableName(json.data.table.name);
       setTotal(json.data.total);
       setCard(json.data.card);
+      setServiceRate(json.data.serviceRate ?? 0);
     }
     setLoading(false);
   }, [code]);
@@ -391,12 +395,21 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
                   </div>
                   <ul className="space-y-1">
                     {items.map((it, i) => (
-                      <li key={i} className="flex justify-between gap-2 text-sm">
-                        <span className="text-foreground">
+                      <li key={i} className="flex items-start justify-between gap-2 text-sm">
+                        <span className="min-w-0 text-foreground">
                           <b className="text-accent">{it.qty}×</b> {it.name}
                           {it.comment ? <span className="block text-[11px] text-warning">↳ {it.comment}</span> : null}
                         </span>
-                        <span className="shrink-0 text-foreground">{formatPrice(it.price * it.qty, currency)}</span>
+                        <span className="flex shrink-0 items-center gap-1.5">
+                          <span className="text-foreground">{formatPrice(it.price * it.qty, currency)}</span>
+                          <button
+                            onClick={() => setVoiding({ orderId: o.id, item: it })}
+                            title="Bekor qilish"
+                            className="flex h-6 w-6 items-center justify-center rounded-md text-muted/60 transition hover:bg-error/10 hover:text-error"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -449,7 +462,100 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
       </div>
 
       {picker && <MenuPicker code={code} currency={currency} onClose={() => setPicker(false)} onSent={() => { setPicker(false); load(); }} />}
-      {pay && <PaymentModal code={code} total={total} card={card} currency={currency} onClose={() => setPay(false)} onPaid={() => { setPay(false); onClose(); }} />}
+      {pay && <PaymentModal code={code} subtotal={total} serviceRate={serviceRate} card={card} currency={currency} onClose={() => setPay(false)} onPaid={() => { setPay(false); onClose(); }} />}
+      {voiding && (
+        <VoidModal
+          orderId={voiding.orderId}
+          item={voiding.item}
+          currency={currency}
+          onClose={() => setVoiding(null)}
+          onDone={() => { setVoiding(null); load(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Void: taomni bekor qilish / miqdorini kamaytirish ───
+const VOID_REASONS = ["Mijoz bekor qildi", "Xato kiritildi", "Mahsulot tugadi", "Sifatsiz"];
+
+function VoidModal({ orderId, item, currency, onClose, onDone }: {
+  orderId: string; item: OrderItem; currency: string; onClose: () => void; onDone: () => void;
+}) {
+  const [removeQty, setRemoveQty] = useState(item.qty); // nechtasi bekor qilinsin
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const newQty = item.qty - removeQty;
+
+  async function submit() {
+    setError("");
+    setBusy(true);
+    const res = await fetch("/api/staff/orders", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId, productId: item.productId, newQty, reason: reason.trim() || undefined }),
+    });
+    const json = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setError(json.error || "Amalga oshmadi"); return; }
+    onDone();
+  }
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-sm rounded-t-3xl bg-card p-5 animate-fade-up sm:rounded-3xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-semibold text-foreground">Taomni bekor qilish</h2>
+          <button onClick={onClose} className="text-muted hover:text-foreground"><X className="h-5 w-5" /></button>
+        </div>
+
+        <div className="mb-4 rounded-xl bg-surface-2 p-3">
+          <p className="font-medium text-foreground">{item.name}</p>
+          <p className="text-sm text-muted">Hozir {item.qty} ta · {formatPrice(item.price, currency)}/dona</p>
+        </div>
+
+        {/* Nechtasini bekor qilish */}
+        {item.qty > 1 && (
+          <div className="mb-4">
+            <label className="mb-1.5 block text-xs text-muted">Nechtasi bekor qilinsin?</label>
+            <div className="flex items-center justify-center gap-4">
+              <button onClick={() => setRemoveQty((q) => Math.max(1, q - 1))} className="flex h-11 w-11 items-center justify-center rounded-xl border-2 border-border text-foreground active:scale-90"><Minus className="h-5 w-5" /></button>
+              <span className="min-w-10 text-center text-2xl font-bold tabular-nums text-foreground">{removeQty}</span>
+              <button onClick={() => setRemoveQty((q) => Math.min(item.qty, q + 1))} className="flex h-11 w-11 items-center justify-center rounded-xl border-2 border-border text-foreground active:scale-90"><Plus className="h-5 w-5" /></button>
+            </div>
+            <p className="mt-1.5 text-center text-xs text-muted">
+              {newQty > 0 ? `${newQty} ta qoladi` : "Butunlay olib tashlanadi"}
+            </p>
+          </div>
+        )}
+
+        {/* Sabab */}
+        <label className="mb-1.5 block text-xs text-muted">Sabab</label>
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {VOID_REASONS.map((r) => (
+            <button key={r} onClick={() => setReason(r)} className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${reason === r ? "bg-error text-white" : "bg-surface-2 text-muted"}`}>{r}</button>
+          ))}
+        </div>
+        <input
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Yoki o'zingiz yozing..."
+          className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-accent"
+        />
+
+        {error && <div className="mt-3 rounded-lg bg-error/10 px-3 py-2 text-sm text-error">{error}</div>}
+
+        <button
+          onClick={submit}
+          disabled={busy}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-error py-3 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-40"
+        >
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+          {newQty > 0 ? `${removeQty} ta bekor qilish` : "Taomni olib tashlash"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -677,13 +783,27 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
   );
 }
 
-// ─── To'lov ───
-function PaymentModal({ code, total, card, currency, onClose, onPaid }: { code: string; total: number; card: Card; currency: string; onClose: () => void; onPaid: () => void }) {
+// ─── To'lov (chegirma + xizmat haqi bilan) ───
+function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, onPaid }: { code: string; subtotal: number; serviceRate: number; card: Card; currency: string; onClose: () => void; onPaid: () => void }) {
   const [method, setMethod] = useState<"CASH" | "CARD" | "MIXED" | null>(null);
   const [cash, setCash] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+  // Chegirma
+  const [discMode, setDiscMode] = useState<"NONE" | "PERCENT" | "AMOUNT">("NONE");
+  const [discVal, setDiscVal] = useState("");
+  // Xizmat haqi (restoran sozlamasidagi foizdan boshlanadi)
+  const [svcOn, setSvcOn] = useState(serviceRate > 0);
+  const [svcPct, setSvcPct] = useState(String(serviceRate || 10));
+
+  const discInput = Math.max(0, Number(discVal.replace(/\D/g, "")) || 0);
+  const discountAmount = discMode === "NONE" ? 0
+    : discMode === "PERCENT" ? Math.round((subtotal * Math.min(discInput, 100)) / 100)
+    : Math.min(discInput, subtotal);
+  const svcPctNum = Math.max(0, Number(svcPct.replace(/\D/g, "")) || 0);
+  const serviceAmount = svcOn ? Math.round((subtotal * svcPctNum) / 100) : 0;
+  const total = Math.max(0, subtotal - discountAmount + serviceAmount);
 
   const cashNum = Math.max(0, Number(cash.replace(/\D/g, "")) || 0);
   const cardNum = Math.max(0, total - cashNum);
@@ -692,6 +812,8 @@ function PaymentModal({ code, total, card, currency, onClose, onPaid }: { code: 
     setError("");
     setBusy(true);
     const bodyData: Record<string, unknown> = { tableCode: code, method };
+    if (discountAmount > 0) { bodyData.discount = discountAmount; bodyData.discountType = discMode; }
+    if (serviceAmount > 0) { bodyData.service = serviceAmount; }
     if (method === "MIXED") { bodyData.cash = cashNum; bodyData.card = cardNum; }
     const res = await fetch("/api/staff/pay", {
       method: "POST",
@@ -707,9 +829,9 @@ function PaymentModal({ code, total, card, currency, onClose, onPaid }: { code: 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center">
       <div className="absolute inset-0 bg-black/50" onClick={done ? onPaid : onClose} />
-      <div className="relative z-10 w-full max-w-md rounded-t-3xl bg-card p-5 animate-fade-up sm:rounded-3xl">
+      <div className="relative z-10 flex max-h-[92vh] w-full max-w-md flex-col rounded-t-3xl bg-card animate-fade-up sm:rounded-3xl">
         {done ? (
-          <div className="flex flex-col items-center py-6 text-center">
+          <div className="flex flex-col items-center p-5 py-8 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success/10 text-success"><Check className="h-9 w-9" /></div>
             <h2 className="mt-4 text-xl font-bold text-foreground">To'lov qabul qilindi!</h2>
             <p className="mt-1 text-muted">{formatPrice(total, currency)} · {method === "CASH" ? "Naqd" : method === "CARD" ? "Karta" : "Aralash"}</p>
@@ -717,14 +839,56 @@ function PaymentModal({ code, total, card, currency, onClose, onPaid }: { code: 
           </div>
         ) : (
           <>
-            <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center justify-between px-5 pb-3 pt-5">
               <h2 className="font-semibold text-foreground">To'lov</h2>
               <button onClick={onClose} className="text-muted hover:text-foreground"><X className="h-5 w-5" /></button>
             </div>
 
-            <div className="mb-4 rounded-xl bg-surface-2 p-4 text-center">
-              <p className="text-xs text-muted">To'lov summasi</p>
-              <p className="text-3xl font-extrabold text-foreground">{formatPrice(total, currency)}</p>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5">
+            {/* Hisob-kitob */}
+            <div className="mb-4 space-y-1.5 rounded-xl bg-surface-2 p-4">
+              <Row label="Oraliq summa" value={formatPrice(subtotal, currency)} />
+              {discountAmount > 0 && <Row label={`Chegirma${discMode === "PERCENT" ? ` (${Math.min(discInput, 100)}%)` : ""}`} value={`− ${formatPrice(discountAmount, currency)}`} accent="text-error" />}
+              {serviceAmount > 0 && <Row label={`Xizmat haqi (${svcPctNum}%)`} value={`+ ${formatPrice(serviceAmount, currency)}`} accent="text-warning" />}
+              <div className="mt-1.5 flex items-center justify-between border-t border-border pt-2.5">
+                <span className="text-sm font-medium text-foreground">Jami</span>
+                <span className="text-2xl font-extrabold text-foreground">{formatPrice(total, currency)}</span>
+              </div>
+            </div>
+
+            {/* Chegirma */}
+            <div className="mb-3">
+              <div className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted"><Percent className="h-3.5 w-3.5" /> Chegirma</div>
+              <div className="flex gap-2">
+                <div className="flex overflow-hidden rounded-lg border border-border">
+                  {(["NONE", "PERCENT", "AMOUNT"] as const).map((m) => (
+                    <button key={m} onClick={() => setDiscMode(m)} className={`px-3 py-2 text-xs font-semibold transition ${discMode === m ? "bg-accent text-white" : "bg-card text-muted"}`}>
+                      {m === "NONE" ? "Yo'q" : m === "PERCENT" ? "%" : "So'm"}
+                    </button>
+                  ))}
+                </div>
+                {discMode !== "NONE" && (
+                  <input value={discVal} onChange={(e) => setDiscVal(e.target.value)} inputMode="numeric" placeholder={discMode === "PERCENT" ? "10" : "50000"}
+                    className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground outline-none focus:border-accent" />
+                )}
+              </div>
+            </div>
+
+            {/* Xizmat haqi */}
+            <div className="mb-4 flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
+              <button onClick={() => setSvcOn((s) => !s)} className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <span className={`flex h-5 w-9 items-center rounded-full p-0.5 transition ${svcOn ? "bg-accent" : "bg-surface-2"}`}>
+                  <span className={`h-4 w-4 rounded-full bg-white shadow transition ${svcOn ? "translate-x-4" : ""}`} />
+                </span>
+                Xizmat haqi
+              </button>
+              {svcOn && (
+                <div className="flex items-center gap-1">
+                  <input value={svcPct} onChange={(e) => setSvcPct(e.target.value)} inputMode="numeric"
+                    className="h-8 w-14 rounded-lg border border-border bg-card px-2 text-center text-sm font-semibold text-foreground outline-none focus:border-accent" />
+                  <span className="text-sm text-muted">%</span>
+                </div>
+              )}
             </div>
 
             {/* Usul tanlash */}
@@ -771,18 +935,32 @@ function PaymentModal({ code, total, card, currency, onClose, onPaid }: { code: 
             )}
 
             {error && <div className="mt-3 rounded-lg bg-error/10 px-3 py-2 text-sm text-error">{error}</div>}
+            </div>
 
-            <button
-              onClick={pay}
-              disabled={!method || busy}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-40"
-            >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              To'lovni yakunlash
-            </button>
+            {/* Pastki sticky — to'lov tugmasi */}
+            <div className="border-t border-border p-4" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
+              <button
+                onClick={pay}
+                disabled={!method || busy}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-[15px] font-semibold text-white active:scale-[0.98] disabled:opacity-40"
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                {formatPrice(total, currency)} · To'lovni yakunlash
+              </button>
+            </div>
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+// To'lov hisob-kitob qatori
+function Row({ label, value, accent }: { label: string; value: string; accent?: string }) {
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className="text-muted">{label}</span>
+      <span className={`font-medium ${accent || "text-foreground"}`}>{value}</span>
     </div>
   );
 }

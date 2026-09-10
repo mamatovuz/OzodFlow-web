@@ -126,24 +126,25 @@ export function WaiterPanel({
 
   return (
     <div className="flex min-h-screen flex-col bg-surface">
-      <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-card px-4 py-3">
+      <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-border bg-card/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-white">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-accent-hover text-white shadow-md">
             <ConciergeBell className="h-5 w-5" />
           </span>
           <div className="min-w-0">
-            <p className="truncate font-bold leading-tight text-foreground">Ofitsant</p>
+            <p className="truncate text-[15px] font-bold leading-tight text-foreground">Ofitsant paneli</p>
             <p className="truncate text-xs text-muted">{restaurantName} · {staffName}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setSoundOn((s) => !s)}
-            className={`inline-flex h-10 w-10 items-center justify-center rounded-lg border transition ${soundOn ? "border-accent/40 bg-accent-soft text-accent" : "border-border text-muted"}`}
+            title={soundOn ? "Ovoz yoqilgan" : "Ovoz o'chirilgan"}
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border transition ${soundOn ? "border-accent/40 bg-accent-soft text-accent" : "border-border text-muted"}`}
           >
             {soundOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
           </button>
-          <button onClick={logout} className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border text-muted hover:text-error">
+          <button onClick={logout} title="Chiqish" className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-border text-muted transition hover:border-error/40 hover:bg-error/5 hover:text-error">
             <LogOut className="h-5 w-5" />
           </button>
         </div>
@@ -154,10 +155,25 @@ export function WaiterPanel({
           <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-accent" /></div>
         ) : (
           <>
-            {/* Salom + statistika */}
-            <div className="mb-4">
+            {/* Salom + ish oqimi */}
+            <div className="mb-4 overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-accent-soft/70 to-card p-4 shadow-soft">
               <h1 className="text-lg font-bold text-foreground">Salom, {staffName} 👋</h1>
-              <p className="mt-0.5 text-sm text-muted">Stolni bosing → taom qo'shing → oshxonaga yuboring → to'lov</p>
+              <p className="mt-0.5 text-sm text-muted">Bugungi smenangiz — bir necha bosqichda buyurtma:</p>
+              <div className="mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-2">
+                {[
+                  { n: "1", t: "Stolni bosing", icon: Armchair },
+                  { n: "2", t: "Taom qo'shing", icon: Utensils },
+                  { n: "3", t: "Oshxonaga", icon: ConciergeBell },
+                  { n: "4", t: "To'lov", icon: Wallet },
+                ].map((s, i, arr) => (
+                  <span key={s.n} className="flex items-center gap-1.5">
+                    <span className="flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium text-foreground shadow-soft">
+                      <s.icon className="h-3.5 w-3.5 text-accent" /> {s.t}
+                    </span>
+                    {i < arr.length - 1 && <ChevronLeft className="h-3.5 w-3.5 rotate-180 text-muted/50" />}
+                  </span>
+                ))}
+              </div>
             </div>
 
             {/* TAYYOR — yetkazish kerak (oshxona tayyorlab bo'ldi) */}
@@ -257,9 +273,9 @@ export function WaiterPanel({
 
 // ─── Stol kartasi ───
 const STATUS_STYLE: Record<string, { ring: string; dot: string; label: string; bg: string; icon: string; badge: string }> = {
-  FREE: { ring: "border-success/30", dot: "bg-success", label: "Bo'sh", bg: "bg-card", icon: "text-success/60", badge: "text-success" },
-  ACTIVE: { ring: "border-error/50", dot: "bg-error", label: "Band", bg: "bg-error/5", icon: "text-error", badge: "text-error" },
-  BILL: { ring: "border-warning/50", dot: "bg-warning", label: "To'lov", bg: "bg-warning/5", icon: "text-warning", badge: "text-warning" },
+  FREE: { ring: "border-success/25", dot: "bg-success", label: "Bo'sh", bg: "bg-card", icon: "text-success/60", badge: "text-success" },
+  ACTIVE: { ring: "border-error/50", dot: "bg-error", label: "Band", bg: "bg-gradient-to-br from-error/10 to-error/5", icon: "text-error", badge: "text-error" },
+  BILL: { ring: "border-warning/50", dot: "bg-warning", label: "To'lov", bg: "bg-gradient-to-br from-warning/10 to-warning/5", icon: "text-warning", badge: "text-warning" },
 };
 
 function TableCard({ table, currency, onOpen }: { table: TableRow; currency: string; onOpen: () => void }) {
@@ -268,20 +284,22 @@ function TableCard({ table, currency, onOpen }: { table: TableRow; currency: str
   return (
     <button
       onClick={onOpen}
-      className={`relative flex min-h-[104px] flex-col items-center justify-center rounded-2xl border-2 p-2.5 shadow-soft transition active:scale-95 ${s.ring} ${s.bg}`}
+      className={`relative flex min-h-[110px] flex-col items-center justify-center rounded-2xl border-2 p-2.5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-card active:scale-95 ${s.ring} ${s.bg}`}
     >
       {busy && table.orders > 0 && (
-        <span className={`absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ${table.status === "BILL" ? "bg-warning" : "bg-error"}`}>
+        <span className={`absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold text-white shadow-sm ${table.status === "BILL" ? "bg-warning" : "bg-error"}`}>
           {table.orders}
         </span>
       )}
-      <Armchair className={`h-7 w-7 ${s.icon}`} />
-      <span className="mt-1 text-base font-bold leading-none text-foreground">{table.name}</span>
+      <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${busy ? "bg-white/60 dark:bg-white/10" : "bg-surface"}`}>
+        <Armchair className={`h-6 w-6 ${s.icon}`} />
+      </span>
+      <span className="mt-1.5 text-base font-bold leading-none text-foreground">{table.name}</span>
       {/* Holat har doim so'z bilan — bir qarashda tushunarli */}
       <span className={`mt-1 flex items-center gap-1 text-[11px] font-semibold ${s.badge}`}>
-        <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} /> {s.label}
+        <span className={`h-1.5 w-1.5 rounded-full ${s.dot} ${busy ? "animate-pulse" : ""}`} /> {s.label}
       </span>
-      {busy && <span className="text-[11px] font-medium text-foreground">{formatPrice(table.total, currency)}</span>}
+      {busy && <span className="mt-0.5 text-[11px] font-bold text-foreground">{formatPrice(table.total, currency)}</span>}
     </button>
   );
 }
@@ -299,21 +317,23 @@ function Legend() {
 function StatBox({ label, value, icon: Icon, highlight }: { label: string; value: string; icon: typeof Bell; highlight?: boolean }) {
   if (highlight) {
     return (
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-accent to-accent-hover p-3 text-white shadow-md">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-accent to-accent-hover p-3.5 text-white shadow-md">
+        {/* Bezak nuri */}
+        <span className="pointer-events-none absolute -right-4 -top-4 h-16 w-16 rounded-full bg-white/10" />
+        <span className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
           <Icon className="h-4 w-4" />
         </span>
-        <p className="mt-2 text-sm font-extrabold leading-tight">{value}</p>
-        <p className="text-[11px] opacity-90">{label}</p>
+        <p className="relative mt-2.5 text-base font-extrabold leading-tight">{value}</p>
+        <p className="relative text-[11px] opacity-90">{label}</p>
       </div>
     );
   }
   return (
-    <div className="rounded-2xl border border-border bg-card p-3 shadow-soft">
-      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-soft text-accent">
+    <div className="rounded-2xl border border-border bg-card p-3.5 shadow-soft transition hover:border-accent/30">
+      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent">
         <Icon className="h-4 w-4" />
       </span>
-      <p className="mt-2 text-sm font-bold leading-tight text-foreground">{value}</p>
+      <p className="mt-2.5 text-base font-extrabold leading-tight text-foreground">{value}</p>
       <p className="text-[11px] text-muted">{label}</p>
     </div>
   );

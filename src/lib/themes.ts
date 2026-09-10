@@ -26,7 +26,11 @@ export type ThemeKey =
   | "delever"
   | "sultan"
   | "fiesta"
-  | "prestij";
+  | "prestij"
+  | "signature"
+  | "editorial"
+  | "showcase"
+  | "night";
 
 export type ThemeLayout = "list" | "grid";
 
@@ -545,6 +549,84 @@ export const MENU_THEMES: MenuTheme[] = [
       border: "#26262b",
     },
   },
+  // ─── Yangi professional Digital Menu template'lari ───
+  // Bularning har biri alohida layout primitivi bilan chiziladi (public-menu → TemplateMenu).
+  {
+    key: "signature",
+    name: "Signature",
+    premium: true,
+    isDark: false,
+    layout: "grid",
+    radius: 14,
+    accent: "#A9762F",
+    accentText: "#ffffff",
+    colors: {
+      background: "#FBF9F5",
+      surface: "#F3EFE8",
+      surface2: "#E9E3D8",
+      card: "#FFFFFF",
+      foreground: "#211C15",
+      muted: "#7A7264",
+      border: "#E7DFD2",
+    },
+  },
+  {
+    key: "editorial",
+    name: "Editorial",
+    premium: true,
+    isDark: false,
+    layout: "list",
+    radius: 8,
+    accent: "#9E3B2E",
+    accentText: "#ffffff",
+    colors: {
+      background: "#FCFBF8",
+      surface: "#F4F1EA",
+      surface2: "#EAE5DA",
+      card: "#FFFFFF",
+      foreground: "#1C1A17",
+      muted: "#6E685E",
+      border: "#E7E1D5",
+    },
+  },
+  {
+    key: "showcase",
+    name: "Showcase",
+    premium: true,
+    isDark: false,
+    layout: "grid",
+    radius: 18,
+    accent: "#1F2937",
+    accentText: "#ffffff",
+    colors: {
+      background: "#FFFFFF",
+      surface: "#F6F7F9",
+      surface2: "#EDEFF3",
+      card: "#FFFFFF",
+      foreground: "#0F172A",
+      muted: "#64748B",
+      border: "#E7E9EE",
+    },
+  },
+  {
+    key: "night",
+    name: "Night",
+    premium: true,
+    isDark: true,
+    layout: "list",
+    radius: 10,
+    accent: "#C9A24B",
+    accentText: "#0B0B0C",
+    colors: {
+      background: "#0B0B0C",
+      surface: "#141416",
+      surface2: "#1D1D20",
+      card: "#141416",
+      foreground: "#F1EEE7",
+      muted: "#9A948A",
+      border: "#2A2A2E",
+    },
+  },
 ];
 
 export function getTheme(key: string | null | undefined): MenuTheme {
@@ -588,6 +670,10 @@ const CATEGORY_STYLE: Record<ThemeKey, CategoryStyle> = {
   sultan: "banner",
   fiesta: "banner",
   prestij: "banner",
+  signature: "grid",
+  editorial: "list",
+  showcase: "grid",
+  night: "list",
 };
 
 const HEADER_STYLE: Record<ThemeKey, HeaderStyle> = {
@@ -615,6 +701,10 @@ const HEADER_STYLE: Record<ThemeKey, HeaderStyle> = {
   sultan: "center",
   fiesta: "center",
   prestij: "prestij",
+  signature: "center",
+  editorial: "minimal",
+  showcase: "overlap",
+  night: "center",
 };
 
 export function categoryStyleFor(key: string): CategoryStyle {
@@ -629,7 +719,15 @@ export function headerStyleFor(key: string): HeaderStyle {
 // browse = kategoriyaga kirish; split = chap rail; tabs = tepada tab + bitta kategoriya
 // scroll = planshet uslubi: uzun kategoriya tablari + scroll-spy (pastga tushgani
 //          sari kategoriya avtomatik almashadi), barcha kategoriyalar ketma-ket.
-export type MenuStyle = "browse" | "split" | "tabs" | "scroll";
+export type MenuStyle =
+  | "browse"
+  | "split"
+  | "tabs"
+  | "scroll"
+  | "signature"
+  | "editorial"
+  | "showcase"
+  | "night";
 
 const MENU_STYLE: Record<ThemeKey, MenuStyle> = {
   light: "browse",
@@ -656,6 +754,10 @@ const MENU_STYLE: Record<ThemeKey, MenuStyle> = {
   sultan: "browse",
   fiesta: "tabs",
   prestij: "browse",
+  signature: "signature",
+  editorial: "editorial",
+  showcase: "showcase",
+  night: "night",
 };
 
 export function menuStyleFor(key: string): MenuStyle {

@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { PwaRegister } from "@/components/pwa-register";
-import { InstallButton } from "@/components/install-button";
 import { VisitTracker } from "@/components/visit-tracker";
 import "./globals.css";
 
@@ -66,7 +65,6 @@ export default function RootLayout({
       <body>
         <ThemeProvider>{children}</ThemeProvider>
         <PwaRegister />
-        <InstallButton />
         <VisitTracker />
       </body>
     </html>

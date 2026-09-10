@@ -318,6 +318,12 @@ export function PublicMenu({
   const isSplit = menuStyle === "split";
   const isTabs = menuStyle === "tabs";
   const isScroll = menuStyle === "scroll";
+  // Yangi professional template'lar (uzluksiz bo'limli, scroll-spy layout)
+  const isTemplate =
+    menuStyle === "signature" ||
+    menuStyle === "editorial" ||
+    menuStyle === "showcase" ||
+    menuStyle === "night";
   // Savat bor-yo'qligi (vitrina dizayni — faqat ko'rish, savatsiz).
   // Oldindan ko'rish rejimida ham savat/buyurtma o'chiriladi (faqat ko'rsatish uchun).
   const showCart = preview ? false : menuHasCart(theme.key);
@@ -984,8 +990,25 @@ export function PublicMenu({
             />
           )}
 
+          {/* ─── TEMPLATE layout: professional uzluksiz bo'limli menyu ─── */}
+          {!searching && isTemplate && grouped.length > 0 && (
+            <TemplateMenu
+              variant={menuStyle as "signature" | "editorial" | "showcase" | "night"}
+              groups={grouped}
+              renderItems={renderItems}
+              recommended={recommended}
+              accent={accent}
+              accentText={accentText}
+              radius={R}
+              currency={restaurant.currency}
+              onOpen={openDetail}
+              onAdd={addToCart}
+              cart={cart}
+            />
+          )}
+
           {/* Kategoriya ichi: orqaga tugma + shu kategoriya mahsulotlari */}
-          {!searching && !isSplit && !isTabs && !isScroll && currentGroup && (
+          {!searching && !isSplit && !isTabs && !isScroll && !isTemplate && currentGroup && (
             <div className="animate-fade-up">
               <button
                 onClick={exitCat}
@@ -1012,7 +1035,7 @@ export function PublicMenu({
           )}
 
           {/* Barcha kategoriyalar — shablonga qarab (banner / grid / list) */}
-          {showBrowse && !isSplit && !isTabs && !isScroll && (
+          {showBrowse && !isSplit && !isTabs && !isScroll && !isTemplate && (
             <div className={catStyle === "grid" ? "grid grid-cols-2 gap-3" : "space-y-3"}>
               {grouped.map((g) => (
                 <CategoryCard
@@ -1352,6 +1375,282 @@ function ScrollMenu({
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ─────────── TEMPLATE menyu: professional uzluksiz bo'limli layout ───────────
+// Signature / Editorial / Showcase / Night — bir xil scroll-spy va cart mantig'i,
+// faqat prezentatsiya (bo'lim sarlavhalari, tab uslubi, karta joylashuvi) farq qiladi.
+type TemplateVariant = "signature" | "editorial" | "showcase" | "night";
+
+function TemplateMenu({
+  variant,
+  groups,
+  renderItems,
+  recommended,
+  accent,
+  accentText,
+  radius,
+  currency,
+  onOpen,
+  onAdd,
+  cart,
+}: {
+  variant: TemplateVariant;
+  groups: { category: { id: string; name: string; image: string | null }; items: PublicProduct[] }[];
+  renderItems: (list: PublicProduct[], gridClass?: string) => React.ReactNode;
+  recommended: PublicProduct[];
+  accent: string;
+  accentText: string;
+  radius: number;
+  currency: string;
+  onOpen: (p: PublicProduct) => void;
+  onAdd: (id: string) => void;
+  cart: Record<string, number>;
+}) {
+  const [active, setActive] = useState(groups[0]?.category.id ?? "");
+  const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const tabRowRef = useRef<HTMLDivElement | null>(null);
+  const clickLock = useRef(false);
+  const rafRef = useRef(0);
+  const groupIds = groups.map((g) => g.category.id).join(",");
+
+  // Scroll-spy — qaysi bo'lim tab qatori ostiga yaqin ekanini aniqlaydi
+  useEffect(() => {
+    function lineY() {
+      const bar = tabRowRef.current;
+      return (bar ? bar.getBoundingClientRect().bottom : 104) + 6;
+    }
+    function compute() {
+      if (clickLock.current) return;
+      const line = lineY();
+      let current = groups[0]?.category.id ?? "";
+      for (const g of groups) {
+        const el = sectionRefs.current[g.category.id];
+        if (el && el.getBoundingClientRect().top <= line) current = g.category.id;
+      }
+      if (current) setActive(current);
+    }
+    function onScroll() {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(compute);
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    compute();
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(rafRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupIds]);
+
+  // Faol tab qatorda ko'rinib turishi uchun o'rtaga suriladi
+  useEffect(() => {
+    const tab = tabRefs.current[active];
+    const row = tabRowRef.current;
+    if (!tab || !row) return;
+    const target = tab.offsetLeft - row.clientWidth / 2 + tab.clientWidth / 2;
+    row.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
+  }, [active]);
+
+  function goTo(id: string) {
+    setActive(id);
+    clickLock.current = true;
+    const bar = tabRowRef.current;
+    const line = bar ? bar.getBoundingClientRect().bottom : 104;
+    const el = sectionRefs.current[id];
+    if (el) {
+      const y = el.getBoundingClientRect().top + window.scrollY - line - 2;
+      window.scrollTo({ top: y, behavior: "smooth" });
+    }
+    window.setTimeout(() => {
+      clickLock.current = false;
+    }, 700);
+  }
+
+  const minimalTabs = variant === "editorial" || variant === "showcase";
+  // Har bir bo'limdagi mahsulot kartalari ustun sinfi
+  const gridClass =
+    variant === "showcase"
+      ? "grid-cols-1"
+      : variant === "signature"
+      ? "grid-cols-2 md:grid-cols-3"
+      : "grid-cols-2"; // editorial/night — list layout (theme.layout=list) bu sinfni e'tiborsiz qoldiradi
+  const sectionGap =
+    variant === "editorial" ? "space-y-14" : variant === "showcase" ? "space-y-12" : "space-y-10";
+
+  // Signature — tavsiya etilgan taomlar (featured) gorizontal lentasi
+  const featured = variant === "signature" ? recommended.slice(0, 8) : [];
+
+  return (
+    <div>
+      {/* Yopishqoq kategoriya qatori */}
+      <div
+        ref={tabRowRef}
+        className={`sticky top-14 z-30 -mx-3 flex gap-2 overflow-x-auto border-b border-border bg-background/95 px-3 py-2.5 backdrop-blur sm:-mx-4 sm:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+          minimalTabs ? "gap-5" : "gap-2"
+        }`}
+      >
+        {groups.map((g) => {
+          const on = g.category.id === active;
+          if (minimalTabs) {
+            // Editorial/Showcase — ixcham matnli tab (ostki chiziq bilan)
+            return (
+              <button
+                key={g.category.id}
+                ref={(el) => {
+                  tabRefs.current[g.category.id] = el;
+                }}
+                onClick={() => goTo(g.category.id)}
+                className="relative shrink-0 whitespace-nowrap py-1 text-sm font-semibold uppercase tracking-wide transition-colors"
+                style={{ color: on ? "var(--foreground)" : "var(--muted)" }}
+              >
+                {g.category.name}
+                <span
+                  className="absolute -bottom-0.5 left-0 h-0.5 rounded-full transition-all"
+                  style={{ width: on ? "100%" : 0, background: accent }}
+                />
+              </button>
+            );
+          }
+          // Signature/Night — pill uslubi
+          return (
+            <button
+              key={g.category.id}
+              ref={(el) => {
+                tabRefs.current[g.category.id] = el;
+              }}
+              onClick={() => goTo(g.category.id)}
+              className="shrink-0 whitespace-nowrap px-4 py-2 text-sm font-semibold transition-colors"
+              style={
+                on
+                  ? { background: accent, color: accentText, borderRadius: 999 }
+                  : { borderRadius: 999, background: "var(--surface-2)", color: "var(--foreground)" }
+              }
+            >
+              {g.category.name}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Signature — featured taomlar lentasi */}
+      {variant === "signature" && featured.length > 0 && (
+        <div className="mt-6">
+          <div className="mb-3 flex items-center gap-2">
+            <Star className="h-4 w-4" style={{ color: accent }} />
+            <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
+              Tavsiya etamiz
+            </h2>
+          </div>
+          <div className="-mx-3 flex gap-3 overflow-x-auto px-3 pb-1 sm:-mx-4 sm:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {featured.map((p) => (
+              <RecommendCard
+                key={p.id}
+                product={p}
+                currency={currency}
+                accent={accent}
+                accentText={accentText}
+                radius={radius}
+                qty={cart[p.id] || 0}
+                onOpen={() => onOpen(p)}
+                onAdd={() => onAdd(p.id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Barcha kategoriyalar ketma-ket (scroll-spy bo'limlari) */}
+      <div className={`mt-8 ${sectionGap}`}>
+        {groups.map((g, i) => (
+          <div
+            key={g.category.id}
+            ref={(el) => {
+              sectionRefs.current[g.category.id] = el;
+            }}
+          >
+            <TemplateSectionHeading
+              variant={variant}
+              name={g.category.name}
+              count={g.items.length}
+              index={i + 1}
+              accent={accent}
+            />
+            <div className="mt-4">{renderItems(g.items, gridClass)}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Template bo'lim sarlavhasi — variantga qarab tubdan farqli
+function TemplateSectionHeading({
+  variant,
+  name,
+  count,
+  index,
+  accent,
+}: {
+  variant: TemplateVariant;
+  name: string;
+  count: number;
+  index: number;
+  accent: string;
+}) {
+  if (variant === "editorial") {
+    // Jurnal uslubi — katta raqam indeksi + katta CAPS sarlavha
+    return (
+      <div className="flex items-end gap-3 border-b border-border pb-3">
+        <span
+          className="font-mono text-3xl font-bold leading-none"
+          style={{ color: accent }}
+        >
+          {String(index).padStart(2, "0")}
+        </span>
+        <h2 className="text-2xl font-extrabold uppercase tracking-tight text-foreground sm:text-3xl">
+          {name}
+        </h2>
+      </div>
+    );
+  }
+  if (variant === "showcase") {
+    // Rasm markazda — kichik yorliq + nom
+    return (
+      <div>
+        <span
+          className="text-xs font-bold uppercase tracking-[0.2em]"
+          style={{ color: accent }}
+        >
+          Menyu
+        </span>
+        <h2 className="mt-1 text-2xl font-bold tracking-tight text-foreground">{name}</h2>
+      </div>
+    );
+  }
+  if (variant === "night") {
+    // Elegant — markazda nom + ikki yon nozik chiziq
+    return (
+      <div className="flex items-center gap-3">
+        <span className="h-px flex-1" style={{ background: "var(--border)" }} />
+        <h2 className="text-lg font-semibold uppercase tracking-[0.18em] text-foreground">
+          {name}
+        </h2>
+        <span className="h-px flex-1" style={{ background: "var(--border)" }} />
+      </div>
+    );
+  }
+  // Signature — nom + nozik accent chiziq + soni
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3">
+        <span className="h-5 w-1 rounded-full" style={{ background: accent }} />
+        <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">{name}</h2>
+      </div>
+      <span className="shrink-0 text-xs font-medium text-muted">{count}</span>
     </div>
   );
 }

@@ -219,10 +219,19 @@ export function WaiterPanel({
                 </div>
               </div>
             )}
-            <div className="mb-4 grid grid-cols-3 gap-2.5">
+            <div className="mb-2 grid grid-cols-3 gap-2.5">
               <StatBox label="Faol stol" value={String(stats.active)} icon={Armchair} />
-              <StatBox label="Bugungi savdo" value={formatPrice(stats.sales, currency)} icon={Coins} highlight />
+              <StatBox label="Mening savdom" value={formatPrice(stats.sales, currency)} icon={Coins} highlight />
               <StatBox label="Buyurtmam" value={String(stats.orders)} icon={Receipt} />
+            </div>
+            {/* Smena xulosasi — o'rtacha chek */}
+            <div className="mb-4 flex items-center justify-between rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm shadow-soft">
+              <span className="flex items-center gap-1.5 text-muted">
+                <Receipt className="h-4 w-4 text-accent" /> Smena — o'rtacha chek
+              </span>
+              <span className="font-bold text-foreground">
+                {formatPrice(stats.orders > 0 ? Math.round(stats.sales / stats.orders) : 0, currency)}
+              </span>
             </div>
 
             {/* Chaqiruvlar */}

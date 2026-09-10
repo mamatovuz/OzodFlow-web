@@ -3,24 +3,43 @@ import { redirect } from "next/navigation";
 import { Store, Wallet, ShoppingBag, QrCode, Trophy, ExternalLink, Crown } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { getBranchesOverview } from "@/lib/stats";
+import { getBranchInfo } from "@/lib/branches";
+import { isOwner } from "@/lib/api";
+import { BRANCH_PRICE } from "@/lib/plans";
 import { formatPrice } from "@/lib/utils";
 import { Card, Badge } from "@/components/ui";
+import { AddBranch } from "@/components/dashboard/add-branch";
 
 export const dynamic = "force-dynamic";
 
 export default async function BranchesPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-  const data = await getBranchesOverview(user.id);
+  const [data, info, owner] = await Promise.all([
+    getBranchesOverview(user.id),
+    getBranchInfo(user.id),
+    isOwner(user.id),
+  ]);
   const cur = data.currency;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Filiallar</h1>
-        <p className="mt-1 text-sm text-muted">
-          Barcha restoranlaringiz — bitta paneldan kuzating
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Filiallar</h1>
+          <p className="mt-1 text-sm text-muted">
+            Barcha restoranlaringiz — bitta paneldan kuzating
+          </p>
+        </div>
+        {owner && (
+          <AddBranch
+            canBranches={info.canBranches}
+            canAddFree={info.canAddFree}
+            allowance={info.allowance}
+            addedBranches={info.addedBranches}
+            price={BRANCH_PRICE}
+          />
+        )}
       </div>
 
       {data.branches.length === 0 ? (

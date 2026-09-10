@@ -25,6 +25,7 @@ import {
   Smartphone,
   Star,
   Building2,
+  ChevronDown,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -86,14 +87,32 @@ export function Sidebar({
   user,
   restaurantSlug,
   waiterCodeEnabled = false,
+  branches = [],
+  activeBranchId,
 }: {
   user: { name: string; email: string | null; phone: string | null };
   restaurantSlug: string;
   waiterCodeEnabled?: boolean;
+  branches?: { id: string; name: string }[];
+  activeBranchId?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
+
+  async function switchBranch(id: string) {
+    if (id === activeBranchId || switching) return;
+    setSwitching(true);
+    await fetch("/api/branch/select", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ restaurantId: id }),
+    }).catch(() => {});
+    setSwitching(false);
+    router.refresh();
+    router.push("/dashboard");
+  }
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -146,12 +165,32 @@ export function Sidebar({
 
   const Content = () => (
     <div className="flex h-full flex-col p-4">
-      <div className="mb-6 flex items-center justify-between px-1">
+      <div className="mb-4 flex items-center justify-between px-1">
         <Logo href="/dashboard" />
         <button className="lg:hidden" onClick={() => setOpen(false)}>
           <X className="h-5 w-5 text-muted" />
         </button>
       </div>
+
+      {/* Filial almashtirgich — birdan ortiq restoran bo'lsa */}
+      {branches.length > 1 && (
+        <div className="relative mb-4">
+          <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <select
+            value={activeBranchId}
+            disabled={switching}
+            onChange={(e) => switchBranch(e.target.value)}
+            className="w-full cursor-pointer appearance-none rounded-lg border border-border bg-surface-2 py-2.5 pl-9 pr-8 text-sm font-medium text-foreground outline-none focus:border-accent disabled:opacity-60"
+          >
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+        </div>
+      )}
 
       <NavItems />
 

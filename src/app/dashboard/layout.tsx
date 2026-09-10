@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
-import { getUserRestaurant, isOwner, getMembership } from "@/lib/api";
+import { getUserRestaurant, getUserRestaurants, isOwner, getMembership } from "@/lib/api";
 import { getPaymentStatus, type PlanKey } from "@/lib/plans";
 import { prisma } from "@/lib/prisma";
 import { sendTelegramMessage } from "@/lib/telegram";
@@ -68,6 +68,9 @@ export default async function DashboardLayout({
 
   const showWarning = pay.warning || pay.overdue;
 
+  // Filiallar (birdan ortiq bo'lsa — sidebar'da almashtirgich chiqadi)
+  const branches = await getUserRestaurants(user.id);
+
   return (
     <>
     {impersonated}
@@ -76,6 +79,8 @@ export default async function DashboardLayout({
         user={{ name: user.name, email: user.email, phone: user.phone }}
         restaurantSlug={restaurant.slug}
         waiterCodeEnabled={restaurant.waiterCodeEnabled}
+        branches={branches}
+        activeBranchId={restaurant.id}
       />
       <main className="flex-1">
         <div className="hidden items-center justify-end gap-2 border-b border-border bg-card px-6 py-3 lg:flex">

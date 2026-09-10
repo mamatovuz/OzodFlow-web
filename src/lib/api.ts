@@ -161,9 +161,34 @@ export async function guardRestaurant(userId: string, restaurantId: string) {
 
 /** Foydalanuvchining birinchi restoranini oladi */
 export async function getUserRestaurant(userId: string) {
+  const access = { OR: [{ ownerId: userId }, { memberships: { some: { userId } } }] };
+  // Tanlangan filial (cookie) — foydalanuvchi shu restoranga kirish huquqiga ega bo'lsa.
+  // Cookie o'qish faqat so'rov kontekstida ishlaydi; aks holda odatdagidek (eng eski) qaytadi.
+  try {
+    const { cookies } = await import("next/headers");
+    const store = await cookies();
+    const selected = store.get("ozf_branch")?.value;
+    if (selected) {
+      const chosen = await prisma.restaurant.findFirst({
+        where: { AND: [{ id: selected }, access] },
+      });
+      if (chosen) return chosen;
+    }
+  } catch {
+    /* so'rov konteksti emas — e'tiborsiz qoldiramiz */
+  }
   return prisma.restaurant.findFirst({
+    where: access,
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+/** Foydalanuvchiga tegishli barcha restoranlar (filial almashtirgich uchun) */
+export async function getUserRestaurants(userId: string) {
+  return prisma.restaurant.findMany({
     where: { OR: [{ ownerId: userId }, { memberships: { some: { userId } } }] },
     orderBy: { createdAt: "asc" },
+    select: { id: true, name: true },
   });
 }
 

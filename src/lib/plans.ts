@@ -76,6 +76,11 @@ export const DOMAIN_SERVICE_PRICE = 40000;
 // Bitta premium dizaynni umrbodga sotib olish narxi (Business/Enterprise'dan boshqa
 // tariflar uchun — ular premium dizaynlarni allaqachon o'z ichiga oladi).
 export const THEME_PRICE = 50000;
+// ─── Filiallar (multi-branch) ───
+// Business tarifda BEPUL qo'shsa bo'ladigan filiallar soni (asosiy hisobdan tashqari).
+export const FREE_BRANCHES = 5;
+// 6-filialdan boshlab har bir qo'shimcha filial narxi (umrbod, bir martalik).
+export const BRANCH_PRICE = 100000;
 export const YEARLY_DISCOUNT = 100000; // 12 oy oldindan to'lasa chegirma
 export const HALF_YEAR_DISCOUNT = 50000; // 6 oy oldindan to'lasa chegirma
 export const LIFETIME_MONTHS = 36;

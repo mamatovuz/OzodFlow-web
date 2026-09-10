@@ -47,6 +47,16 @@ export async function PATCH(
       return ok({ status: "APPROVED", themeKey: request.themeKey });
     }
 
+    // ── Qo'shimcha filial to'lovi — tarifga tegmaymiz, faqat tasdiqlaymiz ──
+    // (Bepul filial limiti tasdiqlangan BRANCH to'lovlari soniga qarab oshadi.)
+    if (request.kind === "BRANCH") {
+      await prisma.paymentRequest.update({
+        where: { id },
+        data: { status: "APPROVED", adminNote: note || null, reviewedAt: new Date() },
+      });
+      return ok({ status: "APPROVED", kind: "BRANCH" });
+    }
+
     const plan = request.plan as PlanKey;
     const now = new Date();
     let planUntil: Date | null;

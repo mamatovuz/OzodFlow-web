@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
-import { PLANS, computePrice, THEME_PRICE, type PlanKey } from "@/lib/plans";
+import { PLANS, computePrice, THEME_PRICE, BRANCH_PRICE, type PlanKey } from "@/lib/plans";
 import { getPlanPrice, getLifetimePrice } from "@/lib/plan-prices";
 import { validatePromo } from "@/lib/promo";
 import { getTheme, parsePurchasedThemes } from "@/lib/themes";
@@ -19,6 +19,11 @@ const planSchema = z.object({
 const themeSchema = z.object({
   kind: z.literal("THEME"),
   themeKey: z.string().min(1),
+  receiptImage: z.string().min(1, "Chek rasmini yuklang"),
+});
+
+const branchSchema = z.object({
+  kind: z.literal("BRANCH"),
   receiptImage: z.string().min(1, "Chek rasmini yuklang"),
 });
 
@@ -82,6 +87,30 @@ export async function POST(req: NextRequest) {
       },
     });
     return ok({ id: request.id, themeName: theme.name, amount: THEME_PRICE }, 201);
+  }
+
+  // ── Qo'shimcha filial (6-filialdan boshlab, 100 000 so'm umrbod) ──
+  if (body?.kind === "BRANCH") {
+    const b = branchSchema.safeParse(body);
+    if (!b.success) {
+      return fail("Ma'lumotlar noto'g'ri", 422, b.error.flatten().fieldErrors);
+    }
+    const request = await prisma.paymentRequest.create({
+      data: {
+        restaurantId: restaurant.id,
+        userId: user.id,
+        kind: "BRANCH",
+        plan: restaurant.plan,
+        months: 0,
+        isLifetime: true,
+        baseAmount: BRANCH_PRICE,
+        discount: 0,
+        amount: BRANCH_PRICE,
+        receiptImage: b.data.receiptImage,
+        status: "PENDING",
+      },
+    });
+    return ok({ id: request.id, amount: BRANCH_PRICE }, 201);
   }
 
   const parsed = planSchema.safeParse(body);

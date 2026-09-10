@@ -28,6 +28,7 @@ export function AddBranch({
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>(canAddFree ? "form" : "pay");
   const [name, setName] = useState("");
+  const [cloneMenu, setCloneMenu] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -63,7 +64,7 @@ export function AddBranch({
     const res = await fetch("/api/branch/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim() }),
+      body: JSON.stringify({ name: name.trim(), cloneFromMain: cloneMenu }),
     });
     const json = await res.json();
     setBusy(false);
@@ -289,6 +290,27 @@ export function AddBranch({
                   autoFocus
                 />
               </div>
+
+              {/* Menyuni asosiy filialdan nusxalash */}
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-surface p-3.5">
+                <button
+                  type="button"
+                  onClick={() => setCloneMenu((v) => !v)}
+                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition ${
+                    cloneMenu ? "border-accent bg-accent text-white" : "border-border bg-card"
+                  }`}
+                >
+                  {cloneMenu && <Check className="h-3.5 w-3.5" />}
+                </button>
+                <span className="text-sm">
+                  <span className="font-medium text-foreground">Menyuni asosiy filialdan nusxalash</span>
+                  <span className="mt-0.5 block text-xs text-muted">
+                    Kategoriyalar, mahsulotlar va menyu dizayni (tema, ranglar) yangi
+                    filialga ko'chiriladi. Keyin mustaqil tahrirlaysiz.
+                  </span>
+                </span>
+              </label>
+
               <p className="text-xs text-muted">
                 Bepul filiallar: {addedBranches} / {allowance} ishlatilgan.
               </p>

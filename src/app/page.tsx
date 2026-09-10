@@ -1264,72 +1264,72 @@ function PhonePreview() {
   const items = [
     { n: "Osh (palov)", d: "Mol go'shti bilan", p: "45 000", tag: "Top" },
     { n: "Achichuq salat", d: "Yangi sabzavotlar", p: "18 000", tag: null },
-    { n: "Lag'mon", d: "Qo'y go'shti, qo'lda cho'zilgan", p: "38 000", tag: null },
-    { n: "Somsa", d: "Tandirda, mol go'shtli", p: "12 000", tag: "Yangi" },
-    { n: "Choy (choynak)", d: "Ko'k yoki qora", p: "8 000", tag: null },
+    { n: "Lag'mon", d: "Qo'y go'shti", p: "38 000", tag: null },
+    { n: "Somsa", d: "Tandirda", p: "12 000", tag: "Yangi" },
   ];
   return (
-    <div className="relative z-10 w-[240px] shrink-0">
-      <div className="absolute -inset-4 -z-10 rounded-[2.6rem] bg-accent/10 blur-2xl" />
-      <div className="rounded-[2.2rem] border-[7px] border-foreground/85 bg-foreground/85 shadow-card">
-        <div className="overflow-hidden rounded-[1.7rem] bg-card">
-          {/* Header — restoran kapoti */}
-          <div className="relative h-16 bg-gradient-to-br from-accent to-accent-hover">
-            <span className="absolute left-1/2 top-1.5 h-1 w-12 -translate-x-1/2 rounded-full bg-white/40" />
+    <div className="relative z-10 w-[200px] shrink-0">
+      <div className="absolute -inset-4 -z-10 rounded-[2.3rem] bg-accent/10 blur-2xl" />
+      <div className="rounded-[1.9rem] border-[6px] border-foreground/85 bg-foreground/85 shadow-card">
+        <div className="overflow-hidden rounded-[1.4rem] bg-card px-3 pb-3 pt-2.5">
+          {/* Notch */}
+          <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-foreground/15" />
+
+          {/* Header — logo + nom (ko'k kapotsiz, toza) */}
+          <div className="flex items-center gap-2">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
+              <Store className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-[11px] font-bold text-foreground">Milliy Taomlar</p>
+              <p className="text-[8px] text-muted">Stol №12 • ochiq</p>
+            </div>
           </div>
-          <div className="px-3 pb-3">
-            <div className="-mt-6 mb-2 flex h-11 w-11 items-center justify-center rounded-xl border-2 border-card bg-accent-soft text-accent shadow-soft">
-              <Store className="h-5 w-5" />
-            </div>
-            <p className="text-xs font-bold text-foreground">Milliy Taomlar</p>
-            <p className="text-[9px] text-muted">Stol №12 • ochiq</p>
 
-            <div className="mt-3 flex gap-1.5 overflow-hidden">
-              {["Osh", "Salat", "Ichimlik"].map((t, i) => (
-                <span
-                  key={t}
-                  className={`rounded-full px-2.5 py-1 text-[9px] font-medium ${
-                    i === 0 ? "bg-accent text-white" : "bg-surface-2 text-muted"
-                  }`}
-                >
-                  {t}
-                </span>
-              ))}
-            </div>
-
-            {/* Taom ro'yxati — skroll (ko'proq taom borligi seziladi) */}
-            <div className="mt-3 max-h-[264px] space-y-2 overflow-hidden">
-              {items.map((it) => (
-                <div
-                  key={it.n}
-                  className="flex items-center gap-2 rounded-xl border border-border/60 bg-surface p-2"
-                >
-                  <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent/15 to-accent/5 text-accent/50">
-                    <UtensilsCrossed className="h-5 w-5" />
-                    {it.tag && (
-                      <span className="absolute -left-1 -top-1 rounded-full bg-accent px-1.5 py-px text-[7px] font-bold text-white shadow-sm">
-                        {it.tag}
-                      </span>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[10px] font-semibold text-foreground">{it.n}</p>
-                    <p className="truncate text-[9px] text-muted">{it.d}</p>
-                    <p className="mt-0.5 text-[10px] font-bold text-accent">{it.p}</p>
-                  </div>
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-sm">
-                    <Plus className="h-3.5 w-3.5" />
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-3 flex items-center justify-between rounded-xl bg-accent py-2 pl-3 pr-2 text-white shadow-sm">
-              <span className="flex items-center gap-1.5 text-[10px] font-semibold">
-                <ShoppingCart className="h-3.5 w-3.5" /> Savat • 3 ta
+          <div className="mt-2.5 flex gap-1.5 overflow-hidden">
+            {["Osh", "Salat", "Ichimlik"].map((t, i) => (
+              <span
+                key={t}
+                className={`rounded-full px-2 py-0.5 text-[8px] font-medium ${
+                  i === 0 ? "bg-accent text-white" : "bg-surface-2 text-muted"
+                }`}
+              >
+                {t}
               </span>
-              <span className="text-[10px] font-bold">101 000</span>
-            </div>
+            ))}
+          </div>
+
+          <div className="mt-2.5 space-y-1.5">
+            {items.map((it) => (
+              <div
+                key={it.n}
+                className="flex items-center gap-2 rounded-lg border border-border/60 bg-surface p-1.5"
+              >
+                <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-accent/15 to-accent/5 text-accent/50">
+                  <UtensilsCrossed className="h-4 w-4" />
+                  {it.tag && (
+                    <span className="absolute -left-1 -top-1 rounded-full bg-accent px-1 py-px text-[6px] font-bold text-white shadow-sm">
+                      {it.tag}
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[9px] font-semibold text-foreground">{it.n}</p>
+                  <p className="truncate text-[8px] text-muted">{it.d}</p>
+                  <p className="text-[9px] font-bold text-accent">{it.p}</p>
+                </div>
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-sm">
+                  <Plus className="h-3 w-3" />
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-2.5 flex items-center justify-between rounded-lg bg-accent py-1.5 pl-2.5 pr-2 text-white shadow-sm">
+            <span className="flex items-center gap-1.5 text-[9px] font-semibold">
+              <ShoppingCart className="h-3 w-3" /> Savat • 3 ta
+            </span>
+            <span className="text-[9px] font-bold">101 000</span>
           </div>
         </div>
       </div>

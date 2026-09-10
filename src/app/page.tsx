@@ -37,6 +37,8 @@ import {
   Table2,
   Printer,
   Newspaper,
+  UtensilsCrossed,
+  ScanLine,
 } from "lucide-react";
 import { PROVIDER_META } from "@/lib/pos";
 import { getSessionUser } from "@/lib/auth";
@@ -598,20 +600,28 @@ export default async function LandingPage({
             title="Restorandan mijozgacha — bitta oqim"
             subtitle="Texnik bilim shart emas. Hammasi oddiy va tez."
           />
-          <div className="mt-12 grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
-            {journey.map((s, i) => (
-              <Reveal key={s.label} delay={i * 70} className="relative">
-                <div className="flex flex-col items-center rounded-2xl border border-border bg-card p-5 text-center shadow-soft">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent-soft text-accent">
-                    <s.icon className="h-6 w-6" />
+          <div className="relative mt-12">
+            {/* Bog'lovchi chiziq (faqat keng ekranda) */}
+            <div className="pointer-events-none absolute left-0 right-0 top-6 hidden h-px bg-gradient-to-r from-transparent via-border to-transparent lg:block" />
+            <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
+              {journey.map((s, i) => (
+                <Reveal key={s.label} delay={i * 70} className="relative">
+                  <div className="group flex flex-col items-center rounded-2xl border border-border bg-card p-5 text-center shadow-soft transition-all hover:-translate-y-1 hover:border-accent/40 hover:shadow-card">
+                    <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-accent-soft text-accent transition-colors group-hover:bg-accent group-hover:text-white">
+                      <s.icon className="h-6 w-6" />
+                      <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white shadow-soft ring-2 ring-card">
+                        {i + 1}
+                      </span>
+                    </div>
+                    <p className="mt-3 text-sm font-medium text-foreground">{s.label}</p>
                   </div>
-                  <span className="mt-3 text-xs font-bold text-accent/70">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <p className="mt-1 text-sm font-medium text-foreground">{s.label}</p>
-                </div>
-              </Reveal>
-            ))}
+                  {/* Qadamlar orasidagi strelka */}
+                  {i < journey.length - 1 && (
+                    <ArrowRight className="absolute -right-3 top-1/2 hidden h-4 w-4 -translate-y-1/2 text-border lg:block" />
+                  )}
+                </Reveal>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -1179,136 +1189,248 @@ function SectionHeading({
 }
 
 function DashboardPreview() {
+  const stats = [
+    { l: "Bugungi skan", v: "1 284", icon: Eye, trend: "+12%" },
+    { l: "Mahsulotlar", v: "56", icon: Layers, trend: null },
+    { l: "Kategoriya", v: "8", icon: Store, trend: null },
+  ];
+  const bars = [40, 65, 45, 80, 55, 90, 70];
+  const days = ["D", "S", "C", "P", "J", "S", "Y"];
   return (
-    <div className="hidden w-[420px] rounded-2xl border border-border bg-card p-4 shadow-card lg:block">
-      <div className="mb-4 flex items-center gap-2">
-        <LayoutDashboard className="h-4 w-4 text-accent" />
-        <span className="text-sm font-medium text-foreground">Dashboard</span>
+    <div className="relative hidden w-[430px] rounded-2xl border border-border bg-card shadow-card lg:block">
+      {/* Yuqori panel — real dashboard sarlavhasi */}
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-soft text-accent">
+            <LayoutDashboard className="h-4 w-4" />
+          </span>
+          <span className="text-sm font-semibold text-foreground">Dashboard</span>
+        </div>
+        <span className="flex items-center gap-1.5 rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" /> Jonli
+        </span>
       </div>
-      <div className="grid grid-cols-3 gap-2">
-        {[
-          { l: "Bugungi skan", v: "1 284" },
-          { l: "Mahsulotlar", v: "56" },
-          { l: "Kategoriya", v: "8" },
-        ].map((c) => (
-          <div key={c.l} className="rounded-xl bg-surface p-3">
-            <p className="text-[10px] text-muted">{c.l}</p>
-            <p className="mt-1 text-lg font-bold text-foreground">{c.v}</p>
-          </div>
-        ))}
-      </div>
-      <div className="mt-3 rounded-xl bg-surface p-3">
-        <div className="mb-2 flex items-end justify-between gap-1 h-20">
-          {[40, 65, 45, 80, 55, 90, 70].map((h, i) => (
+
+      <div className="p-4">
+        <div className="grid grid-cols-3 gap-2.5">
+          {stats.map((c) => (
             <div
-              key={i}
-              style={{ height: `${h}%` }}
-              className="flex-1 rounded-t bg-accent/70"
-            />
+              key={c.l}
+              className="rounded-xl border border-border/60 bg-surface p-3"
+            >
+              <div className="flex items-center justify-between">
+                <c.icon className="h-3.5 w-3.5 text-accent" />
+                {c.trend && (
+                  <span className="rounded bg-success/10 px-1 text-[9px] font-semibold text-success">
+                    {c.trend}
+                  </span>
+                )}
+              </div>
+              <p className="mt-2 text-xl font-bold leading-none text-foreground">{c.v}</p>
+              <p className="mt-1 text-[10px] text-muted">{c.l}</p>
+            </div>
           ))}
         </div>
-        <p className="text-[10px] text-muted">Haftalik skanerlar</p>
+
+        <div className="mt-3 rounded-xl border border-border/60 bg-surface p-3.5">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-[11px] font-semibold text-foreground">Haftalik skanerlar</p>
+            <BarChart3 className="h-3.5 w-3.5 text-muted" />
+          </div>
+          <div className="flex h-24 items-end justify-between gap-1.5">
+            {bars.map((h, i) => (
+              <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
+                <div className="flex w-full flex-1 items-end">
+                  <div
+                    style={{ height: `${h}%` }}
+                    className={`w-full rounded-md bg-gradient-to-t ${
+                      i === 5
+                        ? "from-accent to-accent-hover"
+                        : "from-accent/50 to-accent/25"
+                    }`}
+                  />
+                </div>
+                <span className="text-[9px] text-muted">{days[i]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
 function PhonePreview() {
+  const items = [
+    { n: "Osh (palov)", d: "Mol go'shti bilan", p: "45 000" },
+    { n: "Achichuq salat", d: "Yangi sabzavotlar", p: "18 000" },
+  ];
   return (
-    <div className="w-[220px] shrink-0">
-      <div className="rounded-[2rem] border-[6px] border-foreground/10 bg-card p-3 shadow-card">
-        <div className="flex items-center gap-2 border-b border-border pb-3">
-          <div className="h-8 w-8 rounded-lg bg-accent-soft" />
-          <div>
-            <div className="h-2.5 w-20 rounded bg-foreground/20" />
-            <div className="mt-1 h-2 w-14 rounded bg-foreground/10" />
+    <div className="relative z-10 w-[230px] shrink-0">
+      <div className="absolute -inset-4 -z-10 rounded-[2.6rem] bg-accent/10 blur-2xl" />
+      <div className="rounded-[2.2rem] border-[7px] border-foreground/85 bg-foreground/85 shadow-card">
+        <div className="overflow-hidden rounded-[1.7rem] bg-card">
+          {/* Header — restoran kapoti */}
+          <div className="relative h-16 bg-gradient-to-br from-accent to-accent-hover">
+            <span className="absolute left-1/2 top-1.5 h-1 w-12 -translate-x-1/2 rounded-full bg-white/40" />
           </div>
-        </div>
-        <div className="mt-3 flex gap-2 overflow-hidden">
-          {["Osh", "Salat", "Ichimlik"].map((t, i) => (
-            <span
-              key={t}
-              className={`rounded-full px-2 py-1 text-[9px] ${
-                i === 0
-                  ? "bg-accent text-white"
-                  : "bg-surface-2 text-muted"
-              }`}
-            >
-              {t}
-            </span>
-          ))}
-        </div>
-        <div className="mt-3 space-y-2">
-          {[1, 2].map((i) => (
-            <div key={i} className="flex gap-2 rounded-xl bg-surface p-2">
-              <div className="h-12 w-12 shrink-0 rounded-lg bg-accent/10" />
-              <div className="flex-1">
-                <div className="h-2.5 w-24 rounded bg-foreground/20" />
-                <div className="mt-1.5 h-2 w-16 rounded bg-foreground/10" />
-                <div className="mt-2 h-2.5 w-14 rounded bg-accent/40" />
+          <div className="px-3 pb-3">
+            <div className="-mt-5 flex items-end gap-2">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl border-2 border-card bg-accent-soft text-accent shadow-soft">
+                <Store className="h-5 w-5" />
+              </span>
+              <div className="pb-0.5">
+                <p className="text-xs font-bold text-foreground">Milliy Taomlar</p>
+                <p className="text-[9px] text-muted">Stol №12 • ochiq</p>
               </div>
             </div>
-          ))}
-        </div>
-        <div className="mt-3 flex items-center justify-center gap-1 rounded-xl bg-accent-soft py-2 text-accent">
-          <Smartphone className="h-3 w-3" />
-          <span className="text-[9px] font-medium">QR menyu</span>
+
+            <div className="mt-3 flex gap-1.5 overflow-hidden">
+              {["Osh", "Salat", "Ichimlik"].map((t, i) => (
+                <span
+                  key={t}
+                  className={`rounded-full px-2.5 py-1 text-[9px] font-medium ${
+                    i === 0 ? "bg-accent text-white" : "bg-surface-2 text-muted"
+                  }`}
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+
+            <div className="mt-3 space-y-2">
+              {items.map((it) => (
+                <div
+                  key={it.n}
+                  className="flex gap-2 rounded-xl border border-border/60 bg-surface p-2"
+                >
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-accent/15 to-accent/5 text-accent/50">
+                    <UtensilsCrossed className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[10px] font-semibold text-foreground">{it.n}</p>
+                    <p className="truncate text-[9px] text-muted">{it.d}</p>
+                    <div className="mt-1 flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-accent">{it.p}</span>
+                      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[11px] font-bold leading-none text-white">
+                        +
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 flex items-center justify-between rounded-xl bg-accent py-2 pl-3 pr-2 text-white">
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold">
+                <ShoppingCart className="h-3.5 w-3.5" /> Savat • 2 ta
+              </span>
+              <span className="text-[10px] font-bold">63 000</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// Dizayn editor ko'rgazmasi (chapda sozlamalar, o'ngda telefon)
+// Dizayn editor ko'rgazmasi (chapda sozlamalar, o'ngda jonli telefon)
 function EditorPreview() {
   return (
-    <div className="w-full max-w-md rounded-2xl border border-border bg-card p-4 shadow-card">
-      <div className="mb-3 flex items-center gap-2">
-        <Wand2 className="h-4 w-4 text-accent" />
-        <span className="text-sm font-medium text-foreground">Dizaynni sozlash</span>
-      </div>
-      <div className="grid grid-cols-[1fr_120px] gap-3">
-        {/* chap: sozlamalar */}
-        <div className="space-y-2.5">
-          <div className="text-[11px] font-semibold text-muted">Ranglar</div>
-          <div className="flex gap-1.5">
-            {["#8B5E3C", "#2E9E5B", "#2563EB", "#EA580C", "#0A0A0B"].map((c) => (
+    <div className="relative w-full max-w-md">
+      <div className="absolute -inset-4 -z-10 rounded-3xl bg-accent/5 blur-2xl" />
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-card">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-soft text-accent">
+              <Wand2 className="h-4 w-4" />
+            </span>
+            <span className="text-sm font-semibold text-foreground">Dizaynni sozlash</span>
+          </div>
+          <span className="flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[9px] font-semibold text-success">
+            <Eye className="h-3 w-3" /> Jonli
+          </span>
+        </div>
+
+        {/* Tayyor shablonlar */}
+        <div className="mb-3">
+          <div className="mb-1.5 text-[11px] font-semibold text-muted">Shablonlar</div>
+          <div className="flex gap-2">
+            {[
+              { g: "from-accent to-accent-hover", active: true },
+              { g: "from-emerald-500 to-teal-600", active: false },
+              { g: "from-indigo-500 to-violet-600", active: false },
+              { g: "from-rose-500 to-orange-500", active: false },
+            ].map((t, i) => (
               <span
-                key={c}
-                className="h-6 w-6 rounded-full border-2 border-card shadow-soft"
-                style={{ background: c }}
+                key={i}
+                className={`h-10 flex-1 rounded-lg bg-gradient-to-br ${t.g} ${
+                  t.active ? "ring-2 ring-accent ring-offset-2 ring-offset-card" : ""
+                }`}
               />
             ))}
           </div>
-          {[
-            { l: "Asosiy rang", c: "#8B5E3C" },
-            { l: "Fon", c: "#F8F5F0" },
-            { l: "Tugma", c: "#8B5E3C" },
-          ].map((row) => (
-            <div
-              key={row.l}
-              className="flex items-center justify-between rounded-lg border border-border px-2.5 py-1.5"
-            >
-              <span className="text-[11px] text-foreground">{row.l}</span>
-              <span className="h-4 w-4 rounded" style={{ background: row.c }} />
+        </div>
+
+        <div className="grid grid-cols-[1fr_128px] gap-3">
+          {/* chap: sozlamalar */}
+          <div className="space-y-2.5">
+            <div className="text-[11px] font-semibold text-muted">Ranglar</div>
+            <div className="flex gap-1.5">
+              {["#8B5E3C", "#2E9E5B", "#2563EB", "#EA580C", "#0A0A0B"].map((c, i) => (
+                <span
+                  key={c}
+                  className={`h-6 w-6 rounded-full shadow-soft ${
+                    i === 0 ? "ring-2 ring-accent ring-offset-1 ring-offset-card" : "border-2 border-card"
+                  }`}
+                  style={{ background: c }}
+                />
+              ))}
             </div>
-          ))}
-          <div className="rounded-lg border border-border px-2.5 py-2">
-            <div className="mb-1 text-[10px] text-muted">Burchak radiusi</div>
-            <div className="h-1.5 w-full rounded-full bg-surface-2">
-              <div className="h-1.5 w-2/3 rounded-full bg-accent" />
+            {[
+              { l: "Asosiy rang", c: "#8B5E3C" },
+              { l: "Fon", c: "#F8F5F0" },
+              { l: "Tugma", c: "#8B5E3C" },
+            ].map((row) => (
+              <div
+                key={row.l}
+                className="flex items-center justify-between rounded-lg border border-border bg-surface/50 px-2.5 py-1.5"
+              >
+                <span className="text-[11px] text-foreground">{row.l}</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="font-mono text-[9px] text-muted">{row.c}</span>
+                  <span className="h-4 w-4 rounded border border-border" style={{ background: row.c }} />
+                </span>
+              </div>
+            ))}
+            <div className="rounded-lg border border-border bg-surface/50 px-2.5 py-2">
+              <div className="mb-1.5 flex items-center justify-between text-[10px] text-muted">
+                <span>Burchak radiusi</span>
+                <span className="font-mono">16px</span>
+              </div>
+              <div className="relative h-1.5 w-full rounded-full bg-surface-2">
+                <div className="h-1.5 w-2/3 rounded-full bg-accent" />
+                <span className="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-accent bg-card shadow-soft" style={{ left: "calc(66% - 6px)" }} />
+              </div>
             </div>
           </div>
-        </div>
-        {/* o'ng: telefon preview */}
-        <div className="rounded-2xl border-4 border-foreground/80 bg-foreground/80 p-1">
-          <div className="overflow-hidden rounded-xl bg-card">
-            <div className="h-16 bg-gradient-to-br from-accent/80 to-accent" />
-            <div className="p-2">
-              <div className="-mt-6 mb-1.5 h-7 w-7 rounded-lg border-2 border-card bg-accent" />
-              <div className="h-2 w-3/4 rounded bg-foreground/20" />
-              <div className="mt-1 h-1.5 w-1/2 rounded bg-foreground/10" />
-              <div className="mt-2 h-5 w-full rounded-md bg-accent" />
+
+          {/* o'ng: jonli telefon preview */}
+          <div className="rounded-[1.2rem] border-4 border-foreground/80 bg-foreground/80 p-1">
+            <div className="overflow-hidden rounded-[0.9rem] bg-card">
+              <div className="h-14 bg-gradient-to-br from-accent to-accent-hover" />
+              <div className="p-2">
+                <div className="-mt-6 mb-2 flex h-8 w-8 items-center justify-center rounded-lg border-2 border-card bg-accent text-white shadow-soft">
+                  <Store className="h-3.5 w-3.5" />
+                </div>
+                <div className="h-2 w-3/4 rounded bg-foreground/20" />
+                <div className="mt-1 h-1.5 w-1/2 rounded bg-foreground/10" />
+                <div className="mt-2 space-y-1.5">
+                  <div className="h-6 rounded-md bg-surface-2" />
+                  <div className="h-6 rounded-md bg-surface-2" />
+                </div>
+                <div className="mt-2 h-5 w-full rounded-md bg-accent" />
+              </div>
             </div>
           </div>
         </div>
@@ -1320,30 +1442,48 @@ function EditorPreview() {
 // Stol QR ko'rgazmasi
 function TableQrPreview() {
   return (
-    <div className="relative w-[260px]">
-      <div className="rounded-2xl border border-border bg-card p-6 text-center shadow-card">
-        <p className="text-sm font-semibold text-foreground">Stol №12</p>
-        <div className="mx-auto mt-4 h-40 w-40">
-          <div className="grid h-full w-full grid-cols-7 grid-rows-7 gap-0.5 rounded-xl border border-border bg-white p-2">
-            {Array.from({ length: 49 }).map((_, i) => {
-              // Barqaror soxta QR naqsh (deterministik)
-              const on = (i * 7 + (i % 5) * 3 + ((i >> 1) & 1)) % 3 !== 0;
-              const corner =
-                (i < 3 || (i >= 7 && i < 10) || (i >= 14 && i < 17)) &&
-                (i % 7 < 3);
-              return (
-                <span
-                  key={i}
-                  className="rounded-[1px]"
-                  style={{ background: on || corner ? "#111827" : "transparent" }}
-                />
-              );
-            })}
-          </div>
+    <div className="relative w-[270px]">
+      <div className="absolute -inset-5 -z-10 rounded-[2rem] bg-accent/10 blur-2xl" />
+      <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+        {/* Yuqori — stol yorlig'i */}
+        <div className="flex items-center justify-between bg-gradient-to-r from-accent to-accent-hover px-5 py-3 text-white">
+          <span className="flex items-center gap-1.5 text-sm font-bold">
+            <Table2 className="h-4 w-4" /> Stol №12
+          </span>
+          <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-medium">
+            Milliy Taomlar
+          </span>
         </div>
-        <p className="mt-4 text-xs text-muted">Skanerlang — menyu ochiladi</p>
+
+        <div className="p-6 text-center">
+          <div className="relative mx-auto h-44 w-44">
+            <div className="grid h-full w-full grid-cols-7 grid-rows-7 gap-0.5 rounded-xl border border-border bg-white p-2.5">
+              {Array.from({ length: 49 }).map((_, i) => {
+                // Barqaror soxta QR naqsh (deterministik)
+                const on = (i * 7 + (i % 5) * 3 + ((i >> 1) & 1)) % 3 !== 0;
+                const corner =
+                  (i < 3 || (i >= 7 && i < 10) || (i >= 14 && i < 17)) &&
+                  (i % 7 < 3);
+                return (
+                  <span
+                    key={i}
+                    className="rounded-[2px]"
+                    style={{ background: on || corner ? "#111827" : "transparent" }}
+                  />
+                );
+              })}
+            </div>
+            {/* Markazda logo */}
+            <span className="absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-lg bg-accent text-white shadow-card ring-4 ring-white">
+              <Store className="h-4 w-4" />
+            </span>
+          </div>
+          <p className="mt-4 flex items-center justify-center gap-1.5 text-xs font-medium text-foreground">
+            <ScanLine className="h-4 w-4 text-accent" /> Skanerlang — menyu ochiladi
+          </p>
+        </div>
       </div>
-      <div className="absolute -bottom-3 -right-3 flex h-11 w-11 items-center justify-center rounded-full bg-accent text-white shadow-card">
+      <div className="absolute -bottom-3 -right-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-white shadow-card ring-4 ring-background">
         <QrCode className="h-5 w-5" />
       </div>
     </div>
@@ -1368,45 +1508,89 @@ function FlowSteps({ steps }: { steps: string[] }) {
 
 // Statistika ko'rgazmasi
 function StatsPreview() {
+  const line = [30, 44, 38, 60, 52, 78, 68, 92];
+  // Silliq sparkline yo'li (0..100 -> 0..40 balandlik, teskari)
+  const pts = line
+    .map((v, i) => `${(i / (line.length - 1)) * 100},${40 - (v / 100) * 34}`)
+    .join(" ");
   return (
-    <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-5 shadow-card">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-foreground">Restoran statistikasi</span>
-        <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">
-          +18.4%
-        </span>
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="rounded-xl bg-surface p-3">
-          <p className="text-[11px] text-muted">Bugungi skaner</p>
-          <p className="mt-1 text-2xl font-bold text-foreground">1 284</p>
+    <div className="relative w-full max-w-sm">
+      <div className="absolute -inset-4 -z-10 rounded-3xl bg-accent/5 blur-2xl" />
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-soft text-accent">
+              <TrendingUp className="h-4 w-4" />
+            </span>
+            Restoran statistikasi
+          </span>
+          <span className="flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">
+            <TrendingUp className="h-3 w-3" /> +18.4%
+          </span>
         </div>
-        <div className="rounded-xl bg-surface p-3">
-          <p className="text-[11px] text-muted">Buyurtmalar</p>
-          <p className="mt-1 text-2xl font-bold text-foreground">86</p>
+
+        {/* Sparkline trend */}
+        <div className="mt-4 rounded-xl border border-border/60 bg-surface p-3">
+          <p className="mb-2 text-[11px] text-muted">7 kunlik dinamika</p>
+          <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="h-14 w-full">
+            <defs>
+              <linearGradient id="statFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.28" />
+                <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <polygon points={`0,40 ${pts} 100,40`} fill="url(#statFill)" />
+            <polyline
+              points={pts}
+              fill="none"
+              stroke="var(--accent)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
         </div>
-      </div>
-      <div className="mt-4">
-        <p className="mb-2 text-[11px] font-semibold text-muted">Eng ko'p ko'rilgan</p>
-        <div className="space-y-2">
-          {[
-            { n: "🥇 Osh", v: 84 },
-            { n: "🥈 Lavash", v: 72 },
-            { n: "🥉 Choy", v: 61 },
-          ].map((r) => (
-            <div key={r.n} className="flex items-center gap-2">
-              <span className="w-20 text-xs text-foreground">{r.n}</span>
-              <div className="h-2 flex-1 rounded-full bg-surface-2">
-                <div className="h-2 rounded-full bg-accent" style={{ width: `${r.v}%` }} />
+
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="rounded-xl border border-border/60 bg-surface p-3">
+            <p className="text-[11px] text-muted">Bugungi skaner</p>
+            <p className="mt-1 text-2xl font-bold text-foreground">1 284</p>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-surface p-3">
+            <p className="text-[11px] text-muted">Buyurtmalar</p>
+            <p className="mt-1 text-2xl font-bold text-foreground">86</p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <p className="mb-2 text-[11px] font-semibold text-muted">Eng ko'p ko'rilgan</p>
+          <div className="space-y-2.5">
+            {[
+              { n: "🥇 Osh", v: 84 },
+              { n: "🥈 Lavash", v: 72 },
+              { n: "🥉 Choy", v: 61 },
+            ].map((r) => (
+              <div key={r.n} className="flex items-center gap-2">
+                <span className="w-20 shrink-0 text-xs text-foreground">{r.n}</span>
+                <div className="h-2 flex-1 rounded-full bg-surface-2">
+                  <div
+                    className="h-2 rounded-full bg-gradient-to-r from-accent/70 to-accent"
+                    style={{ width: `${r.v}%` }}
+                  />
+                </div>
+                <span className="w-8 text-right text-[11px] font-medium text-muted">{r.v}%</span>
               </div>
-              <span className="w-8 text-right text-[11px] text-muted">{r.v}%</span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
-      <div className="mt-4 flex items-center justify-between rounded-xl bg-surface p-3 text-xs">
-        <span className="text-muted">Eng faol vaqt</span>
-        <span className="font-semibold text-foreground">19:00 — 21:00</span>
+
+        <div className="mt-4 flex items-center justify-between rounded-xl bg-accent-soft p-3 text-xs">
+          <span className="flex items-center gap-1.5 text-accent">
+            <Clock className="h-3.5 w-3.5" /> Eng faol vaqt
+          </span>
+          <span className="font-bold text-accent">19:00 — 21:00</span>
+        </div>
       </div>
     </div>
   );

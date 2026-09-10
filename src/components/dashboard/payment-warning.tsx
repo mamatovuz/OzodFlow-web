@@ -16,7 +16,7 @@ export function PaymentWarning({
       ? new Date(graceUntil).toLocaleDateString("uz-UZ")
       : null;
     return (
-      <Link href="/dashboard/settings" className="block">
+      <Link href="/dashboard/billing" className="block">
         <div className="flex items-center gap-3 rounded-xl border border-error/30 bg-error/10 px-4 py-3 text-sm text-error transition-colors hover:bg-error/15">
           <AlertTriangle className="h-5 w-5 shrink-0" />
           <p className="font-medium">
@@ -30,7 +30,7 @@ export function PaymentWarning({
   }
 
   return (
-    <Link href="/dashboard/settings" className="block">
+    <Link href="/dashboard/billing" className="block">
       <div className="flex items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning transition-colors hover:bg-warning/15">
         <Clock className="h-5 w-5 shrink-0" />
         <p className="font-medium">

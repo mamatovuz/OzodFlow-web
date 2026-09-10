@@ -23,7 +23,6 @@ import {
   Users,
   UserCog,
   Smartphone,
-  Link2,
   Star,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
@@ -57,7 +56,6 @@ const navGroups: NavGroup[] = [
     items: [
       { href: "/dashboard/design", label: "Menyu dizayni", icon: Palette },
       { href: "/dashboard/profile", label: "Restoran profili", icon: Store },
-      { href: "/dashboard/taplink", label: "Taplink", icon: Link2 },
       { href: "/dashboard/qr", label: "QR kod", icon: QrCode },
       { href: "/dashboard/reviews", label: "Izohlar", icon: Star },
     ],

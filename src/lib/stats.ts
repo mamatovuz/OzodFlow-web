@@ -161,3 +161,136 @@ export async function getTopProducts(restaurantId: string, limit = 5) {
     select: { id: true, name: true, views: true },
   });
 }
+
+// ─── Eng ko'p BUYURTMA qilingan taomlar (oxirgi 30 kun, Order.items JSON'idan) ───
+type OrderItemLite = { productId?: string; name?: string; qty?: number; price?: number };
+
+export async function getMostOrdered(restaurantId: string, limit = 8) {
+  const monthAgo = new Date(startOfDay().getTime() - 29 * 24 * 60 * 60 * 1000);
+  const orders = await prisma.order.findMany({
+    where: { restaurantId, createdAt: { gte: monthAgo }, status: { not: "CANCELLED" } },
+    select: { items: true },
+  });
+  const tally = new Map<string, { name: string; qty: number }>();
+  for (const o of orders) {
+    let items: OrderItemLite[] = [];
+    try {
+      items = JSON.parse(o.items || "[]");
+    } catch {
+      items = [];
+    }
+    for (const it of items) {
+      const name = (it.name || "").trim();
+      if (!name) continue;
+      const key = it.productId || name;
+      const qty = Number(it.qty) || 0;
+      const cur = tally.get(key) || { name, qty: 0 };
+      cur.qty += qty;
+      tally.set(key, cur);
+    }
+  }
+  return [...tally.values()].sort((a, b) => b.qty - a.qty).slice(0, limit);
+}
+
+// ─── Eng faol soatlar (oxirgi 30 kun skanerlaridan, eng gavjum 2 soatlik oyna) ───
+export async function getPeakHours(restaurantId: string) {
+  const monthAgo = new Date(startOfDay().getTime() - 29 * 24 * 60 * 60 * 1000);
+  const events = await prisma.scanEvent.findMany({
+    where: { restaurantId, createdAt: { gte: monthAgo } },
+    select: { createdAt: true },
+  });
+  const hours = new Array(24).fill(0) as number[];
+  for (const e of events) hours[new Date(e.createdAt).getHours()]++;
+  // Eng gavjum 2 soatlik oyna
+  let bestStart = 12;
+  let bestSum = -1;
+  for (let h = 0; h < 24; h++) {
+    const sum = hours[h] + hours[(h + 1) % 24];
+    if (sum > bestSum) {
+      bestSum = sum;
+      bestStart = h;
+    }
+  }
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const label = bestSum > 0 ? `${pad(bestStart)}:00 — ${pad((bestStart + 2) % 24)}:00` : "—";
+  return { hours, label, total: events.length };
+}
+
+// ─── Filiallar (multi-branch) umumiy ko'rinishi ───
+// Egaga tegishli barcha restoranlar + har biri uchun bugungi savdo/buyurtma/skan.
+export async function getBranchesOverview(ownerId: string) {
+  const today = startOfDay();
+  const restaurants = await prisma.restaurant.findMany({
+    where: { ownerId },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, slug: true, currency: true, logo: true, plan: true, isBlocked: true },
+  });
+
+  const branches = await Promise.all(
+    restaurants.map(async (r) => {
+      const [orders, revenueAgg, scans, products] = await Promise.all([
+        prisma.order.count({ where: { restaurantId: r.id, createdAt: { gte: today } } }),
+        prisma.order.aggregate({
+          where: { restaurantId: r.id, createdAt: { gte: today }, status: { not: "CANCELLED" } },
+          _sum: { total: true },
+        }),
+        prisma.scanEvent.count({ where: { restaurantId: r.id, createdAt: { gte: today } } }),
+        prisma.product.count({ where: { restaurantId: r.id, isVisible: true } }),
+      ]);
+      return {
+        id: r.id,
+        name: r.name,
+        slug: r.slug,
+        currency: r.currency,
+        logo: r.logo,
+        plan: r.plan,
+        isBlocked: r.isBlocked,
+        todayOrders: orders,
+        todayRevenue: revenueAgg._sum.total ?? 0,
+        todayScans: scans,
+        products,
+      };
+    })
+  );
+
+  const totalRevenue = branches.reduce((s, b) => s + b.todayRevenue, 0);
+  const totalOrders = branches.reduce((s, b) => s + b.todayOrders, 0);
+  const totalScans = branches.reduce((s, b) => s + b.todayScans, 0);
+  const best = branches.reduce<(typeof branches)[number] | null>(
+    (top, b) => (!top || b.todayRevenue > top.todayRevenue ? b : top),
+    null
+  );
+  const currency = branches[0]?.currency ?? "UZS";
+
+  return { branches, totalRevenue, totalOrders, totalScans, best, currency };
+}
+
+// ─── Har bir stol bo'yicha statistika (skaner + buyurtma + daromad) — QR kuzatuvi ───
+export async function getTableStats(restaurantId: string) {
+  const monthAgo = new Date(startOfDay().getTime() - 29 * 24 * 60 * 60 * 1000);
+  const [tables, orders] = await Promise.all([
+    prisma.restaurantTable.findMany({
+      where: { restaurantId },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, name: true, code: true, scans: true },
+    }),
+    prisma.order.findMany({
+      where: { restaurantId, createdAt: { gte: monthAgo }, status: { not: "CANCELLED" } },
+      select: { tableCode: true, tableName: true, total: true },
+    }),
+  ]);
+  const byCode = new Map<string, { orders: number; revenue: number }>();
+  for (const o of orders) {
+    if (!o.tableCode) continue;
+    const cur = byCode.get(o.tableCode) || { orders: 0, revenue: 0 };
+    cur.orders += 1;
+    cur.revenue += o.total;
+    byCode.set(o.tableCode, cur);
+  }
+  return tables
+    .map((t) => {
+      const agg = byCode.get(t.code) || { orders: 0, revenue: 0 };
+      return { id: t.id, name: t.name, scans: t.scans, orders: agg.orders, revenue: agg.revenue };
+    })
+    .sort((a, b) => b.orders - a.orders || b.scans - a.scans);
+}

@@ -30,7 +30,12 @@ export type ThemeKey =
   | "signature"
   | "editorial"
   | "showcase"
-  | "night";
+  | "night"
+  | "bistro"
+  | "menubook"
+  | "compact"
+  | "story"
+  | "catalog";
 
 export type ThemeLayout = "list" | "grid";
 
@@ -627,6 +632,101 @@ export const MENU_THEMES: MenuTheme[] = [
       border: "#2A2A2E",
     },
   },
+  {
+    key: "bistro",
+    name: "Bistro",
+    premium: true,
+    isDark: false,
+    layout: "list",
+    radius: 16,
+    accent: "#C2410C",
+    accentText: "#ffffff",
+    colors: {
+      background: "#FBF7F2",
+      surface: "#F4EDE3",
+      surface2: "#EBE1D3",
+      card: "#FFFFFF",
+      foreground: "#26201A",
+      muted: "#7C6F5F",
+      border: "#E8DDCD",
+    },
+  },
+  {
+    key: "menubook",
+    name: "Menu Book",
+    premium: true,
+    isDark: false,
+    layout: "list",
+    radius: 6,
+    accent: "#7C2D12",
+    accentText: "#ffffff",
+    colors: {
+      background: "#FBF9F4",
+      surface: "#F3EEE3",
+      surface2: "#E9E2D2",
+      card: "#FFFFFF",
+      foreground: "#1F1B16",
+      muted: "#736A5B",
+      border: "#E5DCCB",
+    },
+  },
+  {
+    key: "compact",
+    name: "Compact",
+    premium: true,
+    isDark: false,
+    layout: "grid",
+    radius: 12,
+    accent: "#0EA5A0",
+    accentText: "#ffffff",
+    colors: {
+      background: "#FFFFFF",
+      surface: "#F5F8F8",
+      surface2: "#EAF0F0",
+      card: "#FFFFFF",
+      foreground: "#12211F",
+      muted: "#5E7472",
+      border: "#E5EDEC",
+    },
+  },
+  {
+    key: "story",
+    name: "Story",
+    premium: true,
+    isDark: false,
+    layout: "list",
+    radius: 20,
+    accent: "#B45309",
+    accentText: "#ffffff",
+    colors: {
+      background: "#FBF8F3",
+      surface: "#F4EEE4",
+      surface2: "#EBE2D4",
+      card: "#FFFFFF",
+      foreground: "#241E17",
+      muted: "#7A6F5F",
+      border: "#E8DFD0",
+    },
+  },
+  {
+    key: "catalog",
+    name: "Catalog",
+    premium: true,
+    isDark: false,
+    layout: "grid",
+    radius: 14,
+    accent: "#4F46E5",
+    accentText: "#ffffff",
+    colors: {
+      background: "#FFFFFF",
+      surface: "#F6F7FB",
+      surface2: "#ECEEF6",
+      card: "#FFFFFF",
+      foreground: "#111528",
+      muted: "#606782",
+      border: "#E7E9F2",
+    },
+  },
 ];
 
 export function getTheme(key: string | null | undefined): MenuTheme {
@@ -674,6 +774,11 @@ const CATEGORY_STYLE: Record<ThemeKey, CategoryStyle> = {
   editorial: "list",
   showcase: "grid",
   night: "list",
+  bistro: "list",
+  menubook: "list",
+  compact: "grid",
+  story: "list",
+  catalog: "grid",
 };
 
 const HEADER_STYLE: Record<ThemeKey, HeaderStyle> = {
@@ -705,6 +810,11 @@ const HEADER_STYLE: Record<ThemeKey, HeaderStyle> = {
   editorial: "minimal",
   showcase: "overlap",
   night: "center",
+  bistro: "center",
+  menubook: "minimal",
+  compact: "minimal",
+  story: "overlap",
+  catalog: "minimal",
 };
 
 export function categoryStyleFor(key: string): CategoryStyle {
@@ -727,7 +837,12 @@ export type MenuStyle =
   | "signature"
   | "editorial"
   | "showcase"
-  | "night";
+  | "night"
+  | "bistro"
+  | "menubook"
+  | "compact"
+  | "story"
+  | "catalog";
 
 const MENU_STYLE: Record<ThemeKey, MenuStyle> = {
   light: "browse",
@@ -758,6 +873,11 @@ const MENU_STYLE: Record<ThemeKey, MenuStyle> = {
   editorial: "editorial",
   showcase: "showcase",
   night: "night",
+  bistro: "bistro",
+  menubook: "menubook",
+  compact: "compact",
+  story: "story",
+  catalog: "catalog",
 };
 
 export function menuStyleFor(key: string): MenuStyle {

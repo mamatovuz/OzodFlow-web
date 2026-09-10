@@ -319,11 +319,18 @@ export function PublicMenu({
   const isTabs = menuStyle === "tabs";
   const isScroll = menuStyle === "scroll";
   // Yangi professional template'lar (uzluksiz bo'limli, scroll-spy layout)
-  const isTemplate =
-    menuStyle === "signature" ||
-    menuStyle === "editorial" ||
-    menuStyle === "showcase" ||
-    menuStyle === "night";
+  const TEMPLATE_STYLES = [
+    "signature",
+    "editorial",
+    "showcase",
+    "night",
+    "bistro",
+    "menubook",
+    "compact",
+    "story",
+    "catalog",
+  ];
+  const isTemplate = TEMPLATE_STYLES.includes(menuStyle);
   // Savat bor-yo'qligi (vitrina dizayni — faqat ko'rish, savatsiz).
   // Oldindan ko'rish rejimida ham savat/buyurtma o'chiriladi (faqat ko'rsatish uchun).
   const showCart = preview ? false : menuHasCart(theme.key);
@@ -993,7 +1000,7 @@ export function PublicMenu({
           {/* ─── TEMPLATE layout: professional uzluksiz bo'limli menyu ─── */}
           {!searching && isTemplate && grouped.length > 0 && (
             <TemplateMenu
-              variant={menuStyle as "signature" | "editorial" | "showcase" | "night"}
+              variant={menuStyle as TemplateVariant}
               groups={grouped}
               renderItems={renderItems}
               recommended={recommended}
@@ -1382,7 +1389,16 @@ function ScrollMenu({
 // ─────────── TEMPLATE menyu: professional uzluksiz bo'limli layout ───────────
 // Signature / Editorial / Showcase / Night — bir xil scroll-spy va cart mantig'i,
 // faqat prezentatsiya (bo'lim sarlavhalari, tab uslubi, karta joylashuvi) farq qiladi.
-type TemplateVariant = "signature" | "editorial" | "showcase" | "night";
+type TemplateVariant =
+  | "signature"
+  | "editorial"
+  | "showcase"
+  | "night"
+  | "bistro"
+  | "menubook"
+  | "compact"
+  | "story"
+  | "catalog";
 
 function TemplateMenu({
   variant,
@@ -1470,19 +1486,36 @@ function TemplateMenu({
     }, 700);
   }
 
-  const minimalTabs = variant === "editorial" || variant === "showcase";
+  // Ixcham matnli tab (ostki chiziq) — jurnal/katalog uslublari uchun
+  const minimalTabs =
+    variant === "editorial" ||
+    variant === "showcase" ||
+    variant === "menubook" ||
+    variant === "compact" ||
+    variant === "catalog";
   // Har bir bo'limdagi mahsulot kartalari ustun sinfi
   const gridClass =
     variant === "showcase"
       ? "grid-cols-1"
       : variant === "signature"
       ? "grid-cols-2 md:grid-cols-3"
-      : "grid-cols-2"; // editorial/night — list layout (theme.layout=list) bu sinfni e'tiborsiz qoldiradi
+      : variant === "compact"
+      ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+      : variant === "catalog"
+      ? "grid-cols-2 md:grid-cols-3"
+      : "grid-cols-2"; // list-layout variantlar bu sinfni e'tiborsiz qoldiradi
   const sectionGap =
-    variant === "editorial" ? "space-y-14" : variant === "showcase" ? "space-y-12" : "space-y-10";
+    variant === "editorial"
+      ? "space-y-14"
+      : variant === "showcase" || variant === "story"
+      ? "space-y-12"
+      : variant === "compact"
+      ? "space-y-8"
+      : "space-y-10";
 
   // Signature — tavsiya etilgan taomlar (featured) gorizontal lentasi
   const featured = variant === "signature" ? recommended.slice(0, 8) : [];
+  const isMenuBook = variant === "menubook";
 
   return (
     <div>
@@ -1563,6 +1596,27 @@ function TemplateMenu({
         </div>
       )}
 
+      {/* Story — kirish (restoran hikoyasi ohangi) */}
+      {variant === "story" && (
+        <div className="mt-6 rounded-2xl border border-border bg-card p-5 text-center shadow-soft" style={{ borderRadius: radius }}>
+          <span className="text-xs font-bold uppercase tracking-[0.22em]" style={{ color: accent }}>
+            Bizning menyu
+          </span>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted">
+            Har bir taom — mahorat va sof mahsulotlar bilan tayyorlanadi. Marhamat,
+            tanlang va buyurtma bering.
+          </p>
+        </div>
+      )}
+
+      {/* Catalog — qidiruv/filtr ohangi (dekorativ) */}
+      {variant === "catalog" && (
+        <div className="mt-5 flex items-center gap-2 rounded-xl border border-border bg-surface px-3.5 py-2.5 text-sm text-muted" style={{ borderRadius: radius }}>
+          <Search className="h-4 w-4" />
+          <span>Katalog bo'ylab ko'ring — {groups.length} bo'lim</span>
+        </div>
+      )}
+
       {/* Barcha kategoriyalar ketma-ket (scroll-spy bo'limlari) */}
       <div className={`mt-8 ${sectionGap}`}>
         {groups.map((g, i) => (
@@ -1579,10 +1633,81 @@ function TemplateMenu({
               index={i + 1}
               accent={accent}
             />
-            <div className="mt-4">{renderItems(g.items, gridClass)}</div>
+            <div className="mt-4">
+              {isMenuBook ? (
+                <MenuBookSection
+                  items={g.items}
+                  currency={currency}
+                  accent={accent}
+                  onOpen={onOpen}
+                  onAdd={onAdd}
+                  cart={cart}
+                />
+              ) : (
+                renderItems(g.items, gridClass)
+              )}
+            </div>
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// Menu Book — klassik ikki ustunli matnli menyu (nom ···· narx)
+function MenuBookSection({
+  items,
+  currency,
+  accent,
+  onOpen,
+  onAdd,
+  cart,
+}: {
+  items: PublicProduct[];
+  currency: string;
+  accent: string;
+  onOpen: (p: PublicProduct) => void;
+  onAdd: (id: string) => void;
+  cart: Record<string, number>;
+}) {
+  return (
+    <div className="grid gap-x-10 gap-y-1 sm:grid-cols-2">
+      {items.map((p) => {
+        const qty = cart[p.id] || 0;
+        return (
+          <div
+            key={p.id}
+            className="group flex items-start gap-2 border-b border-dashed border-border/70 py-3"
+          >
+            <button onClick={() => onOpen(p)} className="min-w-0 flex-1 text-left">
+              <div className="flex items-baseline gap-2">
+                <h3 className="min-w-0 max-w-[70%] truncate text-[15px] font-bold text-foreground">{p.name}</h3>
+                <span className="h-px min-w-4 flex-1 translate-y-[-3px] border-b border-dotted border-border" />
+                <span className="shrink-0 text-[15px] font-bold" style={{ color: accent }}>
+                  {formatPrice(p.price, currency)}
+                </span>
+              </div>
+              {p.description && (
+                <p className="mt-1 line-clamp-2 pr-4 text-xs leading-relaxed text-muted">
+                  {p.description}
+                </p>
+              )}
+            </button>
+            <button
+              onClick={() => onAdd(p.id)}
+              aria-label="Savatga qo'shish"
+              className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white shadow-sm transition active:scale-90"
+              style={{ background: accent }}
+            >
+              {qty > 0 ? (
+                <span className="text-xs font-bold">{qty}</span>
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }

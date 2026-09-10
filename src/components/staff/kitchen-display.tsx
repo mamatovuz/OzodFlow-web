@@ -249,10 +249,11 @@ function KitchenCard({
 }) {
   const items = parseJson<OrderItem[]>(order.items, []);
   const mins = Math.floor((now - +new Date(order.createdAt)) / 60000);
-  // Kechikish faqat vaqt matni rangi bilan bildiriladi (sokin, miltillashsiz)
+  // Kechikish vaqt rangi bilan bildiriladi (sokin, miltillashsiz):
+  // 0–10 daq — sokin, 10–15 daq — sariq ogohlantirish, 15+ daq — qizil "Kechikdi".
   const late = mins >= 15;
   const warn = mins >= 10 && mins < 15;
-  const timeColor = late ? "text-error" : warn ? "text-muted" : "text-muted";
+  const timeColor = late ? "text-error" : warn ? "text-warning" : "text-muted";
   const isDelivery = order.orderType === "DELIVERY";
 
   // Oshxona faqat NEW→PREPARING→READY qiladi; yetkazish (DELIVERED) — ofitsant ishi
@@ -273,6 +274,11 @@ function KitchenCard({
           </span>
         </div>
         <div className="flex items-center gap-2.5">
+          {late && (
+            <span className="rounded bg-error/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-error">
+              Kechikdi
+            </span>
+          )}
           <span className={`flex items-center gap-1 text-[13px] tabular-nums ${timeColor}`}>
             <Clock className="h-3 w-3" /> {mins}′
           </span>

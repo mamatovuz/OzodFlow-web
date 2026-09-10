@@ -325,29 +325,27 @@ export default async function LandingPage({
         <div className="mx-auto max-w-6xl px-4 pb-16 pt-16 sm:px-6 sm:pt-24">
           <div className="mx-auto max-w-3xl text-center">
             <Badge variant="accent" className="mb-5">
-              <QrCode className="h-3 w-3" /> Restoranlar uchun QR menyu
+              <QrCode className="h-3 w-3" /> Restoranlar uchun raqamli menyu & buyurtma
             </Badge>
             <h1 className="text-balance text-4xl font-bold leading-[1.1] tracking-tight text-foreground sm:text-6xl">
-              Restoraningiz menyusini{" "}
+              Menyuni raqamlashtiring va{" "}
               <span className="bg-gradient-to-r from-accent to-accent-hover bg-clip-text text-transparent">
-                1 daqiqada
-              </span>{" "}
-              raqamlashtiring
+                buyurtmani avtomatlashtiring
+              </span>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg text-muted">
-              Qog'oz menyuni unuting. Menyuni istalgan vaqtda yangilang,
-              buyurtmalarni qabul qiling va mijozlaringizni yaxshiroq tushuning —
-              hammasi bitta paneldan.
+              Menyu, QR kod, online buyurtmalar va statistika — hammasi bitta
+              panelda. Qog'oz menyuni butunlay unuting.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link href="/register">
                 <Button size="lg" className="w-full sm:w-auto">
-                  Bepul boshlash <ArrowRight className="h-4 w-4" />
+                  Menyuni bepul yarating <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
               <a href="/m/test" target="_blank" rel="noreferrer">
                 <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                  <Eye className="h-4 w-4" /> Demo ko'rish
+                  <Eye className="h-4 w-4" /> Mijoz ko'radigan demo menyu
                 </Button>
               </a>
             </div>
@@ -1240,19 +1238,20 @@ function DashboardPreview() {
           </div>
           <div className="flex h-24 items-end justify-between gap-1.5">
             {bars.map((h, i) => (
-              <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
-                <div className="flex w-full flex-1 items-end">
-                  <div
-                    style={{ height: `${h}%` }}
-                    className={`w-full rounded-md bg-gradient-to-t ${
-                      i === 5
-                        ? "from-accent to-accent-hover"
-                        : "from-accent/50 to-accent/25"
-                    }`}
-                  />
-                </div>
-                <span className="text-[9px] text-muted">{days[i]}</span>
-              </div>
+              <div
+                key={i}
+                style={{ height: `${h}%` }}
+                className={`flex-1 rounded-md bg-gradient-to-t ${
+                  i === 5 ? "from-accent to-accent-hover" : "from-accent/60 to-accent/30"
+                }`}
+              />
+            ))}
+          </div>
+          <div className="mt-1.5 flex justify-between gap-1.5">
+            {days.map((d, i) => (
+              <span key={i} className="flex-1 text-center text-[9px] text-muted">
+                {d}
+              </span>
             ))}
           </div>
         </div>
@@ -1279,15 +1278,11 @@ function PhonePreview() {
             <span className="absolute left-1/2 top-1.5 h-1 w-12 -translate-x-1/2 rounded-full bg-white/40" />
           </div>
           <div className="px-3 pb-3">
-            <div className="-mt-5 flex items-end gap-2">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl border-2 border-card bg-accent-soft text-accent shadow-soft">
-                <Store className="h-5 w-5" />
-              </span>
-              <div className="pb-0.5">
-                <p className="text-xs font-bold text-foreground">Milliy Taomlar</p>
-                <p className="text-[9px] text-muted">Stol №12 • ochiq</p>
-              </div>
+            <div className="-mt-6 mb-2 flex h-11 w-11 items-center justify-center rounded-xl border-2 border-card bg-accent-soft text-accent shadow-soft">
+              <Store className="h-5 w-5" />
             </div>
+            <p className="text-xs font-bold text-foreground">Milliy Taomlar</p>
+            <p className="text-[9px] text-muted">Stol №12 • ochiq</p>
 
             <div className="mt-3 flex gap-1.5 overflow-hidden">
               {["Osh", "Salat", "Ichimlik"].map((t, i) => (
@@ -1531,6 +1526,9 @@ function StatsPreview() {
               <TrendingUp className="h-4 w-4" />
             </span>
             Restoran statistikasi
+            <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted">
+              Demo
+            </span>
           </span>
           <span className="flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">
             <TrendingUp className="h-3 w-3" /> +18.4%

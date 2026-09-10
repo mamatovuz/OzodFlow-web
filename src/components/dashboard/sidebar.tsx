@@ -24,6 +24,7 @@ import {
   UserCog,
   Smartphone,
   Star,
+  Building2,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -40,6 +41,7 @@ const navGroups: NavGroup[] = [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/dashboard/orders", label: "Buyurtmalar", icon: ClipboardList },
       { href: "/dashboard/stats", label: "Statistika", icon: BarChart3 },
+      { href: "/dashboard/branches", label: "Filiallar", icon: Building2 },
     ],
   },
   {

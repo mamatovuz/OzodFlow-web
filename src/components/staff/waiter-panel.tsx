@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Loader2, Volume2, VolumeX, LogOut, Bell, BellRing, Receipt, ChevronLeft, Plus, Minus,
-  X, Check, Utensils, Coins, CreditCard, Wallet, Search, ConciergeBell, Armchair, Percent,
+  X, Check, Utensils, Coins, CreditCard, Wallet, Search, ConciergeBell, Armchair, Percent, Clock,
 } from "lucide-react";
 import { parseJson, formatPrice } from "@/lib/utils";
 import type { OrderItem } from "@/lib/orders";
@@ -351,6 +351,12 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
   const [pay, setPay] = useState(false);
   // Void — bekor qilinayotgan taom { orderId, item }
   const [voiding, setVoiding] = useState<{ orderId: string; item: OrderItem } | null>(null);
+  // Stol taymeri — eng eski buyurtmadan beri o'tgan vaqt
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(iv);
+  }, []);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/staff/table/${code}`);
@@ -369,6 +375,12 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
 
   // Barcha buyurtma taomlarini birlashtiramiz
   const allItems: OrderItem[] = orders.flatMap((o) => parseJson<OrderItem[]>(o.items, []));
+  // Stol qancha vaqtdan beri band (eng eski buyurtmadan beri)
+  const oldest = orders.reduce<number | null>((min, o) => {
+    const t = +new Date(o.createdAt);
+    return min === null || t < min ? t : min;
+  }, null);
+  const seatedMins = oldest ? Math.floor((now - oldest) / 60000) : 0;
   // To'lov faqat oshxona tayyorlab, ofitsant yetkazgach chiqadi
   const hasDelivered = orders.some((o) => o.status === "DELIVERED");
   const cooking = orders.some((o) => ["NEW", "ACCEPTED", "PREPARING"].includes(o.status));
@@ -382,7 +394,17 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
         </button>
         <div className="flex-1">
           <p className="font-bold text-foreground">{tableName || "Stol"}</p>
-          <p className="text-xs text-muted">{orders.length} ta buyurtma</p>
+          <p className="flex items-center gap-2 text-xs text-muted">
+            <span>{orders.length} ta buyurtma</span>
+            {oldest && (
+              <span
+                className={`flex items-center gap-1 ${seatedMins >= 60 ? "text-warning" : ""}`}
+              >
+                <Clock className="h-3 w-3" />
+                {seatedMins >= 60 ? `${Math.floor(seatedMins / 60)} s ${seatedMins % 60} daq` : `${seatedMins} daq`}
+              </span>
+            )}
+          </p>
         </div>
       </header>
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Eye, Calendar } from "lucide-react";
+import { ArrowLeft, Eye, Calendar, Newspaper, Sparkles } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { SiteNav } from "@/components/landing/site-nav";
@@ -67,6 +67,13 @@ export default async function BlogPostPage({
     (img, i, arr): img is string => !!img && arr.indexOf(img) === i
   );
 
+  // Tavsiya etiladigan 3 ta boshqa maqola (yulduzchali → ko'p ko'rilgan → yangi)
+  const related = await prisma.blogPost.findMany({
+    where: { isPublished: true, id: { not: post.id } },
+    orderBy: [{ isFeatured: "desc" }, { views: "desc" }, { publishDate: "desc" }],
+    take: 3,
+  });
+
   return (
     <div className="min-h-screen bg-background">
       <SiteNav loggedIn={!!user} />
@@ -103,6 +110,54 @@ export default async function BlogPostPage({
           </div>
         )}
       </article>
+
+      {/* ─── Tavsiya etamiz — boshqa maqolalar ─── */}
+      {related.length > 0 && (
+        <section className="mx-auto max-w-6xl px-4 pb-4 sm:px-6">
+          <div className="border-t border-border pt-10">
+            <h2 className="mb-6 flex items-center gap-2 text-xl font-bold tracking-tight text-foreground">
+              <Sparkles className="h-5 w-5 text-accent" /> Tavsiya etamiz
+            </h2>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {related.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/blog/${p.slug}`}
+                  className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:shadow-card"
+                >
+                  <div className="aspect-[16/10] w-full overflow-hidden bg-surface-2">
+                    {p.coverImage ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        src={p.coverImage}
+                        alt={p.title}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-muted/40">
+                        <Newspaper className="h-8 w-8" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-1 flex-col p-4">
+                    <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-muted">
+                      <span>{fmtDate(p.publishDate)}</span>
+                      {p.version && <Badge variant="accent">{p.version}</Badge>}
+                      <span className="ml-auto flex items-center gap-1">
+                        <Eye className="h-3.5 w-3.5" /> {p.views}
+                      </span>
+                    </div>
+                    <h3 className="font-semibold text-foreground group-hover:text-accent">
+                      {p.title}
+                    </h3>
+                    <p className="mt-1 line-clamp-2 text-sm text-muted">{p.description}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <footer className="mt-8 border-t border-border py-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6">

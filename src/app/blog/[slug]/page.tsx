@@ -7,6 +7,7 @@ import { getSessionUser } from "@/lib/auth";
 import { SiteNav } from "@/components/landing/site-nav";
 import { Badge } from "@/components/ui";
 import { Logo } from "@/components/logo";
+import { BlogGallery } from "@/components/blog/blog-gallery";
 
 export const dynamic = "force-dynamic";
 
@@ -60,8 +61,11 @@ export default async function BlogPostPage({
   } catch {
     images = [];
   }
-  // muqovadan boshqa qo'shimcha rasmlar
-  const gallery = images.filter((img) => img && img !== post.coverImage);
+  // Barcha rasmlar: muqova birinchi, keyin qo'shimchalar (takrorsiz).
+  // Preview slayder va lightbox shu ro'yxatdan foydalanadi.
+  const allImages = [post.coverImage, ...images].filter(
+    (img, i, arr): img is string => !!img && arr.indexOf(img) === i
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -90,27 +94,12 @@ export default async function BlogPostPage({
         </h1>
         <p className="mt-3 text-lg text-muted">{post.description}</p>
 
-        {post.coverImage && (
-          <div className="mt-6 overflow-hidden rounded-2xl border border-border">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={post.coverImage} alt={post.title} className="w-full object-cover" />
-          </div>
-        )}
+        {/* Preview slayder (avtomatik almashadi) + bosilsa lightbox */}
+        <BlogGallery images={allImages} title={post.title} />
 
         {post.body && (
           <div className="mt-8 whitespace-pre-wrap text-[15px] leading-7 text-foreground">
             {post.body}
-          </div>
-        )}
-
-        {gallery.length > 0 && (
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            {gallery.map((img, i) => (
-              <div key={i} className="overflow-hidden rounded-xl border border-border">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img} alt={`${post.title} — ${i + 1}`} className="w-full object-cover" />
-              </div>
-            ))}
           </div>
         )}
       </article>

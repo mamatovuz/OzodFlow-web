@@ -8,6 +8,8 @@ import {
   Clock,
   Table2,
   Trophy,
+  Timer,
+  Users,
 } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { getUserRestaurant } from "@/lib/api";
@@ -17,6 +19,7 @@ import {
   getMostOrdered,
   getPeakHours,
   getTableStats,
+  getStaffLeaderboard,
 } from "@/lib/stats";
 import { formatPrice } from "@/lib/utils";
 import { Card, Badge } from "@/components/ui";
@@ -28,13 +31,15 @@ export default async function StatsPage() {
   const restaurant = (await getUserRestaurant(user.id))!;
   const cur = restaurant.currency;
 
-  const [stats, top, ordered, peak, tables] = await Promise.all([
+  const [stats, top, ordered, peak, tables, staff] = await Promise.all([
     getDashboardStats(restaurant.id),
     getTopProducts(restaurant.id, 8),
     getMostOrdered(restaurant.id, 8),
     getPeakHours(restaurant.id),
     getTableStats(restaurant.id),
+    getStaffLeaderboard(restaurant.id, 8),
   ]);
+  const maxStaff = Math.max(...staff.map((s) => s.total), 1);
 
   const maxDaily = Math.max(...stats.daily.map((d) => d.count), 1);
   const maxRev = Math.max(...stats.daily.map((d) => d.revenue), 1);
@@ -146,6 +151,67 @@ export default async function StatsPage() {
             empty="Hali buyurtma yo'q"
             suffix=" ta"
           />
+        </Card>
+      </div>
+
+      {/* Xodimlar reytingi + oshxona samaradorligi */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="p-6 lg:col-span-2">
+          <div className="mb-5 flex items-center gap-2">
+            <Users className="h-4 w-4 text-accent" />
+            <h2 className="font-semibold text-foreground">Xodimlar reytingi</h2>
+            <Badge variant="accent">30 kun</Badge>
+          </div>
+          {staff.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted">
+              Hali ofitsant orqali buyurtma yo'q. Xodimlar panel orqali buyurtma olganda bu yerda ko'rinadi.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {staff.map((s, i) => {
+                const medal = ["🥇", "🥈", "🥉"];
+                return (
+                  <div key={s.name + i} className="flex items-center gap-3">
+                    <span className="w-6 text-center text-sm">
+                      {medal[i] ?? <span className="text-muted">{i + 1}</span>}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-medium text-foreground">{s.name}</p>
+                        <p className="shrink-0 text-sm font-bold text-foreground">
+                          {formatPrice(s.total, cur)}
+                        </p>
+                      </div>
+                      <div className="mt-1 flex items-center gap-2">
+                        <div className="h-1.5 flex-1 rounded-full bg-surface-2">
+                          <div
+                            style={{ width: `${(s.total / maxStaff) * 100}%` }}
+                            className="h-full rounded-full bg-accent"
+                          />
+                        </div>
+                        <span className="shrink-0 text-[11px] text-muted">
+                          {s.orders} buyurtma · {s.dishes} taom
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
+        {/* Oshxona: o'rtacha tayyorlash vaqti */}
+        <Card className="flex flex-col justify-center p-6 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent-soft text-accent">
+            <Timer className="h-6 w-6" />
+          </div>
+          <p className="text-3xl font-bold text-foreground">
+            {stats.avgPrepMins > 0 ? `${stats.avgPrepMins}` : "—"}
+            {stats.avgPrepMins > 0 && <span className="text-lg text-muted"> daq</span>}
+          </p>
+          <p className="mt-1 text-sm text-muted">O'rtacha tayyorlash vaqti</p>
+          <p className="mt-0.5 text-xs text-muted/70">Oshxona: buyurtmadan tayyorgacha (7 kun)</p>
         </Card>
       </div>
 

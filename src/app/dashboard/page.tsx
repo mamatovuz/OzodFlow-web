@@ -10,7 +10,7 @@ import {
   Clock,
   Crown,
 } from "lucide-react";
-import { ClipboardList, Wallet, Flame } from "lucide-react";
+import { ClipboardList, Wallet, Flame, ArrowUp, ArrowDown } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { getUserRestaurant } from "@/lib/api";
 import { getDashboardStats } from "@/lib/stats";
@@ -110,7 +110,10 @@ export default async function DashboardHome() {
               <ClipboardList className="h-5 w-5" />
             </div>
             <p className="text-2xl font-bold text-foreground">{stats.todayOrders}</p>
-            <p className="mt-0.5 text-sm text-muted">Bugungi buyurtmalar</p>
+            <div className="mt-0.5 flex items-center gap-2">
+              <p className="text-sm text-muted">Bugungi buyurtmalar</p>
+              <Trend today={stats.todayOrders} prev={stats.yesterdayOrders} />
+            </div>
           </Card>
         </Link>
         <Card className="p-5">
@@ -120,7 +123,10 @@ export default async function DashboardHome() {
           <p className="text-2xl font-bold text-foreground">
             {formatPrice(stats.todayRevenue, restaurant.currency)}
           </p>
-          <p className="mt-0.5 text-sm text-muted">Bugungi daromad</p>
+          <div className="mt-0.5 flex items-center gap-2">
+            <p className="text-sm text-muted">Bugungi daromad</p>
+            <Trend today={stats.todayRevenue} prev={stats.yesterdayRevenue} />
+          </div>
         </Card>
         <Link href="/dashboard/orders">
           <Card className="p-5 transition-all hover:-translate-y-0.5 hover:shadow-card">
@@ -339,6 +345,33 @@ export default async function DashboardHome() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Kecha bilan solishtirish — ↑/↓ foiz belgisi (yashil oshgan, qizil kamaygan)
+function Trend({ today, prev }: { today: number; prev: number }) {
+  if (prev <= 0) {
+    if (today > 0)
+      return (
+        <span className="flex items-center gap-0.5 rounded-full bg-success/10 px-1.5 py-0.5 text-[11px] font-semibold text-success">
+          <ArrowUp className="h-3 w-3" /> yangi
+        </span>
+      );
+    return <span className="text-[11px] text-muted/60">kecha 0</span>;
+  }
+  const pct = Math.round(((today - prev) / prev) * 100);
+  if (pct === 0) return <span className="text-[11px] text-muted/60">= kecha</span>;
+  const up = pct > 0;
+  return (
+    <span
+      className={`flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
+        up ? "bg-success/10 text-success" : "bg-error/10 text-error"
+      }`}
+      title="Kecha bilan solishtirganda"
+    >
+      {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+      {Math.abs(pct)}%
+    </span>
   );
 }
 

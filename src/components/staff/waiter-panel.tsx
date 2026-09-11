@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Loader2, Volume2, VolumeX, LogOut, Bell, BellRing, Receipt, ChevronLeft, Plus, Minus,
   X, Check, Utensils, Coins, CreditCard, Wallet, Search, ConciergeBell, Armchair, Percent, Clock,
+  Printer, ArrowRightLeft,
 } from "lucide-react";
 import { parseJson, formatPrice } from "@/lib/utils";
 import type { OrderItem } from "@/lib/orders";
@@ -20,6 +21,76 @@ type Card = { number: string | null; holder: string | null };
 function firstImg(images: string | null): string | null {
   const arr = parseJson<string[]>(images || "[]", []);
   return arr[0] || null;
+}
+
+// ─── Chek (kvitansiya) ma'lumoti ───
+type ReceiptData = {
+  number: number;
+  tableName: string | null;
+  items: { name?: string; qty?: number; price?: number }[];
+  restaurant: { name: string; phone: string | null; address: string | null; currency: string };
+  paidAt: string;
+  subtotal: number;
+  discount: number;
+  service: number;
+  total: number;
+  method: "CASH" | "CARD" | "MIXED";
+};
+
+// Termal printer (58/80mm) uchun chekni yangi oynada ochib chop etadi.
+function printReceipt(r: ReceiptData) {
+  const cur = r.restaurant.currency;
+  const d = new Date(r.paidAt);
+  const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c] || c));
+  const methodLabel = r.method === "CASH" ? "Naqd" : r.method === "CARD" ? "Karta" : "Aralash";
+  const rows = r.items
+    .map(
+      (it) =>
+        `<tr><td>${esc(it.name || "")}</td><td class="c">${it.qty || 0}</td><td class="r">${formatPrice(
+          (it.price || 0) * (it.qty || 0),
+          cur
+        )}</td></tr>`
+    )
+    .join("");
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Chek #${r.number}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Courier New',monospace;color:#000;background:#fff;padding:6px;width:280px}
+  h2{text-align:center;font-size:16px}
+  .muted{text-align:center;font-size:11px}
+  .line{border-top:1px dashed #000;margin:6px 0}
+  table{width:100%;font-size:12px;border-collapse:collapse}
+  td{padding:2px 0;vertical-align:top}
+  .c{text-align:center;width:28px}
+  .r{text-align:right;white-space:nowrap}
+  .row{display:flex;justify-content:space-between;font-size:12px;padding:1px 0}
+  .total{font-size:15px;font-weight:bold}
+  .foot{text-align:center;font-size:10px;margin-top:8px;color:#555}
+  @media print{body{width:auto}}
+</style></head><body onload="window.print()">
+  <h2>${esc(r.restaurant.name)}</h2>
+  ${r.restaurant.phone ? `<p class="muted">${esc(r.restaurant.phone)}</p>` : ""}
+  ${r.restaurant.address ? `<p class="muted">${esc(r.restaurant.address)}</p>` : ""}
+  <div class="line"></div>
+  <div class="row"><span>Sana</span><span>${d.toLocaleDateString("uz-UZ")} ${d.toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })}</span></div>
+  <div class="row"><span>Chek</span><span>#${r.number}</span></div>
+  ${r.tableName ? `<div class="row"><span>Stol</span><span>${esc(r.tableName)}</span></div>` : ""}
+  <div class="line"></div>
+  <table><tbody>${rows}</tbody></table>
+  <div class="line"></div>
+  <div class="row"><span>Oraliq</span><span>${formatPrice(r.subtotal, cur)}</span></div>
+  ${r.discount > 0 ? `<div class="row"><span>Chegirma</span><span>- ${formatPrice(r.discount, cur)}</span></div>` : ""}
+  ${r.service > 0 ? `<div class="row"><span>Xizmat haqi</span><span>+ ${formatPrice(r.service, cur)}</span></div>` : ""}
+  <div class="line"></div>
+  <div class="row total"><span>JAMI</span><span>${formatPrice(r.total, cur)}</span></div>
+  <div class="row"><span>To'lov</span><span>${methodLabel}</span></div>
+  <p class="foot">Rahmat! OzodFlow bilan yaratilgan</p>
+</body></html>`;
+  const w = window.open("", "_blank", "width=340,height=600");
+  if (!w) return;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
 }
 
 // ─── Ofitsant POS paneli ───
@@ -358,6 +429,7 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
   const [loading, setLoading] = useState(true);
   const [picker, setPicker] = useState(false);
   const [pay, setPay] = useState(false);
+  const [move, setMove] = useState(false); // stol ko'chirish modali
   // Void — bekor qilinayotgan taom { orderId, item }
   const [voiding, setVoiding] = useState<{ orderId: string; item: OrderItem } | null>(null);
   // Stol taymeri — eng eski buyurtmadan beri o'tgan vaqt
@@ -415,6 +487,16 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
             )}
           </p>
         </div>
+        {/* Stolni ko'chirish / birlashtirish — faqat buyurtma bo'lsa */}
+        {orders.length > 0 && (
+          <button
+            onClick={() => setMove(true)}
+            title="Boshqa stolga ko'chirish"
+            className="flex h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium text-foreground transition hover:border-accent hover:text-accent"
+          >
+            <ArrowRightLeft className="h-4 w-4" /> Ko'chirish
+          </button>
+        )}
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
@@ -514,6 +596,7 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
 
       {picker && <MenuPicker code={code} currency={currency} onClose={() => setPicker(false)} onSent={() => { setPicker(false); load(); }} />}
       {pay && <PaymentModal code={code} subtotal={total} serviceRate={serviceRate} card={card} currency={currency} onClose={() => setPay(false)} onPaid={() => { setPay(false); onClose(); }} />}
+      {move && <MoveModal fromCode={code} fromName={tableName} onClose={() => setMove(false)} onMoved={() => { setMove(false); onClose(); }} />}
       {voiding && (
         <VoidModal
           orderId={voiding.orderId}
@@ -606,6 +689,104 @@ function VoidModal({ orderId, item, currency, onClose, onDone }: {
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
           {newQty > 0 ? `${removeQty} ta bekor qilish` : "Taomni olib tashlash"}
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Stolni ko'chirish / birlashtirish ───
+function MoveModal({ fromCode, fromName, onClose, onMoved }: {
+  fromCode: string; fromName: string; onClose: () => void; onMoved: () => void;
+}) {
+  const [tables, setTables] = useState<TableRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [target, setTarget] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/staff/tables").then((r) => r.json()).then((j) => {
+      if (j.success) setTables(j.data.tables.filter((t: TableRow) => t.code !== fromCode));
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [fromCode]);
+
+  async function submit() {
+    if (!target) return;
+    setBusy(true);
+    setError("");
+    const res = await fetch(`/api/staff/table/${fromCode}/move`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ toCode: target }),
+    });
+    const json = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setError(json.error || "Ko'chirilmadi"); return; }
+    onMoved();
+  }
+
+  const targetTable = tables.find((t) => t.code === target);
+  const isMerge = targetTable && targetTable.status !== "FREE";
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative z-10 flex max-h-[85vh] w-full max-w-sm flex-col rounded-t-3xl bg-card sm:rounded-3xl">
+        <div className="flex items-center justify-between p-5 pb-3">
+          <div>
+            <h2 className="font-semibold text-foreground">Stolni ko'chirish</h2>
+            <p className="text-xs text-muted">{fromName} → boshqa stolga</p>
+          </div>
+          <button onClick={onClose} className="text-muted hover:text-foreground"><X className="h-5 w-5" /></button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-5">
+          {loading ? (
+            <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-accent" /></div>
+          ) : tables.length === 0 ? (
+            <p className="py-12 text-center text-sm text-muted">Boshqa stol yo'q</p>
+          ) : (
+            <div className="grid grid-cols-3 gap-2.5 pb-2">
+              {tables.map((t) => {
+                const busyT = t.status !== "FREE";
+                const active = target === t.code;
+                return (
+                  <button
+                    key={t.code}
+                    onClick={() => setTarget(t.code)}
+                    className={`flex min-h-[80px] flex-col items-center justify-center gap-1 rounded-xl border-2 p-2 transition ${
+                      active ? "border-accent bg-accent-soft" : busyT ? "border-warning/40 bg-warning/5" : "border-border bg-card"
+                    }`}
+                  >
+                    <Armchair className={`h-5 w-5 ${active ? "text-accent" : busyT ? "text-warning" : "text-muted"}`} />
+                    <span className="text-sm font-bold text-foreground">{t.name}</span>
+                    <span className={`text-[10px] font-medium ${busyT ? "text-warning" : "text-success"}`}>
+                      {busyT ? "Band" : "Bo'sh"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="p-5 pt-3" style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}>
+          {isMerge && (
+            <p className="mb-2.5 rounded-lg bg-warning/10 px-3 py-2 text-center text-[13px] font-medium text-warning">
+              ⚠️ Bu stol band — hisoblar birlashtiriladi
+            </p>
+          )}
+          {error && <div className="mb-2.5 rounded-lg bg-error/10 px-3 py-2 text-sm text-error">{error}</div>}
+          <button
+            onClick={submit}
+            disabled={!target || busy}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-[15px] font-semibold text-white active:scale-[0.98] disabled:opacity-40"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRightLeft className="h-4 w-4" />}
+            {isMerge ? "Birlashtirish" : "Ko'chirish"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -841,6 +1022,7 @@ function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, on
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+  const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   // Chegirma
   const [discMode, setDiscMode] = useState<"NONE" | "PERCENT" | "AMOUNT">("NONE");
   const [discVal, setDiscVal] = useState("");
@@ -874,6 +1056,17 @@ function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, on
     const json = await res.json();
     setBusy(false);
     if (!res.ok) { setError(json.error || "To'lov amalga oshmadi"); return; }
+    // Chek ma'lumotini tayyorlaymiz (chop etish uchun)
+    if (json.data?.receipt && method) {
+      setReceipt({
+        ...json.data.receipt,
+        subtotal,
+        discount: discountAmount,
+        service: serviceAmount,
+        total,
+        method,
+      });
+    }
     setDone(true);
   }
 
@@ -886,7 +1079,17 @@ function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, on
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success/10 text-success"><Check className="h-9 w-9" /></div>
             <h2 className="mt-4 text-xl font-bold text-foreground">To'lov qabul qilindi!</h2>
             <p className="mt-1 text-muted">{formatPrice(total, currency)} · {method === "CASH" ? "Naqd" : method === "CARD" ? "Karta" : "Aralash"}</p>
-            <button onClick={onPaid} className="mt-6 rounded-xl bg-accent px-6 py-2.5 font-semibold text-white">Yopish</button>
+            <div className="mt-6 flex w-full gap-2.5">
+              {receipt && (
+                <button
+                  onClick={() => printReceipt(receipt)}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl border-2 border-border py-2.5 font-semibold text-foreground active:scale-[0.98]"
+                >
+                  <Printer className="h-4 w-4" /> Chek chop etish
+                </button>
+              )}
+              <button onClick={onPaid} className="flex-1 rounded-xl bg-accent px-6 py-2.5 font-semibold text-white">Yopish</button>
+            </div>
           </div>
         ) : (
           <>

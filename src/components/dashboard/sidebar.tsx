@@ -26,6 +26,7 @@ import {
   Star,
   Building2,
   ChevronDown,
+  Ban,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -49,6 +50,7 @@ const navGroups: NavGroup[] = [
     title: "Menyu",
     items: [
       { href: "/dashboard/menu", label: "Menyu", icon: UtensilsCrossed },
+      { href: "/dashboard/stoplist", label: "Stop-list", icon: Ban },
       { href: "/dashboard/combos", label: "Combo", icon: Package },
       { href: "/dashboard/banners", label: "Bannerlar", icon: ImageIcon },
       { href: "/dashboard/gallery", label: "Galereya", icon: Images },

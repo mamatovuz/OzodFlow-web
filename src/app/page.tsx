@@ -42,6 +42,7 @@ import {
   Plus,
 } from "lucide-react";
 import { PROVIDER_META } from "@/lib/pos";
+import { RoiCalculator } from "@/components/landing/roi-calculator";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Logo } from "@/components/logo";
@@ -811,6 +812,20 @@ export default async function LandingPage({
                 </div>
               </Reveal>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ROI kalkulyatori */}
+      <section className="border-t border-border py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <SectionHeading
+            tag="Hisoblab ko'ring"
+            title="OzodFlow o'zini necha barobar qaytaradi?"
+            subtitle="Restoraningiz raqamlarini kiriting — oyiga taxminiy qo'shimcha foydani ko'ring."
+          />
+          <div className="mt-12">
+            <RoiCalculator price={prices.BUSINESS ?? 299000} />
           </div>
         </div>
       </section>

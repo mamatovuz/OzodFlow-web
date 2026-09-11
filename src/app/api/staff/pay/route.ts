@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       status: { not: "CANCELLED" },
     },
     orderBy: { createdAt: "asc" },
-    select: { id: true, total: true },
+    select: { id: true, total: true, items: true, number: true, tableName: true },
   });
   if (orders.length === 0) return fail("To'lanmagan buyurtma yo'q", 404);
 
@@ -96,5 +96,37 @@ export async function POST(req: NextRequest) {
     }),
   ]);
 
-  return ok({ count: orders.length, subtotal, discount, service, total, method, paidCash, paidCard });
+  // Chek uchun — stolning barcha taomlarini birlashtiramiz
+  type ItemLite = { name?: string; qty?: number; price?: number };
+  const receiptItems: ItemLite[] = orders.flatMap((o) => {
+    try {
+      return JSON.parse(o.items || "[]") as ItemLite[];
+    } catch {
+      return [];
+    }
+  });
+
+  return ok({
+    count: orders.length,
+    subtotal,
+    discount,
+    service,
+    total,
+    method,
+    paidCash,
+    paidCard,
+    // Chek chop etish uchun
+    receipt: {
+      number: lastOrder.number,
+      tableName: lastOrder.tableName,
+      items: receiptItems,
+      restaurant: {
+        name: restaurant.name,
+        phone: restaurant.phone,
+        address: restaurant.address,
+        currency: restaurant.currency,
+      },
+      paidAt: paidAt.toISOString(),
+    },
+  });
 }

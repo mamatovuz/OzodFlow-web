@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { parseJson } from "./utils";
 
 function startOfDay(d = new Date()) {
   const x = new Date(d);
@@ -10,6 +11,9 @@ export async function getDashboardStats(restaurantId: string) {
   const today = startOfDay();
   const weekAgo = new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000);
   const monthAgo = new Date(today.getTime() - 29 * 24 * 60 * 60 * 1000);
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const yesterday = new Date(today.getTime() - DAY_MS);
+  const twoWeeksAgo = new Date(today.getTime() - 13 * DAY_MS);
 
   const [
     todayScans,
@@ -82,6 +86,35 @@ export async function getDashboardStats(restaurantId: string) {
     _sum: { total: true },
   });
 
+  // Kecha bilan solishtirish uchun kechagi savdo + buyurtma
+  const [yesterdayAgg, yesterdayOrders, prevWeekAgg, prepRows] = await Promise.all([
+    prisma.order.aggregate({
+      where: { restaurantId, createdAt: { gte: yesterday, lt: today }, status: { not: "CANCELLED" } },
+      _sum: { total: true },
+    }),
+    prisma.order.count({
+      where: { restaurantId, createdAt: { gte: yesterday, lt: today } },
+    }),
+    // Oldingi 7 kun (bugungi haftadan oldingi) — haftalik trend uchun
+    prisma.order.aggregate({
+      where: { restaurantId, createdAt: { gte: twoWeeksAgo, lt: weekAgo }, status: { not: "CANCELLED" } },
+      _sum: { total: true },
+    }),
+    // Oshxona tayyorlash vaqti (oxirgi 7 kun, READY belgilangan buyurtmalar)
+    prisma.order.findMany({
+      where: { restaurantId, readyAt: { not: null }, createdAt: { gte: weekAgo } },
+      select: { createdAt: true, readyAt: true },
+    }),
+  ]);
+
+  // O'rtacha tayyorlash vaqti (daqiqa)
+  const prepDurations = prepRows
+    .map((o) => (o.readyAt ? (+o.readyAt - +o.createdAt) / 60000 : 0))
+    .filter((m) => m > 0 && m < 300); // 5 soatdan uzunini chiqindi deb tashlaymiz
+  const avgPrepMins = prepDurations.length
+    ? Math.round(prepDurations.reduce((s, m) => s + m, 0) / prepDurations.length)
+    : 0;
+
   const DAY = 24 * 60 * 60 * 1000;
   const dayName = ["Yak", "Du", "Se", "Cho", "Pay", "Ju", "Sha"];
   const daily = Array.from({ length: 7 }, (_, i) => {
@@ -121,6 +154,12 @@ export async function getDashboardStats(restaurantId: string) {
     todayCash,
     todayCard,
     avgCheck,
+    // ─── Trend (solishtirish) ───
+    yesterdayRevenue: yesterdayAgg._sum.total ?? 0,
+    yesterdayOrders,
+    prevWeekRevenue: prevWeekAgg._sum.total ?? 0,
+    // ─── Oshxona samaradorligi ───
+    avgPrepMins,
   };
 }
 
@@ -214,6 +253,34 @@ export async function getPeakHours(restaurantId: string) {
   const pad = (n: number) => String(n).padStart(2, "0");
   const label = bestSum > 0 ? `${pad(bestStart)}:00 — ${pad((bestStart + 2) % 24)}:00` : "—";
   return { hours, label, total: events.length };
+}
+
+// ─── Xodimlar (ofitsant) reytingi — savdo bo'yicha (oxirgi 30 kun) ───
+// Buyurtmani kim qabul qilgani (waiterName) bo'yicha guruhlaymiz — bu ham kod tizimi
+// (Waiter), ham panelга login qilgan xodimlar (staffId) uchun ishlaydi.
+export async function getStaffLeaderboard(restaurantId: string, limit = 8) {
+  const monthAgo = new Date(startOfDay().getTime() - 29 * 24 * 60 * 60 * 1000);
+  const orders = await prisma.order.findMany({
+    where: {
+      restaurantId,
+      createdAt: { gte: monthAgo },
+      status: { not: "CANCELLED" },
+      waiterName: { not: null },
+    },
+    select: { waiterName: true, total: true, items: true },
+  });
+  const agg = new Map<string, { name: string; orders: number; dishes: number; total: number }>();
+  for (const o of orders) {
+    const name = (o.waiterName || "").trim();
+    if (!name) continue;
+    const cur = agg.get(name) || { name, orders: 0, dishes: 0, total: 0 };
+    cur.orders += 1;
+    cur.total += o.total;
+    const items = parseJson<{ qty?: number }[]>(o.items, []);
+    cur.dishes += items.reduce((s, it) => s + (Number(it.qty) || 0), 0);
+    agg.set(name, cur);
+  }
+  return [...agg.values()].sort((a, b) => b.total - a.total).slice(0, limit);
 }
 
 // ─── Filiallar (multi-branch) umumiy ko'rinishi ───

@@ -42,4 +42,5 @@ export type OrderItem = {
   qty: number;
   categoryName?: string | null; // oshxona bo'lim (stansiya) filtri uchun
   comment?: string | null; // taomga izoh (masalan "achchiqroq")
+  done?: boolean; // oshxonada shu taom tayyor bo'ldimi (item-level KDS)
 };

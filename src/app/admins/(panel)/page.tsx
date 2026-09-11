@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Wallet, Store, Clock, CheckCircle2, Globe, Eye } from "lucide-react";
+import { Wallet, Store, Clock, CheckCircle2, Globe, Eye, AlertTriangle, Activity, Crown } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { Card, Badge } from "@/components/ui";
 import { formatPrice } from "@/lib/utils";
@@ -9,23 +9,69 @@ export const dynamic = "force-dynamic";
 export default async function AdminHome() {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 864e5);
+  const in7Days = new Date(now.getTime() + 7 * 864e5);
 
-  const [pending, domainsPending, restaurants, approvedAgg, recent, visitsToday] =
-    await Promise.all([
-      prisma.paymentRequest.count({ where: { status: "PENDING" } }),
-      prisma.domainRequest.count({ where: { status: "PENDING" } }),
-      prisma.restaurant.count(),
-      prisma.paymentRequest.aggregate({
-        where: { status: "APPROVED" },
-        _sum: { amount: true },
-      }),
-      prisma.paymentRequest.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        include: { restaurant: { select: { name: true } } },
-      }),
-      prisma.siteVisit.count({ where: { createdAt: { gte: todayStart } } }),
-    ]);
+  const [
+    pending,
+    domainsPending,
+    restaurants,
+    approvedAgg,
+    recent,
+    visitsToday,
+    expiring,
+    activeScanGroups,
+    activeOrderGroups,
+  ] = await Promise.all([
+    prisma.paymentRequest.count({ where: { status: "PENDING" } }),
+    prisma.domainRequest.count({ where: { status: "PENDING" } }),
+    prisma.restaurant.count(),
+    prisma.paymentRequest.aggregate({
+      where: { status: "APPROVED" },
+      _sum: { amount: true },
+    }),
+    prisma.paymentRequest.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      include: { restaurant: { select: { name: true } } },
+    }),
+    prisma.siteVisit.count({ where: { createdAt: { gte: todayStart } } }),
+    // Obunasi 7 kun ichida tugaydigan pullik restoranlar
+    prisma.restaurant.findMany({
+      where: {
+        planUntil: { gte: now, lte: in7Days },
+        plan: { not: "FREE" },
+        isBlocked: false,
+      },
+      orderBy: { planUntil: "asc" },
+      take: 8,
+      select: {
+        id: true,
+        name: true,
+        plan: true,
+        planUntil: true,
+        owner: { select: { name: true, phone: true, email: true } },
+      },
+    }),
+    // Oxirgi 7 kunda faol restoranlar (skan yoki buyurtma bo'yicha)
+    prisma.scanEvent.groupBy({
+      by: ["restaurantId"],
+      where: { createdAt: { gte: weekAgo } },
+    }),
+    prisma.order.groupBy({
+      by: ["restaurantId"],
+      where: { createdAt: { gte: weekAgo } },
+    }),
+  ]);
+
+  // Faol restoranlar — skan yoki buyurtma qilganlar birlashmasi
+  const activeSet = new Set<string>([
+    ...activeScanGroups.map((g) => g.restaurantId),
+    ...activeOrderGroups.map((g) => g.restaurantId),
+  ]);
+  const activeCount = activeSet.size;
+  const inactiveCount = Math.max(0, restaurants - activeCount);
 
   const cards = [
     { label: "Bugungi tashriflar", value: visitsToday, icon: Eye, href: "/admins/analytics" },
@@ -66,6 +112,85 @@ export default async function AdminHome() {
             <div key={c.label}>{inner}</div>
           );
         })}
+      </div>
+
+      {/* Faollik + obuna tugashi */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Faol / nofaol restoranlar */}
+        <Card className="p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <Activity className="h-4 w-4 text-accent" />
+            <h2 className="font-semibold text-foreground">Faollik (7 kun)</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-success/10 p-4 text-center">
+              <p className="text-2xl font-bold text-success">{activeCount}</p>
+              <p className="mt-0.5 text-xs text-muted">Faol restoran</p>
+            </div>
+            <div className="rounded-xl bg-surface-2 p-4 text-center">
+              <p className="text-2xl font-bold text-foreground">{inactiveCount}</p>
+              <p className="mt-0.5 text-xs text-muted">Nofaol (jim)</p>
+            </div>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-2">
+            <div
+              className="h-full rounded-full bg-success"
+              style={{ width: `${restaurants ? Math.round((activeCount / restaurants) * 100) : 0}%` }}
+            />
+          </div>
+          <p className="mt-2 text-xs text-muted">
+            {restaurants ? Math.round((activeCount / restaurants) * 100) : 0}% restoran oxirgi 7 kunda faol edi
+          </p>
+        </Card>
+
+        {/* Obunasi tugayotganlar */}
+        <Card className="p-6 lg:col-span-2">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 font-semibold text-foreground">
+              <AlertTriangle className="h-4 w-4 text-warning" /> Obunasi tugayotganlar (7 kun)
+            </h2>
+            <Link href="/admins/restaurants" className="text-sm text-accent hover:underline">
+              Restoranlar →
+            </Link>
+          </div>
+          {expiring.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted">
+              Yaqin 7 kunda tugaydigan obuna yo'q ✅
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {expiring.map((r) => {
+                const days = Math.max(
+                  0,
+                  Math.ceil((+new Date(r.planUntil!) - Date.now()) / 864e5)
+                );
+                return (
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-2.5"
+                  >
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-1.5 truncate text-sm font-medium text-foreground">
+                        <Crown className="h-3.5 w-3.5 text-warning" /> {r.name}
+                        <Badge variant="accent">{r.plan}</Badge>
+                      </p>
+                      <p className="truncate text-xs text-muted">
+                        {r.owner?.name} · {r.owner?.phone || r.owner?.email || "—"}
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-md px-2 py-1 text-xs font-semibold ${
+                        days <= 1 ? "bg-error/10 text-error" : "bg-warning/10 text-warning"
+                      }`}
+                    >
+                      {days === 0 ? "Bugun" : `${days} kun`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
       </div>
 
       <Card className="p-6">

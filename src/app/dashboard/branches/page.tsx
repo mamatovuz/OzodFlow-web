@@ -9,6 +9,7 @@ import { BRANCH_PRICE } from "@/lib/plans";
 import { formatPrice } from "@/lib/utils";
 import { Card, Badge } from "@/components/ui";
 import { AddBranch } from "@/components/dashboard/add-branch";
+import { BranchDeleteButton } from "@/components/dashboard/branch-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -74,7 +75,7 @@ export default async function BranchesPage() {
 
           {/* Filiallar ro'yxati */}
           <div className="grid gap-4 md:grid-cols-2">
-            {data.branches.map((b) => (
+            {data.branches.map((b, i) => (
               <Card key={b.id} className="p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
@@ -92,12 +93,15 @@ export default async function BranchesPage() {
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
+                    {i === 0 && <Badge variant="accent">Asosiy</Badge>}
                     {b.plan !== "FREE" && (
                       <Badge variant="accent">
                         <Crown className="h-3 w-3" /> {b.plan}
                       </Badge>
                     )}
                     {b.isBlocked && <Badge variant="error">Bloklangan</Badge>}
+                    {/* Asosiy filialdan tashqari — o'chirish mumkin (faqat egasi) */}
+                    {owner && i > 0 && <BranchDeleteButton id={b.id} name={b.name} />}
                   </div>
                 </div>
 

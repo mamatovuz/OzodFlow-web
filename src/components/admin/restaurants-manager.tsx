@@ -70,6 +70,20 @@ export function RestaurantsManager({ rows }: { rows: AdminRestaurantRow[] }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [enterId, setEnterId] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+
+  // Global qidiruv — restoran nomi, slug, egasi yoki kontakt bo'yicha
+  const filtered = q.trim()
+    ? rows.filter((r) => {
+        const s = q.trim().toLowerCase();
+        return (
+          r.name.toLowerCase().includes(s) ||
+          r.slug.toLowerCase().includes(s) ||
+          r.ownerName.toLowerCase().includes(s) ||
+          (r.ownerContact || "").toLowerCase().includes(s)
+        );
+      })
+    : rows;
 
   // Foydalanuvchi (egasi yoki xodim) paneliga parolsiz kiradi
   async function enterAs(userId: string) {
@@ -113,6 +127,20 @@ export function RestaurantsManager({ rows }: { rows: AdminRestaurantRow[] }) {
 
   return (
     <>
+      {/* Qidiruv */}
+      <div className="relative mb-4 max-w-md">
+        <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Restoran, egasi yoki telefon bo'yicha qidiring..."
+          className="h-11 w-full rounded-lg border border-border bg-card pl-9 pr-3 text-sm text-foreground outline-none focus:border-accent"
+        />
+      </div>
+      {q.trim() && (
+        <p className="mb-2 text-sm text-muted">{filtered.length} ta natija topildi</p>
+      )}
+
       <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -127,7 +155,14 @@ export function RestaurantsManager({ rows }: { rows: AdminRestaurantRow[] }) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-muted">
+                    Natija topilmadi
+                  </td>
+                </tr>
+              )}
+              {filtered.map((r) => (
                 <Fragment key={r.id}>
                 <tr className="border-b border-border align-top data-[exp=true]:border-b-0" data-exp={expanded === r.id}>
                   <td className="px-4 py-3">

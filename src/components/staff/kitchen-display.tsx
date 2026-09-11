@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
-  Loader2, Volume2, VolumeX, Maximize2, Minimize2, LogOut, Clock, Ban,
+  Loader2, Volume2, VolumeX, Maximize2, Minimize2, LogOut, Clock, Ban, Check, Undo2, X,
 } from "lucide-react";
 import { parseJson } from "@/lib/utils";
 import type { OrderItem } from "@/lib/orders";
@@ -42,7 +42,9 @@ export function KitchenDisplay({
   const [now, setNow] = useState(() => Date.now());
   const [busyId, setBusyId] = useState<string | null>(null);
   const [station, setStation] = useState<string>(""); // "" = barcha bo'limlar
-  const lastIdRef = useRef<string | null>(null);
+  const [cancelling, setCancelling] = useState<Order | null>(null); // bekor qilish modali
+  // Ovoz uchun: ilgari ko'rilgan "yangi" buyurtma ID lari
+  const seenRef = useRef<Set<string>>(new Set());
   const first = useRef(true);
   const soundRef = useRef(soundOn);
   soundRef.current = soundOn;
@@ -71,10 +73,17 @@ export function KitchenDisplay({
         const active: Order[] = json.data.orders.filter((o: Order) =>
           ["NEW", "ACCEPTED", "PREPARING", "READY"].includes(o.status)
         );
-        // Eng yangi NEW buyurtma paydo bo'lsa — ovoz
-        const newest = active.find((o) => o.status === "NEW" || o.status === "ACCEPTED")?.id ?? null;
-        if (!first.current && newest && newest !== lastIdRef.current && soundRef.current) beep();
-        lastIdRef.current = newest;
+        // Har bir "yangi" (NEW/ACCEPTED) buyurtma ID sini kuzatamiz.
+        // Ilgari ko'rilmagan ID paydo bo'lsa — bir necha kelsa ham — ovoz chalamiz.
+        const currentNew = active
+          .filter((o) => o.status === "NEW" || o.status === "ACCEPTED")
+          .map((o) => o.id);
+        if (!first.current && soundRef.current) {
+          const hasFresh = currentNew.some((id) => !seenRef.current.has(id));
+          if (hasFresh) beep();
+        }
+        // Kuzatuv to'plamini faol yangilar bilan yangilaymiz (o'tib ketganlar chiqadi)
+        seenRef.current = new Set(currentNew);
         first.current = false;
         setOrders(active);
       }
@@ -104,10 +113,23 @@ export function KitchenDisplay({
     load();
   }
 
-  // Bekor qilish (masalan taom tugadi) — sabab bilan. Ofitsant ko'radi.
-  async function cancel(id: string, number: number) {
-    const reason = window.prompt(`#${number} buyurtmani bekor qilish sababi (masalan: Osh tugadi):`, "");
-    if (reason === null) return;
+  // Bitta taomni "tayyor" deb belgilash (item-level). Hammasi bo'lsa — server READY qiladi.
+  async function toggleItem(order: Order, idx: number, done: boolean) {
+    const items = parseJson<OrderItem[]>(order.items, []);
+    items[idx] = { ...items[idx], done };
+    const optimistic = JSON.stringify(items);
+    setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, items: optimistic } : o)));
+    await fetch(`/api/orders/${order.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemIndex: idx, done }),
+    }).catch(() => {});
+    load();
+  }
+
+  // Bekor qilish (masalan taom tugadi) — modal orqali, sabab bilan.
+  async function doCancel(id: string, reason: string) {
+    setCancelling(null);
     setBusyId(id);
     setOrders((prev) => prev.filter((o) => o.id !== id));
     await fetch(`/api/orders/${id}`, {
@@ -222,7 +244,8 @@ export function KitchenDisplay({
                           col={col.key}
                           busy={busyId === o.id}
                           onAdvance={advance}
-                          onCancel={cancel}
+                          onCancel={() => setCancelling(o)}
+                          onToggleItem={toggleItem}
                         />
                       ))
                     )}
@@ -233,19 +256,28 @@ export function KitchenDisplay({
           </div>
         </div>
       )}
+
+      {cancelling && (
+        <CancelModal
+          order={cancelling}
+          onClose={() => setCancelling(null)}
+          onConfirm={(reason) => doCancel(cancelling.id, reason)}
+        />
+      )}
     </div>
   );
 }
 
 function KitchenCard({
-  order, now, col, busy, onAdvance, onCancel,
+  order, now, col, busy, onAdvance, onCancel, onToggleItem,
 }: {
   order: Order;
   now: number;
   col: string;
   busy: boolean;
   onAdvance: (id: string, to: string) => void;
-  onCancel: (id: string, number: number) => void;
+  onCancel: () => void;
+  onToggleItem: (order: Order, idx: number, done: boolean) => void;
 }) {
   const items = parseJson<OrderItem[]>(order.items, []);
   const mins = Math.floor((now - +new Date(order.createdAt)) / 60000);
@@ -255,6 +287,8 @@ function KitchenCard({
   const warn = mins >= 10 && mins < 15;
   const timeColor = late ? "text-error" : warn ? "text-warning" : "text-muted";
   const isDelivery = order.orderType === "DELIVERY";
+  const canCheck = col === "new" || col === "prep"; // ready ustunда belgilamaymiz
+  const doneCount = items.filter((it) => it.done).length;
 
   // Oshxona faqat NEW→PREPARING→READY qiladi; yetkazish (DELIVERED) — ofitsant ishi
   const action =
@@ -283,7 +317,7 @@ function KitchenCard({
             <Clock className="h-3 w-3" /> {mins}′
           </span>
           <button
-            onClick={() => onCancel(order.id, order.number)}
+            onClick={onCancel}
             title="Bekor qilish"
             className="text-muted/40 transition hover:text-error"
           >
@@ -293,16 +327,39 @@ function KitchenCard({
       </div>
       {order.waiterName && <p className="mt-0.5 text-xs text-muted">{order.waiterName}</p>}
 
-      <ul className="mt-3 space-y-1.5">
-        {items.map((it, i) => (
-          <li key={i} className="flex items-baseline gap-2.5 text-[15px] leading-tight text-foreground">
-            <span className="w-6 shrink-0 text-right text-sm font-semibold tabular-nums text-muted">{it.qty}×</span>
-            <span>
-              {it.name}
-              {it.comment ? <span className="block text-xs text-error/80">{it.comment}</span> : null}
-            </span>
-          </li>
-        ))}
+      {/* Taomlar — oshxonada har birini belgilash mumkin (item-level) */}
+      <ul className="mt-3 space-y-1">
+        {items.map((it, i) =>
+          canCheck ? (
+            <li key={i}>
+              <button
+                onClick={() => onToggleItem(order, i, !it.done)}
+                className="flex w-full items-baseline gap-2.5 rounded-md py-1 text-left text-[15px] leading-tight transition hover:bg-surface-2"
+              >
+                <span
+                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition ${
+                    it.done ? "border-success bg-success text-white" : "border-border"
+                  }`}
+                >
+                  {it.done && <Check className="h-3.5 w-3.5" />}
+                </span>
+                <span className="w-6 shrink-0 text-right text-sm font-semibold tabular-nums text-muted">{it.qty}×</span>
+                <span className={it.done ? "text-muted line-through" : "text-foreground"}>
+                  {it.name}
+                  {it.comment ? <span className="block text-xs text-error/80 no-underline">{it.comment}</span> : null}
+                </span>
+              </button>
+            </li>
+          ) : (
+            <li key={i} className="flex items-baseline gap-2.5 py-0.5 text-[15px] leading-tight text-foreground">
+              <span className="w-6 shrink-0 text-right text-sm font-semibold tabular-nums text-muted">{it.qty}×</span>
+              <span>
+                {it.name}
+                {it.comment ? <span className="block text-xs text-error/80">{it.comment}</span> : null}
+              </span>
+            </li>
+          )
+        )}
       </ul>
 
       {order.comment && (
@@ -310,18 +367,93 @@ function KitchenCard({
       )}
 
       {action ? (
-        <button
-          disabled={busy}
-          onClick={() => onAdvance(order.id, action.to)}
-          className="mt-3.5 flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2.5 text-[15px] font-medium text-white transition hover:bg-accent-hover active:scale-[0.99] disabled:opacity-50"
-        >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : action.label}
-        </button>
+        <div className="mt-3.5 flex items-center gap-2">
+          {/* Prep ustunida orqaga qaytarish (recall) */}
+          {col === "prep" && (
+            <button
+              disabled={busy}
+              onClick={() => onAdvance(order.id, "NEW")}
+              title="Yangiga qaytarish"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border text-muted transition hover:text-foreground disabled:opacity-50"
+            >
+              <Undo2 className="h-4 w-4" />
+            </button>
+          )}
+          <button
+            disabled={busy}
+            onClick={() => onAdvance(order.id, action.to)}
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-accent py-2.5 text-[15px] font-medium text-white transition hover:bg-accent-hover active:scale-[0.99] disabled:opacity-50"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : action.label}
+            {canCheck && doneCount > 0 && (
+              <span className="text-xs opacity-80">({doneCount}/{items.length})</span>
+            )}
+          </button>
+        </div>
       ) : (
-        <p className="mt-3.5 rounded-lg bg-surface-2 py-2 text-center text-[13px] font-medium text-muted">
-          Ofitsant yetkazadi
-        </p>
+        // Tayyor ustuni — ofitsant yetkazadi + xato bo'lsa qaytarish (recall)
+        <div className="mt-3.5 flex items-center gap-2">
+          <button
+            disabled={busy}
+            onClick={() => onAdvance(order.id, "PREPARING")}
+            title="Tayyorlashga qaytarish"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border text-muted transition hover:text-foreground disabled:opacity-50"
+          >
+            <Undo2 className="h-4 w-4" />
+          </button>
+          <p className="flex-1 rounded-lg bg-success/10 py-2 text-center text-[13px] font-medium text-success">
+            Ofitsant yetkazadi
+          </p>
+        </div>
       )}
+    </div>
+  );
+}
+
+// ─── Bekor qilish modali (window.prompt o'rniga — ekranni bloklamaydi) ───
+const KITCHEN_REASONS = ["Osh/taom tugadi", "Mahsulot yo'q", "Mijoz bekor qildi", "Xato buyurtma"];
+
+function CancelModal({
+  order, onClose, onConfirm,
+}: {
+  order: Order;
+  onClose: () => void;
+  onConfirm: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState("");
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-sm rounded-t-3xl bg-card p-5 sm:rounded-3xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-semibold text-foreground">#{order.number} — bekor qilish</h2>
+          <button onClick={onClose} className="text-muted hover:text-foreground"><X className="h-5 w-5" /></button>
+        </div>
+        <label className="mb-1.5 block text-xs text-muted">Sabab</label>
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {KITCHEN_REASONS.map((r) => (
+            <button
+              key={r}
+              onClick={() => setReason(r)}
+              className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${reason === r ? "bg-error text-white" : "bg-surface-2 text-muted"}`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+        <input
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Yoki o'zingiz yozing..."
+          className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-accent"
+        />
+        <button
+          onClick={() => onConfirm(reason)}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-error py-3 text-sm font-semibold text-white active:scale-[0.98]"
+        >
+          <Ban className="h-4 w-4" /> Buyurtmani bekor qilish
+        </button>
+      </div>
     </div>
   );
 }

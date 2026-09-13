@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
 import { sendOrderToChannel } from "@/lib/order-telegram";
 import type { OrderItem } from "@/lib/orders";
+import { voidNeedsApproval } from "@/lib/staff";
+import { verifyManagerPin } from "@/lib/approvals";
 
 // Ofitsant panel orqali buyurtma yaratadi (stolga taom qo'shib, oshxonaga yuboradi).
 const schema = z.object({
@@ -119,6 +121,8 @@ const voidSchema = z.object({
   productId: z.string().min(1),
   newQty: z.number().int().min(0).max(99),
   reason: z.string().max(200).optional().nullable(),
+  // Manager PIN — oshxonaga ketgan buyurtmani bekor qilish tasdig'i
+  approverPin: z.string().optional(),
 });
 
 export async function PATCH(req: NextRequest) {
@@ -138,6 +142,16 @@ export async function PATCH(req: NextRequest) {
   if (!order) return fail("Buyurtma topilmadi", 404);
   if (order.paymentStatus === "PAID") return fail("To'langan buyurtmani o'zgartirib bo'lmaydi", 422);
 
+  // ─── Oshxonaga ketgan (NEW emas) buyurtmani bekor qilish manager tasdig'ini talab qiladi ───
+  const isOwner = restaurant.ownerId === user.id;
+  let approvedBy: string | null = null;
+  if (!isOwner && voidNeedsApproval(order.status)) {
+    approvedBy = await verifyManagerPin(restaurant.id, parsed.data.approverPin);
+    if (!approvedBy) {
+      return fail("Bu buyurtma allaqachon oshxonaga ketgan. Bekor qilish uchun manager PIN kiriting.", 403);
+    }
+  }
+
   const items: OrderItem[] = JSON.parse(order.items || "[]");
   const idx = items.findIndex((x) => x.productId === productId);
   if (idx === -1) return fail("Taom topilmadi", 404);
@@ -147,7 +161,7 @@ export async function PATCH(req: NextRequest) {
   if (removedQty <= 0) return fail("Miqdor kamaytirilmadi", 422);
 
   // Void jurnaliga yozamiz (audit)
-  const log: { name: string; qty: number; reason: string | null; at: string; by: string }[] =
+  const log: { name: string; qty: number; reason: string | null; at: string; by: string; approvedBy?: string }[] =
     JSON.parse(order.voidLog || "[]");
   log.push({
     name: target.name,
@@ -155,6 +169,7 @@ export async function PATCH(req: NextRequest) {
     reason: reason?.trim() || null,
     at: new Date().toISOString(),
     by: user.name,
+    ...(approvedBy ? { approvedBy } : {}),
   });
 
   // Taomni yangilaymiz yoki butunlay olib tashlaymiz
@@ -171,6 +186,7 @@ export async function PATCH(req: NextRequest) {
       total: newTotal,
       subtotal: newTotal,
       voidLog: JSON.stringify(log),
+      ...(approvedBy ? { approvedBy } : {}),
       ...(allGone ? { status: "CANCELLED", cancelReason: reason?.trim() || "Bekor qilindi" } : {}),
     },
   });

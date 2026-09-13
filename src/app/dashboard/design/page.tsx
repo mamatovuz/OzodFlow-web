@@ -3,7 +3,6 @@ import { getUserRestaurant } from "@/lib/api";
 import { getEffectivePlan } from "@/lib/plans";
 import { parsePurchasedThemes } from "@/lib/themes";
 import { DesignManager } from "@/components/dashboard/design-manager";
-import { DomainForm } from "@/components/dashboard/domain-form";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +16,9 @@ export default async function DesignPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Menyu dizaynlari</h1>
         <p className="mt-1 text-sm text-muted">
-          Tayyor dizayn tanlang. <b className="text-foreground">Klassik</b> dizaynда
-          esa &ldquo;Sozlash&rdquo; orqali ranglar, fon, bosh sahifa va logoni
-          restoraningizga to'liq moslaysiz.
+          Tayyor dizayn tanlang, so'ng har birини &ldquo;Sozlash&rdquo; orqali
+          ranglar, fon, burchak radiusi, bosh sahifa va logoni restoraningizga
+          to'liq moslang.
         </p>
       </div>
 
@@ -35,8 +34,6 @@ export default async function DesignPage() {
           logo: restaurant.logo,
         }}
       />
-
-      <DomainForm current={restaurant.customDomain} slug={restaurant.slug} />
     </div>
   );
 }

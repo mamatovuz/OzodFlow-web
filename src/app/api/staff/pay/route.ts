@@ -1,7 +1,10 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
+import { authGuard, getUserRestaurant, getMembership, ok, fail } from "@/lib/api";
+import { getOpenShift } from "@/lib/shifts";
+import { discountNeedsApproval } from "@/lib/staff";
+import { verifyManagerPin } from "@/lib/approvals";
 
 // Ofitsant stol hisobini to'laydi — naqd, karta yoki aralash.
 // Chegirma va xizmat haqi (bo'lsa) yakuniy summaga qo'llanadi.
@@ -16,6 +19,8 @@ const schema = z.object({
   discountType: z.enum(["PERCENT", "AMOUNT"]).optional(),
   // Xizmat haqi: summa (so'm)
   service: z.number().min(0).optional(),
+  // Manager PIN — chegirma waiter limitidan oshsa tasdiqlash uchun
+  approverPin: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -48,6 +53,24 @@ export async function POST(req: NextRequest) {
   const service = Math.max(0, parsed.data.service ?? 0);
   const total = Math.max(0, subtotal - discount + service);
 
+  // ─── Chegirma limiti: waiter limitidan oshsa manager PIN talab qilinadi ───
+  const discountPercent = subtotal > 0 ? (discount / subtotal) * 100 : 0;
+  const isOwner = restaurant.ownerId === user.id;
+  let approvedBy: string | null = null;
+  if (!isOwner && discount > 0) {
+    const membership = await getMembership(user.id);
+    const role = membership?.role ?? "WAITER";
+    if (discountNeedsApproval(role, discountPercent)) {
+      approvedBy = await verifyManagerPin(restaurant.id, parsed.data.approverPin);
+      if (!approvedBy) {
+        return fail(
+          `Chegirma ${discountPercent.toFixed(0)}% — bu limitdan oshdi. Manager PIN kiriting.`,
+          403
+        );
+      }
+    }
+  }
+
   // To'lov qismlarini aniqlaymiz
   let paidCash = 0;
   let paidCard = 0;
@@ -64,6 +87,10 @@ export async function POST(req: NextRequest) {
 
   const paidAt = new Date();
 
+  // Ochiq smena bo'lsa — to'lovni unga bog'laymiz (kassa hisobi uchun)
+  const shift = await getOpenShift(restaurant.id, user.id);
+  const shiftId = shift?.id ?? null;
+
   // Chegirma/xizmat haqi farqini (delta) oxirgi buyurtmaga yozamiz — shunda
   // stol bo'yicha sum(total) yakuniy summaga (haqiqiy tushum) teng bo'ladi.
   const delta = service - discount; // total - subtotal
@@ -79,6 +106,7 @@ export async function POST(req: NextRequest) {
         paymentMethod: method,
         paidAt,
         status: "DELIVERED",
+        shiftId,
       },
     }),
     // Chegirma/servis ma'lumotini va delta bilan tuzatilgan total'ni oxirgi buyurtmaga yozamiz
@@ -92,6 +120,7 @@ export async function POST(req: NextRequest) {
         // To'lov qismlarini oxirgi buyurtmaga yozamiz (chek uchun)
         paidCash,
         paidCard,
+        ...(approvedBy ? { approvedBy } : {}),
       },
     }),
   ]);

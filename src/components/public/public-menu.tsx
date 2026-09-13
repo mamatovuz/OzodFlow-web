@@ -741,7 +741,7 @@ export function PublicMenu({
         ) : (
           <div
             className="h-full w-full"
-            style={{ background: `linear-gradient(135deg, ${accent}, ${theme.colors.foreground})` }}
+            style={{ background: `linear-gradient(135deg, ${accent}, ${dc.foreground})` }}
           />
         )}
         {/* Pastga qarab qorayadigan gradient — karta bilan yumshoq ajralish uchun */}

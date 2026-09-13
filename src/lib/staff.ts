@@ -22,3 +22,24 @@ export function staffRoleLabel(role: string) {
 export function isManager(role: string) {
   return role === "MANAGER";
 }
+
+// ─── Chegirma limitlari (rol bo'yicha, % da) ───
+// Boshqa POS tizimlariga moslab: ofitsant kichik chegirma bera oladi, undan
+// yuqorisi manager tasdig'i (PIN) bilan. Egasi kelajakda o'zgartira oladi.
+export const DISCOUNT_LIMIT: Record<StaffRole, number> = {
+  WAITER: 5,
+  KITCHEN: 0,
+  MANAGER: 25,
+};
+
+// Berilgan rol shu foizli chegirmani o'zi bera oladimi (tasdiqsiz)?
+export function discountNeedsApproval(role: string, percent: number): boolean {
+  const limit = DISCOUNT_LIMIT[role as StaffRole] ?? 0;
+  return percent > limit + 0.0001; // suzuvchi xatolikka chidamli
+}
+
+// Void (bekor qilish) tasdiq talab qiladimi? Oshxonaga ketgan (NEW emas)
+// buyurtmadan taom bekor qilish manager tasdig'ini talab qiladi.
+export function voidNeedsApproval(orderStatus: string): boolean {
+  return orderStatus !== "NEW";
+}

@@ -8,7 +8,7 @@ import {
 import { Card, Button, Input, Label, Select, Badge, EmptyState } from "@/components/ui";
 import { STAFF_ROLES, type StaffRole } from "@/lib/staff";
 
-type Staff = { id: string; role: string; user: { id: string; name: string; email: string | null } };
+type Staff = { id: string; role: string; hasPin?: boolean; user: { id: string; name: string; email: string | null } };
 
 const ROLE_ICON: Record<string, typeof ChefHat> = {
   MANAGER: ShieldCheck,
@@ -28,6 +28,7 @@ export function StaffManager({
   const [list, setList] = useState<Staff[]>(initial);
   const [open, setOpen] = useState(false);
   const [enterId, setEnterId] = useState<string | null>(null);
+  const [pinFor, setPinFor] = useState<Staff | null>(null);
 
   async function reload() {
     const res = await fetch("/api/staff");
@@ -127,6 +128,17 @@ export function StaffManager({
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="accent" className="hidden sm:inline-flex">{meta?.label || s.role}</Badge>
+                    {s.role === "MANAGER" && (
+                      <button
+                        onClick={() => setPinFor(s)}
+                        title="Tasdiqlash PIN'i (chegirma/void uchun)"
+                        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition active:scale-95 ${
+                          s.hasPin ? "bg-success/10 text-success hover:bg-success/20" : "bg-surface-2 text-muted hover:text-foreground"
+                        }`}
+                      >
+                        <Lock className="h-4 w-4" /> {s.hasPin ? "PIN ✓" : "PIN"}
+                      </button>
+                    )}
                     <button
                       onClick={() => enterAs(s.user.id)}
                       disabled={enterId === s.user.id}
@@ -155,6 +167,65 @@ export function StaffManager({
       </Card>
 
       {open && <StaffModal onClose={() => setOpen(false)} onCreated={reload} />}
+      {pinFor && <PinSetModal staff={pinFor} onClose={() => setPinFor(null)} onSaved={() => { setPinFor(null); reload(); }} />}
+    </div>
+  );
+}
+
+// Manager tasdiqlash PIN'ini o'rnatish/o'chirish (chegirma limitidan oshsa yoki
+// oshxonaga ketgan buyurtmani bekor qilishda ofitsant shu PIN'ni so'raydi).
+function PinSetModal({ staff, onClose, onSaved }: { staff: Staff; onClose: () => void; onSaved: () => void }) {
+  const [pin, setPin] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function save(clear: boolean) {
+    setError("");
+    if (!clear && pin.length !== 4) { setError("PIN 4 raqam bo'lishi kerak"); return; }
+    setBusy(true);
+    const res = await fetch(`/api/staff/${staff.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin: clear ? null : pin }),
+    });
+    const json = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setError(json.error || "Xatolik"); return; }
+    onSaved();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl bg-card p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-1 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-foreground">Tasdiqlash PIN'i</h3>
+          <button onClick={onClose} className="text-muted hover:text-foreground"><X className="h-5 w-5" /></button>
+        </div>
+        <p className="mb-4 text-sm text-muted">
+          <b className="text-foreground">{staff.user.name}</b> uchun 4 xonali PIN. Ofitsant limitdan
+          katta chegirma bersa yoki oshxonaga ketgan buyurtmani bekor qilsa — shu PIN so'raladi.
+        </p>
+        <input
+          value={pin}
+          onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+          inputMode="numeric"
+          type="password"
+          autoFocus
+          placeholder="0000"
+          className="mb-2 h-12 w-full rounded-xl border border-border bg-surface px-4 text-center text-2xl font-bold tracking-[0.5em] text-foreground outline-none focus:border-accent"
+        />
+        {error && <p className="mb-2 text-sm text-error">{error}</p>}
+        <div className="mt-2 flex gap-2">
+          {staff.hasPin && (
+            <button onClick={() => save(true)} disabled={busy} className="rounded-xl border border-border px-4 py-3 text-sm font-semibold text-error active:scale-95">
+              O'chirish
+            </button>
+          )}
+          <button onClick={() => save(false)} disabled={busy} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-accent py-3 text-sm font-semibold text-white active:scale-95 disabled:opacity-60">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Saqlash"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

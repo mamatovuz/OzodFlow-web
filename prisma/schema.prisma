@@ -183,6 +183,7 @@ model Restaurant {
   taplink          Taplink?
   reviews          Review[]
   botCustomers     BotCustomer[]
+  shifts           Shift[]
 
   @@index([ownerId])
 }
@@ -428,7 +429,9 @@ model Order {
   discountType String? // PERCENT | AMOUNT (audit uchun)
   serviceCharge Float   @default(0) // xizmat haqi summasi (so'm)
   // ─── Void (bekor qilingan taomlar jurnali) ───
-  voidLog      String? // JSON: [{name, qty, reason, at, by}]
+  voidLog      String? // JSON: [{name, qty, reason, at, by, approvedBy?}]
+  // ─── Manager tasdig'i (limitdan oshgan chegirma yoki oshxonaga ketgan void) ───
+  approvedBy   String? // tasdiqlagan manager ismi (audit)
   // ─── Telegram Mini App (bot orqali kelgan buyurtma) ───
   tgChatId     String? // mijoz Telegram chat ID si — holat o'zgarishini push qilish uchun
   // ─── POS ga yuborish holati ───
@@ -436,6 +439,8 @@ model Order {
   posError     String? // POS ga yuborishda xato (bo'lsa)
   // ─── Oshxona vaqt o'lchovi ───
   readyAt      DateTime? // oshxona READY qilgan payt (tayyorlash vaqti statistikasi uchun)
+  // ─── Smena (shift) — to'lov paytida ochiq smenaga bog'lanadi (kassa hisobi) ───
+  shiftId      String? // qaysi smenada to'landi (kassa yakunlash uchun)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -443,6 +448,31 @@ model Order {
 
   @@index([restaurantId, status])
   @@index([createdAt])
+  @@index([shiftId])
+}
+
+// Smena (shift) — ofitsant/kassir ish davri. Kassa hisobini yopadi:
+// boshlang'ich kassa → naqd/karta sotuv → kutilgan kassa → haqiqiy kassa → farq.
+model Shift {
+  id           String    @id @default(cuid())
+  restaurantId String
+  staffId      String // smenani ochgan xodim (user id)
+  staffName    String // ko'rsatish uchun (denormalizatsiya)
+  openingCash  Float     @default(0) // boshlang'ich naqd pul
+  closingCash  Float? // yopishda sanab kiritilgan haqiqiy naqd
+  cashSales    Float     @default(0) // smena davomidagi naqd tushum (yopishda hisoblanadi)
+  cardSales    Float     @default(0) // karta tushum
+  ordersCount  Int       @default(0) // to'langan buyurtmalar soni
+  expectedCash Float     @default(0) // openingCash + cashSales
+  difference   Float     @default(0) // closingCash - expectedCash (- kam, + ortiqcha)
+  status       String    @default("OPEN") // OPEN | CLOSED
+  openedAt     DateTime  @default(now())
+  closedAt     DateTime?
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, status])
+  @@index([restaurantId, staffId])
 }
 
 // Xodimlar / rollar (Business tarif uchun tayyor)
@@ -450,7 +480,8 @@ model Membership {
   id           String   @id @default(cuid())
   userId       String
   restaurantId String
-  role         String   @default("STAFF") // STAFF | MANAGER
+  role         String   @default("STAFF") // MANAGER | KITCHEN | WAITER
+  pin          String? // MANAGER uchun 4 xonali tasdiqlash PIN (bcrypt hash) — chegirma/void tasdig'i
   createdAt    DateTime @default(now())
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)

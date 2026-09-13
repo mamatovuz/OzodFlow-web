@@ -28,7 +28,9 @@ export async function GET() {
     include: { user: { select: { id: true, name: true, email: true } } },
     orderBy: { createdAt: "asc" },
   });
-  return ok(staff);
+  // PIN hash'ini ochmaymiz — faqat o'rnatilgan/yo'qligini beramiz
+  const safe = staff.map(({ pin, ...m }) => ({ ...m, hasPin: !!pin }));
+  return ok(safe);
 }
 
 export async function POST(req: NextRequest) {

@@ -72,14 +72,10 @@ export function ThemePicker({
     return !t.premium || canPremium || owned.includes(t.key);
   }
 
-  // Sozlash (ranglar/fon/kartalar) — split va scroll (planshet) dizaynlari, hamda
-  // yangi dizaynlar (Nordic, Sahra, Delever, Sultan, Fiesta) ranglarni almashtira oladi.
-  const COLOR_EDITABLE = ["nordic", "sahra", "delever", "sultan", "fiesta", "prestij"];
-  function customizable(key: string) {
-    const s = menuStyleFor(key);
-    return s === "split" || s === "scroll" || COLOR_EDITABLE.includes(key);
-  }
-  const canCustomize = (key: string) => !!onCustomize && customizable(key);
+  // Sozlash (ranglar/fon/kartalar/burchak radiusi) — endi BARCHA dizaynlar
+  // to'liq sozlanadi. Har bir tema struktura (layout) beradi, rang va radiusni
+  // esa restoran o'z brendiga moslaydi (public menyu design.colors dan chizadi).
+  const canCustomize = (_key: string) => !!onCustomize;
 
   async function apply(key: ThemeKey) {
     setSaving(true);

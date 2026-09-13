@@ -4,10 +4,23 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Loader2, Volume2, VolumeX, LogOut, Bell, BellRing, Receipt, ChevronLeft, Plus, Minus,
   X, Check, Utensils, Coins, CreditCard, Wallet, Search, ConciergeBell, Armchair, Percent, Clock,
-  Printer, ArrowRightLeft, Users,
+  Printer, ArrowRightLeft, Users, Play, Banknote, Calculator, ShieldAlert,
 } from "lucide-react";
 import { parseJson, formatPrice } from "@/lib/utils";
+import { DISCOUNT_LIMIT } from "@/lib/staff";
 import type { OrderItem } from "@/lib/orders";
+
+// ─── Smena (shift) ma'lumoti ───
+type ShiftInfo = {
+  id: string;
+  openingCash: number;
+  openedAt: string;
+  staffName: string;
+  cashSales: number;
+  cardSales: number;
+  ordersCount: number;
+  expectedCash: number;
+};
 
 type TableRow = { id: string; name: string; code: string; status: string; orders: number; total: number };
 type SvcCall = { id: string; type: string; tableName: string | null; createdAt: string };
@@ -113,6 +126,8 @@ export function WaiterPanel({
   const [soundOn, setSoundOn] = useState(true);
   const [openCode, setOpenCode] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [shift, setShift] = useState<ShiftInfo | null>(null);
+  const [shiftModal, setShiftModal] = useState<null | "open" | "close">(null);
   const lastCallRef = useRef(0);
   const lastReadyRef = useRef(0);
   const first = useRef(true);
@@ -137,14 +152,17 @@ export function WaiterPanel({
 
   const load = useCallback(async () => {
     try {
-      const [tRes, cRes, rRes] = await Promise.all([
+      const [tRes, cRes, rRes, sRes] = await Promise.all([
         fetch("/api/staff/tables"),
         fetch("/api/service"),
         fetch("/api/orders?status=READY&limit=50"),
+        fetch("/api/staff/shift"),
       ]);
       const t = await tRes.json();
       const c = await cRes.json();
       const r = await rRes.json();
+      const s = await sRes.json().catch(() => null);
+      if (s?.success) setShift(s.data.shift);
       if (t.success) {
         setTables(t.data.tables);
         setStats({ active: t.data.activeCount, sales: t.data.todaySales, orders: t.data.todayOrders });
@@ -247,6 +265,14 @@ export function WaiterPanel({
               </div>
             </div>
 
+            {/* SMENA — kassa hisobi */}
+            <ShiftBanner
+              shift={shift}
+              currency={currency}
+              onOpen={() => setShiftModal("open")}
+              onClose={() => setShiftModal("close")}
+            />
+
             {/* TAYYOR — yetkazish kerak (oshxona tayyorlab bo'ldi) */}
             {ready.length > 0 && (
               <div className="mb-4 rounded-2xl border-2 border-success/50 bg-success/5 p-3">
@@ -347,6 +373,233 @@ export function WaiterPanel({
       {openCode && (
         <TableDetail code={openCode} currency={currency} onClose={() => { setOpenCode(null); load(); }} />
       )}
+
+      {shiftModal && (
+        <ShiftModal
+          mode={shiftModal}
+          shift={shift}
+          currency={currency}
+          onDone={() => { setShiftModal(null); load(); }}
+          onCancel={() => setShiftModal(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Smena banneri (kassa hisobi) ───
+function ShiftBanner({
+  shift,
+  currency,
+  onOpen,
+  onClose,
+}: {
+  shift: ShiftInfo | null;
+  currency: string;
+  onOpen: () => void;
+  onClose: () => void;
+}) {
+  if (!shift) {
+    return (
+      <div className="mb-4 flex flex-col items-start gap-3 rounded-2xl border border-border bg-card p-4 shadow-soft sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-muted">
+            <Wallet className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="text-sm font-bold text-foreground">Smena yopiq</p>
+            <p className="text-xs text-muted">Ishni boshlash uchun kassani oching</p>
+          </div>
+        </div>
+        <button
+          onClick={onOpen}
+          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition active:scale-95 sm:w-auto"
+        >
+          <Play className="h-4 w-4" /> Smenani boshlash
+        </button>
+      </div>
+    );
+  }
+  const started = new Date(shift.openedAt);
+  const hh = String(started.getHours()).padStart(2, "0");
+  const mm = String(started.getMinutes()).padStart(2, "0");
+  return (
+    <div className="mb-4 rounded-2xl border-2 border-accent/40 bg-accent-soft/40 p-4 shadow-soft">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success/60" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success" />
+          </span>
+          Smena ochiq
+        </div>
+        <span className="flex items-center gap-1 text-xs text-muted"><Clock className="h-3.5 w-3.5" /> {hh}:{mm} dan</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <ShiftStat label="Boshlang'ich" value={formatPrice(shift.openingCash, currency)} icon={Banknote} />
+        <ShiftStat label="Naqd tushum" value={formatPrice(shift.cashSales, currency)} icon={Coins} />
+        <ShiftStat label="Karta tushum" value={formatPrice(shift.cardSales, currency)} icon={CreditCard} />
+        <ShiftStat label="Kutilgan kassa" value={formatPrice(shift.expectedCash, currency)} icon={Calculator} highlight />
+      </div>
+      <button
+        onClick={onClose}
+        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-error/40 bg-card px-4 py-2.5 text-sm font-semibold text-error transition active:scale-95 hover:bg-error/5"
+      >
+        <Wallet className="h-4 w-4" /> Smenani yopish ({shift.ordersCount} chek)
+      </button>
+    </div>
+  );
+}
+
+function ShiftStat({ label, value, icon: Icon, highlight }: { label: string; value: string; icon: typeof Bell; highlight?: boolean }) {
+  return (
+    <div className={`rounded-xl border p-2.5 ${highlight ? "border-accent/40 bg-card" : "border-border bg-card/70"}`}>
+      <span className="flex items-center gap-1 text-[11px] font-medium text-muted"><Icon className="h-3 w-3" /> {label}</span>
+      <p className={`mt-0.5 text-sm font-bold ${highlight ? "text-accent" : "text-foreground"}`}>{value}</p>
+    </div>
+  );
+}
+
+// ─── Smena ochish / yopish modali ───
+function ShiftModal({
+  mode,
+  shift,
+  currency,
+  onDone,
+  onCancel,
+}: {
+  mode: "open" | "close";
+  shift: ShiftInfo | null;
+  currency: string;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const [amount, setAmount] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<null | {
+    expectedCash: number; actualCash: number; difference: number;
+    cashSales: number; cardSales: number; ordersCount: number;
+  }>(null);
+
+  const num = Number(amount.replace(/\s/g, "")) || 0;
+
+  async function submit() {
+    setBusy(true);
+    setError("");
+    try {
+      if (mode === "open") {
+        const res = await fetch("/api/staff/shift", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ openingCash: num }),
+        });
+        const json = await res.json();
+        if (!res.ok) { setError(json.error || "Xatolik"); setBusy(false); return; }
+        onDone();
+      } else {
+        const res = await fetch("/api/staff/shift", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ actualCash: num }),
+        });
+        const json = await res.json();
+        if (!res.ok) { setError(json.error || "Xatolik"); setBusy(false); return; }
+        setResult(json.data);
+      }
+    } catch { setError("Tarmoq xatosi"); }
+    setBusy(false);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" onClick={onCancel}>
+      <div className="w-full max-w-sm rounded-t-2xl bg-card p-5 shadow-xl sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+        {/* Yopishdan keyingi natija */}
+        {result ? (
+          <>
+            <h3 className="mb-3 flex items-center gap-2 text-lg font-bold text-foreground">
+              <Check className="h-5 w-5 text-success" /> Smena yopildi
+            </h3>
+            <div className="space-y-1.5 text-sm">
+              <ShiftRow label="Naqd tushum" value={formatPrice(result.cashSales, currency)} />
+              <ShiftRow label="Karta tushum" value={formatPrice(result.cardSales, currency)} />
+              <ShiftRow label="Kutilgan kassa" value={formatPrice(result.expectedCash, currency)} />
+              <ShiftRow label="Haqiqiy kassa" value={formatPrice(result.actualCash, currency)} />
+              <div className={`mt-2 flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-bold ${
+                result.difference === 0 ? "bg-success/10 text-success"
+                : result.difference > 0 ? "bg-accent-soft text-accent"
+                : "bg-error/10 text-error"}`}>
+                <span>Farq</span>
+                <span>{result.difference > 0 ? "+" : ""}{formatPrice(result.difference, currency)}</span>
+              </div>
+              <p className="pt-1 text-center text-xs text-muted">
+                {result.difference === 0 ? "Kassa to'g'ri keldi ✅"
+                  : result.difference > 0 ? "Kassada ortiqcha pul bor"
+                  : "Kassada kam pul bor"}
+              </p>
+            </div>
+            <button onClick={onDone} className="mt-4 w-full rounded-xl bg-accent py-3 text-sm font-semibold text-white active:scale-95">
+              Yopish
+            </button>
+          </>
+        ) : (
+          <>
+            <h3 className="mb-1 text-lg font-bold text-foreground">
+              {mode === "open" ? "Smenani boshlash" : "Smenani yopish"}
+            </h3>
+            <p className="mb-4 text-sm text-muted">
+              {mode === "open"
+                ? "Kassadagi boshlang'ich naqd pulni kiriting."
+                : "Kassani sanang va hozirgi naqd pul summasini kiriting."}
+            </p>
+
+            {mode === "close" && shift && (
+              <div className="mb-4 space-y-1.5 rounded-xl border border-border bg-surface p-3 text-sm">
+                <ShiftRow label="Boshlang'ich" value={formatPrice(shift.openingCash, currency)} />
+                <ShiftRow label="Naqd tushum" value={formatPrice(shift.cashSales, currency)} />
+                <ShiftRow label="Kutilgan kassa" value={formatPrice(shift.expectedCash, currency)} bold />
+              </div>
+            )}
+
+            <label className="mb-1.5 block text-sm font-medium text-foreground">
+              {mode === "open" ? "Boshlang'ich kassa" : "Haqiqiy kassa (sanaganingiz)"}
+            </label>
+            <input
+              type="number"
+              inputMode="numeric"
+              autoFocus
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0"
+              className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-lg font-bold text-foreground outline-none focus:border-accent"
+            />
+
+            {error && <p className="mt-2 text-sm text-error">{error}</p>}
+
+            <div className="mt-4 flex gap-2">
+              <button onClick={onCancel} className="flex-1 rounded-xl border border-border py-3 text-sm font-semibold text-foreground active:scale-95">
+                Bekor
+              </button>
+              <button
+                onClick={submit}
+                disabled={busy}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-accent py-3 text-sm font-semibold text-white active:scale-95 disabled:opacity-60"
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === "open" ? "Boshlash" : "Yopish"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ShiftRow({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-muted">{label}</span>
+      <span className={bold ? "font-bold text-foreground" : "text-foreground"}>{value}</span>
     </div>
   );
 }
@@ -430,8 +683,8 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
   const [picker, setPicker] = useState(false);
   const [pay, setPay] = useState(false);
   const [move, setMove] = useState(false); // stol ko'chirish modali
-  // Void — bekor qilinayotgan taom { orderId, item }
-  const [voiding, setVoiding] = useState<{ orderId: string; item: OrderItem } | null>(null);
+  // Void — bekor qilinayotgan taom { orderId, item, status }
+  const [voiding, setVoiding] = useState<{ orderId: string; item: OrderItem; status: string } | null>(null);
   // Stol taymeri — eng eski buyurtmadan beri o'tgan vaqt
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -536,7 +789,7 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
                         <span className="flex shrink-0 items-center gap-1.5">
                           <span className="text-foreground">{formatPrice(it.price * it.qty, currency)}</span>
                           <button
-                            onClick={() => setVoiding({ orderId: o.id, item: it })}
+                            onClick={() => setVoiding({ orderId: o.id, item: it, status: o.status })}
                             title="Bekor qilish"
                             className="flex h-6 w-6 items-center justify-center rounded-md text-muted/60 transition hover:bg-error/10 hover:text-error"
                           >
@@ -601,6 +854,7 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
         <VoidModal
           orderId={voiding.orderId}
           item={voiding.item}
+          needsApproval={voiding.status !== "NEW"}
           currency={currency}
           onClose={() => setVoiding(null)}
           onDone={() => { setVoiding(null); load(); }}
@@ -613,11 +867,12 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
 // ─── Void: taomni bekor qilish / miqdorini kamaytirish ───
 const VOID_REASONS = ["Mijoz bekor qildi", "Xato kiritildi", "Mahsulot tugadi", "Sifatsiz"];
 
-function VoidModal({ orderId, item, currency, onClose, onDone }: {
-  orderId: string; item: OrderItem; currency: string; onClose: () => void; onDone: () => void;
+function VoidModal({ orderId, item, needsApproval, currency, onClose, onDone }: {
+  orderId: string; item: OrderItem; needsApproval: boolean; currency: string; onClose: () => void; onDone: () => void;
 }) {
   const [removeQty, setRemoveQty] = useState(item.qty); // nechtasi bekor qilinsin
   const [reason, setReason] = useState("");
+  const [managerPin, setManagerPin] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const newQty = item.qty - removeQty;
@@ -628,7 +883,11 @@ function VoidModal({ orderId, item, currency, onClose, onDone }: {
     const res = await fetch("/api/staff/orders", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId, productId: item.productId, newQty, reason: reason.trim() || undefined }),
+      body: JSON.stringify({
+        orderId, productId: item.productId, newQty,
+        reason: reason.trim() || undefined,
+        ...(needsApproval && managerPin ? { approverPin: managerPin } : {}),
+      }),
     });
     const json = await res.json().catch(() => ({}));
     setBusy(false);
@@ -679,11 +938,28 @@ function VoidModal({ orderId, item, currency, onClose, onDone }: {
           className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-accent"
         />
 
+        {/* Oshxonaga ketgan buyurtma — manager PIN */}
+        {needsApproval && (
+          <div className="mt-3 rounded-lg border border-warning/40 bg-warning/5 p-2.5">
+            <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-warning">
+              <ShieldAlert className="h-3.5 w-3.5" /> Bu buyurtma oshxonaga ketgan — manager tasdig'i kerak
+            </p>
+            <input
+              value={managerPin}
+              onChange={(e) => setManagerPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+              inputMode="numeric"
+              type="password"
+              placeholder="Manager PIN (4 raqam)"
+              className="h-9 w-full rounded-lg border border-border bg-card px-3 text-center text-sm font-bold tracking-[0.3em] text-foreground outline-none focus:border-accent"
+            />
+          </div>
+        )}
+
         {error && <div className="mt-3 rounded-lg bg-error/10 px-3 py-2 text-sm text-error">{error}</div>}
 
         <button
           onClick={submit}
-          disabled={busy}
+          disabled={busy || (needsApproval && managerPin.length !== 4)}
           className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-error py-3 text-sm font-semibold text-white active:scale-[0.98] disabled:opacity-40"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
@@ -1032,6 +1308,8 @@ function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, on
   const [svcPct, setSvcPct] = useState(String(serviceRate || 10));
   // Split bill — hisobni necha kishiga teng bo'lish (faqat ko'rsatuv, to'lovga ta'sir qilmaydi)
   const [guests, setGuests] = useState(1);
+  // Manager PIN — chegirma waiter limitidan oshsa tasdiqlash uchun
+  const [managerPin, setManagerPin] = useState("");
 
   const discInput = Math.max(0, Number(discVal.replace(/\D/g, "")) || 0);
   const discountAmount = discMode === "NONE" ? 0
@@ -1040,6 +1318,10 @@ function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, on
   const svcPctNum = Math.max(0, Number(svcPct.replace(/\D/g, "")) || 0);
   const serviceAmount = svcOn ? Math.round((subtotal * svcPctNum) / 100) : 0;
   const total = Math.max(0, subtotal - discountAmount + serviceAmount);
+
+  // Chegirma waiter limitidan (5%) oshsa — manager PIN talab qilinadi
+  const discountPercent = subtotal > 0 ? (discountAmount / subtotal) * 100 : 0;
+  const needsApproval = discountAmount > 0 && discountPercent > DISCOUNT_LIMIT.WAITER;
 
   const cashNum = Math.max(0, Number(cash.replace(/\D/g, "")) || 0);
   const cardNum = Math.max(0, total - cashNum);
@@ -1053,6 +1335,7 @@ function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, on
     const bodyData: Record<string, unknown> = { tableCode: code, method };
     if (discountAmount > 0) { bodyData.discount = discountAmount; bodyData.discountType = discMode; }
     if (serviceAmount > 0) { bodyData.service = serviceAmount; }
+    if (needsApproval && managerPin) { bodyData.approverPin = managerPin; }
     if (method === "MIXED") { bodyData.cash = cashNum; bodyData.card = cardNum; }
     const res = await fetch("/api/staff/pay", {
       method: "POST",
@@ -1132,6 +1415,22 @@ function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, on
                     className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground outline-none focus:border-accent" />
                 )}
               </div>
+              {/* Chegirma 5% dan oshsa — manager PIN */}
+              {needsApproval && (
+                <div className="mt-2 rounded-lg border border-warning/40 bg-warning/5 p-2.5">
+                  <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-warning">
+                    <ShieldAlert className="h-3.5 w-3.5" /> Chegirma {discountPercent.toFixed(0)}% — manager tasdig'i kerak
+                  </p>
+                  <input
+                    value={managerPin}
+                    onChange={(e) => setManagerPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                    inputMode="numeric"
+                    type="password"
+                    placeholder="Manager PIN (4 raqam)"
+                    className="h-9 w-full rounded-lg border border-border bg-card px-3 text-center text-sm font-bold tracking-[0.3em] text-foreground outline-none focus:border-accent"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Xizmat haqi */}
@@ -1249,7 +1548,7 @@ function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, on
             <div className="border-t border-border p-4" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
               <button
                 onClick={pay}
-                disabled={!method || busy}
+                disabled={!method || busy || (needsApproval && managerPin.length !== 4)}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-[15px] font-semibold text-white active:scale-[0.98] disabled:opacity-40"
               >
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Wallet, Store, Clock, CheckCircle2, Globe, Eye, AlertTriangle, Activity, Crown, Gift, TrendingUp } from "lucide-react";
+import { Wallet, Store, Clock, CheckCircle2, Eye, AlertTriangle, Activity, Crown, Gift, TrendingUp } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { PLANS, type PlanKey } from "@/lib/plans";
 import { Card, Badge } from "@/components/ui";
@@ -16,7 +16,6 @@ export default async function AdminHome() {
 
   const [
     pending,
-    domainsPending,
     restaurants,
     approvedAgg,
     recent,
@@ -30,7 +29,6 @@ export default async function AdminHome() {
     todayPaidAgg,
   ] = await Promise.all([
     prisma.paymentRequest.count({ where: { status: "PENDING" } }),
-    prisma.domainRequest.count({ where: { status: "PENDING" } }),
     prisma.restaurant.count(),
     prisma.paymentRequest.aggregate({
       where: { status: "APPROVED" },
@@ -108,7 +106,6 @@ export default async function AdminHome() {
     { label: "Kutilayotgan to'lovlar", value: pending, icon: Clock, href: "/admins/payments" },
     { label: "Jami tushum", value: formatPrice(approvedAgg._sum.amount || 0, "UZS"), icon: Wallet, href: "/admins/analytics" },
     { label: "Bugungi tashriflar", value: visitsToday, icon: Eye, href: "/admins/analytics" },
-    { label: "Domen so'rovlari", value: domainsPending, icon: Globe, href: "/admins/domains" },
   ];
 
   return (

@@ -15,6 +15,15 @@ import {
   Leaf,
 } from "lucide-react";
 import { Button, Input, Textarea, Label, Select, Card, Badge, Switch } from "@/components/ui";
+
+// Forma ichidagi bo'lim sarlavhasi (§24) — maydonlarni mantiqiy guruhlaydi
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="border-b border-border pb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
+      {children}
+    </p>
+  );
+}
 import { Modal } from "@/components/ui-modal";
 import { MultiImageUpload, ImageUpload } from "@/components/dashboard/image-upload";
 import { ExcelImport } from "@/components/dashboard/excel-import";
@@ -63,6 +72,8 @@ export function MenuManager({ currency }: { currency: string }) {
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [availFilter, setAvailFilter] = useState<"all" | "available" | "stopped">("all");
+  const [sortBy, setSortBy] = useState<"default" | "price-asc" | "price-desc" | "name">("default");
 
   const [catModal, setCatModal] = useState<{ open: boolean; edit?: Category }>({
     open: false,
@@ -143,7 +154,22 @@ export function MenuManager({ currency }: { currency: string }) {
         : [p.name, p.nameRu, p.nameEn]
             .filter(Boolean)
             .some((n) => n!.toLowerCase().includes(q))
-    );
+    )
+    // Mavjudlik filtri (§23)
+    .filter((p) =>
+      availFilter === "all"
+        ? true
+        : availFilter === "available"
+        ? p.isAvailable
+        : !p.isAvailable
+    )
+    // Saralash (§23) — "default" bo'lsa asl (server) tartibi saqlanadi
+    .sort((a, b) => {
+      if (sortBy === "price-asc") return a.price - b.price;
+      if (sortBy === "price-desc") return b.price - a.price;
+      if (sortBy === "name") return a.name.localeCompare(b.name, "uz");
+      return 0;
+    });
 
   if (loading) {
     return (
@@ -242,22 +268,56 @@ export function MenuManager({ currency }: { currency: string }) {
 
       {/* Mahsulotlar */}
       <div>
-        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative flex-1 sm:max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Barcha taomlardan qidirish..."
-              className="pl-9"
-            />
+        <div className="mb-3 space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative flex-1 sm:max-w-xs">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Barcha taomlardan qidirish..."
+                className="pl-9"
+              />
+            </div>
+            <Button
+              onClick={() => setProdModal({ open: true })}
+              disabled={categories.length === 0}
+            >
+              <Plus className="h-4 w-4" /> Mahsulot
+            </Button>
           </div>
-          <Button
-            onClick={() => setProdModal({ open: true })}
-            disabled={categories.length === 0}
-          >
-            <Plus className="h-4 w-4" /> Mahsulot
-          </Button>
+
+          {/* Mavjudlik filtri + saralash + natija soni (§23) */}
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              { key: "all", label: "Barchasi" },
+              { key: "available", label: "Mavjud" },
+              { key: "stopped", label: "Tugagan" },
+            ].map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setAvailFilter(f.key as typeof availFilter)}
+                className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                  availFilter === f.key
+                    ? "bg-accent text-white"
+                    : "border border-border bg-card text-muted hover:text-foreground"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+            <Select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              className="h-8 w-auto px-2 text-xs"
+            >
+              <option value="default">Tartib: standart</option>
+              <option value="name">Nomi (A→Z)</option>
+              <option value="price-asc">Narx (arzon→qimmat)</option>
+              <option value="price-desc">Narx (qimmat→arzon)</option>
+            </Select>
+            <span className="ml-auto text-xs text-muted">{visibleProducts.length} ta mahsulot</span>
+          </div>
         </div>
 
         {visibleProducts.length === 0 ? (
@@ -618,6 +678,7 @@ function ProductModal({
           </div>
         )}
 
+        <SectionTitle>Asosiy ma'lumotlar</SectionTitle>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Label>Nomi (o'zbekcha) *</Label>
@@ -711,6 +772,7 @@ function ProductModal({
         </div>
 
         {/* Belgilar */}
+        <SectionTitle>Belgilar va ko'rinish</SectionTitle>
         <div className="grid grid-cols-2 gap-2 rounded-lg bg-surface-2 p-3 sm:grid-cols-3">
           {[
             { name: "isVegetarian", label: "Vegetarian", def: edit?.isVegetarian },

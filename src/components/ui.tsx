@@ -350,4 +350,4 @@ export function Tabs({
 }
 
 // ─── Interaktiv komponentlarni qayta eksport ───
-export { Sheet } from "./ui-interactive";
+export { Sheet, Drawer } from "./ui-interactive";

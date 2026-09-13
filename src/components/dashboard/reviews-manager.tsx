@@ -62,6 +62,7 @@ export function ReviewsManager({
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [avg, setAvg] = useState(0);
   const [total, setTotal] = useState(0);
+  const [dist, setDist] = useState<Record<number, number>>({ 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -77,6 +78,7 @@ export function ReviewsManager({
           setReviews(j.data.reviews);
           setAvg(j.data.average);
           setTotal(j.data.total);
+          if (j.data.distribution) setDist(j.data.distribution);
         }
       })
       .catch(() => {});
@@ -199,6 +201,11 @@ export function ReviewsManager({
               <p className="mt-1 text-sm text-muted">Jami izoh</p>
             </Card>
           </div>
+          {/* Baho taqsimoti (§34) */}
+          <Card className="p-5">
+            <p className="mb-3 text-sm font-medium text-foreground">Baho taqsimoti</p>
+            <RatingBars dist={dist} total={total} />
+          </Card>
           <div className="flex items-center gap-1.5 text-xs text-muted">
             {saveState === "saving" && <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saqlanmoqda...</>}
             {saveState === "saved" && <><Check className="h-3.5 w-3.5 text-success" /> Saqlandi</>}
@@ -299,6 +306,32 @@ export function ReviewsManager({
           </div>
         )}
       </Card>
+    </div>
+  );
+}
+
+// Baho taqsimoti ustunlari (5★ → 1★)
+function RatingBars({ dist, total }: { dist: Record<number, number>; total: number }) {
+  if (!total) return <p className="py-2 text-center text-sm text-muted">Hali izoh yo'q</p>;
+  return (
+    <div className="space-y-2">
+      {[5, 4, 3, 2, 1].map((n) => {
+        const count = dist[n] ?? 0;
+        const pct = Math.round((count / total) * 100);
+        return (
+          <div key={n} className="flex items-center gap-2 text-sm">
+            <span className="flex w-8 shrink-0 items-center gap-0.5 tabular-nums text-muted">
+              {n} <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+            </span>
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
+              <div className="h-full rounded-full bg-amber-400" style={{ width: `${pct}%` }} />
+            </div>
+            <span className="w-16 shrink-0 text-right text-xs text-muted tabular-nums">
+              {pct}% · {count}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -3,352 +3,386 @@ import { redirect } from "next/navigation";
 import {
   QrCode,
   UtensilsCrossed,
-  Layers,
-  TrendingUp,
   Plus,
   Store,
-  Clock,
   Crown,
+  Wallet,
+  ClipboardList,
+  Receipt,
+  ArrowUp,
+  ArrowDown,
+  ArrowRight,
+  AlertTriangle,
+  Ban,
+  Clock,
+  Table2,
+  ChefHat,
+  Flame,
 } from "lucide-react";
-import { ClipboardList, Wallet, Flame, ArrowUp, ArrowDown } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { getUserRestaurant } from "@/lib/api";
-import { getDashboardStats } from "@/lib/stats";
-import { Card, Badge, Button } from "@/components/ui";
-import { formatPrice } from "@/lib/utils";
+import {
+  getDashboardStats,
+  getDashboardExtras,
+  getTopSellingProducts,
+  getSalesSeries,
+} from "@/lib/stats";
+import { statusMeta } from "@/lib/orders";
+import { Card, Badge } from "@/components/ui";
+import { formatPrice, formatCompact, cn } from "@/lib/utils";
 import { LiveCounter } from "@/components/dashboard/live-counter";
+import { SalesChart } from "@/components/dashboard/sales-chart";
 
 export const dynamic = "force-dynamic";
 
 const planNames: Record<string, string> = {
   FREE: "Free",
-  BUSINESS: "Business",
   STARTER: "Starter",
+  BUSINESS: "Business",
+  PROMAX: "Pro Max",
 };
 
 export default async function DashboardHome() {
-  // Layout va page Next.js'da parallel render bo'ladi — layout redirect qilsa ham
-  // bu yerda "!" ishlatish null'da crash beradi. Shuning uchun bu yerda ham guard.
   const user = await getSessionUser();
   if (!user) redirect("/login");
   const restaurant = await getUserRestaurant(user.id);
   if (!restaurant) redirect("/login");
-  const stats = await getDashboardStats(restaurant.id);
 
-  const cards = [
+  const [stats, extras, topProducts, series] = await Promise.all([
+    getDashboardStats(restaurant.id),
+    getDashboardExtras(restaurant.id),
+    getTopSellingProducts(restaurant.id, 5),
+    getSalesSeries(restaurant.id),
+  ]);
+  const cur = restaurant.currency;
+
+  // Kecha bilan solishtirish uchun o'rtacha chek
+  const yAvg =
+    extras.yesterdayOrdersPaid > 0
+      ? Math.round(stats.yesterdayRevenue / extras.yesterdayOrdersPaid)
+      : 0;
+
+  const kpis = [
     {
-      label: "Bugungi skanerlar",
-      value: stats.todayScans,
+      label: "Bugungi daromad",
+      value: formatPrice(stats.todayRevenue, cur),
+      icon: Wallet,
+      today: stats.todayRevenue,
+      prev: stats.yesterdayRevenue,
+    },
+    {
+      label: "Buyurtmalar",
+      value: String(stats.todayOrders),
+      icon: ClipboardList,
+      today: stats.todayOrders,
+      prev: stats.yesterdayOrders,
+    },
+    {
+      label: "O'rtacha chek",
+      value: formatPrice(stats.avgCheck, cur),
+      icon: Receipt,
+      today: stats.avgCheck,
+      prev: yAvg,
+    },
+    {
+      label: "QR skanlar",
+      value: String(stats.todayScans),
       icon: QrCode,
-      color: "text-accent bg-accent-soft",
-    },
-    {
-      label: "Haftalik skanerlar",
-      value: stats.weekScans,
-      icon: TrendingUp,
-      color: "text-success bg-success/10",
-    },
-    {
-      label: "Faol mahsulotlar",
-      value: stats.activeProducts,
-      icon: UtensilsCrossed,
-      color: "text-warning bg-warning/10",
-    },
-    {
-      label: "Kategoriyalar",
-      value: stats.categories,
-      icon: Layers,
-      color: "text-accent bg-accent-soft",
+      today: stats.todayScans,
+      prev: extras.yesterdayScans,
     },
   ];
 
-  const maxDaily = Math.max(...stats.daily.map((d) => d.count), 1);
-  const maxDailyRev = Math.max(...stats.daily.map((d) => d.revenue), 1);
-  const paidTotal = stats.todayCash + stats.todayCard;
-  const cashPct = paidTotal ? Math.round((stats.todayCash / paidTotal) * 100) : 0;
+  // E'tibor talab qiladigan holatlar (real signallar)
+  const attention: {
+    tone: "warning" | "error";
+    icon: typeof AlertTriangle;
+    text: string;
+    href: string;
+    cta: string;
+  }[] = [];
+  if (extras.stopListCount > 0)
+    attention.push({
+      tone: "error",
+      icon: Ban,
+      text: `${extras.stopListCount} ta mahsulot stop-listda (tugagan)`,
+      href: "/dashboard/stoplist",
+      cta: "Stop-listni ko'rish",
+    });
+  if (extras.stuckOrders.length > 0)
+    attention.push({
+      tone: "warning",
+      icon: Clock,
+      text: `${extras.stuckOrders.length} ta buyurtma 15 daqiqadan beri tayyorlanmoqda`,
+      href: "/dashboard/orders",
+      cta: "Buyurtmalarni ko'rish",
+    });
+  if (stats.plan === "FREE")
+    attention.push({
+      tone: "warning",
+      icon: Crown,
+      text: "Sinov tarifidasiz — barcha imkoniyatlar uchun tarifni faollashtiring",
+      href: "/dashboard/settings",
+      cta: "Tariflarni ko'rish",
+    });
+
+  const now = new Date();
+  const dateLabel = now.toLocaleDateString("uz-UZ", { day: "numeric", month: "long", weekday: "short" });
 
   return (
     <div className="space-y-6">
-      {/* Sarlavha — gradient hero */}
-      <div
-        className="relative overflow-hidden rounded-2xl p-6 text-white shadow-card sm:p-7"
-        style={{
-          backgroundImage:
-            "linear-gradient(135deg, var(--accent), var(--accent-hover))",
-        }}
-      >
-        {/* dekorativ doiralar */}
-        <div className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full bg-white/10" />
-        <div className="pointer-events-none absolute -bottom-20 right-16 h-40 w-40 rounded-full bg-white/10" />
-        <div className="relative flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <div>
-            <h1 className="text-2xl font-bold sm:text-3xl">
-              Salom, {user.name.split(" ")[0]} 👋
-            </h1>
-            <p className="mt-1 flex items-center gap-1.5 text-sm text-white/85">
-              <Store className="h-4 w-4" /> {restaurant.name} — bugungi ko'rsatkichlar
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Link href="/dashboard/menu">
-              <span className="inline-flex items-center gap-1.5 rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-accent shadow-soft transition-transform active:scale-[0.98]">
-                <Plus className="h-4 w-4" /> Mahsulot qo'shish
-              </span>
-            </Link>
-          </div>
+      {/* ─── Header ─── */}
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            Salom, {user.name.split(" ")[0]} 👋
+          </h1>
+          <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
+            <Store className="h-4 w-4" /> {restaurant.name} — bugungi restoran faoliyati
+          </p>
         </div>
-      </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="default" className="gap-1.5 px-3 py-1.5">
+            <Clock className="h-3.5 w-3.5" /> {dateLabel}
+          </Badge>
+          <Link
+            href="/dashboard/menu"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-accent-hover active:scale-[0.98]"
+          >
+            <Plus className="h-4 w-4" /> Mahsulot
+          </Link>
+        </div>
+      </header>
 
-      {/* Jonli statistika */}
+      {/* ─── KPI ─── */}
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        {kpis.map((k) => (
+          <Card key={k.label} className="p-4 sm:p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted sm:text-sm">{k.label}</span>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
+                <k.icon className="h-4 w-4" />
+              </span>
+            </div>
+            <p className="mt-2 text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+              {k.value}
+            </p>
+            <div className="mt-1.5 flex items-center gap-1.5">
+              <Trend today={k.today} prev={k.prev} />
+              <span className="hidden text-[11px] text-muted sm:inline">kechagiga nisbatan</span>
+            </div>
+          </Card>
+        ))}
+      </section>
+
+      {/* ─── HOZIR (jonli holat — 3 soniyada yangilanadi) ─── */}
       <LiveCounter />
 
-      {/* Buyurtma kartalari */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Link href="/dashboard/orders">
-          <Card className="p-5 transition-all hover:-translate-y-0.5 hover:shadow-card">
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
-              <ClipboardList className="h-5 w-5" />
-            </div>
-            <p className="text-2xl font-bold text-foreground">{stats.todayOrders}</p>
-            <div className="mt-0.5 flex items-center gap-2">
-              <p className="text-sm text-muted">Bugungi buyurtmalar</p>
-              <Trend today={stats.todayOrders} prev={stats.yesterdayOrders} />
-            </div>
-          </Card>
-        </Link>
-        <Card className="p-5">
-          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-success/10 text-success">
-            <Wallet className="h-5 w-5" />
-          </div>
-          <p className="text-2xl font-bold text-foreground">
-            {formatPrice(stats.todayRevenue, restaurant.currency)}
-          </p>
-          <div className="mt-0.5 flex items-center gap-2">
-            <p className="text-sm text-muted">Bugungi daromad</p>
-            <Trend today={stats.todayRevenue} prev={stats.yesterdayRevenue} />
-          </div>
-        </Card>
-        <Link href="/dashboard/orders">
-          <Card className="p-5 transition-all hover:-translate-y-0.5 hover:shadow-card">
-            <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-warning/10 text-warning">
-              <Flame className="h-5 w-5" />
-            </div>
-            <p className="text-2xl font-bold text-foreground">{stats.activeOrders}</p>
-            <p className="mt-0.5 text-sm text-muted">Faol buyurtmalar</p>
-          </Card>
-        </Link>
-      </div>
-
-      {/* ─── Savdo statistikasi ─── */}
-      <div>
-        <h2 className="mb-3 flex items-center gap-2 font-semibold text-foreground">
-          <TrendingUp className="h-4 w-4 text-accent" /> Savdo statistikasi
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <RevKpi label="Bugungi daromad" value={formatPrice(stats.todayRevenue, restaurant.currency)} />
-          <RevKpi label="Haftalik daromad" value={formatPrice(stats.weekRevenue, restaurant.currency)} />
-          <RevKpi label="Oylik daromad" value={formatPrice(stats.monthRevenue, restaurant.currency)} />
-          <RevKpi label="O'rtacha chek" value={formatPrice(stats.avgCheck, restaurant.currency)} />
-        </div>
-
-        <div className="mt-4 grid gap-4 lg:grid-cols-3">
-          {/* Haftalik daromad grafigi */}
-          <Card className="p-6 lg:col-span-2">
-            <div className="mb-6 flex items-center justify-between">
-              <h3 className="font-semibold text-foreground">Haftalik daromad</h3>
-              <Badge variant="accent">7 kun</Badge>
-            </div>
-            <div className="flex h-44 items-stretch justify-between gap-2">
-              {stats.daily.map((d, i) => (
-                <div key={i} className="flex flex-1 flex-col items-center gap-2">
-                  <div className="flex w-full flex-1 items-end">
-                    <div
-                      style={{ height: `${Math.max((d.revenue / maxDailyRev) * 100, d.revenue > 0 ? 5 : 2)}%` }}
-                      className="w-full min-h-[4px] rounded-t-md bg-accent/80 transition-all hover:bg-accent"
-                      title={formatPrice(d.revenue, restaurant.currency)}
-                    />
+      {/* ─── E'tibor talab qiladi ─── */}
+      {attention.length > 0 && (
+        <section>
+          <h2 className="mb-3 flex items-center gap-2 font-semibold text-foreground">
+            <AlertTriangle className="h-4 w-4 text-warning" /> E'tibor talab qiladi
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {attention.map((a, i) => (
+              <Link key={i} href={a.href}>
+                <Card
+                  className={cn(
+                    "flex h-full items-start gap-3 p-4 transition-all hover:-translate-y-0.5 hover:shadow-card",
+                    a.tone === "error" ? "border-l-4 border-l-error" : "border-l-4 border-l-warning"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                      a.tone === "error" ? "bg-error/10 text-error" : "bg-warning/10 text-warning"
+                    )}
+                  >
+                    <a.icon className="h-[18px] w-[18px]" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground">{a.text}</p>
+                    <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-accent">
+                      {a.cta} <ArrowRight className="h-3 w-3" />
+                    </p>
                   </div>
-                  <span className="text-xs text-muted">{d.label}</span>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ─── Savdo tahlili (interaktiv grafik) ─── */}
+      <SalesChart series={series} currency={cur} />
+
+      {/* ─── To'lovlar + Eng ko'p sotilgan ─── */}
+      <div className="grid gap-4 lg:grid-cols-5">
+        {/* To'lovlar taqsimoti */}
+        <Card className="p-5 sm:p-6 lg:col-span-2">
+          <h3 className="mb-4 font-semibold text-foreground">To'lovlar (bugun)</h3>
+          <PaymentBreakdown payment={extras.payment} currency={cur} />
+        </Card>
+
+        {/* Top mahsulotlar */}
+        <Card className="p-5 sm:p-6 lg:col-span-3">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="font-semibold text-foreground">Eng ko'p sotilgan</h3>
+            <Link href="/dashboard/stats" className="inline-flex items-center gap-1 text-xs font-medium text-accent">
+              Batafsil <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          {topProducts.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted">Oxirgi 30 kunda sotuv bo'lmagan</p>
+          ) : (
+            <div className="space-y-3">
+              {topProducts.map((p, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-xs font-bold text-muted">
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate text-sm font-medium text-foreground">{p.name}</p>
+                      <p className="shrink-0 text-sm font-semibold text-foreground">
+                        {formatPrice(p.revenue, cur)}
+                      </p>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
+                        <div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(p.share, 3)}%` }} />
+                      </div>
+                      <span className="shrink-0 text-[11px] text-muted">{p.qty} ta · {p.share}%</span>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
-          </Card>
-
-          {/* Naqd / Karta taqsimoti (bugun) */}
-          <Card className="p-6">
-            <h3 className="mb-4 font-semibold text-foreground">Bugun: Naqd / Karta</h3>
-            {paidTotal === 0 ? (
-              <p className="py-8 text-center text-sm text-muted">Bugun to'lov qabul qilinmagan</p>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <div className="mb-1 flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-1.5 text-muted"><Wallet className="h-3.5 w-3.5" /> Naqd</span>
-                    <span className="font-semibold text-foreground">{formatPrice(stats.todayCash, restaurant.currency)}</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-surface-2">
-                    <div className="h-full rounded-full bg-success" style={{ width: `${cashPct}%` }} />
-                  </div>
-                </div>
-                <div>
-                  <div className="mb-1 flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-1.5 text-muted"><ClipboardList className="h-3.5 w-3.5" /> Karta</span>
-                    <span className="font-semibold text-foreground">{formatPrice(stats.todayCard, restaurant.currency)}</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-surface-2">
-                    <div className="h-full rounded-full bg-accent" style={{ width: `${100 - cashPct}%` }} />
-                  </div>
-                </div>
-                <div className="border-t border-border pt-3 text-center">
-                  <p className="text-xs text-muted">Jami qabul qilingan</p>
-                  <p className="text-lg font-bold text-foreground">{formatPrice(paidTotal, restaurant.currency)}</p>
-                </div>
-              </div>
-            )}
-          </Card>
-        </div>
+          )}
+        </Card>
       </div>
 
-      {/* Menyu statistikasi kartalari */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {cards.map((c) => (
-          <Card
-            key={c.label}
-            className="p-5 transition-all hover:-translate-y-0.5 hover:shadow-card"
-          >
-            <div
-              className={`mb-3 flex h-11 w-11 items-center justify-center rounded-xl ${c.color}`}
-            >
-              <c.icon className="h-5 w-5" />
+      {/* ─── So'nggi buyurtmalar + Stollar ─── */}
+      <div className="grid gap-4 lg:grid-cols-5">
+        {/* So'nggi buyurtmalar */}
+        <Card className="p-5 sm:p-6 lg:col-span-3">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="font-semibold text-foreground">So'nggi buyurtmalar</h3>
+            <Link href="/dashboard/orders" className="inline-flex items-center gap-1 text-xs font-medium text-accent">
+              Barchasi <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          {extras.recentOrders.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted">Hali buyurtma yo'q</p>
+          ) : (
+            <div className="divide-y divide-border">
+              {extras.recentOrders.map((o) => {
+                const meta = statusMeta(o.status);
+                return (
+                  <Link
+                    key={o.id}
+                    href="/dashboard/orders"
+                    className="flex items-center gap-3 py-2.5 transition-colors hover:bg-surface-2 -mx-2 px-2 rounded-lg"
+                  >
+                    <span className="text-sm font-semibold text-foreground tabular-nums">#{o.number}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm text-foreground">
+                        {o.orderType === "DELIVERY" ? "🚚 Yetkazish" : o.tableName || o.tableCode || "Stol —"}
+                      </p>
+                      {o.waiterName && <p className="truncate text-[11px] text-muted">{o.waiterName}</p>}
+                    </div>
+                    <span className="shrink-0 text-sm font-medium text-foreground">
+                      {formatPrice(o.total, cur)}
+                    </span>
+                    <span className={cn("shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium", meta.badge)}>
+                      {meta.label}
+                    </span>
+                    <span className="hidden shrink-0 text-[11px] text-muted tabular-nums sm:inline">
+                      {new Date(o.createdAt).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </Link>
+                );
+              })}
             </div>
-            <p className="text-3xl font-bold tracking-tight text-foreground">{c.value}</p>
-            <p className="mt-0.5 text-sm text-muted">{c.label}</p>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Haftalik grafik */}
-        <Card className="p-6 lg:col-span-2">
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="font-semibold text-foreground">Haftalik skanerlar</h2>
-            <Badge variant="accent">Oxirgi 7 kun</Badge>
-          </div>
-          <div className="flex h-48 items-stretch justify-between gap-2">
-            {stats.daily.map((d, i) => (
-              <div key={i} className="flex flex-1 flex-col items-center gap-2">
-                <div className="flex w-full flex-1 items-end">
-                  <div
-                    style={{
-                      height: `${Math.max((d.count / maxDaily) * 100, d.count > 0 ? 6 : 2)}%`,
-                      backgroundImage:
-                        "linear-gradient(to top, var(--accent), var(--accent-hover))",
-                    }}
-                    className="w-full min-h-[4px] rounded-t-md opacity-90 transition-all hover:opacity-100"
-                    title={`${d.count} skan`}
-                  />
-                </div>
-                <span className="text-xs text-muted">{d.label}</span>
-              </div>
-            ))}
-          </div>
+          )}
         </Card>
 
-        {/* O'ng ustun */}
-        <div className="space-y-6">
-          {/* Obuna */}
-          <Card className="p-6">
-            <div className="mb-3 flex items-center gap-2">
-              <Crown className="h-4 w-4 text-warning" />
-              <h2 className="font-semibold text-foreground">Obuna</h2>
-            </div>
-            <p className="text-lg font-bold text-foreground">
-              {planNames[stats.plan] ?? stats.plan} tarif
-            </p>
-            {stats.planUntil ? (
-              <p className="mt-1 text-sm text-muted">
-                Amal qiladi:{" "}
-                {new Date(stats.planUntil).toLocaleDateString("uz-UZ")}
-              </p>
-            ) : (
-              <p className="mt-1 text-sm text-muted">Muddatsiz</p>
-            )}
-            {stats.plan === "FREE" && (
-              <Link href="/dashboard/settings" className="mt-4 block">
-                <Button variant="outline" size="sm" className="w-full">
-                  Business ga o'tish
-                </Button>
-              </Link>
-            )}
-          </Card>
-
-          {/* Oxirgi o'zgartirish */}
-          <Card className="p-6">
-            <div className="mb-3 flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted" />
-              <h2 className="font-semibold text-foreground">
-                Oxirgi o'zgartirish
-              </h2>
-            </div>
-            {stats.lastUpdated ? (
-              <>
-                <p className="text-sm font-medium text-foreground">
-                  {stats.lastUpdated.name}
-                </p>
-                <p className="mt-1 text-sm text-muted">
-                  {new Date(stats.lastUpdated.updatedAt).toLocaleString("uz-UZ")}
-                </p>
-              </>
-            ) : (
-              <p className="text-sm text-muted">Hali o'zgartirish yo'q</p>
-            )}
-          </Card>
-        </div>
+        {/* Stollar holati */}
+        <Card className="p-5 sm:p-6 lg:col-span-2">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="font-semibold text-foreground">Stollar</h3>
+            <Link href="/dashboard/qr" className="inline-flex items-center gap-1 text-xs font-medium text-accent">
+              QR <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          {extras.tables.total === 0 ? (
+            <p className="py-8 text-center text-sm text-muted">Stol qo'shilmagan</p>
+          ) : (
+            <>
+              <p className="text-3xl font-bold text-foreground">{extras.tables.total} <span className="text-base font-normal text-muted">ta stol</span></p>
+              <div className="mt-4 space-y-2.5">
+                <TableRow icon={Flame} tone="error" label="Band" value={extras.tables.busy} />
+                <TableRow icon={Wallet} tone="warning" label="To'lov kutilmoqda" value={extras.tables.awaitingPayment} />
+                <TableRow icon={Table2} tone="success" label="Bo'sh" value={extras.tables.free} />
+              </div>
+            </>
+          )}
+        </Card>
       </div>
 
-      {/* Tezkor amallar */}
-      <div>
-        <h2 className="mb-3 font-semibold text-foreground">Tezkor amallar</h2>
-        <div className="grid gap-4 sm:grid-cols-3">
-          {[
-            {
-              href: "/dashboard/menu",
-              icon: UtensilsCrossed,
-              title: "Menyu boshqaruvi",
-              desc: "Kategoriya va mahsulotlar",
-            },
-            {
-              href: "/dashboard/qr",
-              icon: QrCode,
-              title: "QR kod",
-              desc: "Yuklab olish va sozlash",
-            },
-            {
-              href: "/dashboard/profile",
-              icon: Store,
-              title: "Restoran profili",
-              desc: "Logo, manzil, aloqa",
-            },
-          ].map((a) => (
-            <Link key={a.href} href={a.href}>
-              <Card className="flex items-center gap-4 p-5 transition-all hover:-translate-y-0.5 hover:shadow-card">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
-                  <a.icon className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="font-medium text-foreground">{a.title}</p>
-                  <p className="text-sm text-muted">{a.desc}</p>
-                </div>
-              </Card>
-            </Link>
-          ))}
+      {/* ─── Obuna + Tezkor amallar ─── */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Obuna */}
+        <Card className="flex flex-col p-5 sm:p-6">
+          <div className="mb-3 flex items-center gap-2">
+            <Crown className="h-4 w-4 text-warning" />
+            <h3 className="font-semibold text-foreground">Obuna</h3>
+          </div>
+          <p className="text-lg font-bold text-foreground">{planNames[stats.plan] ?? stats.plan} tarif</p>
+          <p className="mt-1 text-sm text-muted">
+            {stats.planUntil
+              ? `Amal qiladi: ${new Date(stats.planUntil).toLocaleDateString("uz-UZ")}`
+              : "Muddatsiz"}
+          </p>
+          <Link
+            href="/dashboard/settings"
+            className="mt-auto pt-4 inline-flex items-center gap-1 text-sm font-medium text-accent"
+          >
+            {stats.plan === "FREE" ? "Tarifni faollashtirish" : "Obunani boshqarish"}{" "}
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </Card>
+
+        {/* Tezkor amallar */}
+        <div className="lg:col-span-2">
+          <h3 className="mb-3 font-semibold text-foreground">Tezkor amallar</h3>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {[
+              { href: "/dashboard/menu", icon: Plus, title: "Mahsulot qo'shish" },
+              { href: "/dashboard/orders", icon: ClipboardList, title: "Buyurtmalar" },
+              { href: "/dashboard/qr", icon: QrCode, title: "QR yaratish" },
+              { href: "/dashboard/stoplist", icon: Ban, title: "Stop-list" },
+              { href: "/dashboard/stats", icon: ChefHat, title: "Statistika" },
+              { href: `/m/${restaurant.slug}`, icon: UtensilsCrossed, title: "Menyu ko'rish" },
+            ].map((a) => (
+              <Link key={a.title} href={a.href} target={a.href.startsWith("/m/") ? "_blank" : undefined}>
+                <Card className="flex h-full items-center gap-3 p-4 transition-all hover:-translate-y-0.5 hover:shadow-card">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
+                    <a.icon className="h-[18px] w-[18px]" />
+                  </span>
+                  <span className="text-sm font-medium text-foreground">{a.title}</span>
+                </Card>
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-// Kecha bilan solishtirish — ↑/↓ foiz belgisi (yashil oshgan, qizil kamaygan)
+// ─── Kecha bilan solishtirish trend belgisi ───
 function Trend({ today, prev }: { today: number; prev: number }) {
   if (prev <= 0) {
     if (today > 0)
@@ -357,17 +391,17 @@ function Trend({ today, prev }: { today: number; prev: number }) {
           <ArrowUp className="h-3 w-3" /> yangi
         </span>
       );
-    return <span className="text-[11px] text-muted/60">kecha 0</span>;
+    return <span className="text-[11px] text-muted/70">kecha 0</span>;
   }
   const pct = Math.round(((today - prev) / prev) * 100);
-  if (pct === 0) return <span className="text-[11px] text-muted/60">= kecha</span>;
+  if (pct === 0) return <span className="text-[11px] text-muted/70">= kecha</span>;
   const up = pct > 0;
   return (
     <span
-      className={`flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold ${
+      className={cn(
+        "flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-semibold",
         up ? "bg-success/10 text-success" : "bg-error/10 text-error"
-      }`}
-      title="Kecha bilan solishtirganda"
+      )}
     >
       {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
       {Math.abs(pct)}%
@@ -375,12 +409,70 @@ function Trend({ today, prev }: { today: number; prev: number }) {
   );
 }
 
-// Savdo KPI kartasi — daromad ko'rsatkichlari uchun
-function RevKpi({ label, value }: { label: string; value: string }) {
+// ─── To'lov taqsimoti (naqd / karta / aralash) ───
+function PaymentBreakdown({
+  payment,
+  currency,
+}: {
+  payment: { cash: number; card: number; mixed: number };
+  currency: string;
+}) {
+  const total = payment.cash + payment.card + payment.mixed;
+  if (total === 0) return <p className="py-6 text-center text-sm text-muted">Bugun to'lov qabul qilinmagan</p>;
+  const pct = (v: number) => Math.round((v / total) * 100);
+  const rows = [
+    { label: "Naqd", value: payment.cash, color: "bg-success" },
+    { label: "Karta", value: payment.card, color: "bg-accent" },
+    { label: "Aralash", value: payment.mixed, color: "bg-warning" },
+  ].filter((r) => r.value > 0);
+
   return (
-    <Card className="p-5 transition-all hover:-translate-y-0.5 hover:shadow-card">
-      <p className="text-sm text-muted">{label}</p>
-      <p className="mt-1.5 text-2xl font-bold tracking-tight text-foreground">{value}</p>
-    </Card>
+    <div className="space-y-4">
+      {rows.map((r) => (
+        <div key={r.label}>
+          <div className="mb-1 flex items-center justify-between text-sm">
+            <span className="text-muted">{r.label}</span>
+            <span className="font-semibold text-foreground">
+              {formatCompact(r.value)} <span className="text-xs font-normal text-muted">{pct(r.value)}%</span>
+            </span>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-surface-2">
+            <div className={cn("h-full rounded-full", r.color)} style={{ width: `${pct(r.value)}%` }} />
+          </div>
+        </div>
+      ))}
+      <div className="border-t border-border pt-3 text-center">
+        <p className="text-xs text-muted">Jami qabul qilingan</p>
+        <p className="text-lg font-bold text-foreground">{formatPrice(total, currency)}</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Stol holati qatori ───
+function TableRow({
+  icon: Icon,
+  tone,
+  label,
+  value,
+}: {
+  icon: typeof Flame;
+  tone: "error" | "warning" | "success";
+  label: string;
+  value: number;
+}) {
+  const toneCls = {
+    error: "bg-error/10 text-error",
+    warning: "bg-warning/10 text-warning",
+    success: "bg-success/10 text-success",
+  }[tone];
+  return (
+    <div className="flex items-center gap-3">
+      <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg", toneCls)}>
+        <Icon className="h-4 w-4" />
+      </span>
+      <span className="flex-1 text-sm text-foreground">{label}</span>
+      <span className="text-lg font-bold text-foreground tabular-nums">{value}</span>
+    </div>
   );
 }

@@ -361,3 +361,218 @@ export async function getTableStats(restaurantId: string) {
     })
     .sort((a, b) => b.orders - a.orders || b.scans - a.scans);
 }
+
+// ─────────────────────────────────────────────
+// Dashboard 2.0 — "command center" uchun qo'shimcha jonli ma'lumotlar.
+// (Mavjud getDashboardStats'ga tegmaydi — additiv.)
+// ─────────────────────────────────────────────
+
+const ACTIVE_ORDER_STATUSES = ["NEW", "ACCEPTED", "PREPARING", "READY"];
+// Buyurtma shu daqiqadan uzoq "faol" tursa — e'tibor talab qiladi (kechikkan)
+const STUCK_MINUTES = 15;
+
+export async function getDashboardExtras(restaurantId: string) {
+  const today = startOfDay();
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const yesterday = new Date(today.getTime() - DAY_MS);
+  const stuckBefore = new Date(Date.now() - STUCK_MINUTES * 60 * 1000);
+
+  const [
+    preparingCount,
+    stopListCount,
+    tableCount,
+    yesterdayScans,
+    activeOrderRows,
+    todayPaidRows,
+    yesterdayPaidCount,
+    recentOrders,
+    stuckOrders,
+  ] = await Promise.all([
+    // Ayni damda oshxonada (tayyorlanmoqda)
+    prisma.order.count({ where: { restaurantId, status: "PREPARING" } }),
+    // Stop-list: mavjud emas deb belgilangan (ko'rinadigan) mahsulotlar
+    prisma.product.count({ where: { restaurantId, isVisible: true, isAvailable: false } }),
+    // Jami stollar
+    prisma.restaurantTable.count({ where: { restaurantId } }),
+    // Kecha skanerlar (QR KPI trendi uchun)
+    prisma.scanEvent.count({ where: { restaurantId, createdAt: { gte: yesterday, lt: today } } }),
+    // Stol bandligini aniqlash uchun faol/to'lanmagan buyurtmalar
+    prisma.order.findMany({
+      where: {
+        restaurantId,
+        tableCode: { not: null },
+        OR: [
+          { status: { in: ACTIVE_ORDER_STATUSES } },
+          { status: { not: "CANCELLED" }, paymentStatus: "UNPAID" },
+        ],
+      },
+      select: { tableCode: true, status: true, paymentStatus: true },
+    }),
+    // Bugungi to'langan buyurtmalar — to'lov usuli taqsimoti + faol ofitsantlar
+    prisma.order.findMany({
+      where: { restaurantId, createdAt: { gte: today }, status: { not: "CANCELLED" } },
+      select: { paymentMethod: true, paidCash: true, paidCard: true, waiterName: true },
+    }),
+    // Kechagi (bekor qilinmagan) buyurtmalar soni — o'rtacha chek trendi uchun
+    prisma.order.count({
+      where: { restaurantId, createdAt: { gte: yesterday, lt: today }, status: { not: "CANCELLED" } },
+    }),
+    // So'nggi buyurtmalar (faoliyat lentasi)
+    prisma.order.findMany({
+      where: { restaurantId },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+      select: {
+        id: true, number: true, tableName: true, tableCode: true,
+        total: true, status: true, orderType: true, paymentStatus: true,
+        waiterName: true, createdAt: true,
+      },
+    }),
+    // Kechikkan faol buyurtmalar (15+ daqiqadan beri tugallanmagan)
+    prisma.order.findMany({
+      where: {
+        restaurantId,
+        status: { in: ["NEW", "ACCEPTED", "PREPARING"] },
+        createdAt: { lt: stuckBefore },
+      },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, number: true, tableName: true, createdAt: true },
+    }),
+  ]);
+
+  // ─── Stol holati ───
+  const occupied = new Set<string>();
+  const awaiting = new Set<string>();
+  for (const o of activeOrderRows) {
+    if (!o.tableCode) continue;
+    occupied.add(o.tableCode);
+    if ((o.status === "READY" || o.status === "DELIVERED") && o.paymentStatus === "UNPAID") {
+      awaiting.add(o.tableCode);
+    }
+  }
+  const awaitingPayment = awaiting.size;
+  const busy = Math.max(0, occupied.size - awaitingPayment);
+  const free = Math.max(0, tableCount - occupied.size);
+
+  // ─── To'lov usuli taqsimoti (bugun) ───
+  let cash = 0, card = 0, mixed = 0;
+  const waiterSet = new Set<string>();
+  for (const o of todayPaidRows) {
+    if (o.waiterName) waiterSet.add(o.waiterName.trim());
+    const pc = o.paidCash ?? 0;
+    const pcard = o.paidCard ?? 0;
+    if (o.paymentMethod === "MIXED" || (pc > 0 && pcard > 0)) mixed += pc + pcard;
+    else if (o.paymentMethod === "CARD" || pcard > 0) card += pcard || 0;
+    else if (o.paymentMethod === "CASH" || pc > 0) cash += pc || 0;
+  }
+
+  return {
+    preparingCount,
+    stopListCount,
+    yesterdayScans,
+    yesterdayOrdersPaid: yesterdayPaidCount,
+    activeWaiters: waiterSet.size,
+    tables: { total: tableCount, busy, free, awaitingPayment },
+    payment: { cash, card, mixed },
+    recentOrders,
+    stuckOrders,
+  };
+}
+
+// Eng ko'p sotilgan taomlar — soni + daromadi + ulushi (oxirgi 30 kun)
+export async function getTopSellingProducts(restaurantId: string, limit = 5) {
+  const monthAgo = new Date(startOfDay().getTime() - 29 * 24 * 60 * 60 * 1000);
+  const orders = await prisma.order.findMany({
+    where: { restaurantId, createdAt: { gte: monthAgo }, status: { not: "CANCELLED" } },
+    select: { items: true },
+  });
+  const tally = new Map<string, { name: string; qty: number; revenue: number }>();
+  let grandRevenue = 0;
+  for (const o of orders) {
+    const items = parseJson<OrderItemLite[]>(o.items, []);
+    for (const it of items) {
+      const name = (it.name || "").trim();
+      if (!name) continue;
+      const key = it.productId || name;
+      const qty = Number(it.qty) || 0;
+      const revenue = (Number(it.price) || 0) * qty;
+      const cur = tally.get(key) || { name, qty: 0, revenue: 0 };
+      cur.qty += qty;
+      cur.revenue += revenue;
+      tally.set(key, cur);
+      grandRevenue += revenue;
+    }
+  }
+  const list = [...tally.values()].sort((a, b) => b.qty - a.qty).slice(0, limit);
+  return list.map((p) => ({
+    ...p,
+    share: grandRevenue > 0 ? Math.round((p.revenue / grandRevenue) * 100) : 0,
+  }));
+}
+
+// Savdo grafigi qatorlari — Bugun (soatlik), 7 kun, 30 kun, 12 oy.
+// Bir marta so'rov: oxirgi 365 kunlik buyurtmalar → JS'da bucket'lanadi.
+export type SalesPoint = { label: string; revenue: number; orders: number };
+export type SalesSeries = { today: SalesPoint[]; week: SalesPoint[]; month: SalesPoint[]; year: SalesPoint[] };
+
+export async function getSalesSeries(restaurantId: string): Promise<SalesSeries> {
+  const now = new Date();
+  const today = startOfDay(now);
+  const DAY = 24 * 60 * 60 * 1000;
+  const yearAgo = new Date(today.getTime() - 364 * DAY);
+
+  const orders = await prisma.order.findMany({
+    where: { restaurantId, createdAt: { gte: yearAgo }, status: { not: "CANCELLED" } },
+    select: { createdAt: true, total: true },
+  });
+
+  const dayName = ["Yak", "Du", "Se", "Cho", "Pay", "Ju", "Sha"];
+  const monName = ["Yan", "Fev", "Mar", "Apr", "May", "Iyn", "Iyl", "Avg", "Sen", "Okt", "Noy", "Dek"];
+
+  // Bugun — 24 soatlik (faqat gavjum bo'lgan diapazon 8:00–24:00 emas, to'liq 0–23)
+  const todayPts: SalesPoint[] = Array.from({ length: 24 }, (_, h) => ({ label: `${h}`, revenue: 0, orders: 0 }));
+  // 7 kun / 30 kun — kunlik
+  const weekPts: SalesPoint[] = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today.getTime() - (6 - i) * DAY);
+    return { label: dayName[d.getDay()], revenue: 0, orders: 0 };
+  });
+  const monthPts: SalesPoint[] = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(today.getTime() - (29 - i) * DAY);
+    return { label: `${d.getDate()}`, revenue: 0, orders: 0 };
+  });
+  // 12 oy — oylik
+  const yearPts: SalesPoint[] = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
+    return { label: monName[d.getMonth()], revenue: 0, orders: 0 };
+  });
+
+  const weekStart = today.getTime() - 6 * DAY;
+  const monthStart = today.getTime() - 29 * DAY;
+
+  for (const o of orders) {
+    const t = o.createdAt.getTime();
+    const rev = o.total || 0;
+    // Bugun (soatlik)
+    if (t >= today.getTime()) {
+      const h = o.createdAt.getHours();
+      todayPts[h].revenue += rev;
+      todayPts[h].orders += 1;
+    }
+    // 7 kun
+    if (t >= weekStart) {
+      const idx = Math.floor((t - weekStart) / DAY);
+      if (idx >= 0 && idx < 7) { weekPts[idx].revenue += rev; weekPts[idx].orders += 1; }
+    }
+    // 30 kun
+    if (t >= monthStart) {
+      const idx = Math.floor((t - monthStart) / DAY);
+      if (idx >= 0 && idx < 30) { monthPts[idx].revenue += rev; monthPts[idx].orders += 1; }
+    }
+    // 12 oy
+    const monthsAgo = (now.getFullYear() - o.createdAt.getFullYear()) * 12 + (now.getMonth() - o.createdAt.getMonth());
+    const yIdx = 11 - monthsAgo;
+    if (yIdx >= 0 && yIdx < 12) { yearPts[yIdx].revenue += rev; yearPts[yIdx].orders += 1; }
+  }
+
+  return { today: todayPts, week: weekPts, month: monthPts, year: yearPts };
+}

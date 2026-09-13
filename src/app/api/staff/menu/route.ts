@@ -17,7 +17,7 @@ export async function GET() {
     prisma.product.findMany({
       where: { restaurantId: restaurant.id, isVisible: true, isAvailable: true },
       orderBy: { sortOrder: "asc" },
-      select: { id: true, name: true, price: true, categoryId: true, images: true },
+      select: { id: true, name: true, price: true, categoryId: true, images: true, modifiers: true },
     }),
   ]);
 

@@ -4,18 +4,25 @@ import { prisma } from "@/lib/prisma";
 import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
 import { sendOrderToChannel } from "@/lib/order-telegram";
 import type { OrderItem } from "@/lib/orders";
+import { parseModifiers, resolveModifiers } from "@/lib/orders";
 import { voidNeedsApproval } from "@/lib/staff";
 import { verifyManagerPin } from "@/lib/approvals";
 
 // Ofitsant panel orqali buyurtma yaratadi (stolga taom qo'shib, oshxonaga yuboradi).
 const schema = z.object({
   tableCode: z.string().optional().nullable(),
+  guestNo: z.number().int().min(1).max(50).optional().nullable(),
   items: z
     .array(
       z.object({
         productId: z.string(),
         qty: z.number().int().min(1).max(99),
         comment: z.string().max(200).optional().nullable(),
+        // Tanlangan modifierlar (faqat guruh+nom — narx serverda hisoblanadi)
+        modifiers: z
+          .array(z.object({ group: z.string(), name: z.string() }))
+          .max(30)
+          .optional(),
       })
     )
     .min(1, "Kamida bitta taom tanlang"),
@@ -30,13 +37,13 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) return fail("Ma'lumotlar noto'g'ri", 422, parsed.error.flatten().fieldErrors);
-  const { tableCode, items } = parsed.data;
+  const { tableCode, items, guestNo } = parsed.data;
 
   // Mahsulotlar + kategoriya nomlari (narxni bazadan olamiz)
   const ids = items.map((i) => i.productId);
   const products = await prisma.product.findMany({
     where: { id: { in: ids }, restaurantId: restaurant.id },
-    select: { id: true, name: true, price: true, category: { select: { name: true } } },
+    select: { id: true, name: true, price: true, modifiers: true, category: { select: { name: true } } },
   });
 
   const orderItems: OrderItem[] = [];
@@ -44,15 +51,20 @@ export async function POST(req: NextRequest) {
   for (const it of items) {
     const p = products.find((x) => x.id === it.productId);
     if (!p) continue;
+    // Modifierlarni mahsulot ta'rifiga solishtirib narxni ishonchli hisoblaymiz
+    const groups = parseModifiers(p.modifiers);
+    const { modifiers, extra } = resolveModifiers(groups, it.modifiers);
+    const unitPrice = p.price + extra;
     orderItems.push({
       productId: p.id,
       name: p.name,
-      price: p.price,
+      price: unitPrice,
       qty: it.qty,
       categoryName: p.category?.name ?? null,
       comment: it.comment?.trim() || null,
+      ...(modifiers.length ? { modifiers } : {}),
     });
-    total += p.price * it.qty;
+    total += unitPrice * it.qty;
   }
   if (orderItems.length === 0) return fail("Mahsulotlar mavjud emas", 422);
 
@@ -78,6 +90,7 @@ export async function POST(req: NextRequest) {
       number,
       tableCode: tableCode || null,
       tableName,
+      guestNo: guestNo ?? null,
       status: "NEW",
       total,
       subtotal: total,

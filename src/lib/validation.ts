@@ -81,6 +81,8 @@ export const productSchema = z.object({
   weight: z.string().optional(),
   calories: z.number().int().min(0).optional().nullable(),
   spicyLevel: z.number().int().min(0).max(3).optional(),
+  // Modifierlar — JSON string (client tomonda tuziladi, serverda saqlanadi)
+  modifiers: z.string().max(20000).optional(),
   isVegetarian: z.boolean().optional(),
   isHalal: z.boolean().optional(),
   isNew: z.boolean().optional(),

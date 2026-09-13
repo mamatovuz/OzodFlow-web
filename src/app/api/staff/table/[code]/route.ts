@@ -27,7 +27,7 @@ export async function GET(
       status: { not: "CANCELLED" },
     },
     orderBy: { createdAt: "asc" },
-    select: { id: true, number: true, status: true, total: true, items: true, waiterName: true, createdAt: true },
+    select: { id: true, number: true, status: true, total: true, items: true, waiterName: true, guestNo: true, createdAt: true },
   });
 
   const total = orders.reduce((s, o) => s + o.total, 0);

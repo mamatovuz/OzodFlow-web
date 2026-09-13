@@ -400,6 +400,7 @@ model Order {
   number       Int // restoran ichida ketma-ket raqam
   tableCode    String?
   tableName    String?
+  guestNo      Int? // bir stolda ko'p mijoz: qaysi mijoz (1,2,3...) buyurtma berdi (null = umumiy)
   phone        String?
   comment      String?
   // ─── Dastavka (yetkazib berish) manzili ───
@@ -535,6 +536,8 @@ model Product {
   weight        String?
   calories      Int?
   spicyLevel    Int      @default(0) // 0-3
+  // ─── Modifierlar (variant/qo'shimcha) — JSON: [{name, required, multi, options:[{name,price}]}] ───
+  modifiers     String   @default("[]")
   isVegetarian  Boolean  @default(false)
   isHalal       Boolean  @default(false)
   isNew         Boolean  @default(false)

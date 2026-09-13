@@ -11,7 +11,7 @@ import { verifyManagerPin } from "@/lib/approvals";
 // Stolning barcha to'lanmagan buyurtmalari PAID + DELIVERED bo'ladi.
 const schema = z.object({
   tableCode: z.string().min(1),
-  method: z.enum(["CASH", "CARD", "MIXED"]),
+  method: z.enum(["CASH", "CARD", "MIXED", "CLICK", "PAYME", "UZUM"]),
   cash: z.number().min(0).optional(),
   card: z.number().min(0).optional(),
   // Chegirma: summa (so'm) va turi (audit uchun)
@@ -21,6 +21,8 @@ const schema = z.object({
   service: z.number().min(0).optional(),
   // Manager PIN — chegirma waiter limitidan oshsa tasdiqlash uchun
   approverPin: z.string().optional(),
+  // Bitta mijoz (guest) hisobini to'lash — berilsa faqat shu mijoz buyurtmalari
+  guestNo: z.number().int().min(1).max(50).optional().nullable(),
 });
 
 export async function POST(req: NextRequest) {
@@ -40,6 +42,8 @@ export async function POST(req: NextRequest) {
       tableCode,
       paymentStatus: "UNPAID",
       status: { not: "CANCELLED" },
+      // Bitta mijoz to'lovi bo'lsa — faqat shu mijoz buyurtmalari
+      ...(parsed.data.guestNo != null ? { guestNo: parsed.data.guestNo } : {}),
     },
     orderBy: { createdAt: "asc" },
     select: { id: true, total: true, items: true, number: true, tableName: true },
@@ -75,14 +79,16 @@ export async function POST(req: NextRequest) {
   let paidCash = 0;
   let paidCard = 0;
   if (method === "CASH") paidCash = total;
-  else if (method === "CARD") paidCard = total;
-  else {
+  else if (method === "MIXED") {
     paidCash = Math.max(0, parsed.data.cash ?? 0);
     paidCard = Math.max(0, parsed.data.card ?? 0);
     // Aralashda qismlar jami yakuniy summaga teng bo'lishi kerak (kichik xatoga yo'l qo'yamiz)
     if (Math.abs(paidCash + paidCard - total) > 1) {
       return fail(`Naqd va karta yig'indisi ${total} bo'lishi kerak`, 422);
     }
+  } else {
+    // CARD / CLICK / PAYME / UZUM — naqdsiz to'lov (kassa hisobida "naqdsiz")
+    paidCard = total;
   }
 
   const paidAt = new Date();

@@ -13,8 +13,11 @@ import {
   EyeOff,
   Flame,
   Leaf,
+  X,
+  GripVertical,
 } from "lucide-react";
 import { Button, Input, Textarea, Label, Select, Card, Badge, Switch } from "@/components/ui";
+import { parseModifiers, type ModifierGroup } from "@/lib/orders";
 
 // Forma ichidagi bo'lim sarlavhasi (§24) — maydonlarni mantiqiy guruhlaydi
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -57,6 +60,7 @@ type Product = {
   weight: string | null;
   calories: number | null;
   spicyLevel: number;
+  modifiers?: string | null;
   isVegetarian: boolean;
   isHalal: boolean;
   isNew: boolean;
@@ -444,6 +448,7 @@ export function MenuManager({ currency }: { currency: string }) {
         state={prodModal}
         categories={categories}
         activeCat={activeCat}
+        currency={currency}
         onClose={() => setProdModal({ open: false })}
         onSaved={() => {
           setProdModal({ open: false });
@@ -575,22 +580,26 @@ function ProductModal({
   state,
   categories,
   activeCat,
+  currency,
   onClose,
   onSaved,
 }: {
   state: { open: boolean; edit?: Product };
   categories: Category[];
   activeCat: string | null;
+  currency: string;
   onClose: () => void;
   onSaved: () => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [images, setImages] = useState<string[]>([]);
+  const [modGroups, setModGroups] = useState<ModifierGroup[]>([]);
   const edit = state.edit;
 
   useEffect(() => {
     setImages(parseJson<string[]>(edit?.images, []));
+    setModGroups(parseModifiers(edit?.modifiers));
     setError("");
   }, [edit, state.open]);
 
@@ -616,6 +625,7 @@ function ProductModal({
       ingredients: f.get("ingredients"),
       spicyLevel: Number(f.get("spicyLevel") || 0),
       images,
+      modifiers: JSON.stringify(cleanModifiers(modGroups)),
       crop: (f.get("crop") as string) || "auto",
       isVegetarian: f.get("isVegetarian") === "on",
       isHalal: f.get("isHalal") === "on",
@@ -771,6 +781,10 @@ function ProductModal({
           </div>
         </div>
 
+        {/* Modifierlar (variant / qo'shimcha) */}
+        <SectionTitle>Modifierlar (variant / qo'shimcha)</SectionTitle>
+        <ModifierEditor groups={modGroups} onChange={setModGroups} currency={currency} />
+
         {/* Belgilar */}
         <SectionTitle>Belgilar va ko'rinish</SectionTitle>
         <div className="grid grid-cols-2 gap-2 rounded-lg bg-surface-2 p-3 sm:grid-cols-3">
@@ -805,5 +819,120 @@ function ProductModal({
         </div>
       </form>
     </Modal>
+  );
+}
+
+// Bo'sh nom/optionlarni tozalaydi (saqlashdan oldin)
+function cleanModifiers(groups: ModifierGroup[]): ModifierGroup[] {
+  return groups
+    .map((g) => ({
+      name: g.name.trim(),
+      required: g.required,
+      multi: g.multi,
+      options: g.options
+        .filter((o) => o.name.trim())
+        .map((o) => ({ name: o.name.trim(), price: Number(o.price) || 0 })),
+    }))
+    .filter((g) => g.name && g.options.length > 0);
+}
+
+// ─── Modifier editor (egasi har taomga variant/qo'shimcha belgilaydi) ───
+function ModifierEditor({
+  groups,
+  onChange,
+  currency,
+}: {
+  groups: ModifierGroup[];
+  onChange: (g: ModifierGroup[]) => void;
+  currency: string;
+}) {
+  function addGroup() {
+    onChange([...groups, { name: "", required: false, multi: false, options: [{ name: "", price: 0 }] }]);
+  }
+  function updateGroup(i: number, patch: Partial<ModifierGroup>) {
+    onChange(groups.map((g, gi) => (gi === i ? { ...g, ...patch } : g)));
+  }
+  function removeGroup(i: number) {
+    onChange(groups.filter((_, gi) => gi !== i));
+  }
+  function addOption(gi: number) {
+    onChange(groups.map((g, i) => (i === gi ? { ...g, options: [...g.options, { name: "", price: 0 }] } : g)));
+  }
+  function updateOption(gi: number, oi: number, patch: Partial<{ name: string; price: number }>) {
+    onChange(
+      groups.map((g, i) =>
+        i === gi ? { ...g, options: g.options.map((o, j) => (j === oi ? { ...o, ...patch } : o)) } : g
+      )
+    );
+  }
+  function removeOption(gi: number, oi: number) {
+    onChange(groups.map((g, i) => (i === gi ? { ...g, options: g.options.filter((_, j) => j !== oi) } : g)));
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted">
+        Masalan: <b>Porsiya</b> (Oddiy / Katta +10 000) yoki <b>Qo'shimcha</b> (Non +3000, Achchiq).
+        Ofitsant taom qo'shganda tanlaydi, narx avtomatik qo'shiladi. Bo'sh qoldirsangiz — modifier bo'lmaydi.
+      </p>
+
+      {groups.map((g, gi) => (
+        <div key={gi} className="rounded-xl border border-border bg-surface-2 p-3">
+          <div className="flex items-center gap-2">
+            <GripVertical className="h-4 w-4 shrink-0 text-muted/50" />
+            <Input
+              value={g.name}
+              onChange={(e) => updateGroup(gi, { name: e.target.value })}
+              placeholder="Guruh nomi (Porsiya, Qo'shimcha...)"
+              className="flex-1"
+            />
+            <button type="button" onClick={() => removeGroup(gi)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-error/10 hover:text-error">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="mt-2 flex flex-wrap gap-3 pl-6">
+            <label className="flex items-center gap-1.5 text-xs text-foreground">
+              <input type="checkbox" checked={g.required} onChange={(e) => updateGroup(gi, { required: e.target.checked })} className="h-4 w-4 accent-[var(--accent)]" />
+              Majburiy
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-foreground">
+              <input type="checkbox" checked={g.multi} onChange={(e) => updateGroup(gi, { multi: e.target.checked })} className="h-4 w-4 accent-[var(--accent)]" />
+              Bir nechta tanlansin
+            </label>
+          </div>
+
+          <div className="mt-2 space-y-1.5 pl-6">
+            {g.options.map((o, oi) => (
+              <div key={oi} className="flex items-center gap-2">
+                <Input
+                  value={o.name}
+                  onChange={(e) => updateOption(gi, oi, { name: e.target.value })}
+                  placeholder="Variant nomi"
+                  className="flex-1"
+                />
+                <Input
+                  type="number"
+                  value={o.price === 0 ? "" : String(o.price)}
+                  onChange={(e) => updateOption(gi, oi, { price: Number(e.target.value) || 0 })}
+                  placeholder="+ narx"
+                  className="w-28"
+                />
+                <button type="button" onClick={() => removeOption(gi, oi)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-error/10 hover:text-error">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            <button type="button" onClick={() => addOption(gi)} className="text-xs font-medium text-accent hover:underline">
+              + Variant qo'shish
+            </button>
+          </div>
+        </div>
+      ))}
+
+      <Button type="button" variant="outline" onClick={addGroup} className="w-full">
+        <Plus className="h-4 w-4" /> Modifier guruh qo'shish {currency ? "" : ""}
+      </Button>
+    </div>
   );
 }

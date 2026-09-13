@@ -374,6 +374,7 @@ function KitchenCard({
                 <span className="w-6 shrink-0 text-right text-sm font-semibold tabular-nums text-muted">{it.qty}×</span>
                 <span className={it.done ? "text-muted line-through" : "text-foreground"}>
                   {it.name}
+                  {it.modifiers && it.modifiers.length > 0 ? <span className="block text-xs font-medium text-accent no-underline">{it.modifiers.map((m) => m.name).join(", ")}</span> : null}
                   {it.comment ? <span className="block text-xs text-error/80 no-underline">{it.comment}</span> : null}
                 </span>
               </button>
@@ -383,6 +384,7 @@ function KitchenCard({
               <span className="w-6 shrink-0 text-right text-sm font-semibold tabular-nums text-muted">{it.qty}×</span>
               <span>
                 {it.name}
+                {it.modifiers && it.modifiers.length > 0 ? <span className="block text-xs font-medium text-accent">{it.modifiers.map((m) => m.name).join(", ")}</span> : null}
                 {it.comment ? <span className="block text-xs text-error/80">{it.comment}</span> : null}
               </span>
             </li>

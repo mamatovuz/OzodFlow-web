@@ -4,11 +4,12 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Loader2, Volume2, VolumeX, LogOut, Bell, BellRing, Receipt, ChevronLeft, Plus, Minus,
   X, Check, Utensils, Coins, CreditCard, Wallet, Search, ConciergeBell, Armchair, Percent, Clock,
-  Printer, ArrowRightLeft, Users, Play, Banknote, Calculator, ShieldAlert,
+  Printer, ArrowRightLeft, Users, Play, Banknote, Calculator, ShieldAlert, Smartphone,
 } from "lucide-react";
 import { parseJson, formatPrice } from "@/lib/utils";
 import { DISCOUNT_LIMIT } from "@/lib/staff";
-import type { OrderItem } from "@/lib/orders";
+import { parseModifiers } from "@/lib/orders";
+import type { OrderItem, ModifierGroup, SelectedModifier } from "@/lib/orders";
 
 // ─── Smena (shift) ma'lumoti ───
 type ShiftInfo = {
@@ -25,10 +26,17 @@ type ShiftInfo = {
 type TableRow = { id: string; name: string; code: string; status: string; orders: number; total: number };
 type SvcCall = { id: string; type: string; tableName: string | null; createdAt: string };
 type ReadyOrder = { id: string; number: number; tableName: string | null; items: string; waiterName: string | null; staffId: string | null };
-type BillOrder = { id: string; number: number; status: string; total: number; items: string; waiterName: string | null; createdAt: string };
+type BillOrder = { id: string; number: number; status: string; total: number; items: string; waiterName: string | null; guestNo: number | null; createdAt: string };
 type MenuCat = { id: string; name: string; image: string | null };
-type MenuProd = { id: string; name: string; price: number; categoryId: string; images: string | null };
+type MenuProd = { id: string; name: string; price: number; categoryId: string; images: string | null; modifiers?: string | null };
 type Card = { number: string | null; holder: string | null };
+
+// To'lov usullari (naqd + karta + onlayn hamyonlar)
+type PayMethod = "CASH" | "CARD" | "MIXED" | "CLICK" | "PAYME" | "UZUM";
+function payMethodLabel(m: PayMethod): string {
+  return m === "CASH" ? "Naqd" : m === "CARD" ? "Karta" : m === "MIXED" ? "Aralash"
+    : m === "CLICK" ? "Click" : m === "PAYME" ? "Payme" : "Uzum";
+}
 
 // Mahsulot rasmlari JSON'idan birinchisini oladi
 function firstImg(images: string | null): string | null {
@@ -47,7 +55,7 @@ type ReceiptData = {
   discount: number;
   service: number;
   total: number;
-  method: "CASH" | "CARD" | "MIXED";
+  method: PayMethod;
 };
 
 // Termal printer (58/80mm) uchun chekni yangi oynada ochib chop etadi.
@@ -55,7 +63,7 @@ function printReceipt(r: ReceiptData) {
   const cur = r.restaurant.currency;
   const d = new Date(r.paidAt);
   const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c] || c));
-  const methodLabel = r.method === "CASH" ? "Naqd" : r.method === "CARD" ? "Karta" : "Aralash";
+  const methodLabel = payMethodLabel(r.method);
   const rows = r.items
     .map(
       (it) =>
@@ -682,6 +690,7 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
   const [loading, setLoading] = useState(true);
   const [picker, setPicker] = useState(false);
   const [pay, setPay] = useState(false);
+  const [payGuest, setPayGuest] = useState<number | null>(null); // bitta mijoz to'lovi (null = butun stol)
   const [move, setMove] = useState(false); // stol ko'chirish modali
   // Void — bekor qilinayotgan taom { orderId, item, status }
   const [voiding, setVoiding] = useState<{ orderId: string; item: OrderItem; status: string } | null>(null);
@@ -719,6 +728,14 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
   const hasDelivered = orders.some((o) => o.status === "DELIVERED");
   const cooking = orders.some((o) => ["NEW", "ACCEPTED", "PREPARING"].includes(o.status));
   const readyToServe = orders.some((o) => o.status === "READY");
+
+  // Mijoz (guest) bo'yicha jami — bir stolda ko'p mijoz bo'lsa alohida to'lash uchun
+  const guestTotals = new Map<number, number>();
+  for (const o of orders) {
+    if (o.guestNo != null) guestTotals.set(o.guestNo, (guestTotals.get(o.guestNo) ?? 0) + o.total);
+  }
+  const guestList = [...guestTotals.entries()].sort((a, b) => a[0] - b[0]);
+  const payGuestTotal = payGuest != null ? guestTotals.get(payGuest) ?? 0 : total;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-surface">
@@ -776,7 +793,12 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
               return (
                 <div key={o.id} className="rounded-xl border border-border bg-card p-3">
                   <div className="mb-1.5 flex items-center justify-between text-xs text-muted">
-                    <span>#{o.number}{o.waiterName ? ` · ${o.waiterName}` : ""}</span>
+                    <span className="flex items-center gap-1.5">
+                      #{o.number}{o.waiterName ? ` · ${o.waiterName}` : ""}
+                      {o.guestNo != null && (
+                        <span className="rounded bg-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-accent">Mijoz {o.guestNo}</span>
+                      )}
+                    </span>
                     <StatusChip status={o.status} />
                   </div>
                   <ul className="space-y-1">
@@ -784,6 +806,9 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
                       <li key={i} className="flex items-start justify-between gap-2 text-sm">
                         <span className="min-w-0 text-foreground">
                           <b className="text-accent">{it.qty}×</b> {it.name}
+                          {it.modifiers && it.modifiers.length > 0 ? (
+                            <span className="block text-[11px] text-muted">↳ {it.modifiers.map((m) => m.name).join(", ")}</span>
+                          ) : null}
                           {it.comment ? <span className="block text-[11px] text-warning">↳ {it.comment}</span> : null}
                         </span>
                         <span className="flex shrink-0 items-center gap-1.5">
@@ -821,6 +846,25 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
             </p>
           )}
 
+          {/* Mijoz bo'yicha to'lash (bir stolda ko'p mijoz bo'lsa) */}
+          {hasDelivered && guestList.length >= 2 && (
+            <div className="mb-2.5">
+              <p className="mb-1.5 flex items-center gap-1 text-xs font-medium text-muted"><Users className="h-3.5 w-3.5" /> Mijoz bo'yicha to'lash</p>
+              <div className="flex flex-wrap gap-1.5">
+                {guestList.map(([g, gTotal]) => (
+                  <button
+                    key={g}
+                    onClick={() => { setPayGuest(g); setPay(true); }}
+                    className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground transition hover:border-accent active:scale-95"
+                  >
+                    <span className="font-bold text-accent">Mijoz {g}</span>
+                    <span className="text-muted">{formatPrice(gTotal, currency)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {hasDelivered ? (
             <div className="grid grid-cols-2 gap-2.5">
               <button
@@ -830,10 +874,10 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
                 <Plus className="h-5 w-5" /> Taom
               </button>
               <button
-                onClick={() => setPay(true)}
+                onClick={() => { setPayGuest(null); setPay(true); }}
                 className="flex items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-[15px] font-semibold text-white active:scale-[0.98]"
               >
-                <Wallet className="h-5 w-5" /> To'lov
+                <Wallet className="h-5 w-5" /> {guestList.length >= 2 ? "Butun stol" : "To'lov"}
               </button>
             </div>
           ) : (
@@ -848,7 +892,7 @@ function TableDetail({ code, currency, onClose }: { code: string; currency: stri
       </div>
 
       {picker && <MenuPicker code={code} currency={currency} onClose={() => setPicker(false)} onSent={() => { setPicker(false); load(); }} />}
-      {pay && <PaymentModal code={code} subtotal={total} serviceRate={serviceRate} card={card} currency={currency} onClose={() => setPay(false)} onPaid={() => { setPay(false); onClose(); }} />}
+      {pay && <PaymentModal code={code} subtotal={payGuestTotal} guestNo={payGuest} serviceRate={serviceRate} card={card} currency={currency} onClose={() => { setPay(false); setPayGuest(null); }} onPaid={() => { setPay(false); setPayGuest(null); load(); }} />}
       {move && <MoveModal fromCode={code} fromName={tableName} onClose={() => setMove(false)} onMoved={() => { setMove(false); onClose(); }} />}
       {voiding && (
         <VoidModal
@@ -1081,7 +1125,7 @@ function StatusChip({ status }: { status: string }) {
 }
 
 // ─── Taom tanlash (menyu) ───
-type Draft = { productId: string; name: string; price: number; qty: number; comment: string };
+type Draft = { lineId: string; productId: string; name: string; price: number; qty: number; comment: string; modifiers: SelectedModifier[] };
 
 function MenuPicker({ code, currency, onClose, onSent }: { code: string; currency: string; onClose: () => void; onSent: () => void }) {
   const [cats, setCats] = useState<MenuCat[]>([]);
@@ -1092,6 +1136,8 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [modSheet, setModSheet] = useState<MenuProd | null>(null); // modifier tanlash oynasi
+  const [guest, setGuest] = useState<number | null>(null); // qaysi mijoz (null = umumiy)
 
   useEffect(() => {
     fetch("/api/staff/menu").then((r) => r.json()).then((j) => {
@@ -1111,18 +1157,33 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
     ? prods.filter((p) => p.categoryId === activeCat)
     : prods; // "Barchasi"
 
+  // Modifiersiz taomni to'g'ridan-to'g'ri qo'shamiz (bir xil qatorni birlashtiramiz),
+  // modifierli taom uchun tanlash oynasini ochamiz.
   function add(p: MenuProd) {
+    if (parseModifiers(p.modifiers).length > 0) {
+      setModSheet(p);
+      return;
+    }
     setDraft((d) => {
-      const ex = d.find((x) => x.productId === p.id);
-      if (ex) return d.map((x) => (x.productId === p.id ? { ...x, qty: x.qty + 1 } : x));
-      return [...d, { productId: p.id, name: p.name, price: p.price, qty: 1, comment: "" }];
+      const ex = d.find((x) => x.productId === p.id && x.modifiers.length === 0 && !x.comment);
+      if (ex) return d.map((x) => (x === ex ? { ...x, qty: x.qty + 1 } : x));
+      return [...d, { lineId: `${p.id}-${Date.now()}`, productId: p.id, name: p.name, price: p.price, qty: 1, comment: "", modifiers: [] }];
     });
   }
-  function setQty(id: string, qty: number) {
-    setDraft((d) => (qty <= 0 ? d.filter((x) => x.productId !== id) : d.map((x) => (x.productId === id ? { ...x, qty } : x))));
+  // Modifier tanlab bo'lgach — yangi qator qo'shamiz
+  function addLine(p: MenuProd, mods: SelectedModifier[]) {
+    const extra = mods.reduce((s, m) => s + m.price, 0);
+    setDraft((d) => [
+      ...d,
+      { lineId: `${p.id}-${Date.now()}`, productId: p.id, name: p.name, price: p.price + extra, qty: 1, comment: "", modifiers: mods },
+    ]);
+    setModSheet(null);
   }
-  function setComment(id: string, comment: string) {
-    setDraft((d) => d.map((x) => (x.productId === id ? { ...x, comment } : x)));
+  function setQty(lineId: string, qty: number) {
+    setDraft((d) => (qty <= 0 ? d.filter((x) => x.lineId !== lineId) : d.map((x) => (x.lineId === lineId ? { ...x, qty } : x))));
+  }
+  function setComment(lineId: string, comment: string) {
+    setDraft((d) => d.map((x) => (x.lineId === lineId ? { ...x, comment } : x)));
   }
 
   const draftTotal = draft.reduce((s, x) => s + x.price * x.qty, 0);
@@ -1136,7 +1197,13 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         tableCode: code,
-        items: draft.map((x) => ({ productId: x.productId, qty: x.qty, comment: x.comment || undefined })),
+        guestNo: guest ?? undefined,
+        items: draft.map((x) => ({
+          productId: x.productId,
+          qty: x.qty,
+          comment: x.comment || undefined,
+          modifiers: x.modifiers.length ? x.modifiers.map((m) => ({ group: m.group, name: m.name })) : undefined,
+        })),
       }),
     });
     setSending(false);
@@ -1159,6 +1226,26 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
           />
         </div>
       </header>
+
+      {/* Mijoz (guest) tanlash — bir stolda ko'p mijoz uchun */}
+      <div className="flex items-center gap-1.5 overflow-x-auto border-b border-border bg-card px-3 py-2">
+        <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-muted"><Users className="h-3.5 w-3.5" /> Mijoz:</span>
+        <button
+          onClick={() => setGuest(null)}
+          className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium transition ${guest === null ? "bg-accent text-white" : "bg-surface-2 text-muted"}`}
+        >
+          Umumiy
+        </button>
+        {[1, 2, 3, 4, 5, 6].map((n) => (
+          <button
+            key={n}
+            onClick={() => setGuest(n)}
+            className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-medium transition ${guest === n ? "bg-accent text-white" : "bg-surface-2 text-muted"}`}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
 
       {/* Kategoriya chiplari */}
       {!q.trim() && (
@@ -1193,13 +1280,14 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
         ) : (
           <div className="mx-auto grid max-w-4xl grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {shown.map((p) => {
-              const inDraft = draft.find((x) => x.productId === p.id);
+              const draftQty = draft.reduce((s, x) => (x.productId === p.id ? s + x.qty : s), 0);
+              const hasMods = parseModifiers(p.modifiers).length > 0;
               const img = firstImg(p.images);
               return (
                 <button
                   key={p.id}
                   onClick={() => add(p)}
-                  className={`group relative overflow-hidden rounded-2xl border-2 bg-card text-left shadow-soft transition active:scale-95 ${inDraft ? "border-accent" : "border-border"}`}
+                  className={`group relative overflow-hidden rounded-2xl border-2 bg-card text-left shadow-soft transition active:scale-95 ${draftQty > 0 ? "border-accent" : "border-border"}`}
                 >
                   <div className="relative aspect-[4/3] w-full overflow-hidden bg-surface-2">
                     {img ? (
@@ -1210,9 +1298,9 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
                         <Utensils className="h-8 w-8" />
                       </div>
                     )}
-                    {inDraft && (
+                    {draftQty > 0 && (
                       <span className="absolute right-2 top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-accent px-1.5 text-xs font-bold text-white shadow-md">
-                        {inDraft.qty}
+                        {draftQty}
                       </span>
                     )}
                     <span className="absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-accent shadow-md">
@@ -1221,7 +1309,10 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
                   </div>
                   <div className="p-2.5">
                     <p className="text-sm font-medium leading-tight text-foreground line-clamp-2">{p.name}</p>
-                    <p className="mt-1 text-sm font-bold text-accent">{formatPrice(p.price, currency)}</p>
+                    <div className="mt-1 flex items-center justify-between gap-1">
+                      <p className="text-sm font-bold text-accent">{formatPrice(p.price, currency)}</p>
+                      {hasMods && <span className="shrink-0 rounded bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium text-muted">Variantli</span>}
+                    </div>
                   </div>
                 </button>
               );
@@ -1256,18 +1347,26 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
             </div>
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
               {draft.map((x) => (
-                <div key={x.productId} className="rounded-xl bg-surface-2 p-2.5">
+                <div key={x.lineId} className="rounded-xl bg-surface-2 p-2.5">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="min-w-0 flex-1 text-sm font-medium text-foreground">{x.name}</span>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-sm font-medium text-foreground">{x.name}</span>
+                      {x.modifiers.length > 0 && (
+                        <span className="block text-[11px] text-muted">
+                          {x.modifiers.map((m) => m.name).join(", ")}
+                        </span>
+                      )}
+                      <span className="block text-[11px] font-semibold text-accent">{formatPrice(x.price, currency)}</span>
+                    </div>
                     <div className="flex items-center gap-1.5">
-                      <button onClick={() => setQty(x.productId, x.qty - 1)} className="flex h-8 w-8 items-center justify-center rounded-md bg-card text-foreground active:scale-90"><Minus className="h-4 w-4" /></button>
+                      <button onClick={() => setQty(x.lineId, x.qty - 1)} className="flex h-8 w-8 items-center justify-center rounded-md bg-card text-foreground active:scale-90"><Minus className="h-4 w-4" /></button>
                       <span className="min-w-6 text-center text-base font-bold tabular-nums text-foreground">{x.qty}</span>
-                      <button onClick={() => setQty(x.productId, x.qty + 1)} className="flex h-8 w-8 items-center justify-center rounded-md bg-card text-foreground active:scale-90"><Plus className="h-4 w-4" /></button>
+                      <button onClick={() => setQty(x.lineId, x.qty + 1)} className="flex h-8 w-8 items-center justify-center rounded-md bg-card text-foreground active:scale-90"><Plus className="h-4 w-4" /></button>
                     </div>
                   </div>
                   <input
                     value={x.comment}
-                    onChange={(e) => setComment(x.productId, e.target.value)}
+                    onChange={(e) => setComment(x.lineId, e.target.value)}
                     placeholder="Izoh (achchiqroq, go'shtsiz...)"
                     className="mt-2 h-9 w-full rounded-md border border-border bg-card px-2.5 text-xs text-foreground outline-none focus:border-accent"
                   />
@@ -1287,13 +1386,124 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
           </div>
         </div>
       )}
+
+      {/* Modifier tanlash oynasi */}
+      {modSheet && (
+        <ModifierSheet
+          product={modSheet}
+          currency={currency}
+          onCancel={() => setModSheet(null)}
+          onAdd={(mods) => addLine(modSheet, mods)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Modifier (variant/qo'shimcha) tanlash oynasi ───
+function ModifierSheet({
+  product,
+  currency,
+  onCancel,
+  onAdd,
+}: {
+  product: MenuProd;
+  currency: string;
+  onCancel: () => void;
+  onAdd: (mods: SelectedModifier[]) => void;
+}) {
+  const groups: ModifierGroup[] = parseModifiers(product.modifiers);
+  // Tanlov: guruh nomi → tanlangan option nomlari
+  const [sel, setSel] = useState<Record<string, string[]>>(() => {
+    const init: Record<string, string[]> = {};
+    // Majburiy + bitta tanlovli guruhlarda birinchi variant avval tanlangan bo'ladi
+    for (const g of groups) {
+      if (g.required && !g.multi && g.options[0]) init[g.name] = [g.options[0].name];
+      else init[g.name] = [];
+    }
+    return init;
+  });
+
+  function toggle(g: ModifierGroup, optName: string) {
+    setSel((prev) => {
+      const cur = prev[g.name] || [];
+      if (g.multi) {
+        return { ...prev, [g.name]: cur.includes(optName) ? cur.filter((n) => n !== optName) : [...cur, optName] };
+      }
+      return { ...prev, [g.name]: [optName] };
+    });
+  }
+
+  // Tanlangan modifierlar ro'yxati (narx bilan)
+  const chosen: SelectedModifier[] = groups.flatMap((g) =>
+    (sel[g.name] || []).map((name) => {
+      const opt = g.options.find((o) => o.name === name);
+      return { group: g.name, name, price: opt?.price ?? 0 };
+    })
+  );
+  const extra = chosen.reduce((s, m) => s + m.price, 0);
+  // Majburiy guruhlar tanlanganmi?
+  const ok = groups.every((g) => !g.required || (sel[g.name] || []).length > 0);
+
+  return (
+    <div className="absolute inset-0 z-20 flex flex-col justify-end bg-black/40" onClick={onCancel}>
+      <div className="flex max-h-[88vh] flex-col rounded-t-3xl bg-card" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h3 className="min-w-0 truncate font-semibold text-foreground">{product.name}</h3>
+          <button onClick={onCancel} className="text-muted hover:text-foreground"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+          {groups.map((g) => (
+            <div key={g.name}>
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-sm font-bold text-foreground">{g.name}</span>
+                {g.required && <span className="rounded bg-error/10 px-1.5 py-0.5 text-[10px] font-medium text-error">majburiy</span>}
+                <span className="text-[11px] text-muted">{g.multi ? "(bir nechta)" : "(bittasi)"}</span>
+              </div>
+              <div className="space-y-1.5">
+                {g.options.map((o) => {
+                  const active = (sel[g.name] || []).includes(o.name);
+                  return (
+                    <button
+                      key={o.name}
+                      onClick={() => toggle(g, o.name)}
+                      className={`flex w-full items-center justify-between gap-2 rounded-xl border-2 px-3 py-2.5 text-left transition active:scale-[0.99] ${active ? "border-accent bg-accent-soft" : "border-border bg-card"}`}
+                    >
+                      <span className="flex items-center gap-2 text-sm text-foreground">
+                        <span className={`flex h-5 w-5 items-center justify-center border-2 ${g.multi ? "rounded-md" : "rounded-full"} ${active ? "border-accent bg-accent text-white" : "border-border"}`}>
+                          {active && <Check className="h-3 w-3" />}
+                        </span>
+                        {o.name}
+                      </span>
+                      {o.price !== 0 && (
+                        <span className="shrink-0 text-sm font-semibold text-accent">
+                          {o.price > 0 ? "+" : ""}{formatPrice(o.price, currency)}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="border-t border-border p-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+          <button
+            onClick={() => onAdd(chosen)}
+            disabled={!ok}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-[15px] font-semibold text-white active:scale-[0.98] disabled:opacity-40"
+          >
+            <Plus className="h-5 w-5" /> Qo'shish · {formatPrice(product.price + extra, currency)}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
 // ─── To'lov (chegirma + xizmat haqi bilan) ───
-function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, onPaid }: { code: string; subtotal: number; serviceRate: number; card: Card; currency: string; onClose: () => void; onPaid: () => void }) {
-  const [method, setMethod] = useState<"CASH" | "CARD" | "MIXED" | null>(null);
+function PaymentModal({ code, subtotal, guestNo, serviceRate, card, currency, onClose, onPaid }: { code: string; subtotal: number; guestNo?: number | null; serviceRate: number; card: Card; currency: string; onClose: () => void; onPaid: () => void }) {
+  const [method, setMethod] = useState<PayMethod | null>(null);
   const [cash, setCash] = useState("");
   const [cashReceived, setCashReceived] = useState(""); // naqd: mijoz bergan pul (qaytim uchun)
   const [busy, setBusy] = useState(false);
@@ -1336,6 +1546,7 @@ function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, on
     if (discountAmount > 0) { bodyData.discount = discountAmount; bodyData.discountType = discMode; }
     if (serviceAmount > 0) { bodyData.service = serviceAmount; }
     if (needsApproval && managerPin) { bodyData.approverPin = managerPin; }
+    if (guestNo != null) { bodyData.guestNo = guestNo; }
     if (method === "MIXED") { bodyData.cash = cashNum; bodyData.card = cardNum; }
     const res = await fetch("/api/staff/pay", {
       method: "POST",
@@ -1367,7 +1578,7 @@ function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, on
           <div className="flex flex-col items-center p-5 py-8 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success/10 text-success"><Check className="h-9 w-9" /></div>
             <h2 className="mt-4 text-xl font-bold text-foreground">To'lov qabul qilindi!</h2>
-            <p className="mt-1 text-muted">{formatPrice(total, currency)} · {method === "CASH" ? "Naqd" : method === "CARD" ? "Karta" : "Aralash"}</p>
+            <p className="mt-1 text-muted">{formatPrice(total, currency)} · {method ? payMethodLabel(method) : ""}</p>
             <div className="mt-6 flex w-full gap-2.5">
               {receipt && (
                 <button
@@ -1383,7 +1594,7 @@ function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, on
         ) : (
           <>
             <div className="flex items-center justify-between px-5 pb-3 pt-5">
-              <h2 className="font-semibold text-foreground">To'lov</h2>
+              <h2 className="font-semibold text-foreground">To'lov{guestNo != null ? ` · Mijoz ${guestNo}` : ""}</h2>
               <button onClick={onClose} className="text-muted hover:text-foreground"><X className="h-5 w-5" /></button>
             </div>
 
@@ -1450,32 +1661,51 @@ function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, on
               )}
             </div>
 
-            {/* Split — hisobni teng bo'lish (ko'rsatuv) */}
-            <div className="mb-4 flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <Users className="h-4 w-4 text-muted" /> Bo'lish
-                {guests > 1 && (
-                  <span className="text-xs font-normal text-muted">
-                    · har biri {formatPrice(Math.ceil(total / guests), currency)}
-                  </span>
-                )}
+            {/* Split bill — hisobni teng bo'lish */}
+            <div className="mb-4 rounded-lg border border-border px-3 py-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Users className="h-4 w-4 text-muted" /> Hisobni bo'lish
+                </div>
+                <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
+                  <button
+                    onClick={() => setGuests((g) => Math.max(1, g - 1))}
+                    disabled={guests <= 1}
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-foreground transition hover:bg-surface-2 disabled:opacity-40"
+                  >
+                    −
+                  </button>
+                  <span className="min-w-6 text-center text-sm font-semibold tabular-nums text-foreground">{guests}</span>
+                  <button
+                    onClick={() => setGuests((g) => Math.min(20, g + 1))}
+                    className="flex h-7 w-7 items-center justify-center rounded-md text-foreground transition hover:bg-surface-2"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
-                <button
-                  onClick={() => setGuests((g) => Math.max(1, g - 1))}
-                  disabled={guests <= 1}
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-foreground transition hover:bg-surface-2 disabled:opacity-40"
-                >
-                  −
-                </button>
-                <span className="min-w-6 text-center text-sm font-semibold tabular-nums text-foreground">{guests}</span>
-                <button
-                  onClick={() => setGuests((g) => Math.min(20, g + 1))}
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-foreground transition hover:bg-surface-2"
-                >
-                  +
-                </button>
-              </div>
+              {guests > 1 && (() => {
+                const per = Math.floor(total / guests);
+                const remainder = total - per * guests; // oxirgi kishiga qo'shiladi
+                const lastPer = per + remainder;
+                return (
+                  <div className="mt-2 rounded-lg bg-surface-2 p-2.5 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted">Har biri ({guests} kishi)</span>
+                      <span className="font-bold text-foreground">{formatPrice(per, currency)}</span>
+                    </div>
+                    {remainder > 0 && (
+                      <div className="mt-1 flex items-center justify-between text-xs">
+                        <span className="text-muted">Oxirgi kishi (qoldiq bilan)</span>
+                        <span className="font-semibold text-foreground">{formatPrice(lastPer, currency)}</span>
+                      </div>
+                    )}
+                    <p className="mt-1.5 text-[11px] text-muted">
+                      Har mijozdan ko'rsatilgan summani oling — jami baribir {formatPrice(total, currency)}.
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Usul tanlash */}
@@ -1483,6 +1713,9 @@ function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, on
               <MethodBtn active={method === "CASH"} onClick={() => setMethod("CASH")} icon={Coins} label="Naqd" />
               <MethodBtn active={method === "CARD"} onClick={() => setMethod("CARD")} icon={CreditCard} label="Karta" />
               <MethodBtn active={method === "MIXED"} onClick={() => setMethod("MIXED")} icon={Wallet} label="Aralash" />
+              <MethodBtn active={method === "CLICK"} onClick={() => setMethod("CLICK")} icon={Smartphone} label="Click" />
+              <MethodBtn active={method === "PAYME"} onClick={() => setMethod("PAYME")} icon={Smartphone} label="Payme" />
+              <MethodBtn active={method === "UZUM"} onClick={() => setMethod("UZUM")} icon={Smartphone} label="Uzum" />
             </div>
 
             {/* Naqd — berilgan pul + qaytim */}

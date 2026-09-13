@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Loader2, Volume2, VolumeX, LogOut, Bell, BellRing, Receipt, ChevronLeft, Plus, Minus,
   X, Check, Utensils, Coins, CreditCard, Wallet, Search, ConciergeBell, Armchair, Percent, Clock,
-  Printer, ArrowRightLeft,
+  Printer, ArrowRightLeft, Users,
 } from "lucide-react";
 import { parseJson, formatPrice } from "@/lib/utils";
 import type { OrderItem } from "@/lib/orders";
@@ -1019,6 +1019,7 @@ function MenuPicker({ code, currency, onClose, onSent }: { code: string; currenc
 function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, onPaid }: { code: string; subtotal: number; serviceRate: number; card: Card; currency: string; onClose: () => void; onPaid: () => void }) {
   const [method, setMethod] = useState<"CASH" | "CARD" | "MIXED" | null>(null);
   const [cash, setCash] = useState("");
+  const [cashReceived, setCashReceived] = useState(""); // naqd: mijoz bergan pul (qaytim uchun)
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
@@ -1029,6 +1030,8 @@ function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, on
   // Xizmat haqi (restoran sozlamasidagi foizdan boshlanadi)
   const [svcOn, setSvcOn] = useState(serviceRate > 0);
   const [svcPct, setSvcPct] = useState(String(serviceRate || 10));
+  // Split bill — hisobni necha kishiga teng bo'lish (faqat ko'rsatuv, to'lovga ta'sir qilmaydi)
+  const [guests, setGuests] = useState(1);
 
   const discInput = Math.max(0, Number(discVal.replace(/\D/g, "")) || 0);
   const discountAmount = discMode === "NONE" ? 0
@@ -1040,6 +1043,9 @@ function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, on
 
   const cashNum = Math.max(0, Number(cash.replace(/\D/g, "")) || 0);
   const cardNum = Math.max(0, total - cashNum);
+  // Naqd: mijoz bergan pul va qaytim (faqat ko'rsatuv — payload'ga ta'sir qilmaydi)
+  const receivedNum = Math.max(0, Number(cashReceived.replace(/\D/g, "")) || 0);
+  const changeNum = Math.max(0, receivedNum - total);
 
   async function pay() {
     setError("");
@@ -1145,12 +1151,60 @@ function PaymentModal({ code, subtotal, serviceRate, card, currency, onClose, on
               )}
             </div>
 
+            {/* Split — hisobni teng bo'lish (ko'rsatuv) */}
+            <div className="mb-4 flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <Users className="h-4 w-4 text-muted" /> Bo'lish
+                {guests > 1 && (
+                  <span className="text-xs font-normal text-muted">
+                    · har biri {formatPrice(Math.ceil(total / guests), currency)}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
+                <button
+                  onClick={() => setGuests((g) => Math.max(1, g - 1))}
+                  disabled={guests <= 1}
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-foreground transition hover:bg-surface-2 disabled:opacity-40"
+                >
+                  −
+                </button>
+                <span className="min-w-6 text-center text-sm font-semibold tabular-nums text-foreground">{guests}</span>
+                <button
+                  onClick={() => setGuests((g) => Math.min(20, g + 1))}
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-foreground transition hover:bg-surface-2"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
             {/* Usul tanlash */}
             <div className="grid grid-cols-3 gap-2">
               <MethodBtn active={method === "CASH"} onClick={() => setMethod("CASH")} icon={Coins} label="Naqd" />
               <MethodBtn active={method === "CARD"} onClick={() => setMethod("CARD")} icon={CreditCard} label="Karta" />
               <MethodBtn active={method === "MIXED"} onClick={() => setMethod("MIXED")} icon={Wallet} label="Aralash" />
             </div>
+
+            {/* Naqd — berilgan pul + qaytim */}
+            {method === "CASH" && (
+              <div className="mt-3">
+                <label className="mb-1 block text-xs text-muted">Mijoz bergan pul (ixtiyoriy)</label>
+                <input
+                  value={cashReceived}
+                  onChange={(e) => setCashReceived(e.target.value)}
+                  inputMode="numeric"
+                  placeholder={String(total)}
+                  className="h-11 w-full rounded-lg border border-border bg-card px-3 text-sm font-semibold text-foreground outline-none focus:border-accent"
+                />
+                {receivedNum > 0 && (
+                  <div className={`mt-2 flex items-center justify-between rounded-lg px-3 py-2 text-sm font-semibold ${receivedNum >= total ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}`}>
+                    <span>{receivedNum >= total ? "Qaytim" : "Yetishmayapti"}</span>
+                    <span>{formatPrice(receivedNum >= total ? changeNum : total - receivedNum, currency)}</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Karta ma'lumoti */}
             {(method === "CARD" || method === "MIXED") && (

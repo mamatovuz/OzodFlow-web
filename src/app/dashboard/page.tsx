@@ -17,7 +17,8 @@ import {
   Clock,
   Table2,
   ChefHat,
-  Flame,
+  XCircle,
+  type LucideIcon,
 } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { getUserRestaurant } from "@/lib/api";
@@ -32,6 +33,7 @@ import { Card, Badge } from "@/components/ui";
 import { formatPrice, formatCompact, cn } from "@/lib/utils";
 import { LiveCounter } from "@/components/dashboard/live-counter";
 import { SalesChart } from "@/components/dashboard/sales-chart";
+import { TableMap } from "@/components/dashboard/table-map";
 
 export const dynamic = "force-dynamic";
 
@@ -62,7 +64,14 @@ export default async function DashboardHome() {
       ? Math.round(stats.yesterdayRevenue / extras.yesterdayOrdersPaid)
       : 0;
 
-  const kpis = [
+  const kpis: {
+    label: string;
+    value: string;
+    icon: LucideIcon;
+    today?: number;
+    prev?: number;
+    hint?: string;
+  }[] = [
     {
       label: "Bugungi daromad",
       value: formatPrice(stats.todayRevenue, cur),
@@ -90,6 +99,18 @@ export default async function DashboardHome() {
       icon: QrCode,
       today: stats.todayScans,
       prev: extras.yesterdayScans,
+    },
+    {
+      label: "Band stollar",
+      value: `${extras.tables.busy + extras.tables.awaitingPayment}`,
+      icon: Table2,
+      hint: `${extras.tables.free} bo'sh · ${extras.tables.total} jami`,
+    },
+    {
+      label: "Bekor qilingan",
+      value: String(extras.todayCancelled),
+      icon: XCircle,
+      hint: "bugun",
     },
   ];
 
@@ -154,8 +175,8 @@ export default async function DashboardHome() {
         </div>
       </header>
 
-      {/* ─── KPI ─── */}
-      <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      {/* ─── KPI (§1) ─── */}
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
         {kpis.map((k) => (
           <Card key={k.label} className="p-4 sm:p-5">
             <div className="flex items-center justify-between">
@@ -168,11 +189,48 @@ export default async function DashboardHome() {
               {k.value}
             </p>
             <div className="mt-1.5 flex items-center gap-1.5">
-              <Trend today={k.today} prev={k.prev} />
-              <span className="hidden text-[11px] text-muted sm:inline">kechagiga nisbatan</span>
+              {typeof k.prev === "number" ? (
+                <>
+                  <Trend today={k.today ?? 0} prev={k.prev} />
+                  <span className="hidden text-[11px] text-muted sm:inline">kecha</span>
+                </>
+              ) : (
+                <span className="text-[11px] text-muted">{k.hint}</span>
+              )}
             </div>
           </Card>
         ))}
+      </section>
+
+      {/* ─── Live Order Monitor (§2) — buyurtma oqimi ─── */}
+      <section>
+        <Card className="p-4 sm:p-5">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-1">
+            {[
+              { key: "NEW", label: "Yangi", value: extras.pipeline.new },
+              { key: "PREPARING", label: "Tayyorlanmoqda", value: extras.pipeline.preparing },
+              { key: "READY", label: "Tayyor", value: extras.pipeline.ready },
+              { key: "DELIVERED", label: "Yetkazilgan", value: extras.pipeline.delivered },
+            ].map((step, i, arr) => {
+              const meta = statusMeta(step.key);
+              return (
+                <div key={step.key} className="flex flex-1 items-center gap-2 sm:gap-1">
+                  <Link
+                    href="/dashboard/orders"
+                    className="flex flex-1 items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-surface-2"
+                  >
+                    <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", meta.dot)} />
+                    <div className="min-w-0">
+                      <p className="text-2xl font-bold leading-none text-foreground tabular-nums">{step.value}</p>
+                      <p className="mt-1 truncate text-xs text-muted">{step.label}</p>
+                    </div>
+                  </Link>
+                  {i < arr.length - 1 && <ArrowRight className="hidden h-4 w-4 shrink-0 text-muted/50 sm:block" />}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
       </section>
 
       {/* ─── HOZIR (jonli holat — 3 soniyada yangilanadi) ─── */}
@@ -213,6 +271,9 @@ export default async function DashboardHome() {
           </div>
         </section>
       )}
+
+      {/* ─── Stollar xaritasi (§6 — jonli) ─── */}
+      <TableMap currency={cur} />
 
       {/* ─── Savdo tahlili (interaktiv grafik) ─── */}
       <SalesChart series={series} currency={cur} />
@@ -263,73 +324,48 @@ export default async function DashboardHome() {
         </Card>
       </div>
 
-      {/* ─── So'nggi buyurtmalar + Stollar ─── */}
-      <div className="grid gap-4 lg:grid-cols-5">
-        {/* So'nggi buyurtmalar */}
-        <Card className="p-5 sm:p-6 lg:col-span-3">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-semibold text-foreground">So'nggi buyurtmalar</h3>
-            <Link href="/dashboard/orders" className="inline-flex items-center gap-1 text-xs font-medium text-accent">
-              Barchasi <ArrowRight className="h-3 w-3" />
-            </Link>
+      {/* ─── So'nggi buyurtmalar (§14) ─── */}
+      <Card className="p-5 sm:p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="font-semibold text-foreground">So'nggi buyurtmalar</h3>
+          <Link href="/dashboard/orders" className="inline-flex items-center gap-1 text-xs font-medium text-accent">
+            Barchasi <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+        {extras.recentOrders.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted">Hali buyurtma yo'q</p>
+        ) : (
+          <div className="divide-y divide-border">
+            {extras.recentOrders.map((o) => {
+              const meta = statusMeta(o.status);
+              return (
+                <Link
+                  key={o.id}
+                  href="/dashboard/orders"
+                  className="-mx-2 flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-surface-2"
+                >
+                  <span className="text-sm font-semibold text-foreground tabular-nums">#{o.number}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-foreground">
+                      {o.orderType === "DELIVERY" ? "🚚 Yetkazish" : o.tableName || o.tableCode || "Stol —"}
+                    </p>
+                    {o.waiterName && <p className="truncate text-[11px] text-muted">{o.waiterName}</p>}
+                  </div>
+                  <span className="shrink-0 text-sm font-medium text-foreground">
+                    {formatPrice(o.total, cur)}
+                  </span>
+                  <span className={cn("shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium", meta.badge)}>
+                    {meta.label}
+                  </span>
+                  <span className="hidden shrink-0 text-[11px] text-muted tabular-nums sm:inline">
+                    {new Date(o.createdAt).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
-          {extras.recentOrders.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted">Hali buyurtma yo'q</p>
-          ) : (
-            <div className="divide-y divide-border">
-              {extras.recentOrders.map((o) => {
-                const meta = statusMeta(o.status);
-                return (
-                  <Link
-                    key={o.id}
-                    href="/dashboard/orders"
-                    className="flex items-center gap-3 py-2.5 transition-colors hover:bg-surface-2 -mx-2 px-2 rounded-lg"
-                  >
-                    <span className="text-sm font-semibold text-foreground tabular-nums">#{o.number}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm text-foreground">
-                        {o.orderType === "DELIVERY" ? "🚚 Yetkazish" : o.tableName || o.tableCode || "Stol —"}
-                      </p>
-                      {o.waiterName && <p className="truncate text-[11px] text-muted">{o.waiterName}</p>}
-                    </div>
-                    <span className="shrink-0 text-sm font-medium text-foreground">
-                      {formatPrice(o.total, cur)}
-                    </span>
-                    <span className={cn("shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium", meta.badge)}>
-                      {meta.label}
-                    </span>
-                    <span className="hidden shrink-0 text-[11px] text-muted tabular-nums sm:inline">
-                      {new Date(o.createdAt).toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" })}
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </Card>
-
-        {/* Stollar holati */}
-        <Card className="p-5 sm:p-6 lg:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-semibold text-foreground">Stollar</h3>
-            <Link href="/dashboard/qr" className="inline-flex items-center gap-1 text-xs font-medium text-accent">
-              QR <ArrowRight className="h-3 w-3" />
-            </Link>
-          </div>
-          {extras.tables.total === 0 ? (
-            <p className="py-8 text-center text-sm text-muted">Stol qo'shilmagan</p>
-          ) : (
-            <>
-              <p className="text-3xl font-bold text-foreground">{extras.tables.total} <span className="text-base font-normal text-muted">ta stol</span></p>
-              <div className="mt-4 space-y-2.5">
-                <TableRow icon={Flame} tone="error" label="Band" value={extras.tables.busy} />
-                <TableRow icon={Wallet} tone="warning" label="To'lov kutilmoqda" value={extras.tables.awaitingPayment} />
-                <TableRow icon={Table2} tone="success" label="Bo'sh" value={extras.tables.free} />
-              </div>
-            </>
-          )}
-        </Card>
-      </div>
+        )}
+      </Card>
 
       {/* ─── Obuna + Tezkor amallar ─── */}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -449,30 +485,3 @@ function PaymentBreakdown({
   );
 }
 
-// ─── Stol holati qatori ───
-function TableRow({
-  icon: Icon,
-  tone,
-  label,
-  value,
-}: {
-  icon: typeof Flame;
-  tone: "error" | "warning" | "success";
-  label: string;
-  value: number;
-}) {
-  const toneCls = {
-    error: "bg-error/10 text-error",
-    warning: "bg-warning/10 text-warning",
-    success: "bg-success/10 text-success",
-  }[tone];
-  return (
-    <div className="flex items-center gap-3">
-      <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg", toneCls)}>
-        <Icon className="h-4 w-4" />
-      </span>
-      <span className="flex-1 text-sm text-foreground">{label}</span>
-      <span className="text-lg font-bold text-foreground tabular-nums">{value}</span>
-    </div>
-  );
-}

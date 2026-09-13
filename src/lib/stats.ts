@@ -387,6 +387,10 @@ export async function getDashboardExtras(restaurantId: string) {
     yesterdayPaidCount,
     recentOrders,
     stuckOrders,
+    newCount,
+    readyCount,
+    deliveredToday,
+    todayCancelled,
   ] = await Promise.all([
     // Ayni damda oshxonada (tayyorlanmoqda)
     prisma.order.count({ where: { restaurantId, status: "PREPARING" } }),
@@ -438,6 +442,12 @@ export async function getDashboardExtras(restaurantId: string) {
       orderBy: { createdAt: "asc" },
       select: { id: true, number: true, tableName: true, createdAt: true },
     }),
+    // Live Order Monitor pipeline: yangi (NEW+ACCEPTED), tayyor (READY), yetkazilgan (bugun)
+    prisma.order.count({ where: { restaurantId, status: { in: ["NEW", "ACCEPTED"] } } }),
+    prisma.order.count({ where: { restaurantId, status: "READY" } }),
+    prisma.order.count({ where: { restaurantId, status: "DELIVERED", createdAt: { gte: today } } }),
+    // Bugun bekor qilingan buyurtmalar (KPI)
+    prisma.order.count({ where: { restaurantId, status: "CANCELLED", createdAt: { gte: today } } }),
   ]);
 
   // ─── Stol holati ───
@@ -476,6 +486,14 @@ export async function getDashboardExtras(restaurantId: string) {
     payment: { cash, card, mixed },
     recentOrders,
     stuckOrders,
+    todayCancelled,
+    // Live Order Monitor pipeline (#2)
+    pipeline: {
+      new: newCount,
+      preparing: preparingCount,
+      ready: readyCount,
+      delivered: deliveredToday,
+    },
   };
 }
 

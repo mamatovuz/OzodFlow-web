@@ -169,6 +169,15 @@ export function KitchenDisplay({
 
   const total = orders.length;
 
+  // Status summary (§Kitchen header): NEW / PREPARING / READY / DELAYED
+  const DELAY_MIN = 15;
+  const counts = {
+    new: orders.filter((o) => o.status === "NEW" || o.status === "ACCEPTED").length,
+    prep: orders.filter((o) => o.status === "PREPARING").length,
+    ready: orders.filter((o) => o.status === "READY").length,
+    delayed: orders.filter((o) => (now - +new Date(o.createdAt)) / 60000 >= DELAY_MIN).length,
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-surface">
       {/* Yuqori panel — sokin, minimalist */}
@@ -192,6 +201,21 @@ export function KitchenDisplay({
           </IconBtn>
         </div>
       </header>
+
+      {/* Status summary (§Kitchen) — NEW / PREPARING / READY / DELAYED */}
+      <div className="flex items-stretch gap-px border-b border-border bg-border">
+        {[
+          { label: "Yangi", value: counts.new, cls: "text-accent" },
+          { label: "Tayyorlanmoqda", value: counts.prep, cls: "text-warning" },
+          { label: "Tayyor", value: counts.ready, cls: "text-success" },
+          { label: "Kechikkan", value: counts.delayed, cls: counts.delayed > 0 ? "text-error" : "text-muted" },
+        ].map((s) => (
+          <div key={s.label} className="flex flex-1 flex-col items-center bg-card py-2">
+            <span className={`text-xl font-bold tabular-nums leading-none sm:text-2xl ${s.cls}`}>{s.value}</span>
+            <span className="mt-1 text-[11px] text-muted">{s.label}</span>
+          </div>
+        ))}
+      </div>
 
       {/* Bo'lim (stansiya) filtri — sokin matn tablari */}
       {stations.length > 1 && (
@@ -308,11 +332,15 @@ function KitchenCard({
           </span>
         </div>
         <div className="flex items-center gap-2.5">
-          {late && (
+          {late ? (
             <span className="rounded bg-error/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-error">
               Kechikdi
             </span>
-          )}
+          ) : warn ? (
+            <span className="rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-warning">
+              Shoshilinch
+            </span>
+          ) : null}
           <span className={`flex items-center gap-1 text-[13px] tabular-nums ${timeColor}`}>
             <Clock className="h-3 w-3" /> {mins}′
           </span>

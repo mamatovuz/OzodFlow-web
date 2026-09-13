@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Wallet, Store, Clock, CheckCircle2, Globe, Eye, AlertTriangle, Activity, Crown } from "lucide-react";
+import { Wallet, Store, Clock, CheckCircle2, Globe, Eye, AlertTriangle, Activity, Crown, Gift, TrendingUp } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { PLANS, type PlanKey } from "@/lib/plans";
 import { Card, Badge } from "@/components/ui";
 import { formatPrice } from "@/lib/utils";
 
@@ -23,6 +24,10 @@ export default async function AdminHome() {
     expiring,
     activeScanGroups,
     activeOrderGroups,
+    trialCount,
+    activePlanGroups,
+    planConfigs,
+    todayPaidAgg,
   ] = await Promise.all([
     prisma.paymentRequest.count({ where: { status: "PENDING" } }),
     prisma.domainRequest.count({ where: { status: "PENDING" } }),
@@ -63,7 +68,29 @@ export default async function AdminHome() {
       by: ["restaurantId"],
       where: { createdAt: { gte: weekAgo } },
     }),
+    // Trial (FREE tarifdagi) restoranlar
+    prisma.restaurant.count({ where: { plan: "FREE", isBlocked: false } }),
+    // Faol (muddatli) pullik obunalar — MRR uchun tarif bo'yicha
+    prisma.restaurant.groupBy({
+      by: ["plan"],
+      where: { plan: { not: "FREE" }, isBlocked: false, planUntil: { gte: now } },
+      _count: true,
+    }),
+    prisma.planConfig.findMany(),
+    // Bugun tasdiqlangan to'lovlar summasi
+    prisma.paymentRequest.aggregate({
+      where: { status: "APPROVED", reviewedAt: { gte: todayStart } },
+      _sum: { amount: true },
+    }),
   ]);
+
+  // ─── MRR (Monthly Recurring Revenue) — muddatli obunalar oylik narxi yig'indisi ───
+  // Narx: PlanConfig (DB) → bo'lmasa PLANS default. Umrbod (planUntil=null) hisobga olinmaydi.
+  const priceMap = new Map(planConfigs.map((p) => [p.plan, p.price]));
+  const mrr = activePlanGroups.reduce((sum, g) => {
+    const price = priceMap.get(g.plan) ?? PLANS[g.plan as PlanKey]?.defaultPrice ?? 0;
+    return sum + price * g._count;
+  }, 0);
 
   // Faol restoranlar — skan yoki buyurtma qilganlar birlashmasi
   const activeSet = new Set<string>([
@@ -74,15 +101,13 @@ export default async function AdminHome() {
   const inactiveCount = Math.max(0, restaurants - activeCount);
 
   const cards = [
-    { label: "Bugungi tashriflar", value: visitsToday, icon: Eye, href: "/admins/analytics" },
-    { label: "Kutilayotgan to'lovlar", value: pending, icon: Clock, href: "/admins/payments" },
     { label: "Restoranlar", value: restaurants, icon: Store, href: "/admins/restaurants" },
-    {
-      label: "Jami tushum",
-      value: formatPrice(approvedAgg._sum.amount || 0, "UZS"),
-      icon: CheckCircle2,
-      href: "/admins/analytics",
-    },
+    { label: "MRR (oylik, taxminiy)", value: formatPrice(mrr, "UZS"), icon: TrendingUp, href: "/admins/analytics" },
+    { label: "Trial (FREE)", value: trialCount, icon: Gift, href: "/admins/restaurants" },
+    { label: "Bugungi to'lov", value: formatPrice(todayPaidAgg._sum.amount || 0, "UZS"), icon: CheckCircle2, href: "/admins/payments" },
+    { label: "Kutilayotgan to'lovlar", value: pending, icon: Clock, href: "/admins/payments" },
+    { label: "Jami tushum", value: formatPrice(approvedAgg._sum.amount || 0, "UZS"), icon: Wallet, href: "/admins/analytics" },
+    { label: "Bugungi tashriflar", value: visitsToday, icon: Eye, href: "/admins/analytics" },
     { label: "Domen so'rovlari", value: domainsPending, icon: Globe, href: "/admins/domains" },
   ];
 

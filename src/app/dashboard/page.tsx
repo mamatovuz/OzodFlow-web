@@ -176,16 +176,16 @@ export default async function DashboardHome() {
       </header>
 
       {/* ─── KPI (§1) ─── */}
-      <section className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
         {kpis.map((k) => (
           <Card key={k.label} className="p-4 sm:p-5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted sm:text-sm">{k.label}</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="min-w-0 truncate text-xs text-muted sm:text-sm">{k.label}</span>
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
                 <k.icon className="h-4 w-4" />
               </span>
             </div>
-            <p className="mt-2 text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+            <p className="mt-2 truncate text-xl font-bold tracking-tight text-foreground sm:text-2xl">
               {k.value}
             </p>
             <div className="mt-1.5 flex items-center gap-1.5">
@@ -204,32 +204,28 @@ export default async function DashboardHome() {
 
       {/* ─── Live Order Monitor (§2) — buyurtma oqimi ─── */}
       <section>
-        <Card className="p-4 sm:p-5">
-          <div className="flex flex-wrap items-center gap-2 sm:gap-1">
-            {[
-              { key: "NEW", label: "Yangi", value: extras.pipeline.new },
-              { key: "PREPARING", label: "Tayyorlanmoqda", value: extras.pipeline.preparing },
-              { key: "READY", label: "Tayyor", value: extras.pipeline.ready },
-              { key: "DELIVERED", label: "Yetkazilgan", value: extras.pipeline.delivered },
-            ].map((step, i, arr) => {
-              const meta = statusMeta(step.key);
-              return (
-                <div key={step.key} className="flex flex-1 items-center gap-2 sm:gap-1">
-                  <Link
-                    href="/dashboard/orders"
-                    className="flex flex-1 items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-surface-2"
-                  >
-                    <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", meta.dot)} />
-                    <div className="min-w-0">
-                      <p className="text-2xl font-bold leading-none text-foreground tabular-nums">{step.value}</p>
-                      <p className="mt-1 truncate text-xs text-muted">{step.label}</p>
-                    </div>
-                  </Link>
-                  {i < arr.length - 1 && <ArrowRight className="hidden h-4 w-4 shrink-0 text-muted/50 sm:block" />}
+        <Card className="grid grid-cols-2 divide-y divide-border sm:grid-cols-4 sm:divide-y-0 sm:divide-x">
+          {[
+            { key: "NEW", label: "Yangi", value: extras.pipeline.new },
+            { key: "PREPARING", label: "Tayyorlanmoqda", value: extras.pipeline.preparing },
+            { key: "READY", label: "Tayyor", value: extras.pipeline.ready },
+            { key: "DELIVERED", label: "Yetkazilgan", value: extras.pipeline.delivered },
+          ].map((step) => {
+            const meta = statusMeta(step.key);
+            return (
+              <Link
+                key={step.key}
+                href="/dashboard/orders"
+                className="flex items-center gap-3 px-4 py-4 transition-colors hover:bg-surface-2"
+              >
+                <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", meta.dot)} />
+                <div className="min-w-0">
+                  <p className="text-2xl font-bold leading-none text-foreground tabular-nums">{step.value}</p>
+                  <p className="mt-1 truncate text-xs text-muted">{step.label}</p>
                 </div>
-              );
-            })}
-          </div>
+              </Link>
+            );
+          })}
         </Card>
       </section>
 

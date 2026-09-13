@@ -539,7 +539,7 @@ export function PublicMenu({
 
   return (
     <div
-      className="relative min-h-screen bg-background pb-28"
+      className="relative min-h-screen overflow-x-hidden bg-background pb-28"
       style={{
         ...themeStyle,
         backgroundColor: pageBg.backgroundColor,
@@ -2294,8 +2294,6 @@ function CategoryCard({
   label: string;
   hideCount?: boolean;
 }) {
-  const bg = `linear-gradient(135deg, ${accent}, ${accent}22, #0b0b0b)`;
-
   // ── LIST: chapda kichik rasm + nom + o'q ──
   if (variant === "list") {
     return (
@@ -2312,7 +2310,9 @@ function CategoryCard({
             // eslint-disable-next-line @next/next/no-img-element
             <img src={smartImg(image, 200, 200)} alt={name} loading="lazy" decoding="async" className="h-full w-full object-cover" />
           ) : (
-            <div className="h-full w-full" style={{ background: bg }} />
+            <div className="flex h-full w-full items-center justify-center" style={{ background: `${accent}14`, color: accent }}>
+              <UtensilsCrossed className="h-6 w-6" />
+            </div>
           )}
         </div>
         <div className="min-w-0 flex-1">
@@ -2328,6 +2328,40 @@ function CategoryCard({
 
   // ── BANNER (to'liq enlik) yoki GRID (2 ustun) ──
   const isBanner = variant === "banner";
+
+  // ── Rasm YO'Q: qora foto-romka o'rniga toza temali karta ──
+  // (surface fon + accent ikon + foreground matn — light dizaynlarda ham chiroyli)
+  if (!image) {
+    return (
+      <button
+        onClick={onClick}
+        className={`group relative flex w-full flex-col items-center justify-center gap-2 overflow-hidden border border-border bg-surface px-4 text-center shadow-soft transition-transform active:scale-[0.98] ${
+          isBanner ? "h-28 sm:h-36" : "aspect-[4/3]"
+        }`}
+        style={{ borderRadius: radius + 4 }}
+      >
+        <span
+          className="flex items-center justify-center rounded-full p-3"
+          style={{ background: `${accent}1a`, color: accent }}
+        >
+          <UtensilsCrossed className={isBanner ? "h-6 w-6" : "h-5 w-5"} />
+        </span>
+        <h3
+          className={`font-extrabold uppercase tracking-wide text-foreground ${
+            isBanner ? "text-xl sm:text-2xl" : "text-sm sm:text-base"
+          }`}
+        >
+          {name}
+        </h3>
+        {!hideCount && (
+          <span className="text-xs font-medium text-muted">
+            {count} {label}
+          </span>
+        )}
+      </button>
+    );
+  }
+
   return (
     <button
       onClick={onClick}
@@ -2336,21 +2370,14 @@ function CategoryCard({
       }`}
       style={{ borderRadius: radius + 4 }}
     >
-      {image ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={smartImg(image, isBanner ? 1000 : 800, isBanner ? 500 : 600)}
-          alt={name}
-          loading="lazy"
-          decoding="async"
-          className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-        />
-      ) : (
-        <div
-          className="h-full w-full transition-transform duration-500 ease-out group-hover:scale-105"
-          style={{ background: bg }}
-        />
-      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={smartImg(image, isBanner ? 1000 : 800, isBanner ? 500 : 600)}
+        alt={name}
+        loading="lazy"
+        decoding="async"
+        className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+      />
       {isBanner ? (
         <>
           {/* Markazda nom (rasimdagidek) */}

@@ -25,6 +25,8 @@ export function AiImport({ onImported }: { onImported: () => void }) {
   const [error, setError] = useState("");
   const [cats, setCats] = useState<AiCategory[]>([]);
   const [withImages, setWithImages] = useState(true);
+  const [imgMode, setImgMode] = useState<"mixed" | "stock" | "ai">("mixed");
+  const [stockAvailable, setStockAvailable] = useState(false);
   const [imgProgress, setImgProgress] = useState({ done: 0, total: 0 });
   const [result, setResult] = useState<{ createdProducts: number; createdCategories: number; imagesMade: number } | null>(null);
 
@@ -73,6 +75,9 @@ export function AiImport({ onImported }: { onImported: () => void }) {
       ...c,
       products: c.products.map((p) => ({ ...p, _keep: true })),
     }));
+    const hasStock = !!json.data.stockAvailable;
+    setStockAvailable(hasStock);
+    setImgMode(hasStock ? "mixed" : "ai"); // Pexels bo'lsa aralash, aks holda AI
     setCats(parsed);
     setPhase("preview");
   }
@@ -125,7 +130,7 @@ export function AiImport({ onImported }: { onImported: () => void }) {
           const r = await fetch("/api/products/ai-import", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ step: "images", items }),
+            body: JSON.stringify({ step: "images", items, mode: imgMode }),
           });
           const j = await r.json();
           if (r.ok && j.success) imagesMade += j.data.done || 0;
@@ -276,13 +281,44 @@ export function AiImport({ onImported }: { onImported: () => void }) {
             ))}
           </div>
 
-          <label className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
-            <span className="text-sm text-foreground">
-              Har bir taomga AI rasm yasab bersin
-              <span className="block text-xs text-muted">Sekinroq, lekin rasmlar avtomatik qo'shiladi</span>
-            </span>
-            <Switch checked={withImages} onChange={setWithImages} />
-          </label>
+          <div className="space-y-2.5 rounded-lg border border-border p-3">
+            <label className="flex items-center justify-between">
+              <span className="text-sm text-foreground">
+                Taomlarga rasm qo'shilsinmi
+                <span className="block text-xs text-muted">Har bir taom uchun avtomatik rasm</span>
+              </span>
+              <Switch checked={withImages} onChange={setWithImages} />
+            </label>
+
+            {withImages && (stockAvailable ? (
+              <div className="grid grid-cols-3 gap-2 pt-1">
+                {([
+                  { key: "mixed", label: "Aralash", desc: "Real foto + AI zaxira" },
+                  { key: "stock", label: "Real foto", desc: "Faqat haqiqiy (tez)" },
+                  { key: "ai", label: "AI yasash", desc: "Har biriga AI rasm" },
+                ] as const).map((m) => (
+                  <button
+                    key={m.key}
+                    type="button"
+                    onClick={() => setImgMode(m.key)}
+                    className={`rounded-lg border px-2 py-2 text-left transition ${
+                      imgMode === m.key
+                        ? "border-accent bg-accent-soft/50 ring-1 ring-accent"
+                        : "border-border hover:border-accent/50"
+                    }`}
+                  >
+                    <span className="block text-xs font-semibold text-foreground">{m.label}</span>
+                    <span className="mt-0.5 block text-[11px] leading-tight text-muted">{m.desc}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-muted">
+                Har taomga <b className="text-foreground">AI rasm</b> yasaladi. Tez
+                haqiqiy fotolar uchun Pexels kalitini ulang (<span className="font-mono">PEXELS_API_KEY</span>).
+              </p>
+            ))}
+          </div>
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={reset}>Bekor qilish</Button>
@@ -304,7 +340,7 @@ export function AiImport({ onImported }: { onImported: () => void }) {
         <div className="mt-4 space-y-2 rounded-lg bg-accent-soft px-3 py-3">
           <div className="flex items-center gap-2 text-sm text-accent">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Rasmlar yasalmoqda — {imgProgress.done}/{imgProgress.total}
+            Rasmlar tayyorlanmoqda — {imgProgress.done}/{imgProgress.total}
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-accent/15">
             <div

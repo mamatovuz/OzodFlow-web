@@ -76,7 +76,8 @@ export async function POST(req: NextRequest) {
       return fail("Menyu aniqlanmadi. Aniqroq rasm yuklab qayta urinib ko'ring.", 422);
     }
     const totalProducts = parsed.reduce((s, c) => s + c.products.length, 0);
-    return ok({ categories: parsed, totalProducts });
+    // stockAvailable: client rasm olish usulini (real foto) taklif qilishi uchun
+    return ok({ categories: parsed, totalProducts, stockAvailable: stockConfigured() });
   }
 
   // ─── 2-qadam: tasdiqlangan menyuni yaratish ───
@@ -163,18 +164,22 @@ export async function POST(req: NextRequest) {
     const ownedIds = new Set(owned.map((p) => p.id));
     const valid = items.filter((it) => ownedIds.has(String(it.id)));
 
+    // Rasm olish usuli: "mixed" (real foto → AI zaxira), "stock" (faqat real
+    // foto), "ai" (faqat AI generatsiya). Default: mixed.
+    const mode: "mixed" | "stock" | "ai" =
+      body?.mode === "ai" || body?.mode === "stock" ? body.mode : "mixed";
     const useStock = stockConfigured();
     let done = 0;
-    // Parallellik 3 (failover kalitlar bilan xavfsiz). Har taom uchun:
-    // 1) tez stock foto (Pexels) — ~1-2s, agar sozlangan bo'lsa;
-    // 2) topilmasa AI generatsiya (sekinroq, lekin doim ishlaydi).
+    // Parallellik 3 (failover kalitlar bilan xavfsiz).
     await mapWithConcurrency(valid, 3, async (it) => {
       let url: string | null = null;
 
-      if (useStock) {
+      // 1) Tez real foto (Pexels) — "ai" rejimidan tashqari
+      if (mode !== "ai" && useStock) {
         url = await fetchStockFoodImage(it.prompt);
       }
-      if (!url) {
+      // 2) AI generatsiya — "stock" rejimidan tashqari (zaxira/asosiy)
+      if (!url && mode !== "stock") {
         const img = await aiGenerateDishImage(
           `${it.prompt}. Professional food photography, appetizing, clean background, high detail, square format.`
         );

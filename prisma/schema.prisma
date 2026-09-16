@@ -19,6 +19,9 @@ model User {
   phone     String?  @unique
   name      String
   password  String
+  // Google bilan kirish — Google hisobi ("sub") ID si. Bog'langan bo'lsa
+  // foydalanuvchi Google orqali bir bosishda kiradi (parolsiz ham bo'ladi).
+  googleId  String?  @unique
   // Admin panelida restoran egasining parolini ko'rsatish uchun — AES-GCM
   // shifrlangan ochiq parol nusxasi (bcrypt hash qaytarilmasligi sababli).
   // Register / login / parolni tiklash paytida yoziladi.

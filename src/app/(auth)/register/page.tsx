@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button, Input, Label } from "@/components/ui";
+import { GoogleButton, AuthDivider } from "@/components/auth/google-button";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -50,7 +51,12 @@ export default function RegisterPage() {
         </div>
       )}
 
-      <form onSubmit={onSubmit} className="mt-6 space-y-4">
+      <div className="mt-6">
+        <GoogleButton label="Google bilan ro'yxatdan o'tish" />
+      </div>
+      <AuthDivider />
+
+      <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <Label>Ismingiz</Label>
           <Input name="name" placeholder="Ism Familiya" required />

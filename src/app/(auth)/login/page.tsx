@@ -2,14 +2,29 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button, Input, Label } from "@/components/ui";
+import { GoogleButton, AuthDivider } from "@/components/auth/google-button";
+
+// Google yo'naltirishidan qaytgan xato kodlarini o'zbekcha xabarga o'giradi.
+const GOOGLE_ERRORS: Record<string, string> = {
+  google: "Google orqali kirishда xatolik. Qayta urinib ko'ring.",
+  google_off: "Google bilan kirish hozircha sozlanmagan.",
+  google_cancel: "Google orqali kirish bekor qilindi.",
+  google_state: "Sessiya muddati tugadi. Qaytadan urinib ko'ring.",
+};
 
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Google callback xato bilan qaytarsa (?error=...) — ko'rsatamiz.
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("error");
+    if (code) setError(GOOGLE_ERRORS[code] || "Kirishда xatolik yuz berdi");
+  }, []);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -47,7 +62,12 @@ export default function LoginPage() {
         </div>
       )}
 
-      <form onSubmit={onSubmit} className="mt-6 space-y-4">
+      <div className="mt-6">
+        <GoogleButton label="Google bilan kirish" />
+      </div>
+      <AuthDivider />
+
+      <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <Label>Email yoki telefon</Label>
           <Input

@@ -127,8 +127,12 @@ async function geminiGenerate(
   parts: GeminiPart[],
   opts?: { json?: boolean; image?: boolean }
 ): Promise<{ ok: true; data: GeminiResp } | { ok: false; status: number; body: string }> {
-  const generationConfig: Record<string, unknown> = { temperature: opts?.image ? 0.9 : 0.3 };
-  if (opts?.json) generationConfig.responseMimeType = "application/json";
+  const generationConfig: Record<string, unknown> = { temperature: opts?.image ? 0.9 : 0.2 };
+  if (opts?.json) {
+    generationConfig.responseMimeType = "application/json";
+    // Uzun menyular kesilmasligi uchun katta chegara (aks holda taomlar tushib qoladi)
+    generationConfig.maxOutputTokens = 8192;
+  }
   if (opts?.image) generationConfig.responseModalities = ["IMAGE", "TEXT"];
 
   try {
@@ -181,9 +185,12 @@ async function openaiChat(
     const body: Record<string, unknown> = {
       model,
       messages: [{ role: "user", content }],
-      temperature: 0.3,
+      temperature: 0.2,
     };
-    if (opts?.json) body.response_format = { type: "json_object" };
+    if (opts?.json) {
+      body.response_format = { type: "json_object" };
+      body.max_tokens = 8192; // uzun menyu to'liq chiqsin
+    }
     const res = await fetch(`${OPENAI_BASE}/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },

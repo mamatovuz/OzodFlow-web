@@ -79,6 +79,44 @@ export async function readMediaAsBase64(
 }
 
 /**
+ * Pexels sozlanganmi (tez, tayyor stock food rasmlar uchun).
+ */
+export function stockConfigured(): boolean {
+  return !!process.env.PEXELS_API_KEY;
+}
+
+/**
+ * Taom nomi/tavsifi bo'yicha Pexels'dan HAQIQIY food rasm topadi va saqlaydi.
+ * AI generatsiyaга nisbatan ~10x tez (~1-2s). Topilmasa yoki kalit yo'q bo'lsa null.
+ */
+export async function fetchStockFoodImage(query: string): Promise<string | null> {
+  const key = process.env.PEXELS_API_KEY;
+  if (!key) return null;
+  // Qidiruv so'zini qisqartiramiz (uzun prompt Pexels'da mos kelmaydi)
+  const q = query.split(/[,.(]/)[0].trim().slice(0, 60) || query;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(q + " food dish")}&per_page=5&orientation=square`,
+      { headers: { Authorization: key }, signal: controller.signal }
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      photos?: { src?: { large2x?: string; large?: string; medium?: string } }[];
+    };
+    const photo = data.photos?.[0];
+    const url = photo?.src?.large2x || photo?.src?.large || photo?.src?.medium;
+    if (!url) return null;
+    return await storeRemoteImage(url);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
  * AI generatsiya qilgan rasm buferini webp'ga o'girib /media ga saqlaydi.
  * Muvaffaqiyatда yangi /media/... yo'lini qaytaradi.
  */

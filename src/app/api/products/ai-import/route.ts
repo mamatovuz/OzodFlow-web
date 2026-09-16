@@ -7,6 +7,8 @@ import {
   readMediaAsBase64,
   storeImageBuffer,
   mapWithConcurrency,
+  fetchStockFoodImage,
+  stockConfigured,
 } from "@/lib/image-fetch";
 import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
@@ -56,11 +58,9 @@ export async function POST(req: NextRequest) {
     const urls: string[] = Array.isArray(body?.images) ? body.images.slice(0, 8) : [];
     if (urls.length === 0) return fail("Menyu rasmini yuklang", 422);
 
-    const images = [];
-    for (const u of urls) {
-      const img = await readMediaAsBase64(String(u));
-      if (img) images.push(img);
-    }
+    // Menyu rasmlarini parallel o'qiymiz (ketma-ket emas — tezroq)
+    const read = await mapWithConcurrency(urls, 4, (u) => readMediaAsBase64(String(u)));
+    const images = read.filter((x): x is NonNullable<typeof x> => !!x);
     if (images.length === 0) return fail("Rasm o'qilmadi", 422);
 
     let raw: string;
@@ -163,14 +163,25 @@ export async function POST(req: NextRequest) {
     const ownedIds = new Set(owned.map((p) => p.id));
     const valid = items.filter((it) => ownedIds.has(String(it.id)));
 
+    const useStock = stockConfigured();
     let done = 0;
-    await mapWithConcurrency(valid, 2, async (it) => {
-      const img = await aiGenerateDishImage(
-        `${it.prompt}. Professional food photography, appetizing, clean background, high detail, square format.`
-      );
-      if (!img) return;
-      const url = await storeImageBuffer(img.base64);
+    // Parallellik 3 (failover kalitlar bilan xavfsiz). Har taom uchun:
+    // 1) tez stock foto (Pexels) — ~1-2s, agar sozlangan bo'lsa;
+    // 2) topilmasa AI generatsiya (sekinroq, lekin doim ishlaydi).
+    await mapWithConcurrency(valid, 3, async (it) => {
+      let url: string | null = null;
+
+      if (useStock) {
+        url = await fetchStockFoodImage(it.prompt);
+      }
+      if (!url) {
+        const img = await aiGenerateDishImage(
+          `${it.prompt}. Professional food photography, appetizing, clean background, high detail, square format.`
+        );
+        if (img) url = await storeImageBuffer(img.base64);
+      }
       if (!url) return;
+
       await prisma.product
         .update({ where: { id: it.id }, data: { images: JSON.stringify([url]) } })
         .catch(() => {});

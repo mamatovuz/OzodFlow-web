@@ -118,7 +118,7 @@ export function AiImport({ onImported }: { onImported: () => void }) {
     if (withImages && pending.length > 0) {
       setImgProgress({ done: 0, total: pending.length });
       setPhase("imaging");
-      const BATCH = 3;
+      const BATCH = 4;
       for (let i = 0; i < pending.length; i += BATCH) {
         const items = pending.slice(i, i + BATCH);
         try {
@@ -206,7 +206,7 @@ export function AiImport({ onImported }: { onImported: () => void }) {
 
       {phase === "analyzing" && (
         <div className="mt-4 flex items-center gap-2 rounded-lg bg-accent-soft px-3 py-3 text-sm text-accent">
-          <Loader2 className="h-4 w-4 animate-spin" /> AI menyuni o'qimoqda... (10-30 soniya)
+          <Loader2 className="h-4 w-4 animate-spin" /> AI menyuni o'qimoqda...
         </div>
       )}
 

@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
 import { getEffectivePlan, PLANS } from "@/lib/plans";
-import { aiConfigured, aiGenerateJson, aiGenerateDishImage, AiUnavailableError } from "@/lib/ai";
+import { aiConfigured, aiGenerateJson, aiGenerateDishImage, AiUnavailableError, type AiImage } from "@/lib/ai";
 import {
   readMediaAsBase64,
   storeImageBuffer,
@@ -24,18 +24,14 @@ type AiProduct = {
 };
 type AiCategory = { name: string; nameRu?: string; products: AiProduct[] };
 
-const ANALYZE_PROMPT = `Sen restoran menyusini raqamlashtiruvchi yordamchisan. Berilgan menyu rasm(lar)ini diqqat bilan o'qi va TO'LIQ menyuni chiqar.
-
-Qoidalar:
-- Har bir taom/ichimlikni tegishli kategoriyaga joyla (masalan: Salatlar, Ichimliklar, Ikkinchi taomlar).
-- Narxni faqat butun son sifatida ber (so'm belgisi, probel, "so'm" so'zisiz). Masalan "25 000 so'm" -> 25000.
-- Agar narx ko'rinmasa 0 qo'y.
-- description: taomning qisqa (1 jumla) tavsifi (agar rasmda bor bo'lsa yoki taomdan aniq bo'lsa), aks holda bo'sh.
-- imagePrompt: shu taomning chiroyli professional rasmini generatsiya qilish uchun INGLIZCHA qisqa tavsif. Masalan: "Uzbek plov with beef, carrots and rice, top view, professional food photo".
-- nameRu: taom nomining ruscha varianti (bilsang).
-
-FAQAT quyidagi JSON formatida javob ber (boshqa matn yozma):
-{"categories":[{"name":"...","nameRu":"...","products":[{"name":"...","nameRu":"...","price":0,"description":"...","imagePrompt":"..."}]}]}`;
+// Token-tejamkor prompt: kategoriya, taom nomi, narx va QISQA inglizcha qidiruv
+// so'zi (q — aniq real foto topish uchun, 2-3 so'z). Tavsif so'ralmaydi. JSON
+// kalitlari qisqa (c/n/i/p/q) — bu output tokenni sezilarli kamaytiradi.
+const ANALYZE_PROMPT = `Menyu rasm(lar)idagi BARCHA taom va narxlarni o'qi — hech narsani tashlab ketma va takrorlama.
+Narx faqat butun son (mas. "25 000 so'm" -> 25000; ko'rinmasa 0).
+Taomlarni kategoriyaga guruhla. Har taomga q — shu taomning INGLIZCHA nomi (2-3 so'z, rasm qidirish uchun, mas. "uzbek plov", "lagman soup", "greek salad").
+Javob FAQAT shu ixcham JSON bo'lsin (boshqa matn/izohsiz). Kalitlar aynan: c=kategoriyalar, n=nom, i=taomlar, p=narx, q=inglizcha nom:
+{"c":[{"n":"Kategoriya","i":[{"n":"Taom","p":0,"q":"english name"}]}]}`;
 
 export async function POST(req: NextRequest) {
   const limited = limitOrReject(req, "ai-import", { limit: 10, windowMs: WINDOW.minute });
@@ -63,15 +59,14 @@ export async function POST(req: NextRequest) {
     const images = read.filter((x): x is NonNullable<typeof x> => !!x);
     if (images.length === 0) return fail("Rasm o'qilmadi", 422);
 
-    let raw: string;
+    let parsed: AiCategory[];
     try {
-      raw = await aiGenerateJson(ANALYZE_PROMPT, images);
+      parsed = await analyzeMenu(images);
     } catch (e) {
       if (e instanceof AiUnavailableError) return fail(e.message, 503);
       return fail("AI tahlil qila olmadi. Qayta urinib ko'ring.", 502);
     }
 
-    const parsed = safeParseMenu(raw);
     if (!parsed || parsed.length === 0) {
       return fail("Menyu aniqlanmadi. Aniqroq rasm yuklab qayta urinib ko'ring.", 422);
     }
@@ -181,9 +176,9 @@ export async function POST(req: NextRequest) {
       // 2) AI generatsiya — "stock" rejimidan tashqari (zaxira/asosiy)
       if (!url && mode !== "stock") {
         const img = await aiGenerateDishImage(
-          `${it.prompt}. Professional food photography, appetizing, clean background, high detail, square format.`
+          `A realistic, appetizing photo of "${it.prompt}" dish. Professional food photography, natural lighting, shallow depth of field, served on a plate, clean neutral background, ultra detailed, high resolution, square 1:1 format.`
         );
-        if (img) url = await storeImageBuffer(img.base64);
+        if (img) url = await storeImageBuffer(img.base64, { square: true });
       }
       if (!url) return;
 
@@ -199,7 +194,51 @@ export async function POST(req: NextRequest) {
   return fail("Noto'g'ri so'rov", 422);
 }
 
-// AI javobidan menyuni xavfsiz ajratib olish (JSON yoki ```json bloki bo'lsa ham)
+// ─── Menyu tahlili: ko'p rasmda bo'lib parallel + qayta urinish (ishonchli+tez) ───
+async function analyzeMenu(images: AiImage[]): Promise<AiCategory[]> {
+  const CHUNK = 4;
+  if (images.length <= CHUNK) return analyzeOnce(images);
+  // Ko'p rasm — bo'lib parallel o'qiymiz (tezroq, kesilmaydi), keyin birlashtiramiz
+  const chunks: AiImage[][] = [];
+  for (let i = 0; i < images.length; i += CHUNK) chunks.push(images.slice(i, i + CHUNK));
+  const parts = await Promise.all(chunks.map((c) => analyzeOnce(c)));
+  return mergeCategories(parts.flat());
+}
+
+async function analyzeOnce(images: AiImage[]): Promise<AiCategory[]> {
+  let parsed = safeParseMenu(await aiGenerateJson(ANALYZE_PROMPT, images));
+  // Bo'sh/buzuq bo'lsa bitta qayta urinish (modellar nodeterministik)
+  if (!parsed || parsed.length === 0) {
+    parsed = safeParseMenu(await aiGenerateJson(ANALYZE_PROMPT, images));
+  }
+  return parsed || [];
+}
+
+// Bir xil nomli kategoriyalarni birlashtiradi (chunk'lar orasidagi takrorni oldini oladi)
+function mergeCategories(cats: AiCategory[]): AiCategory[] {
+  const map = new Map<string, AiCategory>();
+  for (const c of cats) {
+    const key = c.name.trim().toLowerCase();
+    const existing = map.get(key);
+    if (!existing) {
+      map.set(key, { name: c.name, nameRu: c.nameRu, products: [...c.products] });
+      continue;
+    }
+    const seen = new Set(existing.products.map((p) => p.name.trim().toLowerCase()));
+    for (const p of c.products) {
+      const pk = p.name.trim().toLowerCase();
+      if (!seen.has(pk)) {
+        existing.products.push(p);
+        seen.add(pk);
+      }
+    }
+  }
+  return Array.from(map.values());
+}
+
+// AI javobidan menyuni xavfsiz ajratib olish. Ixcham (c/n/i/p/q) va eski
+// (categories/name/products/price) formatlarni ham qo'llaydi. Kesilgan JSONни
+// tuzatib qutqaradi (uzun menyu chala qaytsa ham taomlar yo'qolmaydi).
 function safeParseMenu(raw: string): AiCategory[] | null {
   if (!raw) return null;
   let text = raw.trim();
@@ -208,25 +247,99 @@ function safeParseMenu(raw: string): AiCategory[] | null {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   if (start >= 0 && end > start) text = text.slice(start, end + 1);
+
+  type RawCat = { c?: unknown; categories?: unknown };
+  let obj = tryParse<RawCat>(text);
+  if (!obj) {
+    const repaired = tryRepairJson(text);
+    if (repaired) obj = tryParse<RawCat>(repaired);
+  }
+  if (!obj) return null;
+
+  const rawCats = Array.isArray(obj.c)
+    ? obj.c
+    : Array.isArray(obj.categories)
+    ? obj.categories
+    : null;
+  if (!rawCats) return null;
+
+  const out: AiCategory[] = [];
+  for (const rc of rawCats as Record<string, unknown>[]) {
+    if (!rc) continue;
+    const name = String(rc.n ?? rc.name ?? "").trim();
+    const items = Array.isArray(rc.i) ? rc.i : Array.isArray(rc.products) ? rc.products : [];
+    const products = (items as Record<string, unknown>[])
+      .filter((p) => p && (p.n ?? p.name))
+      .map((p) => ({
+        name: String(p.n ?? p.name).trim().slice(0, 150),
+        price: Math.max(0, Math.round(Number(p.p ?? p.price) || 0)),
+        // q = qidiruv uchun inglizcha nom (rasm topishда ishlatiladi)
+        imagePrompt: (p.q ?? p.imagePrompt) ? String(p.q ?? p.imagePrompt).slice(0, 80) : undefined,
+      }))
+      .filter((p) => p.name);
+    if (name && products.length > 0) out.push({ name: name.slice(0, 100), products });
+  }
+  return out;
+}
+
+function tryParse<T>(text: string): T | null {
   try {
-    const obj = JSON.parse(text) as { categories?: AiCategory[] };
-    if (!Array.isArray(obj.categories)) return null;
-    return obj.categories
-      .filter((c) => c && c.name && Array.isArray(c.products))
-      .map((c) => ({
-        name: String(c.name),
-        nameRu: c.nameRu ? String(c.nameRu) : undefined,
-        products: c.products
-          .filter((p) => p && p.name)
-          .map((p) => ({
-            name: String(p.name),
-            nameRu: p.nameRu ? String(p.nameRu) : undefined,
-            price: Math.max(0, Math.round(Number(p.price) || 0)),
-            description: p.description ? String(p.description) : undefined,
-            imagePrompt: p.imagePrompt ? String(p.imagePrompt) : undefined,
-          })),
-      }));
+    return JSON.parse(text) as T;
   } catch {
     return null;
   }
+}
+
+// Kesilgan JSONни tuzatadi: ochiq qolgan qavslarni (string ichini hisobga olib)
+// yopadi va oxirgi chala elementni tashlaydi. Muvaffaqiyatда tuzatilgan matn.
+function tryRepairJson(text: string): string | null {
+  let inStr = false;
+  let esc = false;
+  let lastClose = -1;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (esc) {
+      esc = false;
+      continue;
+    }
+    if (ch === "\\") {
+      esc = true;
+      continue;
+    }
+    if (ch === '"') {
+      inStr = !inStr;
+      continue;
+    }
+    if (inStr) continue;
+    if (ch === "}" || ch === "]") lastClose = i;
+  }
+  if (lastClose < 0) return null;
+  let s = text.slice(0, lastClose + 1);
+
+  // Qolgan ochiq qavslarni hisoblab yopamiz
+  inStr = false;
+  esc = false;
+  const stack: string[] = [];
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (esc) {
+      esc = false;
+      continue;
+    }
+    if (ch === "\\") {
+      esc = true;
+      continue;
+    }
+    if (ch === '"') {
+      inStr = !inStr;
+      continue;
+    }
+    if (inStr) continue;
+    if (ch === "{") stack.push("}");
+    else if (ch === "[") stack.push("]");
+    else if (ch === "}" || ch === "]") stack.pop();
+  }
+  s = s.replace(/,\s*$/, "");
+  while (stack.length) s += stack.pop();
+  return s;
 }

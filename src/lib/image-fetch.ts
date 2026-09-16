@@ -6,15 +6,35 @@ import { UPLOAD_DIR, contentTypeFor } from "./uploads";
 
 const MAX_DIM = 1600; // eng katta tomon (px)
 const WEBP_QUALITY = 88;
+const DISH_DIM = 1024; // taom rasmi uchun kvadrat o'lcham
+const DISH_QUALITY = 90; // taom rasmi uchun yuqoriroq sifat
 const MAX_BYTES = 15 * 1024 * 1024; // 15MB dan katta rasmni yuklamaymiz
 const FETCH_TIMEOUT_MS = 12000;
+
+type StoreOpts = { square?: boolean };
+
+// Sharp orqali rasmni webp'ga siqadi. square bo'lsa — 1024x1024 kvadrat
+// (fit:cover + attention: taomni markazda saqlaydi), yuqori sifat bilan.
+async function toWebp(input: Buffer, opts?: StoreOpts): Promise<Buffer> {
+  const pipe = sharp(input).rotate();
+  if (opts?.square) {
+    return pipe
+      .resize(DISH_DIM, DISH_DIM, { fit: "cover", position: "attention" })
+      .webp({ quality: DISH_QUALITY, effort: 5, smartSubsample: true })
+      .toBuffer();
+  }
+  return pipe
+    .resize({ width: MAX_DIM, height: MAX_DIM, fit: "inside", withoutEnlargement: true, kernel: "lanczos3" })
+    .webp({ quality: WEBP_QUALITY, effort: 5, smartSubsample: true })
+    .toBuffer();
+}
 
 /**
  * Tashqi URL'dan rasmni yuklab olib, siqib, /media/... ga saqlaydi.
  * Muvaffaqiyatда yangi lokal yo'lni ("/media/xxx.webp") qaytaradi,
  * xatoда null (chaqiruvchi tomon ogohlantirish beradi).
  */
-export async function storeRemoteImage(url: string): Promise<string | null> {
+export async function storeRemoteImage(url: string, opts?: StoreOpts): Promise<string | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
@@ -34,18 +54,14 @@ export async function storeRemoteImage(url: string): Promise<string | null> {
     const input = Buffer.from(await resp.arrayBuffer());
     if (input.byteLength > MAX_BYTES) return null;
 
-    // GIF animatsiyasini buzmaslik uchun uni siqmasdan saqlaymiz
+    // GIF animatsiyasini buzmaslik uchun uni siqmasdan saqlaymiz (kvadrat emas bo'lsa)
     let bytes: Buffer;
     let ext: string;
-    if (type.includes("gif")) {
+    if (type.includes("gif") && !opts?.square) {
       bytes = input;
       ext = "gif";
     } else {
-      bytes = await sharp(input)
-        .rotate()
-        .resize({ width: MAX_DIM, height: MAX_DIM, fit: "inside", withoutEnlargement: true, kernel: "lanczos3" })
-        .webp({ quality: WEBP_QUALITY, effort: 5, smartSubsample: true })
-        .toBuffer();
+      bytes = await toWebp(input, opts);
       ext = "webp";
     }
 
@@ -108,7 +124,8 @@ export async function fetchStockFoodImage(query: string): Promise<string | null>
     const photo = data.photos?.[0];
     const url = photo?.src?.large2x || photo?.src?.large || photo?.src?.medium;
     if (!url) return null;
-    return await storeRemoteImage(url);
+    // Taom kartasi uchun kvadrat, yuqori sifat
+    return await storeRemoteImage(url, { square: true });
   } catch {
     return null;
   } finally {
@@ -120,14 +137,10 @@ export async function fetchStockFoodImage(query: string): Promise<string | null>
  * AI generatsiya qilgan rasm buferini webp'ga o'girib /media ga saqlaydi.
  * Muvaffaqiyatда yangi /media/... yo'lini qaytaradi.
  */
-export async function storeImageBuffer(base64: string): Promise<string | null> {
+export async function storeImageBuffer(base64: string, opts?: StoreOpts): Promise<string | null> {
   try {
     const input = Buffer.from(base64, "base64");
-    const bytes = await sharp(input)
-      .rotate()
-      .resize({ width: MAX_DIM, height: MAX_DIM, fit: "inside", withoutEnlargement: true, kernel: "lanczos3" })
-      .webp({ quality: 90, effort: 5, smartSubsample: true })
-      .toBuffer();
+    const bytes = await toWebp(input, opts);
     const filename = `${Date.now()}-${randomCode(6).toLowerCase()}.webp`;
     await mkdir(UPLOAD_DIR, { recursive: true });
     await writeFile(path.join(UPLOAD_DIR, filename), bytes);

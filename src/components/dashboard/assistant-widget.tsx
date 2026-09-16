@@ -25,10 +25,28 @@ type Msg =
   | {
       id: string;
       role: "assistant";
+      kind: "confirm";
+      text: string;
+      productId: string;
+      name: string;
+      state: "pending" | "done" | "cancelled";
+    }
+  | {
+      id: string;
+      role: "assistant";
       kind: "menu";
       text: string;
       categories: MenuCat[];
       total: number;
+      state: "preview" | "creating" | "done";
+      progress: { done: number; total: number };
+    }
+  | {
+      id: string;
+      role: "assistant";
+      kind: "fillimg";
+      text: string;
+      items: { id: string; prompt: string }[];
       state: "preview" | "creating" | "done";
       progress: { done: number; total: number };
     };
@@ -38,7 +56,12 @@ type MenuCat = { name: string; nameRu?: string; products: MenuProduct[] };
 
 const uid = () => Math.random().toString(36).slice(2);
 
-const QUICK = ["Bugungi sotuvni ko'rsat", "Eng ko'p sotilgan taomlar", "Bu hafta qancha daromad?"];
+const QUICK = [
+  "Bugungi sotuv",
+  "Eng ko'p sotilgan",
+  "Bu hafta daromad",
+  "Lavash qo'sh, Fastfud, 25000",
+];
 
 export function AssistantWidget() {
   const router = useRouter();
@@ -83,6 +106,26 @@ export function AssistantWidget() {
           name: json.data.product?.name || "",
         });
         onChanged?.();
+      } else if (json.data.type === "fill_images") {
+        push({
+          id: uid(),
+          role: "assistant",
+          kind: "fillimg",
+          text: json.data.reply,
+          items: json.data.items || [],
+          state: "preview",
+          progress: { done: 0, total: 0 },
+        });
+      } else if (json.data.type === "confirm") {
+        push({
+          id: uid(),
+          role: "assistant",
+          kind: "confirm",
+          text: json.data.reply,
+          productId: json.data.productId,
+          name: json.data.name || "",
+          state: "pending",
+        });
       } else {
         push({ id: uid(), role: "assistant", kind: "text", text: json.data.reply || "..." });
       }
@@ -187,6 +230,54 @@ export function AssistantWidget() {
     }
   }
 
+  // Rasmsiz taomlarga rasm qo'shish (ai-import "images" step, progress bilan)
+  async function runFillImages(id: string) {
+    const m = msgs.find((x) => x.id === id);
+    if (!m || m.kind !== "fillimg" || m.items.length === 0) return;
+    const items = m.items;
+    setMsgs((prev) =>
+      prev.map((x) => (x.id === id && x.kind === "fillimg" ? { ...x, state: "creating", progress: { done: 0, total: items.length } } : x))
+    );
+    const BATCH = 4;
+    for (let i = 0; i < items.length; i += BATCH) {
+      const batch = items.slice(i, i + BATCH);
+      await fetch("/api/products/ai-import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ step: "images", items: batch, mode: "mixed" }),
+      }).catch(() => {});
+      const done = Math.min(i + BATCH, items.length);
+      setMsgs((prev) =>
+        prev.map((x) => (x.id === id && x.kind === "fillimg" ? { ...x, progress: { done, total: items.length } } : x))
+      );
+      onChanged?.();
+    }
+    setMsgs((prev) => prev.map((x) => (x.id === id && x.kind === "fillimg" ? { ...x, state: "done" } : x)));
+    onChanged?.();
+  }
+
+  // Xavfli amal (o'chirish) tasdig'i
+  async function runDelete(id: string) {
+    const m = msgs.find((x) => x.id === id);
+    if (!m || m.kind !== "confirm") return;
+    setMsgs((prev) => prev.map((x) => (x.id === id && x.kind === "confirm" ? { ...x, state: "done" } : x)));
+    try {
+      const res = await fetch("/api/assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: { action: "del", productId: m.productId, name: m.name } }),
+      });
+      const json = await res.json();
+      push({ id: uid(), role: "assistant", kind: "text", text: json?.data?.reply || "O'chirildi." });
+      onChanged?.();
+    } catch {
+      push({ id: uid(), role: "assistant", kind: "text", text: "O'chirishда xatolik." });
+    }
+  }
+  function cancelConfirm(id: string) {
+    setMsgs((prev) => prev.map((x) => (x.id === id && x.kind === "confirm" ? { ...x, state: "cancelled" } : x)));
+  }
+
   return (
     <>
       {/* Suzuvchi tugma */}
@@ -248,13 +339,22 @@ export function AssistantWidget() {
                   ))}
                 </div>
                 <p className="mt-4 text-xs text-muted">
-                  Yoki menyu rasmini yuklang — men o'qib, taomlarni qo'shaman.
+                  Men bilan qila olasiz: sotuv/statistika, taom qo'shish (rasm bilan),
+                  narx o'zgartirish, stop-list, yashirish, o'chirish. Yoki 📷 menyu
+                  rasmini yuklang — o'qib qo'shaman.
                 </p>
               </div>
             )}
 
             {msgs.map((m) => (
-              <MessageBubble key={m.id} m={m} onConfirm={() => confirmMenu(m.id)} />
+              <MessageBubble
+                key={m.id}
+                m={m}
+                onMenuConfirm={() => confirmMenu(m.id)}
+                onFillImages={() => runFillImages(m.id)}
+                onDelete={() => runDelete(m.id)}
+                onCancel={() => cancelConfirm(m.id)}
+              />
             ))}
 
             {busy && (
@@ -304,7 +404,19 @@ export function AssistantWidget() {
   );
 }
 
-function MessageBubble({ m, onConfirm }: { m: Msg; onConfirm: () => void }) {
+function MessageBubble({
+  m,
+  onMenuConfirm,
+  onFillImages,
+  onDelete,
+  onCancel,
+}: {
+  m: Msg;
+  onMenuConfirm: () => void;
+  onFillImages: () => void;
+  onDelete: () => void;
+  onCancel: () => void;
+}) {
   if (m.role === "user") {
     return (
       <div className="flex justify-end">
@@ -333,6 +445,68 @@ function MessageBubble({ m, onConfirm }: { m: Msg; onConfirm: () => void }) {
     );
   }
 
+  if (m.kind === "confirm") {
+    return (
+      <div className="flex justify-start">
+        <div className="max-w-[92%] rounded-2xl rounded-bl-sm border border-error/30 bg-error/5 px-3 py-2.5">
+          <p className="text-sm text-foreground">{m.text}</p>
+          {m.state === "pending" && (
+            <div className="mt-2 flex gap-2">
+              <button
+                onClick={onDelete}
+                className="rounded-lg bg-error px-3 py-1.5 text-xs font-semibold text-white hover:bg-error/90"
+              >
+                Ha, o'chir
+              </button>
+              <button
+                onClick={onCancel}
+                className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-2"
+              >
+                Bekor
+              </button>
+            </div>
+          )}
+          {m.state === "done" && <p className="mt-1.5 text-xs text-muted">O'chirildi.</p>}
+          {m.state === "cancelled" && <p className="mt-1.5 text-xs text-muted">Bekor qilindi.</p>}
+        </div>
+      </div>
+    );
+  }
+
+  if (m.kind === "fillimg") {
+    const pct = m.progress.total ? Math.round((m.progress.done / m.progress.total) * 100) : 0;
+    return (
+      <div className="flex justify-start">
+        <div className="max-w-[92%] rounded-2xl rounded-bl-sm border border-border bg-surface px-3 py-2.5">
+          <p className="text-sm text-foreground">{m.text}</p>
+          {m.state === "preview" && (
+            <button
+              onClick={onFillImages}
+              className="mt-2 flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent/90"
+            >
+              <ImagePlus className="h-3.5 w-3.5" /> Rasm qo'shish
+            </button>
+          )}
+          {m.state === "creating" && (
+            <div className="mt-2">
+              <div className="flex items-center gap-1.5 text-xs text-accent">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Rasmlar: {m.progress.done}/{m.progress.total}
+              </div>
+              <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-accent/15">
+                <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+          )}
+          {m.state === "done" && (
+            <p className="mt-2 flex items-center gap-1 text-xs font-medium text-success">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Rasmlar qo'shildi
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (m.kind === "menu") {
     const pct = m.progress.total ? Math.round((m.progress.done / m.progress.total) * 100) : 0;
     return (
@@ -341,7 +515,7 @@ function MessageBubble({ m, onConfirm }: { m: Msg; onConfirm: () => void }) {
           <p className="text-sm text-foreground">{m.text}</p>
           {m.state === "preview" && (
             <button
-              onClick={onConfirm}
+              onClick={onMenuConfirm}
               className="mt-2 flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent/90"
             >
               <CheckCircle2 className="h-3.5 w-3.5" /> Menyuni qo'shish

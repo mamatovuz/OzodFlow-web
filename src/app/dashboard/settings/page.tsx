@@ -12,6 +12,7 @@ import { OrderChannel } from "@/components/dashboard/order-channel";
 import { TelegramBotManager } from "@/components/dashboard/telegram-bot-manager";
 import { PaymentCardSettings } from "@/components/dashboard/payment-card-settings";
 import { OnlineOrderSettings } from "@/components/dashboard/online-order-settings";
+import { MenuAiSettings } from "@/components/dashboard/menu-ai-settings";
 import { parseAdminIds } from "@/lib/order-telegram";
 import { SessionsManager } from "@/components/dashboard/sessions-manager";
 
@@ -21,6 +22,7 @@ export const dynamic = "force-dynamic";
 const SECTIONS = [
   { id: "hisob", label: "Hisob" },
   { id: "buyurtmalar", label: "Buyurtmalar" },
+  { id: "menyu-ai", label: "Menyu AI" },
   { id: "tolov", label: "To'lov" },
   { id: "telegram", label: "Telegram" },
   { id: "xavfsizlik", label: "Xavfsizlik" },
@@ -84,6 +86,17 @@ export default async function SettingsPage() {
             hasCard={!!restaurant.cardNumber}
           />
         </div>
+      </Section>
+
+      {/* ─── Menyu AI (mijozlar uchun) ─── */}
+      <Section id="menyu-ai" title="Menyu AI" desc="Mijozlarga taom tavsiya qiluvchi yordamchi (o'z kalitingiz bilan)">
+        <MenuAiSettings
+          enabled={restaurant.menuAiEnabled}
+          hasKey={!!restaurant.menuAiKeyEnc}
+          provider={restaurant.menuAiProvider}
+          model={restaurant.menuAiModel}
+          style={restaurant.menuAiStyle}
+        />
       </Section>
 
       {/* ─── To'lov ─── */}

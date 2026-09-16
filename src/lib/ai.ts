@@ -473,6 +473,23 @@ export async function detectApiKey(apiKey: string): Promise<DetectResult> {
   };
 }
 
+// Aniq kalit + provayder bilan bitta matn generatsiya (failover/DB'siz).
+// Menyu AI'si uchun — restoran o'z kalitini ishlatadi. Xatoда null.
+export async function aiTextWithKey(
+  provider: Provider,
+  apiKey: string,
+  model: string,
+  promptText: string,
+  opts?: { json?: boolean }
+): Promise<string | null> {
+  if (provider === "openai") {
+    const r = await openaiChat(apiKey, model, [{ type: "text", text: promptText }], { json: opts?.json });
+    return r.ok ? r.text : null;
+  }
+  const r = await geminiGenerate(apiKey, model, [{ text: promptText }], { json: opts?.json });
+  return r.ok ? geminiExtractText(r.data) : null;
+}
+
 // Bitta kalitni tez tekshirish (admin "test" tugmasi uchun) — provayderni aniqlab ko'radi.
 export async function testApiKey(apiKey: string): Promise<{ ok: boolean; error?: string; provider?: Provider; model?: string; imageModel?: string }> {
   const d = await detectApiKey(apiKey);

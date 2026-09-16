@@ -33,6 +33,7 @@ import {
   type CartLine,
 } from "@/components/public/order-cart";
 import { OrderTracker } from "@/components/public/service-bar";
+import { MenuAssistant } from "@/components/public/menu-assistant";
 
 type PublicProduct = {
   id: string;
@@ -102,6 +103,8 @@ type PublicRestaurant = {
   onlineOrderEnabled?: boolean;
   cardNumber?: string | null;
   cardHolder?: string | null;
+  menuAiEnabled?: boolean;
+  menuAiStyle?: string | null;
 };
 
 const filters = [
@@ -473,6 +476,19 @@ export function PublicMenu({
     () => products.filter((p) => p.isRecommended && p.isAvailable).slice(0, 10),
     [products]
   );
+
+  // Faqat taomi bor filtrlarni ko'rsatamiz (bo'sh "Yangi"/"Vegetarian" chiqmasin)
+  const availableFilters = useMemo(() => {
+    const has = { bestseller: false, new: false, vegetarian: false };
+    for (const p of products) {
+      if (p.isBestseller) has.bestseller = true;
+      if (p.isNew) has.new = true;
+      if (p.isVegetarian) has.vegetarian = true;
+    }
+    return filters.filter(
+      (f) => f.key === "all" || has[f.key as "bestseller" | "new" | "vegetarian"]
+    );
+  }, [products]);
 
   // Kategoriyaga kirish / orqaga qaytish.
   function enterCat(id: string) {
@@ -846,9 +862,9 @@ export function PublicMenu({
             />
           </div>
 
-          {!search && !selectedCat && !isTabs && (
+          {!search && !selectedCat && !isTabs && availableFilters.length > 1 && (
             <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-              {filters.map((f) => (
+              {availableFilters.map((f) => (
                 <button
                   key={f.key}
                   onClick={() => setFilter(f.key)}
@@ -1199,6 +1215,17 @@ export function PublicMenu({
           currency={restaurant.currency}
           accent={accent}
           onClose={clearTracked}
+        />
+      )}
+
+      {/* Mijozlar uchun menyu AI yordamchisi (restoran o'z kaliti bilan) */}
+      {!preview && restaurant.menuAiEnabled && (
+        <MenuAssistant
+          slug={restaurant.slug}
+          accent={accent}
+          accentText={accentText}
+          currency={restaurant.currency}
+          style={restaurant.menuAiStyle || "bubble"}
         />
       )}
     </div>

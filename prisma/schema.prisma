@@ -152,6 +152,12 @@ model Restaurant {
   purchasedThemes String    @default("[]") // alohida sotib olingan premium dizaynlar (JSON key massivi)
   designConfig    String    @default("{}") // tanlangan dizaynni moslash (JSON): ranglar, fon, hero media, tugma va h.k.
   waiterCodeEnabled Boolean @default(false) // "Ofitsant uchun kod" funksiyasi yoqilganmi
+  // ─── Menyu AI (mijozlar uchun) — restoran O'Z kalitini qo'yadi (platforma emas) ───
+  menuAiEnabled  Boolean @default(false)
+  menuAiKeyEnc   String? // restoran AI kaliti (AES-GCM shifrlangan)
+  menuAiProvider String? // gemini | openai
+  menuAiModel    String? // avtomatik aniqlangan model
+  menuAiStyle    String  @default("bubble") // widget uslubi: bubble | minimal | bar
   askPhone        Boolean   @default(true) // buyurtmada mijozdan telefon raqam so'ralsinmi
   orderBotToken   String? // buyurtmalarni Telegram kanaliga yuborish uchun bot tokeni
   orderChatId     String? // buyurtmalar tushadigan kanal/guruh ID si (@channel yoki -100...)

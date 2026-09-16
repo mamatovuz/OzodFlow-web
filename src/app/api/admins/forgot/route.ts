@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ok, fail } from "@/lib/api";
 import { sendTelegramMessage, isTelegramConfigured } from "@/lib/telegram";
 import { limitOrReject, WINDOW } from "@/lib/rate-limit";
+import { sendEmail, adminCodeEmail, emailConfigured } from "@/lib/email";
 
 // Admin parolni tiklash — Telegram bot orqali kod yuboradi
 // Body: { email }
@@ -14,9 +15,10 @@ export async function POST(req: NextRequest) {
   const email = (body?.email || "").trim().toLowerCase();
   if (!email) return fail("Email kiriting", 422);
 
-  if (!isTelegramConfigured()) {
+  // Kod yuborish kanallaridan hech biri sozlanmagan bo'lsa — xato
+  if (!isTelegramConfigured() && !emailConfigured()) {
     return fail(
-      "Telegram bot sozlanmagan. Iltimos, administrator bilan bog'laning.",
+      "Kod yuborish xizmati sozlanmagan. Iltimos, administrator bilan bog'laning.",
       503
     );
   }
@@ -39,9 +41,20 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const sent = await sendTelegramMessage(
-    `🔐 <b>OzodFlow admin</b>\nParolni tiklash kodi: <b>${code}</b>\n\nBu kod 10 daqiqa amal qiladi. Agar so'rov sizdan bo'lmasa, e'tiborsiz qoldiring.`
-  );
+  // 1) Admin pochtasiga chiroyli xat (kod bilan)
+  let sent = false;
+  if (emailConfigured() && user.email) {
+    const mail = adminCodeEmail(code);
+    sent = await sendEmail({ to: user.email, subject: mail.subject, html: mail.html });
+  }
+
+  // 2) Telegram kanaliga habar (xavfsizlik ogohlantirishi + kod)
+  if (isTelegramConfigured()) {
+    const tg = await sendTelegramMessage(
+      `🔐 <b>OzodFlow admin</b>\nParolni tiklash so'raldi: <b>${email}</b>\nKod: <b>${code}</b>\n\nBu kod 10 daqiqa amal qiladi. Agar so'rov sizdan bo'lmasa, e'tiborsiz qoldiring.`
+    );
+    sent = sent || tg;
+  }
 
   if (!sent) return fail("Kod yuborishda xatolik. Keyinroq urinib ko'ring.", 502);
 

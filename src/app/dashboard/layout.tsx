@@ -29,6 +29,9 @@ export default async function DashboardLayout({
   const restaurant = await getUserRestaurant(user.id);
   if (!restaurant) redirect("/login");
 
+  // Onboarding tugamagan bo'lsa (yangi hisob) — avval restoran nomi + tarif
+  if (owner && !restaurant.onboarded) redirect("/onboarding");
+
   const impersonated = user.impersonatedBy ? <ImpersonationBanner name={user.name} /> : null;
 
   // 1) Bloklangan bo'lsa — butun panel qulflanadi

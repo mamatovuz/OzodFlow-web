@@ -17,33 +17,30 @@ export default function RegisterPage() {
     setError("");
     setLoading(true);
     const form = new FormData(e.currentTarget);
+    const email = String(form.get("email") || "").trim().toLowerCase();
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: form.get("name"),
-        email: form.get("email"),
-        phone: form.get("phone"),
+        email,
         password: form.get("password"),
-        restaurantName: form.get("restaurantName"),
       }),
     });
     const json = await res.json();
-    if (!res.ok) {
+    if (!res.ok || !json.success) {
       setError(json.error || "Xatolik yuz berdi");
       setLoading(false);
       return;
     }
-    router.push("/dashboard");
-    router.refresh();
+    // Tasdiqlash kodi pochtaga yuborildi — kod kiritish sahifasiga o'tamiz
+    router.push(`/verify?email=${encodeURIComponent(json.data.email || email)}`);
   }
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-foreground">Hisob yarating</h1>
-      <p className="mt-1.5 text-sm text-muted">
-        Bir daqiqada boshlang — bepul
-      </p>
+      <p className="mt-1.5 text-sm text-muted">Bir daqiqada boshlang — 30 kun bepul</p>
 
       {error && (
         <div className="mt-5 rounded-lg bg-error/10 px-4 py-3 text-sm text-error">
@@ -62,10 +59,6 @@ export default function RegisterPage() {
           <Input name="name" placeholder="Ism Familiya" required />
         </div>
         <div>
-          <Label>Restoran nomi</Label>
-          <Input name="restaurantName" placeholder="Masalan: Osh Markazi" required />
-        </div>
-        <div>
           <Label>Email</Label>
           <Input
             name="email"
@@ -74,11 +67,9 @@ export default function RegisterPage() {
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
+            autoComplete="email"
+            required
           />
-        </div>
-        <div>
-          <Label>Telefon</Label>
-          <Input name="phone" type="tel" placeholder="+998 90 123 45 67" />
         </div>
         <div>
           <Label>Parol</Label>
@@ -87,15 +78,16 @@ export default function RegisterPage() {
             type="password"
             placeholder="Kamida 6 belgi"
             minLength={6}
+            autoComplete="new-password"
             required
           />
         </div>
         <Button type="submit" className="w-full" disabled={loading}>
           {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-          Ro'yxatdan o'tish
+          Davom etish
         </Button>
         <p className="text-center text-xs text-muted">
-          Email yoki telefondan kamida bittasini kiriting
+          Emailingizga tasdiqlash kodi yuboramiz
         </p>
       </form>
 

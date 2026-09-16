@@ -1,5 +1,5 @@
 // Tarif rejalar. Narxlar oylik (DB'da, lib/plan-prices.ts).
-// FREE = 7 kunlik sinov. ENTERPRISE = narxi kelishiladi (Telegram orqali).
+// FREE = 30 kunlik sinov. ENTERPRISE = narxi kelishiladi (Telegram orqali).
 
 export type PlanKey = "FREE" | "STARTER" | "BUSINESS" | "ENTERPRISE";
 
@@ -70,7 +70,7 @@ export const PLANS: Record<PlanKey, PlanMeta> = {
 // Sotib olinadigan tariflar (self-service)
 export const PAID_PLANS: PlanKey[] = ["STARTER", "BUSINESS"];
 
-export const FREE_TRIAL_DAYS = 7;
+export const FREE_TRIAL_DAYS = 30;
 export const PLAN_DAYS = 30;
 export const DOMAIN_SERVICE_PRICE = 40000;
 // Bitta premium dizaynni umrbodga sotib olish narxi (Business/Enterprise'dan boshqa

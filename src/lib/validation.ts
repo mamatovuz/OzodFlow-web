@@ -8,6 +8,13 @@ export const registerSchema = z.object({
   restaurantName: z.string().min(2, "Restoran nomi kamida 2 belgi"),
 });
 
+// Yangi ro'yxatdan o'tish oqimi: avval email + parol (restoran nomi onboarding'da).
+export const registerStartSchema = z.object({
+  name: z.string().min(2, "Ism kamida 2 belgi bo'lishi kerak"),
+  email: z.string().email("Email noto'g'ri"),
+  password: z.string().min(6, "Parol kamida 6 belgi bo'lishi kerak"),
+});
+
 export const loginSchema = z.object({
   identifier: z.string().min(3, "Email yoki telefon kiriting"),
   password: z.string().min(1, "Parol kiriting"),

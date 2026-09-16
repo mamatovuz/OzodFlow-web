@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import crypto from "crypto";
-import { buildAuthUrl, googleConfigured, GOOGLE_STATE_COOKIE } from "@/lib/google";
+import { buildAuthUrl, googleConfigured, requestOrigin, GOOGLE_STATE_COOKIE } from "@/lib/google";
 
 // Google bilan kirishni boshlaydi: CSRF uchun "state" yaratib, foydalanuvchini
 // Google rozilik sahifasiga yo'naltiradi.
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   if (!googleConfigured()) {
-    return NextResponse.redirect(new URL("/login?error=google_off", req.url));
+    return NextResponse.redirect(new URL("/login?error=google_off", requestOrigin(req)));
   }
 
   const state = crypto.randomBytes(16).toString("hex");

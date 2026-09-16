@@ -45,6 +45,11 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
+    // Email tasdiqlanmagan bo'lsa — tasdiqlash sahifasiga
+    if (json.data?.needVerify) {
+      router.push(`/verify?email=${encodeURIComponent(json.data.email || "")}`);
+      return;
+    }
     router.push(json.data?.redirect || "/dashboard");
     router.refresh();
   }
@@ -83,7 +88,7 @@ export default function LoginPage() {
         <div>
           <div className="flex items-center justify-between">
             <Label>Parol</Label>
-            <Link href="#" className="text-xs text-accent hover:underline">
+            <Link href="/forgot" className="text-xs text-accent hover:underline">
               Parolni unutdingizmi?
             </Link>
           </div>

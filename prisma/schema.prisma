@@ -22,6 +22,9 @@ model User {
   // Google bilan kirish — Google hisobi ("sub") ID si. Bog'langan bo'lsa
   // foydalanuvchi Google orqali bir bosishda kiradi (parolsiz ham bo'ladi).
   googleId  String?  @unique
+  // Email tasdiqlanganmi. Qo'lda ro'yxatdan o'tganda pochtaga kod boradi —
+  // tasdiqlangunicha false. Google/eski hisoblar — true (default).
+  emailVerified Boolean @default(true)
   // Admin panelida restoran egasining parolini ko'rsatish uchun — AES-GCM
   // shifrlangan ochiq parol nusxasi (bcrypt hash qaytarilmasligi sababli).
   // Register / login / parolni tiklash paytida yoziladi.
@@ -59,6 +62,7 @@ model PasswordReset {
   id        String   @id @default(cuid())
   userId    String
   code      String
+  token     String?  @unique // email havolasi orqali tiklash uchun (uzun tasodifiy)
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -66,6 +70,18 @@ model PasswordReset {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// Email tasdiqlash kodi (qo'lda ro'yxatdan o'tishda pochtaga yuboriladi).
+model VerifyCode {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
 }
 
 model Session {
@@ -113,6 +129,9 @@ model Restaurant {
   ownerId         String
   slug            String    @unique
   name            String
+  // Ro'yxatdan o'tgach onboarding (restoran nomi + tarif) tugatilganmi.
+  // Eski restoranlar uchun true (default) — faqat yangi hisoblar false bo'ladi.
+  onboarded       Boolean   @default(true)
   description     String?
   descriptionRu   String?
   descriptionEn   String?

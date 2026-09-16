@@ -5,6 +5,7 @@ import { loginSchema } from "@/lib/validation";
 import { ok, fail } from "@/lib/api";
 import { limitOrReject, WINDOW, clientIp } from "@/lib/rate-limit";
 import { deviceFingerprint } from "@/lib/device";
+import { sendEmail, verifyCodeEmail, emailConfigured } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
   // Brute-force himoyasi: IP bo'yicha daqiqasiga 10 urinish
@@ -37,6 +38,20 @@ export async function POST(req: NextRequest) {
     return fail("Email/telefon yoki parol noto'g'ri", 401);
   }
 
+  // Email tasdiqlanmagan bo'lsa — sessiya ochmaymiz, yangi kod yuboramiz.
+  if (!user.emailVerified && user.email) {
+    if (emailConfigured()) {
+      await prisma.verifyCode.deleteMany({ where: { email: user.email } });
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      await prisma.verifyCode.create({
+        data: { email: user.email, code, expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+      });
+      const mail = verifyCodeEmail(code, user.name);
+      await sendEmail({ to: user.email, subject: mail.subject, html: mail.html });
+    }
+    return ok({ needVerify: true, email: user.email });
+  }
+
   // Qurilma bloklanganmi? Egasi bu qurilmani bloklagan bo'lsa — kira olmaydi.
   const userAgent = req.headers.get("user-agent") || undefined;
   const ip = clientIp(req);
@@ -66,7 +81,10 @@ export async function POST(req: NextRequest) {
     redirect = "/admins";
   } else {
     const owns = await prisma.restaurant.findFirst({ where: { ownerId: user.id } });
-    if (!owns) {
+    if (owns) {
+      // Onboarding tugamagan bo'lsa — avval o'sha yerga
+      if (!owns.onboarded) redirect = "/onboarding";
+    } else {
       const membership = await prisma.membership.findFirst({ where: { userId: user.id } });
       if (membership) redirect = membership.role === "MANAGER" ? "/dashboard" : "/staff";
     }

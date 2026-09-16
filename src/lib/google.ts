@@ -19,14 +19,31 @@ export function googleConfigured(): boolean {
 }
 
 /**
- * So'rov kelgan haqiqiy origin (protokol + host). Proksi (Railway/Vercel)
- * ortida x-forwarded-* sarlavhalaridan olinadi — shu tufayli lokal
- * (localhost:3000) va prod (ozodflow.uz) da bir xil ishlaydi.
- * OAUTH_ORIGIN env berilsa — u ustun (majburiy override).
+ * So'rovning KANONIK origin'i (protokol + host) — barcha OAuth manzillari va
+ * login'dan keyingi redirect shu yerdan quriladi.
+ *
+ * MUHIM: `req.url` ISHLATILMAYDI. Railway/Vercel kabi proksi ortida `req.url`
+ * ichki manzilni (masalan http://localhost:8080) ko'rsatadi — undan redirect
+ * qursak foydalanuvchi localhost:8080 ga tushib qoladi. Shuning uchun:
+ *   1) OAUTH_ORIGIN env (aniq override) — istalgan muhitда ustun.
+ *   2) production'da NEXT_PUBLIC_APP_URL (kanonik domen) — proksi ichki
+ *      portiga emas, haqiqiy domenга ishonamiz (https://ozodflow.uz).
+ *   3) proksi sarlavhalari (x-forwarded-host/proto).
+ *   4) host sarlavhasi — lokal ishlab chiqish (localhost:3000).
  */
 export function requestOrigin(req: NextRequest): string {
+  const clean = (u: string) => u.trim().replace(/\/+$/, "");
+
   const override = process.env.OAUTH_ORIGIN;
-  if (override) return override.replace(/\/+$/, "");
+  if (override) return clean(override);
+
+  // Production: kanonik URL env'dan. Lokalда (development) o'tkazib yuboramiz —
+  // u yerда haqiqiy host (localhost:3000) ishlatiladi.
+  if (process.env.NODE_ENV === "production") {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+    if (appUrl) return clean(appUrl);
+  }
+
   const proto =
     req.headers.get("x-forwarded-proto")?.split(",")[0].trim() ||
     req.nextUrl.protocol.replace(":", "") ||

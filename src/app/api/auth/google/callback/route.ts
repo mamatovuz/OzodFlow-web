@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, createSession } from "@/lib/auth";
-import { exchangeCodeForProfile, googleConfigured, GOOGLE_STATE_COOKIE } from "@/lib/google";
+import { exchangeCodeForProfile, googleConfigured, requestOrigin, GOOGLE_STATE_COOKIE } from "@/lib/google";
 import { slugify, randomCode } from "@/lib/utils";
 import { FREE_TRIAL_DAYS } from "@/lib/plans";
 
@@ -12,8 +12,11 @@ export const dynamic = "force-dynamic";
 // Google roziligidan qaytish nuqtasi. Kodni almashtirib profil oladi,
 // foydalanuvchini topadi yoki yaratadi, sessiya ochib panelга yo'naltiradi.
 export async function GET(req: NextRequest) {
+  // MUHIM: redirect bazasi req.url EMAS — proksi ortida u localhost:PORT bo'ladi.
+  // Kanonik origin (prod: NEXT_PUBLIC_APP_URL) ishlatamiz.
+  const origin = requestOrigin(req);
   const url = new URL(req.url);
-  const fail = (code: string) => NextResponse.redirect(new URL(`/login?error=${code}`, req.url));
+  const fail = (code: string) => NextResponse.redirect(new URL(`/login?error=${code}`, origin));
 
   if (!googleConfigured()) return fail("google_off");
 
@@ -71,10 +74,12 @@ export async function GET(req: NextRequest) {
         googleId: profile.sub,
         avatar: profile.picture,
         password: randomPassword,
+        emailVerified: true, // Google emailni allaqachon tasdiqlagan
         restaurants: {
           create: {
             name: restaurantName,
             slug,
+            onboarded: false, // restoran nomi + tarif onboarding'da beriladi
             plan: "FREE",
             planUntil: new Date(Date.now() + FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000),
           },
@@ -92,11 +97,13 @@ export async function GET(req: NextRequest) {
     redirect = "/admins";
   } else {
     const owns = await prisma.restaurant.findFirst({ where: { ownerId: user.id } });
-    if (!owns) {
+    if (owns) {
+      if (!owns.onboarded) redirect = "/onboarding";
+    } else {
       const membership = await prisma.membership.findFirst({ where: { userId: user.id } });
       if (membership) redirect = membership.role === "MANAGER" ? "/dashboard" : "/staff";
     }
   }
 
-  return NextResponse.redirect(new URL(redirect, req.url));
+  return NextResponse.redirect(new URL(redirect, origin));
 }

@@ -18,6 +18,9 @@ type AiCategory = { name: string; nameRu?: string; products: AiProduct[] };
 
 type Phase = "idle" | "uploading" | "analyzing" | "preview" | "creating" | "imaging" | "done";
 
+// Ko'p sahifali menyu uchun — bir marta yuklanadigan rasmlar soni
+const MAX_MENU_IMAGES = 24;
+
 export function AiImport({ onImported }: { onImported: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -36,7 +39,7 @@ export function AiImport({ onImported }: { onImported: () => void }) {
     setPhase("uploading");
     setError("");
     const urls: string[] = [];
-    for (const f of files.slice(0, 8)) {
+    for (const f of files.slice(0, MAX_MENU_IMAGES)) {
       const fd = new FormData();
       fd.append("file", f);
       const res = await fetch("/api/upload", { method: "POST", body: fd });
@@ -49,7 +52,7 @@ export function AiImport({ onImported }: { onImported: () => void }) {
       setPhase("idle");
       return;
     }
-    setImages((prev) => [...prev, ...urls].slice(0, 8));
+    setImages((prev) => [...prev, ...urls].slice(0, MAX_MENU_IMAGES));
     setPhase("idle");
   }
 

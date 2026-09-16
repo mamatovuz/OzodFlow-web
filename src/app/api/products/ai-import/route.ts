@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
 
   // ─── 1-qadam: menyu rasmlarini tahlil qilish (saqlamaydi, faqat preview) ───
   if (step === "analyze") {
-    const urls: string[] = Array.isArray(body?.images) ? body.images.slice(0, 8) : [];
+    const urls: string[] = Array.isArray(body?.images) ? body.images.slice(0, 24) : [];
     if (urls.length === 0) return fail("Menyu rasmini yuklang", 422);
 
     // Menyu rasmlarini parallel o'qiymiz (ketma-ket emas — tezroq)

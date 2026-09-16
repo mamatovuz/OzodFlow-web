@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { BlockedScreen, PaymentLockScreen } from "@/components/dashboard/lock-screen";
 import { PaymentWarning } from "@/components/dashboard/payment-warning";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
+import { AssistantWidget } from "@/components/dashboard/assistant-widget";
 
 export default async function DashboardLayout({
   children,
@@ -103,6 +104,7 @@ export default async function DashboardLayout({
         </div>
       </main>
     </div>
+    <AssistantWidget />
     </>
   );
 }

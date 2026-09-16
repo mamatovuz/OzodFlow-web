@@ -110,6 +110,14 @@ export function MenuAiSettings({
         <Switch checked={enabled} onChange={toggle} />
       </div>
 
+      {/* Holat: menyuда ko'rinadimi */}
+      <div className="mt-3 flex items-center gap-2 text-sm">
+        <span className={`h-2 w-2 rounded-full ${enabled ? "bg-success" : "bg-muted/50"}`} />
+        <span className={enabled ? "font-medium text-foreground" : "text-muted"}>
+          {enabled ? "Menyuда ko'rinadi" : "Menyuда yashirilgan (mijozlar ko'rmaydi)"}
+        </span>
+      </div>
+
       {/* Maxfiylik eslatmasi */}
       <div className="mt-4 flex items-start gap-2 rounded-lg bg-success/5 px-3 py-2.5 text-xs text-muted">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />

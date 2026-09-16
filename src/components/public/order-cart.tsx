@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ShoppingCart, Minus, Plus, X, Loader2, CheckCircle2, Trash2, MapPin } from "lucide-react";
+import { ShoppingCart, Minus, Plus, X, Loader2, CheckCircle2, Trash2, MapPin, Copy, Check, Upload, Clock } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import { UI, type Lang } from "@/lib/i18n";
 import { LocationPicker } from "@/components/public/location-picker";
@@ -68,6 +68,9 @@ export function CheckoutModal({
   hasDelivery = false,
   waiterCodeEnabled = false,
   askPhone = true,
+  onlineOrder = false,
+  payCardNumber = null,
+  payCardHolder = null,
   lang = "uz",
   onSetQty,
   onClear,
@@ -85,6 +88,9 @@ export function CheckoutModal({
   hasDelivery?: boolean;
   waiterCodeEnabled?: boolean;
   askPhone?: boolean;
+  onlineOrder?: boolean;
+  payCardNumber?: string | null;
+  payCardHolder?: string | null;
   lang?: Lang;
   onSetQty: (id: string, qty: number) => void;
   onClear: () => void;
@@ -99,19 +105,55 @@ export function CheckoutModal({
   const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [wantDelivery, setWantDelivery] = useState(false);
   const [waiterCode, setWaiterCode] = useState("");
+  // Onlayn to'lov (chek bilan)
+  const [payProof, setPayProof] = useState("");
+  const [payerName, setPayerName] = useState("");
+  const [payerCard, setPayerCard] = useState("");
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [pending, setPending] = useState(false);
 
   const t = UI[lang];
   // Yetkazib berishni tanlash mumkinmi: restoranda yoqilgan + stol tanlanmagan
   // (QR orqali stolda emas). Mijoz o'zi tanlaydi — majburiy emas.
   const canDeliver = hasDelivery && !tableCode;
+  // Onlayn to'lov: dastavka tanlangan + restoranда yoqilgan + karta bor
+  const needPay = wantDelivery && onlineOrder && !!payCardNumber;
   const total = items.reduce((s, i) => s + i.price * i.qty, 0);
 
   if (!open) return null;
+
+  async function uploadProof(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingProof(true);
+    setError("");
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    const json = await res.json();
+    setUploadingProof(false);
+    if (!res.ok) {
+      setError(json.error || "Yuklashda xatolik");
+      return;
+    }
+    setPayProof(json.data.url);
+  }
 
   async function submit() {
     if (wantDelivery && !loc) {
       setError(t.pickOnMap);
       return;
+    }
+    if (needPay) {
+      if (!payerName.trim() || !payerCard.trim()) {
+        setError("Ism va karta raqamini kiriting");
+        return;
+      }
+      if (!payProof) {
+        setError("To'lov chekini (skrinshot) yuklang");
+        return;
+      }
     }
     setLoading(true);
     setError("");
@@ -127,6 +169,10 @@ export function CheckoutModal({
         lat: wantDelivery ? loc?.lat : undefined,
         lng: wantDelivery ? loc?.lng : undefined,
         waiterCode: waiterCodeEnabled && waiterCode.trim() ? waiterCode.trim() : undefined,
+        // Onlayn to'lov (chek bilan)
+        payProofImage: needPay ? payProof : undefined,
+        payerName: needPay ? payerName.trim() : undefined,
+        payerCard: needPay ? payerCard.trim() : undefined,
         // Telegram Mini App ichida bo'lsa — mijozni aniqlash uchun
         tgInitData: getTelegramInitData(),
         items: items.map((i) => ({ productId: i.productId, qty: i.qty })),
@@ -139,9 +185,17 @@ export function CheckoutModal({
       return;
     }
     setOrderNo(json.data.number);
+    setPending(!!json.data.pendingPayment);
     setStep("done");
     onClear();
     if (json.data.id && onOrdered) onOrdered(json.data.id);
+  }
+
+  function copyCard() {
+    if (!payCardNumber) return;
+    navigator.clipboard.writeText(payCardNumber.replace(/\s/g, ""));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   function close() {
@@ -153,6 +207,10 @@ export function CheckoutModal({
     setLoc(null);
     setWantDelivery(false);
     setWaiterCode("");
+    setPayProof("");
+    setPayerName("");
+    setPayerCard("");
+    setPending(false);
     onClose();
   }
 
@@ -162,17 +220,23 @@ export function CheckoutModal({
       <div className="relative z-10 flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-card animate-fade-up sm:rounded-3xl">
         {step === "done" ? (
           <div className="flex flex-col items-center px-6 py-12 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success/10 text-success">
-              <CheckCircle2 className="h-9 w-9" />
+            <div className={`flex h-16 w-16 items-center justify-center rounded-full ${pending ? "bg-warning/10 text-warning" : "bg-success/10 text-success"}`}>
+              {pending ? <Clock className="h-9 w-9" /> : <CheckCircle2 className="h-9 w-9" />}
             </div>
             <h2 className="mt-4 text-xl font-bold text-foreground">
-              Buyurtma qabul qilindi!
+              {pending ? "Chek qabul qilindi!" : "Buyurtma qabul qilindi!"}
             </h2>
             <p className="mt-1 text-muted">
               Buyurtma raqami: <b className="text-foreground">#{orderNo}</b>
             </p>
-            {tableName && (
-              <p className="mt-1 text-sm text-muted">{tableName} · tez orada tayyorlanadi</p>
+            {pending ? (
+              <p className="mt-2 text-sm text-muted">
+                To'lovingiz tekshirilmoqda. Tasdiqlangach buyurtmangiz qabul qilinadi.
+              </p>
+            ) : (
+              tableName && (
+                <p className="mt-1 text-sm text-muted">{tableName} · tez orada tayyorlanadi</p>
+              )
             )}
             <button
               onClick={close}
@@ -289,6 +353,73 @@ export function CheckoutModal({
                     </div>
                   )}
 
+                  {/* Onlayn to'lov (chek bilan) — dastavka tanlanganda */}
+                  {needPay && (
+                    <div className="space-y-3 rounded-xl border border-border bg-surface-2/50 p-3">
+                      <p className="text-sm font-semibold text-foreground">💳 To'lov</p>
+                      <div className="rounded-lg border border-border bg-card p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted">Karta raqami</span>
+                          <button
+                            type="button"
+                            onClick={copyCard}
+                            className="flex items-center gap-1 text-xs"
+                            style={{ color: accent }}
+                          >
+                            {copied ? <><Check className="h-3 w-3" /> Nusxalandi</> : <><Copy className="h-3 w-3" /> Nusxalash</>}
+                          </button>
+                        </div>
+                        <p className="mt-1 font-mono text-lg tracking-wider text-foreground">{payCardNumber}</p>
+                        {payCardHolder && <p className="text-sm text-muted">{payCardHolder}</p>}
+                        <p className="mt-1 text-sm font-semibold" style={{ color: accent }}>
+                          {formatPrice(total, currency)}
+                        </p>
+                      </div>
+
+                      <input
+                        value={payerName}
+                        onChange={(e) => setPayerName(e.target.value)}
+                        placeholder="Ism familiya"
+                        className="h-11 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-accent"
+                      />
+                      <input
+                        value={payerCard}
+                        onChange={(e) => setPayerCard(e.target.value)}
+                        placeholder="Karta raqamingiz (to'lov qilgan)"
+                        inputMode="numeric"
+                        className="h-11 w-full rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-accent"
+                      />
+
+                      {payProof ? (
+                        <div className="relative inline-block">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={payProof} alt="chek" className="h-28 rounded-lg border border-border object-cover" />
+                          <button
+                            onClick={() => setPayProof("")}
+                            className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-error text-white"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-border py-5 text-muted hover:border-accent hover:text-accent">
+                          {uploadingProof ? (
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                          ) : (
+                            <>
+                              <Upload className="h-6 w-6" />
+                              <span className="mt-1 text-sm">To'lov chekini yuklang</span>
+                            </>
+                          )}
+                          <input type="file" accept="image/*" className="hidden" onChange={uploadProof} disabled={uploadingProof} />
+                        </label>
+                      )}
+                      <p className="text-xs text-muted">
+                        Kartaga to'lab, chek (skrinshot) yuklang. To'lov tasdiqlangach buyurtmangiz qabul qilinadi.
+                      </p>
+                    </div>
+                  )}
+
                   {/* Ofitsant kodi (funksiya yoqilgan bo'lsa) */}
                   {waiterCodeEnabled && (
                     <div>
@@ -328,7 +459,7 @@ export function CheckoutModal({
                   style={{ background: accent, color: accentText }}
                 >
                   {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                  {wantDelivery ? t.sendOrder : "Buyurtmani rasmiylashtirish"}
+                  {needPay ? "To'lab, chekni yuborish" : wantDelivery ? t.sendOrder : "Buyurtmani rasmiylashtirish"}
                 </button>
               </div>
             )}

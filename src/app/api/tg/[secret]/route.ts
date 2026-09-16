@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendMenuButton, sendBotMessage, answerCallback } from "@/lib/telegram-bot";
+import { parseAdminIds, editCallbackResult } from "@/lib/order-telegram";
+import { publishConfirmedOrder } from "@/lib/order-publish";
 import { statusMeta } from "@/lib/orders";
 import { formatPrice } from "@/lib/utils";
 
@@ -19,7 +21,15 @@ export async function POST(
 
   const restaurant = await prisma.restaurant.findFirst({
     where: { botSecret: secret, botEnabled: true },
-    select: { id: true, name: true, slug: true, currency: true, botToken: true, phone: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      currency: true,
+      botToken: true,
+      phone: true,
+      orderAdminIds: true,
+    },
   });
   if (!restaurant?.botToken) return NextResponse.json({ ok: true });
   const token = restaurant.botToken;
@@ -27,7 +37,61 @@ export async function POST(
   try {
     // ─── Callback tugmalari ───
     if (update.callback_query) {
-      await answerCallback(token, update.callback_query.id);
+      const cq = update.callback_query;
+      const data: string = cq.data || "";
+      const cbChatId = cq.message?.chat?.id;
+      const cbMsgId = cq.message?.message_id;
+      const fromId = String(cq.from?.id || "");
+
+      // To'lovni tasdiqlash / rad etish (pc_ok_<id> / pc_no_<id>)
+      if (data.startsWith("pc_ok_") || data.startsWith("pc_no_")) {
+        const confirm = data.startsWith("pc_ok_");
+        const orderId = data.slice(6);
+        const admins = parseAdminIds(restaurant.orderAdminIds);
+        if (!admins.includes(fromId)) {
+          await answerCallback(token, cq.id, "Sizda ruxsat yo'q");
+          return NextResponse.json({ ok: true });
+        }
+        const order = await prisma.order.findFirst({
+          where: { id: orderId, restaurantId: restaurant.id },
+          select: { id: true, number: true, payConfirm: true, tgChatId: true },
+        });
+        if (!order || order.payConfirm !== "PENDING") {
+          await answerCallback(token, cq.id, "Allaqachon ko'rib chiqilgan");
+          return NextResponse.json({ ok: true });
+        }
+
+        if (confirm) {
+          await prisma.order.update({
+            where: { id: order.id },
+            data: { payConfirm: "CONFIRMED", paymentStatus: "PAID", paidAt: new Date() },
+          });
+          await publishConfirmedOrder(order.id);
+          if (cbChatId && cbMsgId) {
+            await editCallbackResult(token, cbChatId, cbMsgId, `✅ Buyurtma #${order.number} — <b>tasdiqlandi</b>`);
+          }
+          await answerCallback(token, cq.id, "Tasdiqlandi ✅");
+        } else {
+          await prisma.order.update({
+            where: { id: order.id },
+            data: { payConfirm: "REJECTED", status: "CANCELLED" },
+          });
+          if (order.tgChatId) {
+            await sendBotMessage(
+              token,
+              order.tgChatId,
+              `❌ Afsuski, buyurtma #${order.number} bo'yicha to'lov tasdiqlanmadi. Iltimos, qayta urinib ko'ring yoki biz bilan bog'laning.`
+            );
+          }
+          if (cbChatId && cbMsgId) {
+            await editCallbackResult(token, cbChatId, cbMsgId, `❌ Buyurtma #${order.number} — <b>rad etildi</b>`);
+          }
+          await answerCallback(token, cq.id, "Rad etildi");
+        }
+        return NextResponse.json({ ok: true });
+      }
+
+      await answerCallback(token, cq.id);
       return NextResponse.json({ ok: true });
     }
 
@@ -39,7 +103,14 @@ export async function POST(
 
     const cmd = text.toLowerCase().split(/\s+/)[0].replace(/@.*/, "");
 
-    if (cmd === "/start" || cmd === "/menyu" || cmd === "/menu") {
+    if (cmd === "/me" || cmd === "/id") {
+      // Egasi to'lovni tasdiqlaydigan adminlarni sozlash uchun ID sini oladi
+      await sendBotMessage(
+        token,
+        chatId,
+        `🆔 Sizning ID: <code>${chatId}</code>\n\nBu ID ni panel → Sozlamalar → "To'lovni tasdiqlovchilar" ro'yxatiga qo'shing.`
+      );
+    } else if (cmd === "/start" || cmd === "/menyu" || cmd === "/menu") {
       const first = msg?.from?.first_name ? `, ${msg.from.first_name}` : "";
       await sendMenuButton(
         token,

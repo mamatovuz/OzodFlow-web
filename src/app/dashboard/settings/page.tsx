@@ -11,6 +11,8 @@ import { PhoneRequestToggle } from "@/components/dashboard/phone-request-toggle"
 import { OrderChannel } from "@/components/dashboard/order-channel";
 import { TelegramBotManager } from "@/components/dashboard/telegram-bot-manager";
 import { PaymentCardSettings } from "@/components/dashboard/payment-card-settings";
+import { OnlineOrderSettings } from "@/components/dashboard/online-order-settings";
+import { parseAdminIds } from "@/lib/order-telegram";
 import { SessionsManager } from "@/components/dashboard/sessions-manager";
 
 export const dynamic = "force-dynamic";
@@ -74,6 +76,12 @@ export default async function SettingsPage() {
           <OrderChannel
             connected={!!restaurant.orderBotToken && !!restaurant.orderChatId}
             chatId={restaurant.orderChatId}
+          />
+          <OnlineOrderSettings
+            enabled={restaurant.onlineOrderEnabled}
+            adminIds={parseAdminIds(restaurant.orderAdminIds)}
+            botConnected={restaurant.botEnabled && !!restaurant.botToken}
+            hasCard={!!restaurant.cardNumber}
           />
         </div>
       </Section>

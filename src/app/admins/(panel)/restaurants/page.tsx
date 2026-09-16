@@ -50,6 +50,7 @@ export default async function AdminRestaurantsPage() {
       })),
       plan: r.plan,
       planName: PLANS[r.plan as PlanKey]?.name || r.plan,
+      planUntil: r.planUntil ? r.planUntil.toISOString() : null,
       isBlocked: r.isBlocked,
       productCount: r._count.products,
       createdAt: r.createdAt.toISOString(),

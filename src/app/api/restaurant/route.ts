@@ -31,6 +31,23 @@ export async function PATCH(req: NextRequest) {
   const data = { ...parsed.data };
   const access = getEffectivePlan(restaurant);
 
+  // orderAdminIds — faqat raqamli Telegram ID larni qoldiramiz (tozalash)
+  if (data.orderAdminIds !== undefined) {
+    let ids: string[] = [];
+    try {
+      const arr = JSON.parse(data.orderAdminIds);
+      if (Array.isArray(arr)) {
+        ids = arr
+          .map((x) => String(x).trim())
+          .filter((x) => /^-?\d{4,20}$/.test(x))
+          .slice(0, 20);
+      }
+    } catch {
+      ids = [];
+    }
+    data.orderAdminIds = JSON.stringify(Array.from(new Set(ids)));
+  }
+
   // Premium tema: tarif ochsa (Business/Enterprise) yoki alohida sotib olingan bo'lsa
   if (data.menuTheme !== undefined) {
     const theme = getTheme(data.menuTheme);

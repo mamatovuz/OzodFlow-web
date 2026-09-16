@@ -41,6 +41,9 @@ export const restaurantSchema = z.object({
   cardHolder: z.string().max(80).optional().nullable(),
   serviceRate: z.number().min(0).max(100).optional(),
   customDomain: z.string().optional().nullable(),
+  // Onlayn to'lov (chek bilan dastavka)
+  onlineOrderEnabled: z.boolean().optional(),
+  orderAdminIds: z.string().max(2000).optional(),
 });
 
 export const waiterSchema = z.object({

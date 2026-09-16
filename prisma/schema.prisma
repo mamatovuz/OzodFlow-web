@@ -133,6 +133,12 @@ model Restaurant {
   askPhone        Boolean   @default(true) // buyurtmada mijozdan telefon raqam so'ralsinmi
   orderBotToken   String? // buyurtmalarni Telegram kanaliga yuborish uchun bot tokeni
   orderChatId     String? // buyurtmalar tushadigan kanal/guruh ID si (@channel yoki -100...)
+  // ─── Onlayn to'lov bilan dastavka (chek rasmi + tasdiqlash) ───
+  // Yoqilsa: mijoz dastavka buyurtmasida kartaga to'lab, chek (skrinshot) yuboradi.
+  // Chek + tasdiqlash/rad tugmalari orderAdminIds ga (bot orqali) boradi.
+  // Admin tasdiqlagach buyurtma kanalga va panelga chiqadi (ungacha yashirin).
+  onlineOrderEnabled Boolean @default(false)
+  orderAdminIds   String    @default("[]") // to'lovni tasdiqlaydigan Telegram ID lar (JSON massiv)
   // ─── Mijozlar boti + Telegram Mini App ───
   // Egasi BotFather'dan token beradi → OzodFlow webhook/menyu tugmasini sozlaydi.
   // Mijoz bot ichida "Menyu"ni ochadi (Mini App = /m/<slug>?tg=1), buyurtma beradi,
@@ -433,6 +439,13 @@ model Order {
   voidLog      String? // JSON: [{name, qty, reason, at, by, approvedBy?}]
   // ─── Manager tasdig'i (limitdan oshgan chegirma yoki oshxonaga ketgan void) ───
   approvedBy   String? // tasdiqlagan manager ismi (audit)
+  // ─── Onlayn to'lov (chek rasmi bilan dastavka) ───
+  // payConfirm: NONE (odatiy) | PENDING (tasdiq kutmoqda) | CONFIRMED | REJECTED
+  // PENDING/REJECTED buyurtmalar egasi paneli va kanalda ko'rinmaydi.
+  payConfirm   String   @default("NONE")
+  payProofImage String? // mijoz yuborgan to'lov cheki (skrinshot) URL
+  payerName    String? // to'lovchi ism-familiyasi
+  payerCard    String? // to'lovchi karta raqami (mijoz kiritgani)
   // ─── Telegram Mini App (bot orqali kelgan buyurtma) ───
   tgChatId     String? // mijoz Telegram chat ID si — holat o'zgarishini push qilish uchun
   // ─── POS ga yuborish holati ───
@@ -666,7 +679,13 @@ model PaymentRequest {
   discount     Int       @default(0) // chegirma summasi
   promoCode    String? // ishlatilgan promo kod
   amount       Int // yakuniy summa
-  receiptImage String
+  receiptImage String    @default("") // qo'lda to'lovda chek rasmi; inPAY'da bo'sh
+  // ─── To'lov usuli ───
+  // MANUAL = karta + chek yuklash (admin tasdiqlaydi)
+  // INPAY  = inpay.uz onlayn to'lov (webhook orqali avtomatik tasdiqlanadi)
+  payProvider  String    @default("MANUAL")
+  payOrderId   String? // inPAY order_id (webhook shu bo'yicha topadi)
+  payUrl       String? // inPAY to'lov sahifasi havolasi
   status       String    @default("PENDING") // PENDING | APPROVED | REJECTED
   adminNote    String?
   createdAt    DateTime  @default(now())
@@ -677,6 +696,7 @@ model PaymentRequest {
 
   @@index([restaurantId])
   @@index([status])
+  @@index([payOrderId])
 }
 
 // Promo kodlar (admin yaratadi yoki mijoz yiliga 1 marta oladi)
@@ -842,6 +862,31 @@ model LandingSubmission {
 
   @@index([pageId])
   @@index([contacted])
+}
+
+// ─────────────────────────────────────────────
+// AI kalitlari — bosh admin panelidan boshqariladi (menyu importi uchun).
+// Bir nechta kalit qo'shiladi; failover tartibida ishlatiladi: birinchi kalit
+// limitga yetsa (429/quota) — keyingisiga o'tadi. Cheksiz zaxira uchun.
+// API kaliti DB'da AES-256-GCM bilan shifrlanadi (hech qachon ochiq saqlanmaydi).
+// ─────────────────────────────────────────────
+model AiKey {
+  id            String    @id @default(cuid())
+  provider      String    @default("gemini") // gemini (kelajakda: openai ...)
+  name          String // ko'rsatish uchun label ("Kalit 1", "Zaxira")
+  keyEnc        String // shifrlangan API kalit
+  hint          String    @default("") // oxirgi 4 belgi (UI uchun)
+  model         String    @default("gemini-2.0-flash") // matn/vision model
+  imageModel    String    @default("gemini-2.5-flash-image-preview") // rasm generatsiya modeli
+  isActive      Boolean   @default(true)
+  sortOrder     Int       @default(0) // failover tartibi (kichik = oldin)
+  lastUsedAt    DateTime?
+  failCount     Int       @default(0)
+  lastError     String?
+  cooldownUntil DateTime? // limit/xatoda vaqtincha o'tkazib yuboriladi
+  createdAt     DateTime  @default(now())
+
+  @@index([isActive, sortOrder])
 }
 
 // ─────────────────────────────────────────────

@@ -1,5 +1,23 @@
 import { formatPrice } from "./utils";
 import type { OrderItem } from "./orders";
+import { BASE_DOMAIN } from "./urls";
+
+// /media/... yoki nisbiy manzilni Telegram uchun to'liq https URL ga aylantiradi
+function absoluteMedia(url: string): string {
+  if (/^https?:\/\//i.test(url)) return url;
+  return `https://${BASE_DOMAIN}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
+// orderAdminIds (JSON massiv) ni xavfsiz o'qish
+export function parseAdminIds(json: string | null | undefined): string[] {
+  if (!json) return [];
+  try {
+    const arr = JSON.parse(json);
+    return Array.isArray(arr) ? arr.map((x) => String(x)).filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
 
 // HTML maxsus belgilarини xavfsizlaydi (Telegram parse_mode=HTML)
 function esc(s: string): string {
@@ -124,6 +142,73 @@ export async function sendReviewToChannel(opts: {
     text: lines.join("\n"),
     parse_mode: "HTML",
     disable_web_page_preview: true,
+  });
+}
+
+// To'lov chekini (skrinshot) tasdiqlash uchun adminlarga yuboradi.
+// Har bir adminga rasm + buyurtma tafsiloti + Tasdiqlash/Rad tugmalari.
+export async function sendPaymentConfirmRequest(opts: {
+  token: string;
+  adminIds: string[];
+  restaurantName: string;
+  currency: string;
+  orderId: string;
+  order: OrderForChannel;
+  items: OrderItem[];
+  proofImage: string;
+  payerName?: string | null;
+  payerCard?: string | null;
+}): Promise<void> {
+  const { token, adminIds, restaurantName, currency, orderId, order, items, proofImage } = opts;
+  if (!token || adminIds.length === 0 || !proofImage) return;
+
+  const lines: string[] = [];
+  lines.push(`🧾 <b>Yangi to'lov — tasdiqlang</b>`);
+  lines.push(`🏠 ${esc(restaurantName)} · Buyurtma #${order.number}`);
+  lines.push("");
+  if (order.address) lines.push(`📍 ${esc(order.address)}`);
+  if (order.phone) lines.push(`📞 ${esc(order.phone)}`);
+  if (opts.payerName) lines.push(`👤 To'lovchi: ${esc(opts.payerName)}`);
+  if (opts.payerCard) lines.push(`💳 Karta: ${esc(opts.payerCard)}`);
+  lines.push("");
+  for (const it of items) {
+    lines.push(`• ${it.qty}× ${esc(it.name)} — ${formatPrice(it.price * it.qty, currency)}`);
+  }
+  lines.push("");
+  lines.push(`💰 <b>Jami: ${formatPrice(order.total, currency)}</b>`);
+
+  const reply_markup = {
+    inline_keyboard: [
+      [
+        { text: "✅ Tasdiqlash", callback_data: `pc_ok_${orderId}` },
+        { text: "❌ Rad etish", callback_data: `pc_no_${orderId}` },
+      ],
+    ],
+  };
+
+  for (const chatId of adminIds) {
+    await tgCall(token, "sendPhoto", {
+      chat_id: chatId,
+      photo: absoluteMedia(proofImage),
+      caption: lines.join("\n"),
+      parse_mode: "HTML",
+      reply_markup,
+    });
+  }
+}
+
+// Callback bosilgach admin xabaridagi tugmalarni olib tashlab, natijani yozadi
+export async function editCallbackResult(
+  token: string,
+  chatId: string | number,
+  messageId: number,
+  resultText: string
+): Promise<void> {
+  await tgCall(token, "editMessageCaption", {
+    chat_id: chatId,
+    message_id: messageId,
+    caption: resultText,
+    parse_mode: "HTML",
   });
 }
 

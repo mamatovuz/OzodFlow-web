@@ -99,6 +99,9 @@ type PublicRestaurant = {
   designConfig?: string | null;
   waiterCodeEnabled?: boolean;
   askPhone?: boolean;
+  onlineOrderEnabled?: boolean;
+  cardNumber?: string | null;
+  cardHolder?: string | null;
 };
 
 const filters = [
@@ -1179,6 +1182,9 @@ export function PublicMenu({
           hasDelivery={restaurant.hasDelivery}
           waiterCodeEnabled={restaurant.waiterCodeEnabled}
           askPhone={restaurant.askPhone !== false}
+          onlineOrder={restaurant.onlineOrderEnabled === true}
+          payCardNumber={restaurant.cardNumber ?? null}
+          payCardHolder={restaurant.cardHolder ?? null}
           lang={lang}
           onSetQty={setQty}
           onClear={() => setCart({})}

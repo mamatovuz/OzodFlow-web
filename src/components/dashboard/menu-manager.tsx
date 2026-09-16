@@ -30,6 +30,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 import { Modal } from "@/components/ui-modal";
 import { MultiImageUpload, ImageUpload } from "@/components/dashboard/image-upload";
 import { ExcelImport } from "@/components/dashboard/excel-import";
+import { AiImport } from "@/components/dashboard/ai-import";
 import { formatPrice, parseJson } from "@/lib/utils";
 
 type Category = {
@@ -424,6 +425,14 @@ export function MenuManager({ currency }: { currency: string }) {
         )}
       </div>
       </div>
+
+      {/* AI bilan menyu import — eng tez usul */}
+      <AiImport
+        onImported={() => {
+          loadProducts();
+          loadCategories();
+        }}
+      />
 
       {/* Excel orqali ommaviy qo'shish — menyu qo'shish joyi ostida */}
       <ExcelImport

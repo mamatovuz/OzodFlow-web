@@ -9,8 +9,8 @@ import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
 const MAX_SIZE = 50 * 1024 * 1024; // 50MB kiruvchi rasm (siqishdan oldin) — qabul qilingach webp'ga siqiladi
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-const MAX_DIM = 1280; // eng katta tomon (px) — menyu uchun yetarli
-const WEBP_QUALITY = 78;
+const MAX_DIM = 1600; // eng katta tomon (px) — retina ekranlar uchun aniqroq
+const WEBP_QUALITY = 88; // sifat (yuqori = aniqroq rasm)
 // Bosh sahifa (hero) videosi uchun — sharp ishlamaydi, to'g'ridan-to'g'ri saqlanadi
 const VIDEO_ALLOWED = ["video/mp4", "video/webm", "video/quicktime"];
 const VIDEO_MAX_SIZE = 30 * 1024 * 1024; // 30MB
@@ -65,8 +65,9 @@ export async function POST(req: NextRequest) {
           height: MAX_DIM,
           fit: "inside",
           withoutEnlargement: true,
+          kernel: "lanczos3", // aniqroq kichraytirish (rasm "galati" bo'lmasligi uchun)
         })
-        .webp({ quality: WEBP_QUALITY })
+        .webp({ quality: WEBP_QUALITY, effort: 5, smartSubsample: true })
         .toBuffer();
       ext = "webp";
     }

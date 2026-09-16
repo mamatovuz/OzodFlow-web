@@ -5,7 +5,7 @@ import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
 import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 import { pushOrderToPos } from "@/lib/pos";
 import { dispatchWebhook } from "@/lib/webhooks";
-import { sendOrderToChannel } from "@/lib/order-telegram";
+import { sendOrderToChannel, sendPaymentConfirmRequest, parseAdminIds } from "@/lib/order-telegram";
 import { verifyInitData, sendBotMessage } from "@/lib/telegram-bot";
 import { idempotentGet, idempotentSet } from "@/lib/idempotency";
 import { formatPrice } from "@/lib/utils";
@@ -22,6 +22,10 @@ const createSchema = z.object({
   lat: z.number().min(-90).max(90).optional().nullable(),
   lng: z.number().min(-180).max(180).optional().nullable(),
   waiterCode: z.string().max(24).optional().nullable(),
+  // ─── Onlayn to'lov (chek rasmi bilan dastavka) ───
+  payProofImage: z.string().max(500).optional().nullable(),
+  payerName: z.string().max(120).optional().nullable(),
+  payerCard: z.string().max(40).optional().nullable(),
   // Telegram Mini App orqali kelgan buyurtma — mijozni aniqlash uchun initData
   tgInitData: z.string().max(4096).optional().nullable(),
   items: z
@@ -39,7 +43,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return fail("Ma'lumotlar noto'g'ri", 422, parsed.error.flatten().fieldErrors);
   }
-  const { slug, tableCode, phone, comment, items, orderType, address, lat, lng, waiterCode, tgInitData } = parsed.data;
+  const { slug, tableCode, phone, comment, items, orderType, address, lat, lng, waiterCode, tgInitData, payProofImage, payerName, payerCard } = parsed.data;
   const isDelivery = orderType === "DELIVERY";
 
   // ─── Idempotency: takroriy yuborishda dublikat buyurtma yaratmaymiz ───
@@ -122,6 +126,18 @@ export async function POST(req: NextRequest) {
   });
   const number = (last?.number ?? 0) + 1;
 
+  // ─── Onlayn to'lov (chek rasmi bilan) — tasdiq kutish rejimi ───
+  // Dastavka + restoranда yoqilgan + chek yuborilgan + bot va admin(lar) bo'lsa:
+  // buyurtma PENDING bo'ladi, admin tasdiqlaguncha kanalda/panelda ko'rinmaydi.
+  const adminIds = parseAdminIds(restaurant.orderAdminIds);
+  const gated =
+    isDelivery &&
+    restaurant.onlineOrderEnabled &&
+    !!payProofImage &&
+    !!restaurant.botToken &&
+    adminIds.length > 0;
+  const payConfirm = gated ? "PENDING" : "NONE";
+
   const order = await prisma.order.create({
     data: {
       restaurantId: restaurant.id,
@@ -140,8 +156,66 @@ export async function POST(req: NextRequest) {
       waiterId,
       waiterCode: waiterCodeStored,
       tgChatId,
+      payConfirm,
+      payProofImage: payProofImage || null,
+      payerName: payerName || null,
+      payerCard: payerCard || null,
     },
   });
+
+  // ─── Tasdiq kutish rejimi: adminlarga chek + tugmalar yuboramiz, boshqa
+  // hech qayerga (kanal/POS/webhook) yubormaymiz. Tasdiqdan keyin chiqadi.
+  if (gated && restaurant.botToken) {
+    void sendPaymentConfirmRequest({
+      token: restaurant.botToken,
+      adminIds,
+      restaurantName: restaurant.name,
+      currency: restaurant.currency,
+      orderId: order.id,
+      order: {
+        number: order.number,
+        orderType: order.orderType,
+        tableName,
+        phone: phone || null,
+        comment: comment || null,
+        total,
+        address: order.address,
+        lat: order.lat,
+        lng: order.lng,
+        waiterName,
+        waiterCode: waiterCodeStored,
+      },
+      items: orderItems,
+      proofImage: payProofImage!,
+      payerName,
+      payerCard,
+    });
+    if (tgUser && tgChatId && restaurant.botToken) {
+      void prisma.botCustomer
+        .upsert({
+          where: { restaurantId_tgUserId: { restaurantId: restaurant.id, tgUserId: tgChatId } },
+          create: {
+            restaurantId: restaurant.id,
+            tgUserId: tgChatId,
+            firstName: tgUser.first_name || null,
+            username: tgUser.username || null,
+            phone: phone || null,
+            orders: 1,
+            lastOrderAt: new Date(),
+          },
+          update: { lastOrderAt: new Date(), ...(phone ? { phone } : {}) },
+        })
+        .catch(() => {});
+      void sendBotMessage(
+        restaurant.botToken,
+        tgChatId,
+        `🧾 <b>Chekingiz qabul qilindi!</b>\n\nBuyurtma #${number}\nTo'lov tasdiqlangach buyurtmangiz qabul qilinadi. Tez orada xabar beramiz.`
+      );
+    }
+    const result = { id: order.id, number: order.number, total, pendingPayment: true };
+    if (idemKey) idempotentSet(`order:${slug}:${idemKey}`, result);
+    return ok(result, 201);
+  }
 
   // ─── Telegram mijozini saqlab, unga tasdiq xabarini yuboramiz ───
   if (tgUser && tgChatId && restaurant.botToken) {
@@ -243,7 +317,12 @@ export async function GET(req: NextRequest) {
   const limit = Number.isFinite(rawLimit) ? Math.min(200, Math.max(1, rawLimit)) : 100;
 
   const orders = await prisma.order.findMany({
-    where: { restaurantId: restaurant.id, ...(status ? { status } : {}) },
+    where: {
+      restaurantId: restaurant.id,
+      ...(status ? { status } : {}),
+      // Tasdiq kutayotgan / rad etilgan onlayn to'lov buyurtmalari ko'rinmaydi
+      NOT: { payConfirm: { in: ["PENDING", "REJECTED"] } },
+    },
     orderBy: { createdAt: "desc" },
     take: limit + 1, // keyingi sahifa bor-yo'qligini bilish uchun bittasi ortiq
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),

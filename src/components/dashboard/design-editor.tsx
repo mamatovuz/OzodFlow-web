@@ -16,8 +16,10 @@ import {
   Star,
   Video,
   RotateCcw,
+  Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui";
+import { suggestColorsFromImage } from "@/lib/color-extract";
 import { getTheme, menuStyleFor, menuHasCart } from "@/lib/themes";
 import {
   resolveDesign,
@@ -235,6 +237,7 @@ export function DesignEditor({
                 colors={design.colors}
                 onSet={setColor}
                 onPalette={applyPalette}
+                logo={restaurant.logo}
               />
             )}
             {section === "background" && (
@@ -625,13 +628,65 @@ function ColorsSection({
   colors,
   onSet,
   onPalette,
+  logo,
 }: {
   colors: DesignColors;
   onSet: (key: keyof DesignColors, value: string) => void;
   onPalette: (colors: DesignColors) => void;
+  logo: string | null;
 }) {
+  const [extracting, setExtracting] = useState(false);
+  const [extractErr, setExtractErr] = useState("");
+
+  // Logo rangidan brend paletta yaratadi: dominant rang → urg'u (accent),
+  // qolgan ranglar toza och fon bilan avtomatik hosil qilinadi.
+  async function fromLogo() {
+    if (!logo) {
+      setExtractErr("Avval sozlamalarda logo yuklang");
+      return;
+    }
+    setExtracting(true);
+    setExtractErr("");
+    const s = await suggestColorsFromImage(logo);
+    setExtracting(false);
+    if (!s) {
+      setExtractErr("Logodan rang aniqlanmadi");
+      return;
+    }
+    const accent = s.dominant;
+    const lum = hexLuminance(accent);
+    onPalette({
+      accent,
+      accentText: lum > 150 ? "#111111" : "#FFFFFF",
+      background: "#FFFFFF",
+      surface: tint(accent, 0.06),
+      surface2: tint(accent, 0.12),
+      card: "#FFFFFF",
+      foreground: "#141416",
+      muted: "#6B7280",
+      border: tint(accent, 0.16),
+    });
+  }
+
   return (
     <div className="space-y-6">
+      <div>
+        <SectionLabel>O'z brendingiz — logodan palette</SectionLabel>
+        <p className="mb-2 text-xs text-muted">
+          Logo rangidan avtomatik mos palette yaratamiz — restoran o'z uslubini
+          bir bosishda oladi.
+        </p>
+        <button
+          onClick={fromLogo}
+          disabled={extracting}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-accent bg-accent-soft px-3 py-2.5 text-sm font-semibold text-accent transition hover:bg-accent hover:text-white disabled:opacity-60"
+        >
+          {extracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+          Logo rangidan palette yaratish
+        </button>
+        {extractErr && <p className="mt-1.5 text-xs text-error">{extractErr}</p>}
+      </div>
+
       <div>
         <SectionLabel>Tayyor paletralar</SectionLabel>
         <p className="mb-2 text-xs text-muted">
@@ -1246,4 +1301,21 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function safeHex(v: string): string {
   return /^#[0-9a-fA-F]{6}$/.test(v) ? v : "#000000";
+}
+
+// ─── Logo rangidan palette uchun kichik rang yordamchilari ───
+function hexToRgb(hex: string): [number, number, number] {
+  const h = safeHex(hex).slice(1);
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+function hexLuminance(hex: string): number {
+  const [r, g, b] = hexToRgb(hex);
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+}
+// Rangni oq bilan aralashtirib och (tinted) variant hosil qiladi (t = urg'u ulushi)
+function tint(hex: string, t: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  const mix = (c: number) => Math.round(c * t + 255 * (1 - t));
+  const to = (n: number) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, "0");
+  return `#${to(mix(r))}${to(mix(g))}${to(mix(b))}`;
 }

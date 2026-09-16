@@ -1,11 +1,11 @@
-import { writeFile, mkdir } from "fs/promises";
+import { writeFile, mkdir, readFile } from "fs/promises";
 import path from "path";
 import sharp from "sharp";
 import { randomCode } from "./utils";
-import { UPLOAD_DIR } from "./uploads";
+import { UPLOAD_DIR, contentTypeFor } from "./uploads";
 
-const MAX_DIM = 1280; // eng katta tomon (px)
-const WEBP_QUALITY = 78;
+const MAX_DIM = 1600; // eng katta tomon (px)
+const WEBP_QUALITY = 88;
 const MAX_BYTES = 15 * 1024 * 1024; // 15MB dan katta rasmni yuklamaymiz
 const FETCH_TIMEOUT_MS = 12000;
 
@@ -43,8 +43,8 @@ export async function storeRemoteImage(url: string): Promise<string | null> {
     } else {
       bytes = await sharp(input)
         .rotate()
-        .resize({ width: MAX_DIM, height: MAX_DIM, fit: "inside", withoutEnlargement: true })
-        .webp({ quality: WEBP_QUALITY })
+        .resize({ width: MAX_DIM, height: MAX_DIM, fit: "inside", withoutEnlargement: true, kernel: "lanczos3" })
+        .webp({ quality: WEBP_QUALITY, effort: 5, smartSubsample: true })
         .toBuffer();
       ext = "webp";
     }
@@ -57,6 +57,45 @@ export async function storeRemoteImage(url: string): Promise<string | null> {
     return null;
   } finally {
     clearTimeout(timer);
+  }
+}
+
+/**
+ * Lokal /media/<nom> rasmini o'qib, base64 + mime qaytaradi (AI vision uchun).
+ * Yo'l xavfsizligi: faqat UPLOAD_DIR ichidagi fayllar.
+ */
+export async function readMediaAsBase64(
+  mediaUrl: string
+): Promise<{ base64: string; mime: string } | null> {
+  try {
+    const name = mediaUrl.replace(/^\/media\//, "").split("/").pop() || "";
+    if (!name || name.includes("..")) return null;
+    const full = path.join(UPLOAD_DIR, name);
+    const buf = await readFile(full);
+    return { base64: buf.toString("base64"), mime: contentTypeFor(name) };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * AI generatsiya qilgan rasm buferini webp'ga o'girib /media ga saqlaydi.
+ * Muvaffaqiyatда yangi /media/... yo'lini qaytaradi.
+ */
+export async function storeImageBuffer(base64: string): Promise<string | null> {
+  try {
+    const input = Buffer.from(base64, "base64");
+    const bytes = await sharp(input)
+      .rotate()
+      .resize({ width: MAX_DIM, height: MAX_DIM, fit: "inside", withoutEnlargement: true, kernel: "lanczos3" })
+      .webp({ quality: 90, effort: 5, smartSubsample: true })
+      .toBuffer();
+    const filename = `${Date.now()}-${randomCode(6).toLowerCase()}.webp`;
+    await mkdir(UPLOAD_DIR, { recursive: true });
+    await writeFile(path.join(UPLOAD_DIR, filename), bytes);
+    return `/media/${filename}`;
+  } catch {
+    return null;
   }
 }
 

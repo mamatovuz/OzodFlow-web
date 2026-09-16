@@ -22,6 +22,7 @@ import {
   Users,
   ClipboardList,
   Newspaper,
+  Sparkles,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
@@ -49,6 +50,7 @@ const nav: {
   { href: "/admins/messages", label: "Xabarlar", icon: MessageSquare, perm: "messages" },
   { href: "/admins/landings", label: "Arizalar", icon: ClipboardList, perm: "landings" },
   { href: "/admins/blog", label: "Blog", icon: Newspaper, perm: "blog" },
+  { href: "/admins/ai", label: "AI (menyu)", icon: Sparkles, super: true },
   { href: "/admins/admins", label: "Adminlar", icon: Users, super: true },
   { href: "/admins/settings", label: "Sozlamalar", icon: Settings },
 ];

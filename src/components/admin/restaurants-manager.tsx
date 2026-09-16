@@ -18,6 +18,8 @@ import {
   LogIn,
   ChevronDown,
   Users,
+  CalendarClock,
+  Infinity as InfinityIcon,
 } from "lucide-react";
 import { Card, Badge, Button } from "@/components/ui";
 import { Modal } from "@/components/ui-modal";
@@ -41,6 +43,7 @@ export type AdminRestaurantRow = {
   staff: AdminStaffRow[];
   plan: string;
   planName: string;
+  planUntil: string | null;
   isBlocked: boolean;
   productCount: number;
   createdAt: string;
@@ -66,6 +69,7 @@ type Message = {
 export function RestaurantsManager({ rows }: { rows: AdminRestaurantRow[] }) {
   const router = useRouter();
   const [deleteRow, setDeleteRow] = useState<AdminRestaurantRow | null>(null);
+  const [planRow, setPlanRow] = useState<AdminRestaurantRow | null>(null);
   const [msgRow, setMsgRow] = useState<AdminRestaurantRow | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -208,9 +212,18 @@ export function RestaurantsManager({ rows }: { rows: AdminRestaurantRow[] }) {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant={r.plan === "FREE" ? "default" : "accent"}>
-                      {r.planName}
-                    </Badge>
+                    <div className="flex flex-col items-start gap-1">
+                      <Badge variant={r.plan === "FREE" ? "default" : "accent"}>
+                        {r.planName}
+                      </Badge>
+                      <button
+                        onClick={() => setPlanRow(r)}
+                        className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[11px] font-medium text-muted transition hover:border-accent hover:text-accent"
+                      >
+                        <CalendarClock className="h-3 w-3" />
+                        {r.planUntil === null && r.plan !== "FREE" ? "Umrbod" : "Muddat"}
+                      </button>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <PayBadge pay={r.pay} />
@@ -328,6 +341,17 @@ export function RestaurantsManager({ rows }: { rows: AdminRestaurantRow[] }) {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Tarif va muddat */}
+      {planRow && (
+        <PlanModal
+          row={planRow}
+          onClose={() => {
+            setPlanRow(null);
+            router.refresh();
+          }}
+        />
       )}
 
       {/* Yozishmalar */}
@@ -556,4 +580,180 @@ function topicLabel(t: string) {
     : t === "CONTACT"
     ? "Aloqa"
     : "Umumiy";
+}
+
+// ─── Tarif va muddatni admin qo'lda belgilaydi ───
+// Umrbod, 1oy/3/6/1yil tez tugmalari yoki aniq sana tanlash mumkin.
+const PLAN_OPTS: { key: string; label: string }[] = [
+  { key: "FREE", label: "Sinov" },
+  { key: "STARTER", label: "Starter" },
+  { key: "BUSINESS", label: "Business" },
+  { key: "ENTERPRISE", label: "Enterprise" },
+];
+
+function PlanModal({
+  row,
+  onClose,
+}: {
+  row: AdminRestaurantRow;
+  onClose: () => void;
+}) {
+  const [plan, setPlan] = useState(row.plan);
+  const [mode, setMode] = useState<"months" | "date" | "lifetime">(
+    row.planUntil === null && row.plan !== "FREE" ? "lifetime" : "months"
+  );
+  const [months, setMonths] = useState(1);
+  const [untilDate, setUntilDate] = useState(
+    row.planUntil ? row.planUntil.slice(0, 10) : ""
+  );
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+
+  const curUntil = row.planUntil
+    ? new Date(row.planUntil).toLocaleDateString("uz-UZ")
+    : row.plan === "FREE"
+    ? "—"
+    : "Umrbod";
+
+  async function save() {
+    setErr("");
+    setSaving(true);
+    const payload: Record<string, unknown> = { action: "setPlan", plan, mode };
+    if (mode === "months") payload.months = months;
+    if (mode === "date") payload.untilDate = untilDate;
+    const res = await fetch(`/api/admin/restaurants/${row.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => null);
+    setSaving(false);
+    if (res.ok) {
+      onClose();
+    } else {
+      setErr(json?.error || "Xatolik yuz berdi");
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title={`${row.name} — tarif va muddat`}>
+      <div className="space-y-4">
+        <div className="rounded-xl bg-surface-2 p-3 text-sm text-muted">
+          Joriy: <b className="text-foreground">{row.planName}</b> · Muddat:{" "}
+          <b className="text-foreground">{curUntil}</b>
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-foreground">Tarif</label>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {PLAN_OPTS.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => setPlan(p.key)}
+                className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                  plan === p.key
+                    ? "border-accent bg-accent-soft text-accent"
+                    : "border-border text-muted hover:text-foreground"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-foreground">Muddat</label>
+          <div className="mb-2 flex flex-wrap gap-2">
+            <button
+              onClick={() => setMode("lifetime")}
+              className={`inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                mode === "lifetime"
+                  ? "border-accent bg-accent-soft text-accent"
+                  : "border-border text-muted hover:text-foreground"
+              }`}
+            >
+              <InfinityIcon className="h-4 w-4" /> Umrbod
+            </button>
+            <button
+              onClick={() => setMode("months")}
+              className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                mode === "months"
+                  ? "border-accent bg-accent-soft text-accent"
+                  : "border-border text-muted hover:text-foreground"
+              }`}
+            >
+              Oy bo'yicha
+            </button>
+            <button
+              onClick={() => setMode("date")}
+              className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                mode === "date"
+                  ? "border-accent bg-accent-soft text-accent"
+                  : "border-border text-muted hover:text-foreground"
+              }`}
+            >
+              Aniq sana
+            </button>
+          </div>
+
+          {mode === "months" && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {[1, 3, 6, 12, 24].map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setMonths(m)}
+                    className={`rounded-lg border px-3 py-1.5 text-sm transition ${
+                      months === m
+                        ? "border-accent bg-accent-soft text-accent"
+                        : "border-border text-muted hover:text-foreground"
+                    }`}
+                  >
+                    {m === 12 ? "1 yil" : m === 24 ? "2 yil" : `${m} oy`}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="number"
+                min={1}
+                max={600}
+                value={months}
+                onChange={(e) => setMonths(Number(e.target.value))}
+                className="h-10 w-32 rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-accent"
+              />
+              <span className="ml-2 text-xs text-muted">oy qo'shiladi</span>
+            </div>
+          )}
+
+          {mode === "date" && (
+            <input
+              type="date"
+              value={untilDate}
+              onChange={(e) => setUntilDate(e.target.value)}
+              className="h-10 rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-accent"
+            />
+          )}
+
+          {mode === "lifetime" && (
+            <p className="text-sm text-muted">
+              Tarif muddatsiz (umrbod) bo'ladi — to'lov muddati kuzatilmaydi.
+            </p>
+          )}
+        </div>
+
+        {err && <p className="text-sm text-error">{err}</p>}
+
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={onClose}>
+            Bekor qilish
+          </Button>
+          <Button onClick={save} disabled={saving || (mode === "date" && !untilDate)}>
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+            Saqlash
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
 }

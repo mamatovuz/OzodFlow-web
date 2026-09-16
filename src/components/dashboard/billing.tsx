@@ -28,6 +28,8 @@ type PaymentRequest = {
   adminNote: string | null;
   createdAt: string;
   receiptImage: string;
+  payProvider?: string;
+  payUrl?: string | null;
 };
 
 type PayCard = {
@@ -61,6 +63,7 @@ export function Billing({
     BUSINESS: PLANS.BUSINESS.defaultPrice,
   });
   const [lifetimePrices, setLifetimePrices] = useState<Record<string, number>>({});
+  const [inpayEnabled, setInpayEnabled] = useState(false);
   const [modal, setModal] = useState<PlanKey | null>(null);
 
   async function loadRequests() {
@@ -72,17 +75,32 @@ export function Billing({
     const res = await fetch("/api/payment/plans");
     const json = await res.json();
     if (json.success) {
-      const { lifetime, ...monthly } = json.data as Record<string, number> & {
+      const { lifetime, inpay, ...monthly } = json.data as Record<string, number> & {
         lifetime?: Record<string, number>;
+        inpay?: boolean;
       };
-      setPrices(monthly);
+      setPrices(monthly as Record<string, number>);
       if (lifetime) setLifetimePrices(lifetime);
+      setInpayEnabled(!!inpay);
     }
   }
+
+  const [justPaid, setJustPaid] = useState(false);
 
   useEffect(() => {
     loadRequests();
     loadPrices();
+    // inPAY'dan qaytish (?paid=1) — to'lov qayta ishlanmoqda, bir necha marta
+    // so'rovlarni yangilaymiz (webhook kelishini kutamiz)
+    if (typeof window !== "undefined" && window.location.search.includes("paid=1")) {
+      setJustPaid(true);
+      let n = 0;
+      const t = setInterval(() => {
+        loadRequests();
+        if (++n >= 5) clearInterval(t);
+      }, 3000);
+      return () => clearInterval(t);
+    }
   }, []);
 
   const pending = requests.find((r) => r.status === "PENDING");
@@ -113,6 +131,24 @@ export function Billing({
         )}
       </Card>
 
+      {/* inPAY'dan qaytish */}
+      {justPaid && !pending && (
+        <Card className="border-success/30 bg-success/5 p-5">
+          <div className="flex items-center gap-2 text-success">
+            <CheckCircle2 className="h-4 w-4" />
+            <p className="text-sm font-medium">To'lov qabul qilindi — tarifingiz faollashtirildi!</p>
+          </div>
+        </Card>
+      )}
+      {justPaid && pending && pending.payProvider === "INPAY" && (
+        <Card className="border-accent/30 bg-accent-soft/40 p-5">
+          <div className="flex items-center gap-2 text-accent">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <p className="text-sm font-medium">To'lov tekshirilmoqda... Bir necha soniya kuting.</p>
+          </div>
+        </Card>
+      )}
+
       {/* Kutilayotgan so'rov */}
       {pending && (
         <Card className="border-warning/30 bg-warning/5 p-5">
@@ -126,8 +162,18 @@ export function Billing({
             </p>
           </div>
           <p className="mt-1 text-sm text-muted">
-            Chekingiz admin tomonidan ko'rib chiqilmoqda. Tez orada tasdiqlanadi.
+            {pending.payProvider === "INPAY"
+              ? "To'lov kutilmoqda. To'lovni yakunlagach tarifingiz avtomatik faollashadi."
+              : "Chekingiz admin tomonidan ko'rib chiqilmoqda. Tez orada tasdiqlanadi."}
           </p>
+          {pending.payProvider === "INPAY" && pending.payUrl && (
+            <a
+              href={pending.payUrl}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent-hover"
+            >
+              To'lovni davom ettirish →
+            </a>
+          )}
         </Card>
       )}
 
@@ -228,6 +274,7 @@ export function Billing({
           plan={modal}
           price={prices[modal]}
           lifetimePrice={lifetimePrices[modal] ?? 0}
+          inpayEnabled={inpayEnabled}
           onClose={() => setModal(null)}
           onDone={() => {
             setModal(null);
@@ -263,12 +310,14 @@ function PaymentModal({
   plan,
   price,
   lifetimePrice,
+  inpayEnabled,
   onClose,
   onDone,
 }: {
   plan: PlanKey;
   price: number;
   lifetimePrice: number;
+  inpayEnabled: boolean;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -277,6 +326,11 @@ function PaymentModal({
   const [receipt, setReceipt] = useState("");
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [payingOnline, setPayingOnline] = useState(false);
+  // To'lov usuli: inPAY yoqilgan bo'lsa standart "online", aks holda "manual"
+  const [method, setMethod] = useState<"online" | "manual">(
+    inpayEnabled ? "online" : "manual"
+  );
   const [error, setError] = useState("");
   const [copied, setCopied] = useState("");
   // Muddat va promo
@@ -371,6 +425,30 @@ function PaymentModal({
     onDone();
   }
 
+  // inPAY orqali onlayn to'lov — to'lov sahifasiga yo'naltiramiz
+  async function payOnline() {
+    setPayingOnline(true);
+    setError("");
+    const res = await fetch("/api/payment/inpay", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        plan,
+        months,
+        lifetime,
+        promoCode: promo?.code || undefined,
+      }),
+    });
+    const json = await res.json();
+    if (!res.ok || !json?.data?.payUrl) {
+      setPayingOnline(false);
+      setError(json.error || "Onlayn to'lovni boshlab bo'lmadi");
+      return;
+    }
+    // inPAY to'lov sahifasiga o'tamiz
+    window.location.href = json.data.payUrl;
+  }
+
   function copyCard(num: string) {
     navigator.clipboard.writeText(num.replace(/\s/g, ""));
     setCopied(num);
@@ -458,6 +536,45 @@ function PaymentModal({
           {lifetime && <p className="mt-1 text-xs text-muted">Umrbod — hech qachon tugamaydi</p>}
         </div>
 
+        {/* To'lov usuli */}
+        {inpayEnabled && (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setMethod("online")}
+              className={`rounded-xl border p-3 text-left transition ${
+                method === "online"
+                  ? "border-accent bg-accent-soft"
+                  : "border-border hover:bg-surface-2"
+              }`}
+            >
+              <p className="text-sm font-semibold text-foreground">💳 Onlayn to'lov</p>
+              <p className="mt-0.5 text-xs text-muted">Karta orqali — darhol faollashadi</p>
+            </button>
+            <button
+              onClick={() => setMethod("manual")}
+              className={`rounded-xl border p-3 text-left transition ${
+                method === "manual"
+                  ? "border-accent bg-accent-soft"
+                  : "border-border hover:bg-surface-2"
+              }`}
+            >
+              <p className="text-sm font-semibold text-foreground">🧾 Chek yuklash</p>
+              <p className="mt-0.5 text-xs text-muted">O'tkazma + chek (admin tasdig'i)</p>
+            </button>
+          </div>
+        )}
+
+        {/* Onlayn to'lov — inPAY */}
+        {method === "online" && (
+          <div className="rounded-xl border border-accent/30 bg-accent-soft/50 p-4 text-sm text-muted">
+            To'lov tugmasini bosgach xavfsiz inPAY sahifasiga o'tasiz. To'lovdan
+            so'ng tarifingiz <b className="text-foreground">avtomatik</b> faollashadi
+            — chek yuklash shart emas.
+          </div>
+        )}
+
+        {method === "manual" && (
+        <>
         <div>
           <Label>1. Quyidagi kartaga o'tkazing</Label>
           {loadingCards ? (
@@ -536,6 +653,8 @@ function PaymentModal({
             </label>
           )}
         </div>
+        </>
+        )}
 
         {error && (
           <div className="rounded-lg bg-error/10 px-3 py-2 text-sm text-error">
@@ -547,10 +666,17 @@ function PaymentModal({
           <Button variant="outline" onClick={onClose}>
             Bekor qilish
           </Button>
-          <Button onClick={submit} disabled={submitting || !receipt}>
-            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            So'rov yuborish
-          </Button>
+          {method === "online" ? (
+            <Button onClick={payOnline} disabled={payingOnline}>
+              {payingOnline && <Loader2 className="h-4 w-4 animate-spin" />}
+              {formatPrice(finalAmount, "UZS")} to'lash
+            </Button>
+          ) : (
+            <Button onClick={submit} disabled={submitting || !receipt}>
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              So'rov yuborish
+            </Button>
+          )}
         </div>
       </div>
     </Modal>

@@ -16,7 +16,7 @@ import { Button, Card, Switch } from "@/components/ui";
 type AiProduct = { name: string; price: number; description?: string; imagePrompt?: string; _keep?: boolean };
 type AiCategory = { name: string; nameRu?: string; products: AiProduct[] };
 
-type Phase = "idle" | "uploading" | "analyzing" | "preview" | "creating" | "done";
+type Phase = "idle" | "uploading" | "analyzing" | "preview" | "creating" | "imaging" | "done";
 
 export function AiImport({ onImported }: { onImported: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -25,6 +25,7 @@ export function AiImport({ onImported }: { onImported: () => void }) {
   const [error, setError] = useState("");
   const [cats, setCats] = useState<AiCategory[]>([]);
   const [withImages, setWithImages] = useState(true);
+  const [imgProgress, setImgProgress] = useState({ done: 0, total: 0 });
   const [result, setResult] = useState<{ createdProducts: number; createdCategories: number; imagesMade: number } | null>(null);
 
   async function uploadPhotos(e: React.ChangeEvent<HTMLInputElement>) {
@@ -101,7 +102,46 @@ export function AiImport({ onImported }: { onImported: () => void }) {
       setPhase("preview");
       return;
     }
-    setResult(json.data);
+
+    const created = json.data as {
+      createdProducts: number;
+      createdCategories: number;
+      pendingImages?: { id: string; prompt: string }[];
+    };
+    // Mahsulotlar allaqachon qo'shildi — menyuni yangilaymiz.
+    onImported();
+
+    // Rasmlarni bo'lak-bo'lak yasaymiz (progress ko'rsatib). Har biri qisqa
+    // so'rov — timeout bo'lmaydi va foydalanuvchi jarayonni ko'rib turadi.
+    const pending = created.pendingImages || [];
+    let imagesMade = 0;
+    if (withImages && pending.length > 0) {
+      setImgProgress({ done: 0, total: pending.length });
+      setPhase("imaging");
+      const BATCH = 3;
+      for (let i = 0; i < pending.length; i += BATCH) {
+        const items = pending.slice(i, i + BATCH);
+        try {
+          const r = await fetch("/api/products/ai-import", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ step: "images", items }),
+          });
+          const j = await r.json();
+          if (r.ok && j.success) imagesMade += j.data.done || 0;
+        } catch {
+          // bitta bo'lak xato bersa — davom etamiz
+        }
+        setImgProgress({ done: Math.min(i + BATCH, pending.length), total: pending.length });
+        onImported();
+      }
+    }
+
+    setResult({
+      createdProducts: created.createdProducts,
+      createdCategories: created.createdCategories,
+      imagesMade,
+    });
     setPhase("done");
     onImported();
   }
@@ -112,6 +152,7 @@ export function AiImport({ onImported }: { onImported: () => void }) {
     setCats([]);
     setResult(null);
     setError("");
+    setImgProgress({ done: 0, total: 0 });
   }
 
   const totalPreview = cats.reduce((s, c) => s + c.products.filter((p) => p._keep !== false).length, 0);
@@ -255,7 +296,28 @@ export function AiImport({ onImported }: { onImported: () => void }) {
       {phase === "creating" && (
         <div className="mt-4 flex items-center gap-2 rounded-lg bg-accent-soft px-3 py-3 text-sm text-accent">
           <Loader2 className="h-4 w-4 animate-spin" />
-          {withImages ? "Taomlar qo'shilmoqda va rasmlar yasalmoqda... (biroz vaqt oladi)" : "Taomlar qo'shilmoqda..."}
+          Taomlar qo'shilmoqda...
+        </div>
+      )}
+
+      {phase === "imaging" && (
+        <div className="mt-4 space-y-2 rounded-lg bg-accent-soft px-3 py-3">
+          <div className="flex items-center gap-2 text-sm text-accent">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Rasmlar yasalmoqda — {imgProgress.done}/{imgProgress.total}
+          </div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-accent/15">
+            <div
+              className="h-full rounded-full bg-accent transition-all duration-300"
+              style={{
+                width: `${imgProgress.total ? (imgProgress.done / imgProgress.total) * 100 : 0}%`,
+              }}
+            />
+          </div>
+          <p className="text-xs text-muted">
+            Taomlar allaqachon qo'shildi. Rasmlar tayyor bo'lgani sari menyuga
+            qo'shilib boradi. Iltimos, shu sahifada qoling.
+          </p>
         </div>
       )}
 

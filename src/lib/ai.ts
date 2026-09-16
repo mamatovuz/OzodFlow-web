@@ -5,7 +5,8 @@
 // ishlatiladi: birinchi kalit limitga yetsa (429/quota) — avtomatik keyingisiga
 // o'tadi. Shu tarzda cheksiz zaxira: bir kalitning limiti tugasa boshqasi ishlaydi.
 //
-// Provayder: Google Gemini (bepul tarif keng, vision + rasm generatsiya bor).
+// Provayderlar: Google Gemini VA OpenAI. Kalit qo'shilganda provayder va model
+// avtomatik aniqlanadi (kalit formati + provayder model ro'yxati orqali).
 // API kaliti DB'da AES-256-GCM bilan shifrlanadi.
 // ─────────────────────────────────────────────
 
@@ -14,6 +15,9 @@ import { prisma } from "./prisma";
 import type { AiKey } from "@prisma/client";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+const OPENAI_BASE = "https://api.openai.com/v1";
+
+export type Provider = "gemini" | "openai";
 
 // ─── Shifrlash (AI kalitlari uchun) ───
 function aiKey(): Buffer {
@@ -52,6 +56,15 @@ export function decryptApiKey(payload: string): string {
 
 export function keyHint(value: string): string {
   return value.length <= 4 ? "••••" : "••••" + value.slice(-4);
+}
+
+// Kalit formatidan provayderni taxmin qilamiz (aniq tekshiruv detectApiKey'da).
+export function guessProvider(apiKey: string): Provider {
+  const k = apiKey.trim();
+  if (/^sk-/.test(k) || /^sess-/.test(k)) return "openai";
+  if (/^AIza/.test(k)) return "gemini";
+  // Noma'lum: Gemini kalitlari odatda 39 belgi, OpenAI kalitlari uzunroq/sk- bilan.
+  return k.length > 60 ? "openai" : "gemini";
 }
 
 // AI umuman sozlanganmi (kamida bitta faol kalit)?
@@ -93,18 +106,21 @@ async function markFailure(id: string, error: string, cooldownMs: number) {
 function isQuotaError(status: number, bodyText: string): boolean {
   if (status === 429) return true;
   if (status === 403 && /quota|permission|exhaust|billing/i.test(bodyText)) return true;
+  if (status === 402) return true; // OpenAI: mablag' yetarli emas
   return false;
 }
 
 export type AiImage = { mime: string; base64: string };
 
+// ─────────────────────────────────────────────
+// GEMINI — past darajali
+// ─────────────────────────────────────────────
 type GeminiPart = { text?: string; inlineData?: { mimeType: string; data: string }; inline_data?: { mime_type: string; data: string } };
 type GeminiResp = {
   candidates?: { content?: { parts?: GeminiPart[] } }[];
   error?: { message?: string; status?: string };
 };
 
-// ─── Past darajali: bitta kalit bilan Gemini generateContent ───
 async function geminiGenerate(
   apiKey: string,
   model: string,
@@ -131,12 +147,12 @@ async function geminiGenerate(
   }
 }
 
-function extractText(data: GeminiResp): string {
+function geminiExtractText(data: GeminiResp): string {
   const parts = data.candidates?.[0]?.content?.parts || [];
   return parts.map((p) => p.text || "").join("").trim();
 }
 
-function extractImage(data: GeminiResp): AiImage | null {
+function geminiExtractImage(data: GeminiResp): AiImage | null {
   const parts = data.candidates?.[0]?.content?.parts || [];
   for (const p of parts) {
     const inline = p.inlineData || p.inline_data;
@@ -150,69 +166,68 @@ function extractImage(data: GeminiResp): AiImage | null {
   return null;
 }
 
+// ─────────────────────────────────────────────
+// OPENAI — past darajali
+// ─────────────────────────────────────────────
+type OpenAiContent = { type: "text"; text: string } | { type: "image_url"; image_url: { url: string } };
+
+async function openaiChat(
+  apiKey: string,
+  model: string,
+  content: OpenAiContent[],
+  opts?: { json?: boolean }
+): Promise<{ ok: true; text: string } | { ok: false; status: number; body: string }> {
+  try {
+    const body: Record<string, unknown> = {
+      model,
+      messages: [{ role: "user", content }],
+      temperature: 0.3,
+    };
+    if (opts?.json) body.response_format = { type: "json_object" };
+    const res = await fetch(`${OPENAI_BASE}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+    });
+    const text = await res.text();
+    if (!res.ok) return { ok: false, status: res.status, body: text };
+    const data = JSON.parse(text) as { choices?: { message?: { content?: string } }[] };
+    return { ok: true, text: (data.choices?.[0]?.message?.content || "").trim() };
+  } catch (e) {
+    return { ok: false, status: 0, body: e instanceof Error ? e.message : "network" };
+  }
+}
+
+async function openaiImage(
+  apiKey: string,
+  model: string,
+  prompt: string
+): Promise<{ ok: true; image: AiImage | null } | { ok: false; status: number; body: string }> {
+  try {
+    const body: Record<string, unknown> = { model, prompt, size: "1024x1024", n: 1 };
+    // dall-e modellari b64 uchun response_format talab qiladi; gpt-image-1 esa
+    // bu parametrni qabul qilmaydi (doim b64_json qaytaradi).
+    if (/dall-e/i.test(model)) body.response_format = "b64_json";
+    const res = await fetch(`${OPENAI_BASE}/images/generations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify(body),
+    });
+    const text = await res.text();
+    if (!res.ok) return { ok: false, status: res.status, body: text };
+    const data = JSON.parse(text) as { data?: { b64_json?: string }[] };
+    const b64 = data.data?.[0]?.b64_json;
+    return { ok: true, image: b64 ? { mime: "image/png", base64: b64 } : null };
+  } catch (e) {
+    return { ok: false, status: 0, body: e instanceof Error ? e.message : "network" };
+  }
+}
+
 export class AiUnavailableError extends Error {
   constructor(msg = "AI kalitlari sozlanmagan yoki barcha kalitlar band. Keyinroq urinib ko'ring.") {
     super(msg);
     this.name = "AiUnavailableError";
   }
-}
-
-// ─── Yuqori daraja: matn/JSON (vision) — failover bilan ───
-export async function aiGenerateJson(
-  promptText: string,
-  images: AiImage[] = []
-): Promise<string> {
-  const keys = await usableKeys();
-  if (keys.length === 0) throw new AiUnavailableError();
-
-  const parts: GeminiPart[] = [{ text: promptText }];
-  for (const img of images) parts.push({ inlineData: { mimeType: img.mime, data: img.base64 } });
-
-  let lastErr = "";
-  for (const k of keys) {
-    const apiKey = safeDecrypt(k.keyEnc);
-    if (!apiKey) continue;
-    const r = await geminiGenerate(apiKey, k.model, parts, { json: true });
-    if (r.ok) {
-      await markSuccess(k.id);
-      return extractText(r.data);
-    }
-    lastErr = r.body;
-    // Limit/quota — bu kalitni 2 daqiqa chetlab, keyingisiga o'tamiz
-    await markFailure(k.id, r.body, isQuotaError(r.status, r.body) ? 2 * 60 * 1000 : 0);
-  }
-  throw new AiUnavailableError(`AI javob bermadi: ${lastErr.slice(0, 120)}`);
-}
-
-// ─── Yuqori daraja: taom rasmini generatsiya qilish — failover bilan ───
-// Muvaffaqiyatда AiImage, aks holda null (rasm ixtiyoriy, xato bo'lsa o'tkazamiz).
-export async function aiGenerateDishImage(prompt: string): Promise<AiImage | null> {
-  const keys = await usableKeys();
-  if (keys.length === 0) return null;
-  const parts: GeminiPart[] = [{ text: prompt }];
-  for (const k of keys) {
-    const apiKey = safeDecrypt(k.keyEnc);
-    if (!apiKey) continue;
-    const r = await geminiGenerate(apiKey, k.imageModel || "gemini-2.5-flash-image-preview", parts, {
-      image: true,
-    });
-    if (r.ok) {
-      const img = extractImage(r.data);
-      if (img) {
-        await markSuccess(k.id);
-        return img;
-      }
-      // rasm qaytmadi — keyingi kalitni sinamaymiz (model qo'llab-quvvatlamasligi mumkin)
-      continue;
-    }
-    if (isQuotaError(r.status, r.body)) {
-      await markFailure(k.id, r.body, 2 * 60 * 1000);
-      continue; // keyingi kalitga o'tamiz
-    }
-    // boshqa xato (model mavjud emas va h.k.) — rasmni tashlab ketamiz
-    return null;
-  }
-  return null;
 }
 
 function safeDecrypt(enc: string): string | null {
@@ -223,9 +238,237 @@ function safeDecrypt(enc: string): string | null {
   }
 }
 
-// Bitta kalitni tez tekshirish (admin "test" tugmasi uchun)
-export async function testApiKey(apiKey: string, model = "gemini-2.0-flash"): Promise<{ ok: boolean; error?: string }> {
-  const r = await geminiGenerate(apiKey, model, [{ text: "Javob: OK" }], {});
-  if (r.ok) return { ok: true };
-  return { ok: false, error: r.body.slice(0, 200) };
+function providerOf(k: AiKey): Provider {
+  return k.provider === "openai" ? "openai" : "gemini";
+}
+
+// ─────────────────────────────────────────────
+// Yuqori daraja: matn/JSON (vision) — failover bilan
+// ─────────────────────────────────────────────
+export async function aiGenerateJson(
+  promptText: string,
+  images: AiImage[] = []
+): Promise<string> {
+  const keys = await usableKeys();
+  if (keys.length === 0) throw new AiUnavailableError();
+
+  let lastErr = "";
+  for (const k of keys) {
+    const apiKey = safeDecrypt(k.keyEnc);
+    if (!apiKey) continue;
+
+    if (providerOf(k) === "openai") {
+      const content: OpenAiContent[] = [{ type: "text", text: promptText }];
+      for (const img of images)
+        content.push({ type: "image_url", image_url: { url: `data:${img.mime};base64,${img.base64}` } });
+      const r = await openaiChat(apiKey, k.model, content, { json: true });
+      if (r.ok) {
+        await markSuccess(k.id);
+        return r.text;
+      }
+      lastErr = r.body;
+      await markFailure(k.id, r.body, isQuotaError(r.status, r.body) ? 2 * 60 * 1000 : 0);
+      continue;
+    }
+
+    // gemini
+    const parts: GeminiPart[] = [{ text: promptText }];
+    for (const img of images) parts.push({ inlineData: { mimeType: img.mime, data: img.base64 } });
+    const r = await geminiGenerate(apiKey, k.model, parts, { json: true });
+    if (r.ok) {
+      await markSuccess(k.id);
+      return geminiExtractText(r.data);
+    }
+    lastErr = r.body;
+    await markFailure(k.id, r.body, isQuotaError(r.status, r.body) ? 2 * 60 * 1000 : 0);
+  }
+  throw new AiUnavailableError(`AI javob bermadi: ${lastErr.slice(0, 120)}`);
+}
+
+// ─────────────────────────────────────────────
+// Yuqori daraja: taom rasmini generatsiya qilish — failover bilan
+// Muvaffaqiyatда AiImage, aks holda null (rasm ixtiyoriy).
+// ─────────────────────────────────────────────
+export async function aiGenerateDishImage(prompt: string): Promise<AiImage | null> {
+  const keys = await usableKeys();
+  if (keys.length === 0) return null;
+
+  for (const k of keys) {
+    const apiKey = safeDecrypt(k.keyEnc);
+    if (!apiKey) continue;
+
+    if (providerOf(k) === "openai") {
+      const r = await openaiImage(apiKey, k.imageModel || "gpt-image-1", prompt);
+      if (r.ok) {
+        if (r.image) {
+          await markSuccess(k.id);
+          return r.image;
+        }
+        continue; // rasm qaytmadi — keyingi kalitni sinaymiz
+      }
+      if (isQuotaError(r.status, r.body)) {
+        await markFailure(k.id, r.body, 2 * 60 * 1000);
+        continue;
+      }
+      // boshqa xato (model yo'q, ruxsat yo'q) — keyingi kalitga o'tamiz
+      continue;
+    }
+
+    // gemini
+    const parts: GeminiPart[] = [{ text: prompt }];
+    const r = await geminiGenerate(apiKey, k.imageModel || "gemini-2.5-flash-image-preview", parts, {
+      image: true,
+    });
+    if (r.ok) {
+      const img = geminiExtractImage(r.data);
+      if (img) {
+        await markSuccess(k.id);
+        return img;
+      }
+      continue;
+    }
+    if (isQuotaError(r.status, r.body)) {
+      await markFailure(k.id, r.body, 2 * 60 * 1000);
+      continue;
+    }
+    continue;
+  }
+  return null;
+}
+
+// ─────────────────────────────────────────────
+// Model ro'yxatini olib, eng mos matn/rasm modelini tanlash
+// ─────────────────────────────────────────────
+async function geminiListModels(apiKey: string): Promise<string[] | { error: string }> {
+  try {
+    const res = await fetch(`${GEMINI_BASE}?key=${apiKey}&pageSize=200`);
+    const text = await res.text();
+    if (!res.ok) {
+      const msg = (() => {
+        try {
+          return (JSON.parse(text) as { error?: { message?: string } }).error?.message || text;
+        } catch {
+          return text;
+        }
+      })();
+      return { error: msg.slice(0, 200) };
+    }
+    const data = JSON.parse(text) as {
+      models?: { name?: string; supportedGenerationMethods?: string[] }[];
+    };
+    return (data.models || [])
+      .filter((m) => (m.supportedGenerationMethods || []).includes("generateContent"))
+      .map((m) => (m.name || "").replace(/^models\//, ""))
+      .filter(Boolean);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "network" };
+  }
+}
+
+async function openaiListModels(apiKey: string): Promise<string[] | { error: string }> {
+  try {
+    const res = await fetch(`${OPENAI_BASE}/models`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      const msg = (() => {
+        try {
+          return (JSON.parse(text) as { error?: { message?: string } }).error?.message || text;
+        } catch {
+          return text;
+        }
+      })();
+      return { error: msg.slice(0, 200) };
+    }
+    const data = JSON.parse(text) as { data?: { id?: string }[] };
+    return (data.data || []).map((m) => m.id || "").filter(Boolean);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "network" };
+  }
+}
+
+// Ro'yxatdan eng yaxshi matn/vision modelini tanlaymiz (tartib = ustuvorlik)
+function pickTextModel(provider: Provider, models: string[]): string {
+  const has = (needle: string) => models.find((m) => m.toLowerCase().includes(needle));
+  if (provider === "gemini") {
+    return (
+      models.find((m) => m === "gemini-2.0-flash") ||
+      has("2.5-flash") ||
+      has("2.0-flash") ||
+      has("flash") ||
+      has("gemini") ||
+      "gemini-2.0-flash"
+    );
+  }
+  // openai — vision qo'llab-quvvatlaydigan arzon/tez modellar ustuvor
+  return (
+    models.find((m) => m === "gpt-4o-mini") ||
+    models.find((m) => m === "gpt-4o") ||
+    has("gpt-4.1-mini") ||
+    has("gpt-4.1") ||
+    has("gpt-4o") ||
+    has("gpt-4") ||
+    "gpt-4o-mini"
+  );
+}
+
+function pickImageModel(provider: Provider, models: string[]): string {
+  const has = (needle: string) => models.find((m) => m.toLowerCase().includes(needle));
+  if (provider === "gemini") {
+    return (
+      has("flash-image") ||
+      models.find((m) => m.toLowerCase().includes("image") && m.toLowerCase().includes("gemini")) ||
+      "gemini-2.5-flash-image-preview"
+    );
+  }
+  return has("gpt-image") || has("dall-e-3") || has("dall-e") || "gpt-image-1";
+}
+
+export type DetectResult = {
+  ok: boolean;
+  provider: Provider;
+  model: string;
+  imageModel: string;
+  error?: string;
+};
+
+// Kalitni tekshirib, provayder + eng mos model + rasm modelini AVTOMATIK aniqlaydi.
+export async function detectApiKey(apiKey: string): Promise<DetectResult> {
+  const trimmed = apiKey.trim();
+  const guessed = guessProvider(trimmed);
+  // Taxmin qilingan provayderdan boshlab, kerak bo'lsa ikkinchisini ham sinaymiz.
+  const order: Provider[] = guessed === "openai" ? ["openai", "gemini"] : ["gemini", "openai"];
+
+  let lastErr = "";
+  for (const provider of order) {
+    const models = provider === "gemini" ? await geminiListModels(trimmed) : await openaiListModels(trimmed);
+    if (Array.isArray(models)) {
+      if (models.length === 0) {
+        lastErr = "Model ro'yxati bo'sh";
+        continue;
+      }
+      return {
+        ok: true,
+        provider,
+        model: pickTextModel(provider, models),
+        imageModel: pickImageModel(provider, models),
+      };
+    }
+    lastErr = models.error;
+  }
+  return {
+    ok: false,
+    provider: guessed,
+    model: guessed === "openai" ? "gpt-4o-mini" : "gemini-2.0-flash",
+    imageModel: guessed === "openai" ? "gpt-image-1" : "gemini-2.5-flash-image-preview",
+    error: lastErr || "Kalit tekshirilmadi",
+  };
+}
+
+// Bitta kalitni tez tekshirish (admin "test" tugmasi uchun) — provayderni aniqlab ko'radi.
+export async function testApiKey(apiKey: string): Promise<{ ok: boolean; error?: string; provider?: Provider; model?: string; imageModel?: string }> {
+  const d = await detectApiKey(apiKey);
+  if (d.ok) return { ok: true, provider: d.provider, model: d.model, imageModel: d.imageModel };
+  return { ok: false, error: d.error };
 }

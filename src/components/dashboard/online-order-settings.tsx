@@ -126,21 +126,23 @@ export function OnlineOrderSettings({
               </div>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <input
                 value={newId}
                 onChange={(e) => setNewId(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addId()}
                 placeholder="Masalan: 123456789"
                 inputMode="numeric"
-                className="h-10 flex-1 rounded-lg border border-border bg-card px-3 font-mono text-sm text-foreground outline-none focus:border-accent"
+                className="h-10 w-full min-w-0 rounded-lg border border-border bg-card px-3 font-mono text-sm text-foreground outline-none focus:border-accent sm:flex-1"
               />
-              <Button variant="outline" onClick={addId}>
-                <Plus className="h-4 w-4" /> Qo'shish
-              </Button>
-              <Button onClick={() => saveIds(ids)} disabled={saving}>
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Saqlash"}
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={addId} className="flex-1 sm:flex-none">
+                  <Plus className="h-4 w-4" /> Qo'shish
+                </Button>
+                <Button onClick={() => saveIds(ids)} disabled={saving} className="flex-1 sm:flex-none">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Saqlash"}
+                </Button>
+              </div>
             </div>
           </div>
 

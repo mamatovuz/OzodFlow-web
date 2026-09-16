@@ -103,8 +103,10 @@ export async function POST(req: NextRequest) {
     let createdCats = 0;
     let createdProds = 0;
 
-    // Rasmlar generatsiyasi sekin — avval mahsulotlarni yaratamiz, keyin rasm biriktiramiz
-    const madeProducts: { id: string; imagePrompt: string; name: string }[] = [];
+    // Mahsulotlarni TEZDA yaratamiz. Rasmlar sekin — ularni alohida "images"
+    // bosqichida (client polling bilan) yasaymiz, shunda so'rov timeout bo'lmaydi
+    // va foydalanuvchi jarayonni (progress) ko'rib turadi.
+    const pendingImages: { id: string; prompt: string }[] = [];
 
     for (const cat of categories) {
       const name = String(cat.name || "").trim();
@@ -136,30 +138,46 @@ export async function POST(req: NextRequest) {
           },
         });
         createdProds++;
-        if (withImages && p.imagePrompt) {
-          madeProducts.push({ id: product.id, imagePrompt: String(p.imagePrompt), name: pname });
-        }
+        const prompt = String(p.imagePrompt || pname).trim();
+        if (withImages && prompt) pendingImages.push({ id: product.id, prompt });
       }
     }
 
-    // Rasmlarni AI orqali generatsiya qilib biriktiramiz (cheklangan parallellik)
-    let imagesMade = 0;
-    if (withImages && madeProducts.length > 0) {
-      await mapWithConcurrency(madeProducts, 2, async (mp) => {
-        const img = await aiGenerateDishImage(
-          `${mp.imagePrompt}. Professional food photography, appetizing, clean background, high detail, square format.`
-        );
-        if (!img) return;
-        const url = await storeImageBuffer(img.base64);
-        if (!url) return;
-        await prisma.product
-          .update({ where: { id: mp.id }, data: { images: JSON.stringify([url]) } })
-          .catch(() => {});
-        imagesMade++;
-      });
-    }
+    return ok({ createdCategories: createdCats, createdProducts: createdProds, pendingImages });
+  }
 
-    return ok({ createdCategories: createdCats, createdProducts: createdProds, imagesMade });
+  // ─── 3-qadam: mahsulotlarga AI rasm yasab biriktirish (bo'lak-bo'lak) ───
+  // Client buni kichik guruhlarga bo'lib chaqiradi va progressni ko'rsatadi.
+  if (step === "images") {
+    const items: { id: string; prompt: string }[] = Array.isArray(body?.items)
+      ? body.items.slice(0, 6)
+      : [];
+    if (items.length === 0) return ok({ done: 0 });
+
+    // Faqat shu restoranga tegishli mahsulotlar (xavfsizlik)
+    const ids = items.map((it) => String(it?.id || "")).filter(Boolean);
+    const owned = await prisma.product.findMany({
+      where: { id: { in: ids }, restaurantId: restaurant.id },
+      select: { id: true },
+    });
+    const ownedIds = new Set(owned.map((p) => p.id));
+    const valid = items.filter((it) => ownedIds.has(String(it.id)));
+
+    let done = 0;
+    await mapWithConcurrency(valid, 2, async (it) => {
+      const img = await aiGenerateDishImage(
+        `${it.prompt}. Professional food photography, appetizing, clean background, high detail, square format.`
+      );
+      if (!img) return;
+      const url = await storeImageBuffer(img.base64);
+      if (!url) return;
+      await prisma.product
+        .update({ where: { id: it.id }, data: { images: JSON.stringify([url]) } })
+        .catch(() => {});
+      done++;
+    });
+
+    return ok({ done });
   }
 
   return fail("Noto'g'ri so'rov", 422);

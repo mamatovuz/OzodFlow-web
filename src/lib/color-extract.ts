@@ -26,14 +26,25 @@ function clampMix(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-// Rasmni yuklab, eng ko'p uchraydigan (to'yingan) rangni topadi.
+// To'yinganlik (0–1) — kulrang piksellarni ajratish uchun
+function saturation(r: number, g: number, b: number): number {
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  if (max === 0) return 0;
+  return (max - min) / max;
+}
+
+// Rasmni yuklab, brend rangini (eng to'yingan, ko'p uchraydigan) topadi.
+// Logo foni odatda oq/qora/kulrang bo'ladi — ularni chetlab, chinakam
+// brend rangini ajratamiz. To'liq kulrang logolar uchun ham fallback bor.
 export async function suggestColorsFromImage(src: string): Promise<SuggestedColors | null> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
       try {
-        const size = 48;
+        // Aniqlik uchun kattaroq namuna (nisbatni saqlab)
+        const size = 96;
         const canvas = document.createElement("canvas");
         canvas.width = size;
         canvas.height = size;
@@ -42,34 +53,50 @@ export async function suggestColorsFromImage(src: string): Promise<SuggestedColo
         ctx.drawImage(img, 0, 0, size, size);
         const { data } = ctx.getImageData(0, 0, size, size);
 
-        // Ranglarni "chelak"larga guruhlab, eng ko'p+to'yingan chelakni tanlaymiz
-        const buckets: Record<string, { r: number; g: number; b: number; count: number; score: number }> = {};
+        type Bucket = { r: number; g: number; b: number; count: number; score: number };
+        // Ikki guruh: rangli (to'yingan) va zaxira (istalgan). Rangli bo'lsa
+        // undan tanlaymiz — kulrang matn/fon brend rangini bosib ketmaydi.
+        const colorful: Record<string, Bucket> = {};
+        const fallback: Record<string, Bucket> = {};
+
+        const add = (map: Record<string, Bucket>, key: string, r: number, g: number, b: number, weight: number) => {
+          if (!map[key]) map[key] = { r: 0, g: 0, b: 0, count: 0, score: 0 };
+          const bk = map[key];
+          bk.r += r;
+          bk.g += g;
+          bk.b += b;
+          bk.count += 1;
+          bk.score += weight;
+        };
+
         for (let i = 0; i < data.length; i += 4) {
           const r = data[i];
           const g = data[i + 1];
           const b = data[i + 2];
           const a = data[i + 3];
           if (a < 128) continue; // shaffof
-          const max = Math.max(r, g, b);
-          const min = Math.min(r, g, b);
-          const sat = max === 0 ? 0 : (max - min) / max;
           const lum = luminance(r, g, b);
-          // deyarli oq/qora piksellarni tashlab yuboramiz (logo foni)
-          if (lum > 240 || lum < 15) continue;
-          const key = `${r >> 5}-${g >> 5}-${b >> 5}`;
-          const weight = 1 + sat * 3; // to'yingan ranglar ustunroq
-          if (!buckets[key]) buckets[key] = { r: 0, g: 0, b: 0, count: 0, score: 0 };
-          buckets[key].r += r;
-          buckets[key].g += g;
-          buckets[key].b += b;
-          buckets[key].count += 1;
-          buckets[key].score += weight;
+          if (lum > 244 || lum < 12) continue; // deyarli oq/qora
+          const sat = saturation(r, g, b);
+          // Nozik chelaklar (16 daraja/kanal) — rang aniqligini saqlaydi
+          const key = `${r >> 4}-${g >> 4}-${b >> 4}`;
+          add(fallback, key, r, g, b, 1);
+          if (sat >= 0.18) {
+            // to'yinganlikni kuchli mukofotlaymiz — chinakam brend rangi ustun
+            add(colorful, key, r, g, b, 1 + sat * sat * 6);
+          }
         }
 
-        const arr = Object.values(buckets);
-        if (arr.length === 0) return resolve(null);
-        arr.sort((a, b) => b.score - a.score);
-        const top = arr[0];
+        const pick = (map: Record<string, Bucket>): Bucket | null => {
+          const arr = Object.values(map);
+          if (arr.length === 0) return null;
+          arr.sort((a, b) => b.score - a.score);
+          return arr[0];
+        };
+
+        // Avval rangli guruh; bo'sh bo'lsa (logo butunlay kulrang) — zaxira
+        const top = pick(colorful) || pick(fallback);
+        if (!top) return resolve(null);
         const r = top.r / top.count;
         const g = top.g / top.count;
         const b = top.b / top.count;

@@ -122,8 +122,9 @@ export function AiKeysManager() {
         <Card className="p-10 text-center">
           <KeyRound className="mx-auto h-10 w-10 text-muted/40" />
           <p className="mt-3 text-sm text-muted">
-            Hali AI kalit yo'q. Google AI Studio'dan (aistudio.google.com) bepul
-            Gemini kaliti oling va shu yerga qo'shing.
+            Hali AI kalit yo'q. <b>Gemini</b> (aistudio.google.com — bepul) yoki{" "}
+            <b>OpenAI</b> (platform.openai.com) kalitini qo'shing — provayder va model
+            avtomatik aniqlanadi.
           </p>
         </Card>
       ) : (
@@ -152,7 +153,10 @@ export function AiKeysManager() {
                     )}
                   </div>
                   <p className="mt-0.5 text-xs text-muted">
-                    {k.model} · rasm: {k.imageModel.replace("gemini-", "")}
+                    <span className="font-medium text-foreground/80">
+                      {k.provider === "openai" ? "OpenAI" : "Gemini"}
+                    </span>{" "}
+                    · {k.model} · rasm: {k.imageModel.replace(/^gemini-/, "")}
                     {k.lastUsedAt && ` · oxirgi: ${new Date(k.lastUsedAt).toLocaleString("uz-UZ")}`}
                     {k.failCount > 0 && ` · ${k.failCount} xato`}
                   </p>
@@ -226,35 +230,62 @@ export function AiKeysManager() {
   );
 }
 
+type Detected = { provider: string; model: string; imageModel: string };
+
 function AddKeyModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [name, setName] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [model, setModel] = useState("gemini-2.0-flash");
   const [saving, setSaving] = useState(false);
+  const [detecting, setDetecting] = useState(false);
   const [error, setError] = useState("");
-  const [tested, setTested] = useState<null | boolean>(null);
+  const [detected, setDetected] = useState<Detected | null>(null);
 
-  async function save(withTest: boolean) {
+  // Kalitni tekshirib provayder + modelni avtomatik aniqlaydi (saqlamaydi).
+  async function detect() {
+    if (apiKey.trim().length < 10) {
+      setError("To'g'ri API kalit kiriting");
+      return;
+    }
+    setDetecting(true);
+    setError("");
+    setDetected(null);
+    const res = await fetch("/api/admin/ai-keys/detect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ apiKey: apiKey.trim() }),
+    });
+    const json = await res.json();
+    setDetecting(false);
+    if (!res.ok || !json.success) {
+      setError(json.error || "Kalit tekshirilmadi");
+      return;
+    }
+    setDetected(json.data);
+  }
+
+  async function save() {
     if (!name.trim() || apiKey.trim().length < 10) {
       setError("Nom va to'g'ri API kalit kiriting");
       return;
     }
     setSaving(true);
     setError("");
+    // Server o'zi tekshiradi va provayder/modelni aniqlaydi.
     const res = await fetch("/api/admin/ai-keys", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, apiKey, model, test: withTest }),
+      body: JSON.stringify({ name: name.trim(), apiKey: apiKey.trim() }),
     });
     const json = await res.json();
     setSaving(false);
-    if (!res.ok) {
+    if (!res.ok || !json.success) {
       setError(json.error || "Xatolik");
-      setTested(false);
       return;
     }
     onDone();
   }
+
+  const providerLabel = detected?.provider === "openai" ? "OpenAI" : "Gemini";
 
   return (
     <Modal open onClose={onClose} title="AI kalit qo'shish">
@@ -270,38 +301,51 @@ function AddKeyModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-foreground">
-            Gemini API kaliti
+            API kaliti (Gemini yoki OpenAI)
           </label>
           <input
             value={apiKey}
             onChange={(e) => {
               setApiKey(e.target.value);
-              setTested(null);
+              setDetected(null);
+              setError("");
             }}
-            placeholder="AIza..."
+            onBlur={() => apiKey.trim().length >= 10 && !detected && detect()}
+            placeholder="AIza...  yoki  sk-..."
             className="h-10 w-full rounded-lg border border-border bg-card px-3 font-mono text-sm text-foreground outline-none focus:border-accent"
           />
           <p className="mt-1 text-xs text-muted">
-            aistudio.google.com → &quot;Get API key&quot; (bepul).
+            Provayder va model avtomatik aniqlanadi. Gemini: aistudio.google.com
+            (bepul) · OpenAI: platform.openai.com.
           </p>
         </div>
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-foreground">Model</label>
-          <select
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-accent"
-          >
-            <option value="gemini-2.0-flash">gemini-2.0-flash (tavsiya)</option>
-            <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-            <option value="gemini-1.5-flash">gemini-1.5-flash</option>
-          </select>
-        </div>
 
-        {error && <p className="text-sm text-error">{error}</p>}
-        {tested === false && !error && (
+        {/* Avtomatik aniqlangan model */}
+        <button
+          type="button"
+          onClick={detect}
+          disabled={detecting || apiKey.trim().length < 10}
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-accent disabled:opacity-50"
+        >
+          {detecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+          Provayder va modelni aniqlash
+        </button>
+
+        {detected && (
+          <div className="rounded-lg border border-success/30 bg-success/5 px-3 py-2.5 text-sm">
+            <p className="flex items-center gap-1.5 font-medium text-success">
+              <CheckCircle2 className="h-4 w-4" /> {providerLabel} · kalit ishlayapti
+            </p>
+            <p className="mt-1 text-xs text-muted">
+              Model: <span className="font-mono text-foreground">{detected.model}</span>
+              {" · "}rasm: <span className="font-mono text-foreground">{detected.imageModel}</span>
+            </p>
+          </div>
+        )}
+
+        {error && (
           <p className="flex items-center gap-1 text-sm text-error">
-            <XCircle className="h-4 w-4" /> Kalit ishlamadi
+            <XCircle className="h-4 w-4" /> {error}
           </p>
         )}
 
@@ -309,13 +353,9 @@ function AddKeyModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
           <Button variant="outline" onClick={onClose}>
             Bekor qilish
           </Button>
-          <Button variant="outline" onClick={() => save(true)} disabled={saving}>
+          <Button onClick={save} disabled={saving}>
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            <CheckCircle2 className="h-4 w-4" /> Tekshirib qo'shish
-          </Button>
-          <Button onClick={() => save(false)} disabled={saving}>
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            Qo'shish
+            <CheckCircle2 className="h-4 w-4" /> Qo'shish
           </Button>
         </div>
       </div>

@@ -52,12 +52,13 @@ export async function sendEmail(opts: {
 }
 
 // ─────────────────────────────────────────────
-// Chiroyli, brendli HTML shablon (email mijozlariga mos — inline CSS, jadval).
+// Minimalist HTML shablon — oq fon, sokin tipografiya, keraksiz bezaksiz.
+// (Email mijozlariga mos: inline CSS, jadval tuzilishi.)
 // ─────────────────────────────────────────────
-const ACCENT = "#2563EB";
-const INK = "#0F172A";
-const MUTED = "#64748B";
-const BG = "#F1F5F9";
+const INK = "#111111";
+const MUTED = "#8A8F98";
+const LINE = "#ECECEC";
+const FONT = "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif";
 
 function shell(inner: string, preheader = ""): string {
   return `<!doctype html>
@@ -67,24 +68,21 @@ function shell(inner: string, preheader = ""): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
 </head>
-<body style="margin:0;padding:0;background:${BG};">
+<body style="margin:0;padding:0;background:#FFFFFF;">
 ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${preheader}</div>` : ""}
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BG};padding:32px 12px;">
-  <tr><td align="center">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#FFFFFF;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.08);">
-      <tr>
-        <td style="background:${ACCENT};padding:22px 28px;">
-          <span style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:20px;font-weight:800;color:#FFFFFF;letter-spacing:-.02em;">OzodFlow</span>
-        </td>
-      </tr>
-      <tr><td style="padding:32px 28px 34px;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FFFFFF;">
+  <tr><td align="center" style="padding:56px 20px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:400px;">
+      <tr><td style="font-family:${FONT};">
+        <div style="font-size:15px;font-weight:600;color:${INK};letter-spacing:-.01em;">OzodFlow</div>
+        <div style="height:28px;"></div>
         ${inner}
+        <div style="height:36px;"></div>
+        <div style="border-top:1px solid ${LINE};padding-top:16px;font-size:12px;line-height:1.6;color:${MUTED};">
+          Agar bu so'rov sizdan bo'lmasa, xatni e'tiborsiz qoldiring.
+        </div>
       </td></tr>
     </table>
-    <p style="max-width:480px;margin:18px auto 0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:12px;line-height:1.6;color:${MUTED};text-align:center;">
-      Bu xat OzodFlow tomonidan yuborildi. Agar bu so'rov sizdan bo'lmasa, xatni e'tiborsiz qoldiring.<br>
-      © ${new Date().getFullYear()} OzodFlow · ozodflow.uz
-    </p>
   </td></tr>
 </table>
 </body>
@@ -92,50 +90,43 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;"
 }
 
 function heading(text: string): string {
-  return `<h1 style="margin:0 0 10px;font-size:22px;font-weight:800;color:${INK};letter-spacing:-.02em;">${text}</h1>`;
+  return `<div style="font-size:18px;font-weight:600;color:${INK};letter-spacing:-.01em;margin:0 0 8px;">${text}</div>`;
 }
 function paragraph(text: string): string {
-  return `<p style="margin:0 0 18px;font-size:15px;line-height:1.6;color:${MUTED};">${text}</p>`;
+  return `<p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#4A4F57;">${text}</p>`;
 }
 
-/** Tasdiqlash kodi xati (katta, o'qishga oson kod bloki bilan). */
+/** Tasdiqlash kodi xati — sokin, katta o'qiladigan kod. */
 export function verifyCodeEmail(code: string, name?: string): { subject: string; html: string } {
   const spaced = code.split("").join(" ");
   const inner = `
     ${heading("Emailingizni tasdiqlang")}
-    ${paragraph(`${name ? name + ", x" : "X"}ush kelibsiz! Ro'yxatdan o'tishni yakunlash uchun quyidagi tasdiqlash kodini kiriting.`)}
-    <div style="margin:8px 0 20px;padding:20px;background:${BG};border-radius:12px;text-align:center;">
-      <div style="font-family:-apple-system,Segoe UI,Roboto,monospace;font-size:34px;font-weight:800;letter-spacing:8px;color:${ACCENT};">${spaced}</div>
-    </div>
-    ${paragraph("Kod <b>10 daqiqa</b> davomida amal qiladi. Uni hech kim bilan bo'lishmang.")}
+    ${paragraph(`${name ? name + ", r" : "R"}o'yxatdan o'tishni yakunlash uchun quyidagi kodni kiriting.`)}
+    <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:32px;font-weight:600;letter-spacing:10px;color:${INK};margin:4px 0 18px;">${spaced}</div>
+    <p style="margin:0;font-size:13px;line-height:1.6;color:${MUTED};">Kod 10 daqiqa amal qiladi.</p>
   `;
-  return { subject: `OzodFlow tasdiqlash kodi: ${code}`, html: shell(inner, `Tasdiqlash kodingiz: ${code}`) };
+  return { subject: `Tasdiqlash kodi: ${code}`, html: shell(inner, `Tasdiqlash kodingiz: ${code}`) };
 }
 
-/** Parolni tiklash havolasi xati (tugma bilan). */
+/** Parolni tiklash havolasi — oddiy quyuq tugma. */
 export function resetLinkEmail(url: string, name?: string): { subject: string; html: string } {
   const inner = `
     ${heading("Parolni tiklash")}
-    ${paragraph(`${name ? name + ", p" : "P"}arolingizni tiklash so'rovi keldi. Yangi parol yaratish uchun quyidagi tugmani bosing.`)}
-    <div style="margin:8px 0 22px;">
-      <a href="${url}" style="display:inline-block;background:${ACCENT};color:#FFFFFF;text-decoration:none;font-size:15px;font-weight:700;padding:14px 28px;border-radius:10px;">Yangi parol yaratish</a>
-    </div>
-    ${paragraph("Havola <b>30 daqiqa</b> davomida amal qiladi. Agar tugma ishlamasa, quyidagi manzilni brauzerga nusxalang:")}
-    <p style="margin:0;font-size:12px;line-height:1.5;word-break:break-all;color:${ACCENT};">${url}</p>
+    ${paragraph(`${name ? name + ", p" : "P"}arolni tiklash so'rovi keldi. Yangi parol yaratish uchun tugmani bosing.`)}
+    <a href="${url}" style="display:inline-block;background:${INK};color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:500;padding:12px 22px;border-radius:8px;">Yangi parol yaratish</a>
+    <p style="margin:18px 0 0;font-size:12px;line-height:1.6;color:${MUTED};">Havola 30 daqiqa amal qiladi. Tugma ishlamasa:<br><a href="${url}" style="color:${MUTED};word-break:break-all;">${url}</a></p>
   `;
-  return { subject: "OzodFlow — parolni tiklash", html: shell(inner, "Parolingizni tiklash havolasi") };
+  return { subject: "Parolni tiklash", html: shell(inner, "Parolingizni tiklash havolasi") };
 }
 
-/** Admin parol tiklash kodi xati. */
+/** Admin parol tiklash kodi. */
 export function adminCodeEmail(code: string): { subject: string; html: string } {
   const spaced = code.split("").join(" ");
   const inner = `
-    ${heading("Admin — parolni tiklash")}
-    ${paragraph("Admin paneliga parolni tiklash kodi so'raldi. Kodni kiriting:")}
-    <div style="margin:8px 0 20px;padding:20px;background:${BG};border-radius:12px;text-align:center;">
-      <div style="font-family:-apple-system,Segoe UI,Roboto,monospace;font-size:34px;font-weight:800;letter-spacing:8px;color:${ACCENT};">${spaced}</div>
-    </div>
-    ${paragraph("Kod <b>10 daqiqa</b> davomida amal qiladi. Agar bu so'rov sizdan bo'lmasa, darhol parolingizni tekshiring.")}
+    ${heading("Parolni tiklash")}
+    ${paragraph("Admin paneli uchun tiklash kodi so'raldi. Kodni kiriting.")}
+    <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:32px;font-weight:600;letter-spacing:10px;color:${INK};margin:4px 0 18px;">${spaced}</div>
+    <p style="margin:0;font-size:13px;line-height:1.6;color:${MUTED};">Kod 10 daqiqa amal qiladi.</p>
   `;
-  return { subject: `OzodFlow admin kodi: ${code}`, html: shell(inner, `Admin kodi: ${code}`) };
+  return { subject: `Admin kodi: ${code}`, html: shell(inner, `Admin kodi: ${code}`) };
 }

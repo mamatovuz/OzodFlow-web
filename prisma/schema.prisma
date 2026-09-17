@@ -1,1 +1,984 @@
- 
+// OzodFlow — restoran elektron menyu SaaS platformasi
+// Boshlang'ich DB: SQLite. Kelajakda PostgreSQL'ga o'tish uchun tayyor arxitektura.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// Foydalanuvchi va autentifikatsiya
+// ─────────────────────────────────────────────
+model User {
+  id            String   @id @default(cuid())
+  email         String?  @unique
+  phone         String?  @unique
+  name          String
+  password      String
+  // Google bilan kirish — Google hisobi ("sub") ID si. Bog'langan bo'lsa
+  // foydalanuvchi Google orqali bir bosishda kiradi (parolsiz ham bo'ladi).
+  googleId      String?  @unique
+  // Email tasdiqlanganmi. Qo'lda ro'yxatdan o'tganda pochtaga kod boradi —
+  // tasdiqlangunicha false. Google/eski hisoblar — true (default).
+  emailVerified Boolean  @default(true)
+  // Admin panelida restoran egasining parolini ko'rsatish uchun — AES-GCM
+  // shifrlangan ochiq parol nusxasi (bcrypt hash qaytarilmasligi sababli).
+  // Register / login / parolni tiklash paytida yoziladi.
+  passwordEnc   String?
+  role          String   @default("OWNER") // OWNER | STAFF | ADMIN
+  avatar        String?
+  // ─── Admin RBAC ───
+  // isSuperAdmin — bosh admin (hamma narsani qila oladi, adminlarni boshqaradi).
+  // adminPerms — qo'shimcha (sub) admin uchun yoqilgan ruxsatlar (JSON massiv).
+  //   null/[] = ruxsat yo'q; super admin uchun e'tiborga olinmaydi (hammasi ochiq).
+  isSuperAdmin  Boolean  @default(false)
+  adminPerms    String? // JSON: ["payments","promos",...]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  restaurants     Restaurant[]
+  sessions        Session[]
+  memberships     Membership[]
+  paymentRequests PaymentRequest[]
+  domainRequests  DomainRequest[]
+  resetCodes      PasswordReset[]
+  blockedDevices  BlockedDevice[]
+}
+
+// Tarif narxlari (admin paneldan o'zgartiriladi)
+model PlanConfig {
+  plan          String   @id // STARTER | BUSINESS
+  price         Int // oylik narx
+  lifetimePrice Int      @default(0) // umrbod narx (0 = oylik×36 avtomatik)
+  updatedAt     DateTime @updatedAt
+}
+
+// Parol tiklash kodi (Telegram bot orqali yuboriladi)
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  code      String
+  token     String?  @unique // email havolasi orqali tiklash uchun (uzun tasodifiy)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Email tasdiqlash kodi (qo'lda ro'yxatdan o'tishda pochtaga yuboriladi).
+model VerifyCode {
+  id        String   @id @default(cuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+model Session {
+  id             String   @id @default(cuid())
+  userId         String
+  token          String   @unique
+  userAgent      String?
+  ip             String?
+  deviceId       String? // qurilma barmoq izi (userAgent asosida) — bloklash uchun
+  lastSeenAt     DateTime @default(now()) // oxirgi faollik (throttled yangilanadi)
+  // Admin foydalanuvchi paneliga "parolsiz kirgan" bo'lsa — o'sha adminning ID si.
+  // Bo'lsa: yuqorida "admin ko'rinishi" banneri chiqadi, "Adminga qaytish" mumkin.
+  impersonatedBy String?
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([deviceId])
+}
+
+// Restoran egasi tomonidan bloklangan qurilmalar.
+// Bloklangan qurilma barmoq izi (userAgent hash) qayta kira olmaydi.
+model BlockedDevice {
+  id          String   @id @default(cuid())
+  userId      String
+  fingerprint String // deviceId (userAgent hash)
+  label       String // "iPhone", "Windows noutbuk" ...
+  userAgent   String?
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fingerprint])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// Restoran va filiallar
+// ─────────────────────────────────────────────
+model Restaurant {
+  id                 String    @id @default(cuid())
+  ownerId            String
+  slug               String    @unique
+  name               String
+  // Ro'yxatdan o'tgach onboarding (restoran nomi + tarif) tugatilganmi.
+  // Eski restoranlar uchun true (default) — faqat yangi hisoblar false bo'ladi.
+  onboarded          Boolean   @default(true)
+  description        String?
+  descriptionRu      String?
+  descriptionEn      String?
+  logo               String?
+  cover              String?
+  phone              String?
+  telegram           String?
+  instagram          String?
+  website            String?
+  mapUrl             String?
+  address            String?
+  workHours          String? // JSON string: ish vaqti
+  currency           String    @default("UZS")
+  hasDelivery        Boolean   @default(false)
+  payMethods         String? // JSON string: to'lov usullari
+  primaryColor       String    @default("#2563EB")
+  menuTheme          String    @default("light") // light | dark | + premium temalar
+  purchasedThemes    String    @default("[]") // alohida sotib olingan premium dizaynlar (JSON key massivi)
+  designConfig       String    @default("{}") // tanlangan dizaynni moslash (JSON): ranglar, fon, hero media, tugma va h.k.
+  waiterCodeEnabled  Boolean   @default(false) // "Ofitsant uchun kod" funksiyasi yoqilganmi
+  // ─── Menyu AI (mijozlar uchun) — restoran O'Z kalitini qo'yadi (platforma emas) ───
+  menuAiEnabled      Boolean   @default(false)
+  menuAiKeyEnc       String? // restoran AI kaliti (AES-GCM shifrlangan)
+  menuAiProvider     String? // gemini | openai
+  menuAiModel        String? // avtomatik aniqlangan model
+  menuAiStyle        String    @default("bubble") // widget uslubi: bubble | minimal | bar
+  askPhone           Boolean   @default(true) // buyurtmada mijozdan telefon raqam so'ralsinmi
+  orderBotToken      String? // buyurtmalarni Telegram kanaliga yuborish uchun bot tokeni
+  orderChatId        String? // buyurtmalar tushadigan kanal/guruh ID si (@channel yoki -100...)
+  // ─── Onlayn to'lov bilan dastavka (chek rasmi + tasdiqlash) ───
+  // Yoqilsa: mijoz dastavka buyurtmasida kartaga to'lab, chek (skrinshot) yuboradi.
+  // Chek + tasdiqlash/rad tugmalari orderAdminIds ga (bot orqali) boradi.
+  // Admin tasdiqlagach buyurtma kanalga va panelga chiqadi (ungacha yashirin).
+  onlineOrderEnabled Boolean   @default(false)
+  orderAdminIds      String    @default("[]") // to'lovni tasdiqlaydigan Telegram ID lar (JSON massiv)
+  // ─── Mijozlar boti + Telegram Mini App ───
+  // Egasi BotFather'dan token beradi → OzodFlow webhook/menyu tugmasini sozlaydi.
+  // Mijoz bot ichida "Menyu"ni ochadi (Mini App = /m/<slug>?tg=1), buyurtma beradi,
+  // holat o'zgarganda bot mijozga xabar yozadi (bepul push).
+  botToken           String? // mijozlar boti tokeni (shifrlanmagan — API chaqiruv uchun)
+  botUsername        String? // @bot username (getMe orqali)
+  botSecret          String? // webhook manzilidagi tasodifiy sir (/api/tg/<secret>)
+  botEnabled         Boolean   @default(false)
+  reviewEnabled      Boolean   @default(true) // izoh (otziv) sahifasi yoqilganmi
+  reviewBotToken     String? // izohlar uchun alohida bot tokeni (bo'sh bo'lsa orderBotToken ishlatiladi)
+  reviewChatId       String? // izohlar tushadigan kanal (bo'sh bo'lsa orderChatId ishlatiladi)
+  reviewGoogleUrl    String? // Google Maps'da baho qoldirish havolasi
+  reviewYandexUrl    String? // Yandex Maps'da baho qoldirish havolasi
+  reviewThreshold    Int       @default(4) // shu baho va undan yuqorida — xaritaga yo'naltiriladi
+  // ─── Ofitsant to'lovi uchun karta (kartadan to'lovda ko'rsatiladi) ───
+  cardNumber         String? // to'lov kartasi raqami (masalan 8600 1234 5678 9012)
+  cardHolder         String? // karta egasi ismi
+  serviceRate        Float     @default(0) // standart xizmat haqi foizi (%), to'lovda taklif qilinadi
+  customDomain       String?   @unique // o'z domeni (Pro/Pro Max)
+  plan               String    @default("FREE") // FREE | PRO | PROMAX
+  planUntil          DateTime? // FREE trial muddati; pullik tariflarda null = umrbod
+  isActive           Boolean   @default(true)
+  isBlocked          Boolean   @default(false) // admin tomonidan bloklangan
+  blockReason        String? // bloklash sababi (ixtiyoriy)
+  overdueNotified    DateTime? // to'lov o'tib ketgani haqida adminga oxirgi xabar vaqti
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  owner           User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  categories      Category[]
+  products        Product[]
+  tables          RestaurantTable[]
+  scans           ScanEvent[]
+  memberships     Membership[]
+  paymentRequests PaymentRequest[]
+  domainRequests  DomainRequest[]
+  orders          Order[]
+  banners         Banner[]
+  gallery         GalleryImage[]
+  serviceCalls    ServiceCall[]
+  combos          Combo[]
+  supportMessages SupportMessage[]
+  posIntegrations PosIntegration[]
+  apiKeys         ApiKey[]
+  webhooks        Webhook[]
+  waiters         Waiter[]
+  mobileApp       MobileApp?
+  taplink         Taplink?
+  reviews         Review[]
+  botCustomers    BotCustomer[]
+  shifts          Shift[]
+
+  @@index([ownerId])
+}
+
+// Telegram bot orqali menyuni ochgan/buyurtma bergan mijozlar.
+// tgUserId = Telegram foydalanuvchi ID (shaxsiy chat ID bilan bir xil) —
+// unga buyurtma holatini push qilish va kelajakda sodiqlik/CRM uchun.
+model BotCustomer {
+  id           String    @id @default(cuid())
+  restaurantId String
+  tgUserId     String // Telegram user id (= shaxsiy chat id)
+  firstName    String?
+  username     String? // @username (ixtiyoriy)
+  phone        String?
+  orders       Int       @default(0)
+  lastOrderAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, tgUserId])
+  @@index([restaurantId])
+}
+
+// Mijoz izohi (otziv) — QR orqali baho + fikr qoldiradi.
+// Yuqori baho bo'lsa Google/Yandex xaritasiga yo'naltiriladi (ommaviy baho uchun).
+model Review {
+  id           String   @id @default(cuid())
+  restaurantId String
+  rating       Int // 1–5
+  name         String?
+  phone        String?
+  text         String?
+  redirected   Boolean  @default(false) // xaritaga yo'naltirilganmi (yuqori baho)
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@index([createdAt])
+}
+
+// Taplink (link-in-bio) — restoran uchun bitta commonda ochiladigan sahifa:
+// ozodflow.uz/<handle>. Logo, ism/familiya, tugmalar (telefon/telegram/instagram...),
+// video, menyu tugmasi, QR va tanlanadigan dizayn. Vizitka ham shu yerdan chiqadi.
+model Taplink {
+  id             String   @id @default(cuid())
+  restaurantId   String   @unique
+  handle         String   @unique // ozodflow.uz/<handle> — band bo'lsa safirun1, safirun2...
+  enabled        Boolean  @default(true)
+  // Profil
+  displayName    String // ko'rsatiladigan nom (default: restoran nomi)
+  firstName      String? // ism
+  lastName       String? // familiya
+  bio            String? // qisqa tavsif / lavozim
+  logo           String? // taplink logosi (default: restaurant.logo)
+  videoUrl       String? // yuklangan video yoki YouTube havolasi
+  // Tugmalar/havolalar (JSON): [{id, type, label, value}]
+  links          String   @default("[]")
+  showMenuButton Boolean  @default(true) // menyuga alohida tugma
+  // Dizayn (JSON): fon, tugma shakli/rangi, matn rangi, shrift
+  design         String   @default("{}")
+  // Vizitka (JSON): shablon, ranglar, ko'rsatiladigan kontaktlar
+  cardConfig     String   @default("{}")
+  views          Int      @default(0) // sahifa ko'rishlari
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+}
+
+// Restoran mobil ilovasi (Android APK/PWA "shell") — menyuni WebView'da ochadi.
+// Egasi paneldan sozlaydi, "ilova yaratadi" va mijozlarga tarqatish uchun link/APK oladi.
+model MobileApp {
+  id           String    @id @default(cuid())
+  restaurantId String    @unique
+  appName      String // ilova nomi (default: restoran nomi)
+  packageName  String // uz.ozodflow.<slug>
+  themeColor   String    @default("#2563EB") // splash/status bar rangi
+  splashText   String? // splash ekran ostidagi matn
+  status       String    @default("NONE") // NONE | BUILDING | READY | FAILED
+  version      Int       @default(1) // har build'da oshadi
+  apkUrl       String? // tayyor APK havolasi (build xizmati ulanganda)
+  apkSize      String? // "8.4 MB"
+  downloads    Int       @default(0) // yuklab olishlar soni
+  lastBuiltAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+}
+
+// Ofitsantlar — restoran egasi qo'shadi, har biri alohida kod bilan.
+// Mijoz buyurtma rasmiylashtirishda ofitsant kodini kiritadi → statistikaga tushadi.
+model Waiter {
+  id           String   @id @default(cuid())
+  restaurantId String
+  name         String
+  lastName     String?
+  age          Int?
+  code         String // egasi belgilaydi (raqam/harf/belgi): 1, A5, @kamron ...
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, code])
+  @@index([restaurantId])
+}
+
+// Restoran egasi ↔ bosh admin yozishmalari (blok, to'lov, aloqa)
+model SupportMessage {
+  id           String   @id @default(cuid())
+  restaurantId String
+  topic        String // BLOCK | PAYMENT | CONTACT | GENERAL
+  sender       String // OWNER | ADMIN | VISITOR
+  body         String
+  contact      String? // ommaviy tashrifchi aloqa ma'lumoti
+  isRead       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@index([isRead])
+}
+
+// Ofitsiant chaqirish / hisob so'rash
+model ServiceCall {
+  id           String    @id @default(cuid())
+  restaurantId String
+  tableCode    String?
+  tableName    String?
+  type         String // WAITER | BILL
+  status       String    @default("ACTIVE") // ACTIVE | DONE
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, status])
+}
+
+// Combo (to'plam) taomlar
+model Combo {
+  id           String   @id @default(cuid())
+  restaurantId String
+  name         String
+  nameRu       String?
+  nameEn       String?
+  price        Float
+  oldPrice     Float?
+  image        String?
+  description  String?
+  items        String // JSON: [{productId, name, qty}]
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+}
+
+// Menyuni hozir ko'rayotganlar (live counter uchun)
+model Presence {
+  id           String   @id @default(cuid())
+  restaurantId String
+  visitorId    String
+  lastSeen     DateTime @default(now())
+
+  @@unique([restaurantId, visitorId])
+  @@index([restaurantId])
+}
+
+// Restoran galereyasi (interyer, eksteryer, jamoa)
+model GalleryImage {
+  id           String   @id @default(cuid())
+  restaurantId String
+  image        String
+  caption      String?
+  category     String   @default("interior") // interior | exterior | team | other
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+}
+
+// Bosh menyu bannerlari (slider)
+model Banner {
+  id           String   @id @default(cuid())
+  restaurantId String
+  image        String?
+  title        String?
+  subtitle     String?
+  linkUrl      String?
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+}
+
+// ─────────────────────────────────────────────
+// Buyurtma tizimi
+// ─────────────────────────────────────────────
+model Order {
+  id            String    @id @default(cuid())
+  restaurantId  String
+  number        Int // restoran ichida ketma-ket raqam
+  tableCode     String?
+  tableName     String?
+  guestNo       Int? // bir stolda ko'p mijoz: qaysi mijoz (1,2,3...) buyurtma berdi (null = umumiy)
+  phone         String?
+  comment       String?
+  // ─── Dastavka (yetkazib berish) manzili ───
+  orderType     String    @default("DINE_IN") // DINE_IN | DELIVERY
+  address       String? // matnli manzil (ixtiyoriy)
+  lat           Float? // yetkazish nuqtasi kenglik
+  lng           Float? // yetkazish nuqtasi uzunlik
+  status        String    @default("NEW") // NEW | ACCEPTED | PREPARING | READY | DELIVERED | CANCELLED
+  cancelReason  String? // bekor qilinganda sabab (masalan "Osh tugadi")
+  total         Float     @default(0)
+  items         String // JSON: [{productId, name, price, qty, categoryName?, comment?}]
+  // ─── Ofitsant (kod kiritilgan bo'lsa) ───
+  waiterId      String? // qaysi ofitsant qabul qildi (Waiter modeli — kod tizimi)
+  waiterCode    String? // kiritilgan kod (audit uchun)
+  // ─── Panel orqali buyurtma olgan xodim (login qilgan ofitsant) ───
+  staffId       String? // membership foydalanuvchi ID si
+  waiterName    String? // ko'rsatish uchun ofitsant ismi (denormalizatsiya)
+  // ─── To'lov (ofitsant panelidan) ───
+  paymentStatus String    @default("UNPAID") // UNPAID | PAID
+  paymentMethod String? // CASH | CARD | MIXED
+  paidCash      Float? // naqd qismi
+  paidCard      Float? // karta qismi
+  paidAt        DateTime?
+  // ─── Chegirma va xizmat haqi (stol hisobiga to'lov paytida qo'llanadi) ───
+  subtotal      Float     @default(0) // chegirma/servisdan oldingi asl summa (yaratilganda = total)
+  discount      Float     @default(0) // qo'llangan chegirma summasi (so'm)
+  discountType  String? // PERCENT | AMOUNT (audit uchun)
+  serviceCharge Float     @default(0) // xizmat haqi summasi (so'm)
+  // ─── Void (bekor qilingan taomlar jurnali) ───
+  voidLog       String? // JSON: [{name, qty, reason, at, by, approvedBy?}]
+  // ─── Manager tasdig'i (limitdan oshgan chegirma yoki oshxonaga ketgan void) ───
+  approvedBy    String? // tasdiqlagan manager ismi (audit)
+  // ─── Onlayn to'lov (chek rasmi bilan dastavka) ───
+  // payConfirm: NONE (odatiy) | PENDING (tasdiq kutmoqda) | CONFIRMED | REJECTED
+  // PENDING/REJECTED buyurtmalar egasi paneli va kanalda ko'rinmaydi.
+  payConfirm    String    @default("NONE")
+  payProofImage String? // mijoz yuborgan to'lov cheki (skrinshot) URL
+  payerName     String? // to'lovchi ism-familiyasi
+  payerCard     String? // to'lovchi karta raqami (mijoz kiritgani)
+  // ─── Telegram Mini App (bot orqali kelgan buyurtma) ───
+  tgChatId      String? // mijoz Telegram chat ID si — holat o'zgarishini push qilish uchun
+  // ─── POS ga yuborish holati ───
+  posOrderId    String? // POS tizimidagi buyurtma ID (yuborilgan bo'lsa)
+  posError      String? // POS ga yuborishda xato (bo'lsa)
+  // ─── Oshxona vaqt o'lchovi ───
+  readyAt       DateTime? // oshxona READY qilgan payt (tayyorlash vaqti statistikasi uchun)
+  // ─── Smena (shift) — to'lov paytida ochiq smenaga bog'lanadi (kassa hisobi) ───
+  shiftId       String? // qaysi smenada to'landi (kassa yakunlash uchun)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, status])
+  @@index([createdAt])
+  @@index([shiftId])
+}
+
+// Smena (shift) — ofitsant/kassir ish davri. Kassa hisobini yopadi:
+// boshlang'ich kassa → naqd/karta sotuv → kutilgan kassa → haqiqiy kassa → farq.
+model Shift {
+  id           String    @id @default(cuid())
+  restaurantId String
+  staffId      String // smenani ochgan xodim (user id)
+  staffName    String // ko'rsatish uchun (denormalizatsiya)
+  openingCash  Float     @default(0) // boshlang'ich naqd pul
+  closingCash  Float? // yopishda sanab kiritilgan haqiqiy naqd
+  cashSales    Float     @default(0) // smena davomidagi naqd tushum (yopishda hisoblanadi)
+  cardSales    Float     @default(0) // karta tushum
+  ordersCount  Int       @default(0) // to'langan buyurtmalar soni
+  expectedCash Float     @default(0) // openingCash + cashSales
+  difference   Float     @default(0) // closingCash - expectedCash (- kam, + ortiqcha)
+  status       String    @default("OPEN") // OPEN | CLOSED
+  openedAt     DateTime  @default(now())
+  closedAt     DateTime?
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, status])
+  @@index([restaurantId, staffId])
+}
+
+// Xodimlar / rollar (Business tarif uchun tayyor)
+model Membership {
+  id           String   @id @default(cuid())
+  userId       String
+  restaurantId String
+  role         String   @default("STAFF") // MANAGER | KITCHEN | WAITER
+  pin          String? // MANAGER uchun 4 xonali tasdiqlash PIN (bcrypt hash) — chegirma/void tasdig'i
+  createdAt    DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, restaurantId])
+}
+
+// ─────────────────────────────────────────────
+// Menyu: kategoriyalar va mahsulotlar
+// ─────────────────────────────────────────────
+model Category {
+  id            String   @id @default(cuid())
+  restaurantId  String
+  name          String
+  nameRu        String?
+  nameEn        String?
+  description   String?
+  icon          String?
+  image         String? // kategoriya banner rasmi (menyuda katta karta sifatida)
+  sortOrder     Int      @default(0)
+  isVisible     Boolean  @default(true)
+  // ─── POS integratsiya ───
+  posProvider   String? // CLOPOS | IIKO | POSTER | JOWI | RKEEPER
+  posExternalId String? // provayderdagi kategoriya ID
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  products   Product[]
+
+  @@unique([restaurantId, posProvider, posExternalId])
+  @@index([restaurantId])
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  restaurantId  String
+  categoryId    String
+  name          String
+  nameRu        String?
+  nameEn        String?
+  description   String?
+  descriptionRu String?
+  descriptionEn String?
+  images        String? // JSON array of image urls
+  crop          String   @default("auto") // rasm kesish pozitsiyasi: auto|center|top|bottom
+  price         Float    @default(0)
+  oldPrice      Float?
+  ingredients   String?
+  weight        String?
+  calories      Int?
+  spicyLevel    Int      @default(0) // 0-3
+  // ─── Modifierlar (variant/qo'shimcha) — JSON: [{name, required, multi, options:[{name,price}]}] ───
+  modifiers     String   @default("[]")
+  isVegetarian  Boolean  @default(false)
+  isHalal       Boolean  @default(false)
+  isNew         Boolean  @default(false)
+  isBestseller  Boolean  @default(false)
+  isRecommended Boolean  @default(false)
+  isAvailable   Boolean  @default(true)
+  isVisible     Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  views         Int      @default(0)
+  // ─── POS integratsiya (tashqi tizim bilan bog'lash) ───
+  posProvider   String? // CLOPOS | IIKO | POSTER | JOWI | RKEEPER
+  posExternalId String? // provayderdagi mahsulot ID
+  stockStatus   String? // IN_STOCK | OUT_OF_STOCK | LOW
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  category   Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([restaurantId, posProvider, posExternalId])
+  @@index([restaurantId])
+  @@index([categoryId])
+}
+
+// Har bir stol uchun alohida QR
+model RestaurantTable {
+  id           String   @id @default(cuid())
+  restaurantId String
+  name         String
+  code         String   @unique
+  scans        Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+}
+
+// ─────────────────────────────────────────────
+// Statistika: QR skanerlar
+// ─────────────────────────────────────────────
+model ScanEvent {
+  id           String   @id @default(cuid())
+  restaurantId String
+  tableCode    String?
+  visitorId    String? // unique visitors uchun
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────
+// To'lov: qo'lda moderatsiya orqali
+// ─────────────────────────────────────────────
+// Admin qo'shadigan to'lov kartalari
+model PaymentCard {
+  id         String   @id @default(cuid())
+  bankName   String
+  cardNumber String
+  cardHolder String
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+}
+
+// Sayt tashrifi — ozodflow.uz sahifalariga kim, qachon, qaysi sahifaga kirgani.
+// Admin analitikasi uchun (davr bo'yicha tashriflar, noyob mehmonlar, top sahifalar).
+// Dashboard/admin ichki sahifalari YOZILMAYDI — faqat ommaviy sayt trafigi.
+model SiteVisit {
+  id        String   @id @default(cuid())
+  visitorId String? // brauzer barqaror ID (noyob mehmonlar uchun)
+  path      String // "/", "/login", "/m/osh-markazi" ...
+  referrer  String? // qayerdan keldi (ixtiyoriy)
+  country   String? // ixtiyoriy (kelajakda GeoIP)
+  device    String? // "phone" | "tablet" | "desktop"
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([visitorId])
+}
+
+// Bosh sahifa ko'rsatkichlari (500+ restoran, 1M+ skan ...) — admin boshqaradi
+model SiteStat {
+  id        String   @id @default(cuid())
+  value     String
+  label     String
+  // Haqiqiy ko'rsatkichga bog'lash: "restaurants" | "products" | "scans" | null.
+  // auto=true bo'lsa — bosh sahifada bu metrika bo'yicha jonli (haqiqiy) son
+  // ko'rsatiladi, `value` esa e'tiborga olinmaydi.
+  metric    String?
+  auto      Boolean  @default(false)
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([isActive])
+}
+
+// Bosh sahifa hamkorlari (logolar tasmasi)
+model Partner {
+  id        String   @id @default(cuid())
+  name      String
+  image     String
+  url       String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([isActive])
+}
+
+// Foydalanuvchi to'lov so'rovi (chek yuklaydi, admin tasdiqlaydi)
+model PaymentRequest {
+  id           String    @id @default(cuid())
+  restaurantId String
+  userId       String
+  kind         String    @default("PLAN") // PLAN = tarif, THEME = alohida dizayn
+  plan         String // tarif kaliti (THEME uchun — joriy tarif)
+  themeKey     String? // THEME turida sotib olinayotgan dizayn kaliti
+  months       Int       @default(1) // tanlangan oy soni
+  isLifetime   Boolean   @default(false)
+  baseAmount   Int       @default(0) // chegirmagacha
+  discount     Int       @default(0) // chegirma summasi
+  promoCode    String? // ishlatilgan promo kod
+  amount       Int // yakuniy summa
+  receiptImage String    @default("") // qo'lda to'lovda chek rasmi; inPAY'da bo'sh
+  // ─── To'lov usuli ───
+  // MANUAL = karta + chek yuklash (admin tasdiqlaydi)
+  // INPAY  = inpay.uz onlayn to'lov (webhook orqali avtomatik tasdiqlanadi)
+  payProvider  String    @default("MANUAL")
+  payOrderId   String? // inPAY order_id (webhook shu bo'yicha topadi)
+  payUrl       String? // inPAY to'lov sahifasi havolasi
+  status       String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  adminNote    String?
+  createdAt    DateTime  @default(now())
+  reviewedAt   DateTime?
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@index([status])
+  @@index([payOrderId])
+}
+
+// Promo kodlar (admin yaratadi yoki mijoz yiliga 1 marta oladi)
+model PromoCode {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  name            String? // ichki nom/izoh (masalan "Ramazon aksiyasi")
+  discountPercent Float // chegirma foizi (kasrli bo'lishi mumkin: 26.55)
+  scope           String    @default("ALL") // ALL | STARTER | BUSINESS
+  source          String    @default("ADMIN") // ADMIN | USER
+  ownerId         String? // USER kodi kimga tegishli
+  maxUses         Int? // umumiy maksimal ishlatish (null = cheksiz)
+  usedCount       Int       @default(0)
+  perUserMonths   Int? // bir foydalanuvchi shu kodni har N oyda 1 marta ishlata oladi (null = cheklovsiz)
+  expiresAt       DateTime? // amal qilish muddati (null = muddatsiz)
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+
+  @@index([ownerId])
+  @@index([source])
+}
+
+// Domenni admin orqali ulash so'rovi (40 000 so'm/yil xizmat)
+model DomainRequest {
+  id           String    @id @default(cuid())
+  restaurantId String
+  userId       String
+  domain       String
+  note         String?
+  receiptImage String?
+  status       String    @default("PENDING") // PENDING | DONE | REJECTED
+  adminNote    String?
+  createdAt    DateTime  @default(now())
+  reviewedAt   DateTime?
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@index([status])
+}
+
+// ─────────────────────────────────────────────
+// POS integratsiya (Clopos, iiko, Poster, JOWI, R-Keeper ...)
+// Provayderga bog'liq bo'lmagan umumiy modellar
+// ─────────────────────────────────────────────
+model PosIntegration {
+  id              String    @id @default(cuid())
+  restaurantId    String
+  provider        String // CLOPOS | IIKO | POSTER | JOWI | RKEEPER
+  credentials     String // AES-256-GCM shifrlangan JSON (hech qachon ochiq saqlanmaydi)
+  isActive        Boolean   @default(true)
+  autoSync        Boolean   @default(true)
+  syncIntervalMin Int       @default(5)
+  status          String    @default("PENDING") // PENDING | CONNECTED | ERROR
+  lastError       String?
+  lastSyncAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  restaurant Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  syncLogs   PosSyncLog[]
+
+  @@unique([restaurantId, provider])
+  @@index([restaurantId])
+}
+
+model PosSyncLog {
+  id            String   @id @default(cuid())
+  integrationId String
+  type          String // MENU | ORDER_PUSH | ORDER_STATUS
+  status        String // SUCCESS | FAILED | PARTIAL
+  itemsSynced   Int      @default(0)
+  itemsFailed   Int      @default(0)
+  message       String?
+  durationMs    Int?
+  createdAt     DateTime @default(now())
+
+  integration PosIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@index([integrationId])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────
+// Tashqi (hamkor) API kalitlari — /api/v1 uchun
+// Sir (secret) ochiq saqlanmaydi: faqat SHA-256 hash.
+// ─────────────────────────────────────────────
+model ApiKey {
+  id           String    @id @default(cuid())
+  restaurantId String
+  name         String
+  prefix       String    @unique // ko'rsatish + tez qidiruv: ozf_live_xxxx
+  hash         String // SHA-256(to'liq kalit)
+  scopes       String    @default("menu:read") // JSON yoki vergul bilan
+  isActive     Boolean   @default(true)
+  lastUsedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+}
+
+// ─────────────────────────────────────────────
+// Chiquvchi webhooklar — buyurtma hodisalarini restoran serveriga yuborish
+// Har yuborish HMAC-SHA256 imzo bilan (X-OzodFlow-Signature).
+// ─────────────────────────────────────────────
+model Webhook {
+  id             String    @id @default(cuid())
+  restaurantId   String
+  url            String
+  secret         String // HMAC imzo kaliti
+  events         String    @default("[\"order.created\"]") // JSON massiv
+  isActive       Boolean   @default(true)
+  lastStatus     Int?
+  lastError      String?
+  lastDeliveryAt DateTime?
+  createdAt      DateTime  @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+}
+
+// ─────────────────────────────────────────────
+// Ariza (landing) sahifalari — bosh admin panelidan konstruktor bilan yasaladi.
+// Admin bloklardan (matn, rasm, maydonlar, yuborish tugmasi) sahifa quradi,
+// slug beradi → ozodflow.uz/<slug> da ommaviy sahifa ochiladi. Mijozlar ariza
+// to'ldiradi (ism, familiya, telefon, brend, telegram). Admin kirishlar sonini,
+// arizalar sonini va har bir mijoz ma'lumotini ko'radi hamda "Gaplashildi" qiladi.
+// ─────────────────────────────────────────────
+model LandingPage {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  isPublished Boolean  @default(false)
+  blocks      String   @default("[]") // JSON: bloklar massivi (konstruktor natijasi)
+  views       Int      @default(0) // sahifaga necha marta kirilgan
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  submissions LandingSubmission[]
+
+  @@index([isPublished])
+}
+
+// Ariza sahifasi orqali yuborilgan mijoz ma'lumoti
+model LandingSubmission {
+  id          String    @id @default(cuid())
+  pageId      String
+  name        String
+  lastName    String?
+  phone       String?
+  brand       String? // brend nomi
+  telegram    String? // telegram username (ixtiyoriy)
+  extra       String? // qo'shimcha maydonlar JSON: {"label": "qiymat"}
+  contacted   Boolean   @default(false) // admin gaplashib bo'lganmi
+  contactedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  page LandingPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
+  @@index([contacted])
+}
+
+// ─────────────────────────────────────────────
+// AI kalitlari — bosh admin panelidan boshqariladi (menyu importi uchun).
+// Bir nechta kalit qo'shiladi; failover tartibida ishlatiladi: birinchi kalit
+// limitga yetsa (429/quota) — keyingisiga o'tadi. Cheksiz zaxira uchun.
+// API kaliti DB'da AES-256-GCM bilan shifrlanadi (hech qachon ochiq saqlanmaydi).
+// ─────────────────────────────────────────────
+model AiKey {
+  id            String    @id @default(cuid())
+  provider      String    @default("gemini") // gemini (kelajakda: openai ...)
+  name          String // ko'rsatish uchun label ("Kalit 1", "Zaxira")
+  keyEnc        String // shifrlangan API kalit
+  hint          String    @default("") // oxirgi 4 belgi (UI uchun)
+  model         String    @default("gemini-2.0-flash") // matn/vision model
+  imageModel    String    @default("gemini-2.5-flash-image-preview") // rasm generatsiya modeli
+  isActive      Boolean   @default(true)
+  sortOrder     Int       @default(0) // failover tartibi (kichik = oldin)
+  lastUsedAt    DateTime?
+  failCount     Int       @default(0)
+  lastError     String?
+  cooldownUntil DateTime? // limit/xatoda vaqtincha o'tkazib yuboriladi
+  createdAt     DateTime  @default(now())
+
+  @@index([isActive, sortOrder])
+}
+
+// ─────────────────────────────────────────────
+// Blog — bosh admin panelidan yoziladi. Public: ozodflow.uz/blog va /blog/<slug>.
+// isFeatured bilan belgilangan (maks ~5) bloglar bosh sahifada ko'rsatiladi.
+// ─────────────────────────────────────────────
+model BlogPost {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  description String // qisqa tavsif (ro'yxat/karta uchun)
+  body        String? // ixtiyoriy uzun matn (batafsil oyna)
+  coverImage  String? // asosiy (muqova) rasm
+  images      String   @default("[]") // JSON: 1..10 rasm URL massivi
+  version     String? // nechanchi versiya (masalan "v1.2")
+  publishDate DateTime @default(now()) // ko'rsatiladigan sana
+  isPublished Boolean  @default(false)
+  isFeatured  Boolean  @default(false) // bosh sahifada ko'rsatilsinmi
+  views       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished])
+  @@index([isFeatured])
+}
+
+// ─────────────────────────────────────────────
+// Shaxsiy sayt (Ozodbek's Blog) — alohida domenda, bitta serverda
+// OzodFlow bilan bir loyihada, lekin ma'lumotlari mustaqil.
+// ─────────────────────────────────────────────
+
+// Shaxsiy blog posti. status: DRAFT (qoralama, hech kimga ko'rinmaydi),
+// PUBLIC (hammaga — /blog ro'yxatida), SITE (bosh sahifada ham ajratib ko'rsatiladi).
+model SitePost {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  contentHtml String   @default("")
+  excerpt     String   @default("") // qisqa tavsif (ro'yxat kartasi uchun)
+  coverImage  String? // ro'yxat/detal ustidagi rasm
+  status      String   @default("DRAFT") // DRAFT | PUBLIC | SITE
+  publishDate DateTime @default(now())
+  views       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([publishDate])
+}
+
+// Shaxsiy saytning yagona sozlamalari (bitta qator, id = "main").
+// Bosh sahifa rasmi, "Men haqimda" matni va profil ma'lumotlari admin paneldan.
+model SiteSetting {
+  id           String   @id @default("main")
+  heroTitle    String   @default("Ozodbek")
+  heroRole     String   @default("Frontend Dasturchi")
+  heroTagline  String   @default("Raqamli dunyoda raqamsiz narsalar haqida gaplashamiz")
+  heroImage    String   @default("/site/hero.jpg") // bosh sahifa asosiy rasmi
+  profileImage String   @default("/site/profile.jpg") // profil (dumaloq) rasmi
+  aboutHtml    String   @default("") // "Men haqimda" — HTML
+  youtube      String   @default("https://www.youtube.com/@mamatov_ads")
+  github       String   @default("https://www.github.com/mamatovuz")
+  linkedin     String   @default("https://www.linkedin.com/in/mamatovozodbek/")
+  telegram     String   @default("https://t.me/Mamatov_ads")
+  channel      String   @default("https://t.me/OzodFlow")
+  updatedAt    DateTime @updatedAt
+}

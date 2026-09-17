@@ -975,10 +975,9 @@ model SiteSetting {
   heroImage    String   @default("/site/hero.jpg") // bosh sahifa asosiy rasmi
   profileImage String   @default("/site/profile.jpg") // profil (dumaloq) rasmi
   aboutHtml    String   @default("") // "Men haqimda" — HTML
-  youtube      String   @default("https://www.youtube.com/@mamatov_ads")
-  github       String   @default("https://www.github.com/mamatovuz")
-  linkedin     String   @default("https://www.linkedin.com/in/mamatovozodbek/")
-  telegram     String   @default("https://t.me/Mamatov_ads")
-  channel      String   @default("https://t.me/OzodFlow")
+  // Bosh sahifa/About ijtimoiy havolalari — admin paneldan qo'shiladi/o'chiriladi.
+  // JSON massiv: [{ id, icon, url, label }]. icon — site-icons ro'yxatidagi kalit.
+  links        String   @default("[]")
+  channel      String   @default("https://t.me/OzodFlow") // navbar "Kanal" havolasi
   updatedAt    DateTime @updatedAt
 }

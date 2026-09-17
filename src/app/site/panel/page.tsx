@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { isSiteAdmin, siteBase, getSiteSetting } from "@/lib/site";
+import { isSiteAdmin, siteBase, getSiteSetting, parseLinks } from "@/lib/site";
 import { PanelClient } from "@/components/site/panel-client";
 
 export const dynamic = "force-dynamic";
@@ -14,5 +14,22 @@ export default async function SitePanel() {
     getSiteSetting(),
   ]);
 
-  return <PanelClient base={base} initialPosts={JSON.parse(JSON.stringify(posts))} initialSettings={JSON.parse(JSON.stringify(settings))} />;
+  const initialSettings = {
+    heroTitle: settings.heroTitle,
+    heroRole: settings.heroRole,
+    heroTagline: settings.heroTagline,
+    heroImage: settings.heroImage,
+    profileImage: settings.profileImage,
+    aboutHtml: settings.aboutHtml,
+    channel: settings.channel,
+    links: parseLinks(settings.links),
+  };
+
+  return (
+    <PanelClient
+      base={base}
+      initialPosts={JSON.parse(JSON.stringify(posts))}
+      initialSettings={initialSettings}
+    />
+  );
 }

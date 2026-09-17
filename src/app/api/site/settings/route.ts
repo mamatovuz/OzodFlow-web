@@ -6,6 +6,13 @@ import { isSiteAdmin, getSiteSetting } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
+const linkSchema = z.object({
+  id: z.string(),
+  icon: z.string(),
+  url: z.string().min(1),
+  label: z.string().optional(),
+});
+
 const schema = z.object({
   heroTitle: z.string().max(60).optional(),
   heroRole: z.string().max(80).optional(),
@@ -13,11 +20,8 @@ const schema = z.object({
   heroImage: z.string().optional(),
   profileImage: z.string().optional(),
   aboutHtml: z.string().optional(),
-  youtube: z.string().optional(),
-  github: z.string().optional(),
-  linkedin: z.string().optional(),
-  telegram: z.string().optional(),
   channel: z.string().optional(),
+  links: z.array(linkSchema).max(20).optional(),
 });
 
 export async function GET() {
@@ -33,9 +37,13 @@ export async function PUT(req: NextRequest) {
   if (!parsed.success) return fail(parsed.error.issues[0]?.message || "Ma'lumot noto'g'ri", 422);
 
   await getSiteSetting(); // qator borligiga ishonch
+  const { links, ...rest } = parsed.data;
   const s = await prisma.siteSetting.update({
     where: { id: "main" },
-    data: parsed.data,
+    data: {
+      ...rest,
+      ...(links !== undefined ? { links: JSON.stringify(links) } : {}),
+    },
   });
   return ok(s);
 }

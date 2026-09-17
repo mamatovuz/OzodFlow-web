@@ -12,7 +12,6 @@ export function SiteNav({ base, channel }: { base: string; channel: string }) {
 
   const links = [
     { href: `${base}/blog`, label: "Blog" },
-    { href: `${base}/skills`, label: "Skills" },
     { href: `${base}/about`, label: "Men haqimda" },
   ];
 

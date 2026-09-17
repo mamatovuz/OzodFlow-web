@@ -1,33 +1,20 @@
-import { Youtube, Github, Linkedin, Send } from "lucide-react";
+import type { SiteLink } from "@/lib/site";
+import { iconFor } from "./link-icons";
 
-type Props = {
-  youtube?: string;
-  github?: string;
-  linkedin?: string;
-  telegram?: string;
-  className?: string;
-};
-
-const items = [
-  { key: "youtube", Icon: Youtube, label: "YouTube" },
-  { key: "github", Icon: Github, label: "GitHub" },
-  { key: "linkedin", Icon: Linkedin, label: "LinkedIn" },
-  { key: "telegram", Icon: Send, label: "Telegram" },
-] as const;
-
-export function SocialIcons(props: Props) {
+export function SocialIcons({ links, className }: { links: SiteLink[]; className?: string }) {
+  if (!links.length) return null;
   return (
-    <div className={`flex items-center gap-2.5 ${props.className || ""}`}>
-      {items.map(({ key, Icon, label }) => {
-        const href = props[key];
-        if (!href) return null;
+    <div className={`flex flex-wrap items-center justify-center gap-2.5 ${className || ""}`}>
+      {links.map((l) => {
+        const Icon = iconFor(l.icon);
         return (
           <a
-            key={key}
-            href={href}
+            key={l.id}
+            href={l.url}
             target="_blank"
             rel="noreferrer"
-            aria-label={label}
+            aria-label={l.label || l.icon}
+            title={l.label || l.icon}
             className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted transition-colors hover:border-accent hover:text-accent"
           >
             <Icon className="h-[18px] w-[18px]" />

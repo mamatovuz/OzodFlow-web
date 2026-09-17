@@ -14,8 +14,12 @@ import {
   X,
   FileText,
   Settings,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { RichEditor } from "@/components/site/rich-editor";
+import { SITE_ICONS, iconFor } from "@/components/site/link-icons";
+import type { SiteLink } from "@/lib/site";
 
 type Post = {
   id: string;
@@ -36,11 +40,8 @@ type Settings = {
   heroImage: string;
   profileImage: string;
   aboutHtml: string;
-  youtube: string;
-  github: string;
-  linkedin: string;
-  telegram: string;
   channel: string;
+  links: SiteLink[];
 };
 
 const STATUS: { key: Post["status"]; label: string; hint: string }[] = [
@@ -475,16 +476,94 @@ function SettingsTab({ initial }: { initial: Settings }) {
         </div>
       </section>
 
-      {/* Ijtimoiy havolalar */}
+      {/* Ijtimoiy havolalar — qo'shish/o'chirish + ikonka tanlash */}
       <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-        <h2 className="font-semibold">Havolalar</h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          {(["youtube", "github", "linkedin", "telegram", "channel"] as const).map((k) => (
-            <div key={k}>
-              <label className="text-xs capitalize text-muted">{k === "channel" ? "Telegram kanal" : k}</label>
-              <input value={s[k]} onChange={(e) => setS({ ...s, [k]: e.target.value })} className={field} />
-            </div>
-          ))}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold">Havolalar</h2>
+            <p className="mt-0.5 text-sm text-muted">Bosh sahifa va "Men haqimda"da chiqadi.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              setS((v) => ({
+                ...v,
+                links: [...v.links, { id: `l${Date.now()}`, icon: "link", url: "", label: "" }],
+              }))
+            }
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm hover:border-foreground"
+          >
+            <Plus className="h-4 w-4" /> Qo'shish
+          </button>
+        </div>
+
+        {s.links.length === 0 ? (
+          <p className="mt-4 rounded-lg border border-dashed border-border py-6 text-center text-sm text-muted">
+            Havola yo'q. "Qo'shish" bosing.
+          </p>
+        ) : (
+          <div className="mt-4 space-y-2.5">
+            {s.links.map((ln, idx) => {
+              const Icon = iconFor(ln.icon);
+              const patch = (p: Partial<SiteLink>) =>
+                setS((v) => ({ ...v, links: v.links.map((x) => (x.id === ln.id ? { ...x, ...p } : x)) }));
+              const move = (dir: -1 | 1) =>
+                setS((v) => {
+                  const arr = [...v.links];
+                  const j = idx + dir;
+                  if (j < 0 || j >= arr.length) return v;
+                  [arr[idx], arr[j]] = [arr[j], arr[idx]];
+                  return { ...v, links: arr };
+                });
+              return (
+                <div key={ln.id} className="rounded-xl border border-border p-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-2">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <select
+                      value={ln.icon}
+                      onChange={(e) => patch({ icon: e.target.value })}
+                      className="h-9 shrink-0 rounded-lg border border-border bg-background px-2 text-sm outline-none focus:border-foreground"
+                    >
+                      {SITE_ICONS.map((i) => (
+                        <option key={i.key} value={i.key}>
+                          {i.label}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      value={ln.url}
+                      onChange={(e) => patch({ url: e.target.value })}
+                      placeholder="https://..."
+                      className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
+                    />
+                    <div className="flex shrink-0 items-center">
+                      <button type="button" onClick={() => move(-1)} disabled={idx === 0} className="rounded-md p-1.5 text-muted hover:text-foreground disabled:opacity-30" title="Yuqoriga">
+                        <ChevronUp className="h-4 w-4" />
+                      </button>
+                      <button type="button" onClick={() => move(1)} disabled={idx === s.links.length - 1} className="rounded-md p-1.5 text-muted hover:text-foreground disabled:opacity-30" title="Pastga">
+                        <ChevronDown className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setS((v) => ({ ...v, links: v.links.filter((x) => x.id !== ln.id) }))}
+                        className="rounded-md p-1.5 text-muted hover:text-red-500"
+                        title="O'chirish"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="mt-5 border-t border-border pt-4">
+          <label className="text-xs text-muted">Navbar "Kanal" havolasi (ixtiyoriy)</label>
+          <input value={s.channel} onChange={(e) => setS({ ...s, channel: e.target.value })} className={field} placeholder="https://t.me/..." />
         </div>
       </section>
 

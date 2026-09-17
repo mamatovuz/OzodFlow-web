@@ -82,11 +82,50 @@ const DEFAULT_ABOUT_HTML = `<p>Salom, mening ismim <strong>Ozodbek</strong>. Men
 <p>Hozirgi kunda ko‘pchilik <strong>AI sabab dasturchilarga ish qolmaydi</strong> deydi. Lekin men bunga boshqacha qarayman. Shuning uchun blogimning asosiy g‘oyasi: <strong>"Raqamli dunyoda raqamsiz narsalar haqida gaplashamiz"</strong>.</p>
 <p>Oddiy qilib aytganda, hamma texnologiya haqida gapirayotgan paytda, biz insoniylik, fikrlash, odatlar va hayotiy qarashlar haqida ham suhbatlashamiz. Bu — biroz boshqacha yondashuv.</p>`;
 
-/** Sozlamalarni oladi; bo'lmasa yaratadi (bitta qator, id="main"). */
+// Boshlang'ich ijtimoiy havolalar (admin paneldan qo'shiladi/o'chiriladi).
+const DEFAULT_LINKS = JSON.stringify([
+  { id: "l1", icon: "youtube", url: "https://www.youtube.com/@mamatov_ads", label: "YouTube" },
+  { id: "l2", icon: "github", url: "https://www.github.com/mamatovuz", label: "GitHub" },
+  { id: "l3", icon: "linkedin", url: "https://www.linkedin.com/in/mamatovozodbek/", label: "LinkedIn" },
+  { id: "l4", icon: "telegram", url: "https://t.me/Mamatov_ads", label: "Telegram" },
+]);
+
+export type SiteLink = { id: string; icon: string; url: string; label?: string };
+
+/** SiteSetting.links (JSON) ni xavfsiz massivga aylantiradi. */
+export function parseLinks(raw: string | null | undefined): SiteLink[] {
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter((x) => x && typeof x.url === "string")
+      .map((x, i) => ({
+        id: String(x.id || `l${i}`),
+        icon: String(x.icon || "link"),
+        url: String(x.url),
+        label: x.label ? String(x.label) : undefined,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Sozlamalarni oladi; bo'lmasa atomik yaratadi (upsert — bir vaqtda kelgan
+ * so'rovlarda P2002 bo'lmaydi).
+ */
 export async function getSiteSetting() {
-  const existing = await prisma.siteSetting.findUnique({ where: { id: "main" } });
-  if (existing) return existing;
-  return prisma.siteSetting.create({ data: { id: "main", aboutHtml: DEFAULT_ABOUT_HTML } });
+  const s = await prisma.siteSetting.upsert({
+    where: { id: "main" },
+    update: {},
+    create: { id: "main", aboutHtml: DEFAULT_ABOUT_HTML, links: DEFAULT_LINKS },
+  });
+  // Eski qator (links ustuni keyin qo'shilgan) — bir marta standart havolalar bilan to'ldiramiz.
+  if (!s.links || s.links === "[]") {
+    return prisma.siteSetting.update({ where: { id: "main" }, data: { links: DEFAULT_LINKS } });
+  }
+  return s;
 }
 
 /** Postdan qisqacha matn (HTML teglarsiz). */

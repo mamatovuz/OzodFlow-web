@@ -14,6 +14,7 @@ export const RESERVED_SLUGS = new Set<string>([
   "staff",
   "terms",
   "blog",
+  "site",
   "r",
   "login",
   "register",

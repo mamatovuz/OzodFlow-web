@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { prisma } from "@/lib/prisma";
@@ -5,6 +6,12 @@ import { siteBase, getSiteSetting, parseLinks } from "@/lib/site";
 import { SocialIcons } from "@/components/site/social-icons";
 
 export const dynamic = "force-dynamic";
+
+// Bosh sahifa sarlavhasi — ota (OzodFlow) shablonisiz, faqat saytning o'zi.
+export async function generateMetadata(): Promise<Metadata> {
+  const s = await getSiteSetting();
+  return { title: { absolute: s.metaTitle }, description: s.metaDescription };
+}
 
 function fmt(d: Date) {
   return new Date(d).toLocaleDateString("uz", { day: "numeric", month: "short", year: "numeric" });

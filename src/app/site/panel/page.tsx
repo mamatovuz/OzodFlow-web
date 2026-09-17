@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { isSiteAdmin, siteBase, getSiteSetting, parseLinks } from "@/lib/site";
+import { isSiteAdmin, siteBase, getSiteSetting, parseLinks, parseNavButtons } from "@/lib/site";
 import { PanelClient } from "@/components/site/panel-client";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +23,12 @@ export default async function SitePanel() {
     aboutHtml: settings.aboutHtml,
     channel: settings.channel,
     links: parseLinks(settings.links),
+    navButtons: parseNavButtons(settings.navButtons),
+    metaTitle: settings.metaTitle,
+    metaDescription: settings.metaDescription,
+    ogImage: settings.ogImage || "",
+    favicon: settings.favicon || "",
+    siteName: settings.siteName,
   };
 
   return (

@@ -5,8 +5,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import type { SiteNavButton } from "@/lib/site";
 
-export function SiteNav({ base, channel }: { base: string; channel: string }) {
+export function SiteNav({
+  base,
+  channel,
+  navButtons = [],
+}: {
+  base: string;
+  channel: string;
+  navButtons?: SiteNavButton[];
+}) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -36,6 +45,17 @@ export function SiteNav({ base, channel }: { base: string; channel: string }) {
               {l.label}
             </Link>
           ))}
+          {navButtons.map((b) =>
+            b.external ? (
+              <a key={b.id} href={b.url} target="_blank" rel="noreferrer" className="text-sm text-muted hover:text-foreground">
+                {b.label}
+              </a>
+            ) : (
+              <Link key={b.id} href={b.url} className="text-sm text-muted hover:text-foreground">
+                {b.label}
+              </Link>
+            )
+          )}
           {channel && (
             <a href={channel} target="_blank" rel="noreferrer" className="text-sm text-muted hover:text-foreground">
               Kanal
@@ -69,6 +89,29 @@ export function SiteNav({ base, channel }: { base: string; channel: string }) {
               {l.label}
             </Link>
           ))}
+          {navButtons.map((b) =>
+            b.external ? (
+              <a
+                key={b.id}
+                href={b.url}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setOpen(false)}
+                className="block rounded-lg px-2 py-2.5 text-sm text-foreground"
+              >
+                {b.label}
+              </a>
+            ) : (
+              <Link
+                key={b.id}
+                href={b.url}
+                onClick={() => setOpen(false)}
+                className="block rounded-lg px-2 py-2.5 text-sm text-foreground"
+              >
+                {b.label}
+              </Link>
+            )
+          )}
           {channel && (
             <a
               href={channel}

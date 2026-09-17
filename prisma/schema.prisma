@@ -956,8 +956,14 @@ model SitePost {
   excerpt     String   @default("") // qisqa tavsif (ro'yxat kartasi uchun)
   coverImage  String? // ro'yxat/detal ustidagi rasm
   status      String   @default("DRAFT") // DRAFT | PUBLIC | SITE
+  // ─── SEO / ulashish (bo'sh bo'lsa title/excerpt/coverImage'dan olinadi) ───
+  metaTitle       String? // ulashishda/brauzer tabida ko'rinadigan sarlavha
+  metaDescription String? // ulashish tavsifi
+  ogImage         String? // ulashish rasmi (bo'lmasa coverImage yoki avto-rasm)
   publishDate DateTime @default(now())
   views       Int      @default(0)
+  likes       Int      @default(0) // "yoqdi"
+  dislikes    Int      @default(0) // "yoqmadi"
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -979,5 +985,13 @@ model SiteSetting {
   // JSON massiv: [{ id, icon, url, label }]. icon — site-icons ro'yxatidagi kalit.
   links        String   @default("[]")
   channel      String   @default("https://t.me/OzodFlow") // navbar "Kanal" havolasi
+  // Navbar qo'shimcha tugmalari — admin paneldan. JSON: [{ id, label, url, external }]
+  navButtons   String   @default("[]")
+  // ─── Sayt darajasidagi SEO / ulashish (Telegram, Google) ───
+  metaTitle       String   @default("Ozodbek's Blog") // bosh sahifa/sayt sarlavhasi
+  metaDescription String   @default("Raqamli dunyoda raqamsiz narsalar haqida gaplashamiz.")
+  ogImage         String? // ulashish rasmi (bo'lmasa avto-rasm chiziladi)
+  favicon         String? // brauzer tab ikonkasi (rasm URL)
+  siteName        String   @default("Ozodbek's Blog")
   updatedAt    DateTime @updatedAt
 }

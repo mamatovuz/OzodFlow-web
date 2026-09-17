@@ -17,9 +17,10 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
+import { Eye, ThumbsUp, ThumbsDown, Search } from "lucide-react";
 import { RichEditor } from "@/components/site/rich-editor";
 import { SITE_ICONS, iconFor } from "@/components/site/link-icons";
-import type { SiteLink } from "@/lib/site";
+import type { SiteLink, SiteNavButton } from "@/lib/site";
 
 type Post = {
   id: string;
@@ -31,6 +32,11 @@ type Post = {
   status: "DRAFT" | "PUBLIC" | "SITE";
   publishDate: string;
   views: number;
+  likes: number;
+  dislikes: number;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  ogImage: string | null;
 };
 
 type Settings = {
@@ -42,6 +48,12 @@ type Settings = {
   aboutHtml: string;
   channel: string;
   links: SiteLink[];
+  navButtons: SiteNavButton[];
+  metaTitle: string;
+  metaDescription: string;
+  ogImage: string;
+  favicon: string;
+  siteName: string;
 };
 
 const STATUS: { key: Post["status"]; label: string; hint: string }[] = [
@@ -60,6 +72,11 @@ const emptyDraft = (): Post => ({
   status: "DRAFT",
   publishDate: new Date().toISOString(),
   views: 0,
+  likes: 0,
+  dislikes: 0,
+  metaTitle: null,
+  metaDescription: null,
+  ogImage: null,
 });
 
 async function uploadImage(file: File): Promise<string | null> {
@@ -92,6 +109,11 @@ export function PanelClient({
   const [docId, setDocId] = useState("new");
   const [saving, setSaving] = useState(false);
   const [coverBusy, setCoverBusy] = useState(false);
+  const [ogBusy, setOgBusy] = useState(false);
+  const [seoOpen, setSeoOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const filtered = posts.filter((p) => p.title.toLowerCase().includes(query.trim().toLowerCase()));
 
   function startNew() {
     setDraft(emptyDraft());
@@ -118,6 +140,9 @@ export function PanelClient({
       contentHtml: draft.contentHtml,
       coverImage: draft.coverImage,
       status: draft.status,
+      metaTitle: draft.metaTitle,
+      metaDescription: draft.metaDescription,
+      ogImage: draft.ogImage,
     };
     const res = await fetch(draft.id ? `/api/site/posts/${draft.id}` : "/api/site/posts", {
       method: draft.id ? "PUT" : "POST",
@@ -154,6 +179,16 @@ export function PanelClient({
     const url = await uploadImage(file);
     setCoverBusy(false);
     if (url) setDraft({ ...draft, coverImage: url });
+  }
+
+  async function onOgImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !draft) return;
+    setOgBusy(true);
+    const url = await uploadImage(file);
+    setOgBusy(false);
+    if (url) setDraft({ ...draft, ogImage: url });
   }
 
   async function logout() {
@@ -282,6 +317,80 @@ export function PanelClient({
                   </div>
                 </div>
 
+                {/* SEO / ulashish — har bir maqolaning o'z sarlavha/tavsif/rasmi */}
+                <div className="mt-5 rounded-xl border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setSeoOpen((v) => !v)}
+                    className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Search className="h-4 w-4 text-muted" /> SEO va ulashish (ixtiyoriy)
+                    </span>
+                    {seoOpen ? <ChevronUp className="h-4 w-4 text-muted" /> : <ChevronDown className="h-4 w-4 text-muted" />}
+                  </button>
+                  {seoOpen && (
+                    <div className="space-y-4 border-t border-border p-4">
+                      <p className="text-xs text-muted">
+                        Bo'sh qoldirsangiz — sarlavha, qisqacha va muqova rasmidan avtomatik olinadi.
+                        Ulashilganda (Telegram, Google) shu ma'lumot ko'rinadi.
+                      </p>
+                      <div>
+                        <label className="text-xs text-muted">Ulashish sarlavhasi</label>
+                        <input
+                          value={draft.metaTitle || ""}
+                          onChange={(e) => setDraft({ ...draft, metaTitle: e.target.value })}
+                          placeholder={draft.title || "Sarlavha"}
+                          className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted">Ulashish tavsifi</label>
+                        <textarea
+                          value={draft.metaDescription || ""}
+                          onChange={(e) => setDraft({ ...draft, metaDescription: e.target.value })}
+                          rows={2}
+                          placeholder="Qisqa tavsif..."
+                          className="mt-1 w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted">Ulashish rasmi (OG image)</label>
+                        <div className="mt-1.5 flex items-center gap-3">
+                          {draft.ogImage ? (
+                            <div className="relative">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={draft.ogImage} alt="" className="h-16 rounded-lg object-cover" />
+                              <button
+                                onClick={() => setDraft({ ...draft, ogImage: null })}
+                                className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-background"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted">Yo'q bo'lsa avtomatik chiroyli rasm chiziladi.</p>
+                          )}
+                          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-muted hover:border-foreground hover:text-foreground">
+                            {ogBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                            Rasm yuklash
+                            <input type="file" accept="image/*" hidden onChange={onOgImage} />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Statistika (tahrirlashda) */}
+                {draft.id && (
+                  <div className="mt-5 grid grid-cols-3 gap-2">
+                    <MiniStat icon={<Eye className="h-4 w-4" />} value={draft.views} label="Ko'rish" />
+                    <MiniStat icon={<ThumbsUp className="h-4 w-4" />} value={draft.likes} label="Yoqdi" />
+                    <MiniStat icon={<ThumbsDown className="h-4 w-4" />} value={draft.dislikes} label="Yoqmadi" />
+                  </div>
+                )}
+
                 <div className="mt-6 flex gap-2">
                   <button
                     onClick={savePost}
@@ -305,14 +414,34 @@ export function PanelClient({
               </button>
             )}
 
+            {/* Qidiruv */}
+            {posts.length > 0 && (
+              <div className="mt-6 flex items-center justify-between gap-3">
+                <div className="relative flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Yozuvlarni qidirish..."
+                    className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none focus:border-foreground"
+                  />
+                </div>
+                <span className="shrink-0 text-sm text-muted">{filtered.length} ta</span>
+              </div>
+            )}
+
             {/* Ro'yxat */}
-            <div className="mt-6 space-y-2">
+            <div className="mt-4 space-y-2">
               {posts.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-border py-14 text-center text-sm text-muted">
                   Hali yozuv yo'q. Birinchisini yozing.
                 </p>
+              ) : filtered.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-border py-10 text-center text-sm text-muted">
+                  Topilmadi.
+                </p>
               ) : (
-                posts.map((p) => (
+                filtered.map((p) => (
                   <div
                     key={p.id}
                     className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5"
@@ -326,9 +455,12 @@ export function PanelClient({
                         <h3 className="truncate font-medium">{p.title}</h3>
                         <StatusBadge status={p.status} />
                       </div>
-                      <p className="truncate text-xs text-muted">
-                        /{p.slug} · {p.views} ko'rish
-                      </p>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
+                        <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {p.views}</span>
+                        <span className="flex items-center gap-1"><ThumbsUp className="h-3 w-3" /> {p.likes}</span>
+                        <span className="flex items-center gap-1"><ThumbsDown className="h-3 w-3" /> {p.dislikes}</span>
+                        <span className="truncate">/{p.slug}</span>
+                      </div>
                     </div>
                     <button onClick={() => startEdit(p)} className="rounded-lg p-2 text-muted hover:bg-surface-2 hover:text-foreground" title="Tahrirlash">
                       <Pencil className="h-4 w-4" />
@@ -387,19 +519,23 @@ function SettingsTab({ initial }: { initial: Settings }) {
   const [s, setS] = useState<Settings>(initial);
   const [saving, setSaving] = useState(false);
   const [ok, setOk] = useState(false);
-  const [heroBusy, setHeroBusy] = useState(false);
-  const [avaBusy, setAvaBusy] = useState(false);
+  const [busyKey, setBusyKey] = useState<string>("");
 
-  async function pick(kind: "hero" | "profile", e: React.ChangeEvent<HTMLInputElement>) {
+  const FIELD_OF: Record<string, keyof Settings> = {
+    hero: "heroImage",
+    profile: "profileImage",
+    og: "ogImage",
+    favicon: "favicon",
+  };
+
+  async function pick(kind: "hero" | "profile" | "og" | "favicon", e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (kind === "hero") setHeroBusy(true);
-    else setAvaBusy(true);
+    setBusyKey(kind);
     const url = await uploadImage(file);
-    if (kind === "hero") setHeroBusy(false);
-    else setAvaBusy(false);
-    if (url) setS((v) => ({ ...v, [kind === "hero" ? "heroImage" : "profileImage"]: url }));
+    setBusyKey("");
+    if (url) setS((v) => ({ ...v, [FIELD_OF[kind]]: url }));
   }
 
   async function save() {
@@ -450,14 +586,60 @@ function SettingsTab({ initial }: { initial: Settings }) {
             label="Profil rasmi (dumaloq)"
             url={s.profileImage}
             round
-            busy={avaBusy}
+            busy={busyKey === "profile"}
             onPick={(e) => pick("profile", e)}
           />
           <ImageField
             label="Bosh sahifa rasmi"
             url={s.heroImage}
-            busy={heroBusy}
+            busy={busyKey === "hero"}
             onPick={(e) => pick("hero", e)}
+          />
+        </div>
+      </section>
+
+      {/* Sayt SEO / ulashish */}
+      <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+        <h2 className="font-semibold">Sayt SEO va ulashish</h2>
+        <p className="mt-0.5 text-sm text-muted">
+          Telegram/Google'ga tashlanganda ko'rinadigan nom, tavsif, rasm va favicon. Endi OzodFlow emas, o'zingizniki chiqadi.
+        </p>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="text-xs text-muted">Sayt nomi</label>
+            <input value={s.siteName} onChange={(e) => setS({ ...s, siteName: e.target.value })} className={field} placeholder="Ozodbek's Blog" />
+          </div>
+          <div>
+            <label className="text-xs text-muted">Bosh sahifa sarlavhasi (title)</label>
+            <input value={s.metaTitle} onChange={(e) => setS({ ...s, metaTitle: e.target.value })} className={field} />
+          </div>
+        </div>
+        <div className="mt-4">
+          <label className="text-xs text-muted">Tavsif (description)</label>
+          <textarea
+            value={s.metaDescription}
+            onChange={(e) => setS({ ...s, metaDescription: e.target.value })}
+            rows={2}
+            className="mt-1 w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground"
+          />
+        </div>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <ImageField
+            label="Ulashish rasmi (OG — bo'sh bo'lsa avto)"
+            url={s.ogImage || "/site/hero.jpg"}
+            busy={busyKey === "og"}
+            onPick={(e) => pick("og", e)}
+            onClear={s.ogImage ? () => setS({ ...s, ogImage: "" }) : undefined}
+          />
+          <ImageField
+            label="Favicon (tab ikonkasi)"
+            url={s.favicon || "/site/profile.jpg"}
+            round
+            busy={busyKey === "favicon"}
+            onPick={(e) => pick("favicon", e)}
+            onClear={s.favicon ? () => setS({ ...s, favicon: "" }) : undefined}
           />
         </div>
       </section>
@@ -567,6 +749,65 @@ function SettingsTab({ initial }: { initial: Settings }) {
         </div>
       </section>
 
+      {/* Navbar qo'shimcha tugmalari */}
+      <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold">Navbar tugmalari</h2>
+            <p className="mt-0.5 text-sm text-muted">Yuqoridagi menyuga qo'shimcha havola tugmalari.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              setS((v) => ({
+                ...v,
+                navButtons: [...v.navButtons, { id: `n${Date.now()}`, label: "", url: "", external: true }],
+              }))
+            }
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm hover:border-foreground"
+          >
+            <Plus className="h-4 w-4" /> Qo'shish
+          </button>
+        </div>
+
+        {s.navButtons.length === 0 ? (
+          <p className="mt-4 rounded-lg border border-dashed border-border py-6 text-center text-sm text-muted">
+            Tugma yo'q. "Qo'shish" bosing.
+          </p>
+        ) : (
+          <div className="mt-4 space-y-2.5">
+            {s.navButtons.map((b) => {
+              const patch = (p: Partial<SiteNavButton>) =>
+                setS((v) => ({ ...v, navButtons: v.navButtons.map((x) => (x.id === b.id ? { ...x, ...p } : x)) }));
+              return (
+                <div key={b.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-border p-2.5">
+                  <input
+                    value={b.label}
+                    onChange={(e) => patch({ label: e.target.value })}
+                    placeholder="Tugma nomi"
+                    className="h-9 w-28 shrink-0 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
+                  />
+                  <input
+                    value={b.url}
+                    onChange={(e) => patch({ url: e.target.value })}
+                    placeholder="https://... yoki /blog"
+                    className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setS((v) => ({ ...v, navButtons: v.navButtons.filter((x) => x.id !== b.id) }))}
+                    className="rounded-md p-1.5 text-muted hover:text-red-500"
+                    title="O'chirish"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       <div className="flex items-center gap-3">
         <button
           onClick={save}
@@ -591,12 +832,14 @@ function ImageField({
   round,
   busy,
   onPick,
+  onClear,
 }: {
   label: string;
   url: string;
   round?: boolean;
   busy: boolean;
   onPick: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClear?: () => void;
 }) {
   return (
     <div>
@@ -613,7 +856,22 @@ function ImageField({
           O'zgartirish
           <input type="file" accept="image/*" hidden onChange={onPick} />
         </label>
+        {onClear && (
+          <button type="button" onClick={onClear} className="rounded-lg p-2 text-muted hover:text-red-500" title="Tozalash">
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
+    </div>
+  );
+}
+
+function MiniStat({ icon, value, label }: { icon: React.ReactNode; value: number; label: string }) {
+  return (
+    <div className="flex flex-col items-center gap-1 rounded-xl border border-border bg-background py-3">
+      <span className="text-muted">{icon}</span>
+      <span className="text-lg font-bold">{value}</span>
+      <span className="text-xs text-muted">{label}</span>
     </div>
   );
 }

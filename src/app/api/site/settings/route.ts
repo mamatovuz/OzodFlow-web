@@ -13,6 +13,13 @@ const linkSchema = z.object({
   label: z.string().optional(),
 });
 
+const navSchema = z.object({
+  id: z.string(),
+  label: z.string().min(1),
+  url: z.string().min(1),
+  external: z.boolean().optional(),
+});
+
 const schema = z.object({
   heroTitle: z.string().max(60).optional(),
   heroRole: z.string().max(80).optional(),
@@ -22,6 +29,12 @@ const schema = z.object({
   aboutHtml: z.string().optional(),
   channel: z.string().optional(),
   links: z.array(linkSchema).max(20).optional(),
+  navButtons: z.array(navSchema).max(10).optional(),
+  metaTitle: z.string().max(120).optional(),
+  metaDescription: z.string().max(300).optional(),
+  ogImage: z.string().optional().nullable(),
+  favicon: z.string().optional().nullable(),
+  siteName: z.string().max(60).optional(),
 });
 
 export async function GET() {
@@ -37,12 +50,15 @@ export async function PUT(req: NextRequest) {
   if (!parsed.success) return fail(parsed.error.issues[0]?.message || "Ma'lumot noto'g'ri", 422);
 
   await getSiteSetting(); // qator borligiga ishonch
-  const { links, ...rest } = parsed.data;
+  const { links, navButtons, ogImage, favicon, ...rest } = parsed.data;
   const s = await prisma.siteSetting.update({
     where: { id: "main" },
     data: {
       ...rest,
       ...(links !== undefined ? { links: JSON.stringify(links) } : {}),
+      ...(navButtons !== undefined ? { navButtons: JSON.stringify(navButtons) } : {}),
+      ...(ogImage !== undefined ? { ogImage: ogImage || null } : {}),
+      ...(favicon !== undefined ? { favicon: favicon || null } : {}),
     },
   });
   return ok(s);

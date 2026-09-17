@@ -91,6 +91,41 @@ const DEFAULT_LINKS = JSON.stringify([
 ]);
 
 export type SiteLink = { id: string; icon: string; url: string; label?: string };
+export type SiteNavButton = { id: string; label: string; url: string; external?: boolean };
+
+/** SiteSetting.navButtons (JSON) ni xavfsiz massivga aylantiradi. */
+export function parseNavButtons(raw: string | null | undefined): SiteNavButton[] {
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter((x) => x && typeof x.url === "string" && typeof x.label === "string")
+      .map((x, i) => ({
+        id: String(x.id || `n${i}`),
+        label: String(x.label),
+        url: String(x.url),
+        external: !!x.external,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/** Joriy so'rov manzili (https://host) — absolut OG/rasm URL uchun. */
+export async function siteOrigin(): Promise<string> {
+  const hdrs = await headers();
+  const host = hdrs.get("host") || "localhost:3000";
+  const proto = hdrs.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
+/** Nisbiy (/media/..) yoki absolut URL'ni absolutga aylantiradi. */
+export function absUrl(origin: string, url?: string | null): string | undefined {
+  if (!url) return undefined;
+  if (/^https?:\/\//i.test(url)) return url;
+  return `${origin}${url.startsWith("/") ? "" : "/"}${url}`;
+}
 
 /** SiteSetting.links (JSON) ni xavfsiz massivga aylantiradi. */
 export function parseLinks(raw: string | null | undefined): SiteLink[] {

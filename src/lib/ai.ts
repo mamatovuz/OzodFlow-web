@@ -73,6 +73,24 @@ export async function aiConfigured(): Promise<boolean> {
   return n > 0;
 }
 
+// Kamida bitta faol Gemini kaliti bormi (TTS Gemini orqali ishlaydi)?
+export async function geminiConfigured(): Promise<boolean> {
+  const n = await prisma.aiKey.count({ where: { isActive: true, provider: "gemini" } });
+  return n > 0;
+}
+
+// Ishlashga tayyor birinchi Gemini kalitini ochib qaytaradi (TTS uchun).
+export async function getGeminiKey(): Promise<string | null> {
+  const keys = await usableKeys();
+  for (const k of keys) {
+    if (providerOf(k) === "gemini") {
+      const dec = safeDecrypt(k.keyEnc);
+      if (dec) return dec;
+    }
+  }
+  return null;
+}
+
 // Ishlatishga tayyor kalitlar (faol, cooldown tugagan) — failover tartibida
 async function usableKeys(): Promise<AiKey[]> {
   const now = new Date();

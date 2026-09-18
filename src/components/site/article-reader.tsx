@@ -201,7 +201,7 @@ export function ArticleReader({
     // Boshlash
     const text = contentRef.current?.innerText?.trim();
     if (!text) return;
-    chunksRef.current = splitChunks(text);
+    chunksRef.current = splitChunks(text, 1200);
     if (chunksRef.current.length === 0) return;
     abortRef.current = false;
     prefetchRef.current.clear();

@@ -13,7 +13,7 @@ const schema = z.object({
   contentHtml: z.string().optional(),
   excerpt: z.string().optional(),
   coverImage: z.string().optional().nullable(),
-  status: z.enum(["DRAFT", "PUBLIC", "SITE"]).optional(),
+  status: z.enum(["DRAFT", "PUBLIC", "SITE", "UNLISTED"]).optional(),
   publishDate: z.string().optional(),
   metaTitle: z.string().optional().nullable(),
   metaDescription: z.string().optional().nullable(),

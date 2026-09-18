@@ -23,7 +23,8 @@ export default async function SiteHome() {
     siteBase(),
     getSiteSetting(),
     prisma.sitePost.findMany({
-      where: publicPostWhere(),
+      // Qulflangan (parolli) postlar bosh sahifada ko'rinmaydi — faqat /blog ro'yxatida
+      where: { ...publicPostWhere(), password: null },
       orderBy: [{ publishDate: "desc" }],
       take: 5,
     }),

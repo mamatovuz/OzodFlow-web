@@ -107,9 +107,15 @@ export async function isPostUnlocked(postId: string): Promise<boolean> {
  * - Shaxsiy domenda (PERSONAL_SITE_HOST) so'rov kelsa: "" → `/blog`, `/about` ...
  * - Asosiy OzodFlow domenida sinash uchun: "/site" → `/site/blog` ...
  */
+/** Joriy so'rovning haqiqiy hosti — proxy orqasida `x-forwarded-host` ustun. */
+function effectiveHost(hdrs: Headers): string {
+  const raw = hdrs.get("x-forwarded-host") || hdrs.get("host") || "";
+  return raw.split(",")[0].split(":")[0].trim().toLowerCase();
+}
+
 export async function siteBase(): Promise<string> {
   const hdrs = await headers();
-  const host = (hdrs.get("host") || "").split(":")[0].toLowerCase();
+  const host = effectiveHost(hdrs);
   const siteHosts = (process.env.PERSONAL_SITE_HOST || "")
     .split(",")
     .map((h) => h.trim().toLowerCase())
@@ -155,7 +161,8 @@ export function parseNavButtons(raw: string | null | undefined): SiteNavButton[]
 /** Joriy so'rov manzili (https://host) — absolut OG/rasm URL uchun. */
 export async function siteOrigin(): Promise<string> {
   const hdrs = await headers();
-  const host = hdrs.get("host") || "localhost:3000";
+  // Proxy orqasida haqiqiy domen `x-forwarded-host`da bo'lishi mumkin
+  const host = (hdrs.get("x-forwarded-host") || hdrs.get("host") || "localhost:3000").split(",")[0].trim();
   const proto = hdrs.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
   return `${proto}://${host}`;
 }

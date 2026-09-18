@@ -46,7 +46,7 @@ type Post = {
   contentHtml: string;
   excerpt: string;
   coverImage: string | null;
-  status: "DRAFT" | "PUBLIC" | "SITE";
+  status: "DRAFT" | "PUBLIC" | "SITE" | "UNLISTED";
   publishDate: string;
   views: number;
   likes: number;
@@ -84,6 +84,7 @@ const STATUS: { key: Post["status"]; label: string; hint: string }[] = [
   { key: "DRAFT", label: "Qoralama", hint: "Faqat sizga ko'rinadi" },
   { key: "PUBLIC", label: "Hammaga", hint: "Blog ro'yxatida chiqadi" },
   { key: "SITE", label: "Saytda", hint: "Bosh sahifada ham ajratiladi" },
+  { key: "UNLISTED", label: "Yashirin", hint: "Ro'yxatda chiqmaydi, faqat havola bilan" },
 ];
 
 const emptyDraft = (): Post => ({
@@ -484,7 +485,7 @@ export function PanelClient({
                 {/* Ko'rinish holati */}
                 <div className="mt-5">
                   <div className="mb-2 text-xs text-muted">Ko'rinish</div>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {STATUS.map((s) => (
                       <button
                         key={s.key}
@@ -768,6 +769,7 @@ function StatusBadge({ status }: { status: Post["status"] }) {
     DRAFT: { label: "Qoralama", cls: "bg-surface-2 text-muted" },
     PUBLIC: { label: "Hammaga", cls: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
     SITE: { label: "Saytda", cls: "bg-accent/15 text-accent" },
+    UNLISTED: { label: "Yashirin", cls: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
   }[status];
   return <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${map.cls}`}>{map.label}</span>;
 }

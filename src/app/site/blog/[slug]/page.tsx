@@ -59,6 +59,8 @@ export async function generateMetadata({
     title,
     description,
     keywords: parseTags(post.tags),
+    // Yashirin post — qidiruv tizimlari indekslamasin (faqat havola bilan)
+    ...(post.status === "UNLISTED" ? { robots: { index: false, follow: false } } : {}),
     openGraph: {
       type: "article",
       title,

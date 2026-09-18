@@ -16,7 +16,11 @@ const SITE_HOSTS = (process.env.PERSONAL_SITE_HOST || "")
   .filter(Boolean);
 
 export function middleware(req: NextRequest) {
-  const host = (req.headers.get("host") || "").split(":")[0].toLowerCase();
+  // Cloudflare/proxy orqasida haqiqiy domen `x-forwarded-host`da bo'lishi mumkin
+  // (Railway generated domenga proxy qilinganda Host o'zgarib ketadi). Shuning
+  // uchun avval forwarded-host ni, keyin oddiy Host ni olamiz.
+  const fwd = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
+  const host = fwd.split(",")[0].split(":")[0].trim().toLowerCase();
   const { pathname } = req.nextUrl;
 
   // Faqat shaxsiy sayt domeni bo'lsa yo'naltiramiz

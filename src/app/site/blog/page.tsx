@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Eye, Clock, X, Search, Flame } from "lucide-react";
+import { Eye, Clock, X, Search, Flame, Lock } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { siteBase, siteOrigin, parseTags, readingTime, publicPostWhere, publishDuePosts, stripHtml } from "@/lib/site";
 import { getLang, tr } from "@/lib/site-i18n";
@@ -108,7 +108,10 @@ export default async function SiteBlogList({
                 <img src={p.coverImage} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover sm:h-20 sm:w-20" />
               )}
               <div className="min-w-0 flex-1">
-                <h2 className="font-semibold leading-snug group-hover:text-accent sm:text-lg">{p.title}</h2>
+                <h2 className="flex items-center gap-1.5 font-semibold leading-snug group-hover:text-accent sm:text-lg">
+                  {p.password && <Lock className="h-3.5 w-3.5 shrink-0 text-muted" />}
+                  <span className="min-w-0">{p.title}</span>
+                </h2>
                 {p.excerpt && <p className="mt-1 line-clamp-2 text-sm text-muted">{p.excerpt}</p>}
                 <div className="mt-1.5 flex items-center gap-3 text-xs text-muted">
                   <span>{fmt(p.publishDate)}</span>

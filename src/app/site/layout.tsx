@@ -7,7 +7,7 @@ import { siteBase, getSiteSetting, siteOrigin, absUrl, parseNavButtons } from "@
 import { getLang, tr } from "@/lib/site-i18n";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const [s, origin] = await Promise.all([getSiteSetting(), siteOrigin()]);
+  const [s, origin, base] = await Promise.all([getSiteSetting(), siteOrigin(), siteBase()]);
   const ogImg = absUrl(origin, s.ogImage);
   const favicon = s.favicon || undefined;
 
@@ -16,6 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: { default: s.metaTitle, template: `%s · ${s.siteName}` },
     description: s.metaDescription,
     applicationName: s.siteName,
+    alternates: { types: { "application/rss+xml": [{ url: `${origin}${base}/rss.xml`, title: s.siteName }] } },
     ...(favicon ? { icons: { icon: favicon, shortcut: favicon, apple: favicon } } : {}),
     openGraph: {
       type: "website",
@@ -34,13 +35,26 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const [base, s, projectCount, lang] = await Promise.all([
+  const [base, s, projectCount, lang, origin] = await Promise.all([
     siteBase(),
     getSiteSetting(),
     prisma.siteProject.count(),
     getLang(),
+    siteOrigin(),
   ]);
   const navButtons = parseNavButtons(s.navButtons);
+  const siteLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: s.siteName,
+    url: `${origin}${base || ""}`,
+    description: s.metaDescription,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${origin}${base}/blog?q={q}`,
+      "query-input": "required name=q",
+    },
+  };
   const labels = {
     blog: tr(lang, "blog"),
     projects: tr(lang, "projects"),
@@ -50,6 +64,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
 
   return (
     <div className="site-root flex min-h-screen flex-col">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(siteLd) }} />
       <SiteNav
         base={base}
         channel={s.channel}

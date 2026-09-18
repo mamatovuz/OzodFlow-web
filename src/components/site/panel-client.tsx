@@ -28,6 +28,8 @@ import {
   Mail,
   FolderGit2,
   Calendar,
+  Sparkles,
+  Wand2,
 } from "lucide-react";
 import { RichEditor } from "@/components/site/rich-editor";
 import { AdminStats } from "@/components/site/admin-stats";
@@ -157,6 +159,37 @@ export function PanelClient({
   const [seoOpen, setSeoOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [restored, setRestored] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+
+  async function runAi(mode: "generate" | "improve") {
+    if (!draft) return;
+    setAiBusy(true);
+    const res = await fetch("/api/site/ai-draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(mode === "generate" ? { mode, topic: aiTopic } : { mode, current: draft.contentHtml }),
+    });
+    const json = await res.json().catch(() => ({}));
+    setAiBusy(false);
+    if (!res.ok) return alert(json.error || "AI xatosi");
+    const d = json.data;
+    setDraft((cur) =>
+      cur
+        ? {
+            ...cur,
+            title: cur.title || d.title || "",
+            contentHtml: d.contentHtml || cur.contentHtml,
+            excerpt: d.excerpt || cur.excerpt,
+            tags: cur.tags.length ? cur.tags : d.tags || [],
+          }
+        : cur
+    );
+    setDocId("ai-" + Date.now()); // editor mazmunini yangilash uchun
+    setAiOpen(false);
+    setAiTopic("");
+  }
 
   const filtered = posts.filter((p) => p.title.toLowerCase().includes(query.trim().toLowerCase()));
 
@@ -354,6 +387,55 @@ export function PanelClient({
                   placeholder="Sarlavha"
                   className="w-full border-none bg-transparent text-2xl font-bold tracking-tight outline-none placeholder:text-muted/50"
                 />
+
+                {/* AI yordamchi */}
+                <div className="mt-3">
+                  {!aiOpen ? (
+                    <button
+                      type="button"
+                      onClick={() => setAiOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/5 px-3 py-1.5 text-sm text-accent transition-colors hover:bg-accent/10"
+                    >
+                      <Sparkles className="h-4 w-4" /> AI bilan yozish
+                    </button>
+                  ) : (
+                    <div className="rounded-xl border border-accent/30 bg-accent/5 p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 text-sm font-medium text-accent">
+                          <Sparkles className="h-4 w-4" /> AI yordamchi
+                        </span>
+                        <button type="button" onClick={() => setAiOpen(false)} className="text-muted hover:text-foreground">
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <input
+                        value={aiTopic}
+                        onChange={(e) => setAiTopic(e.target.value)}
+                        placeholder="Mavzu: masalan 'React hooks nima uchun kerak'"
+                        className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground"
+                      />
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => runAi("generate")}
+                          disabled={aiBusy || !aiTopic.trim()}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-foreground px-3.5 py-2 text-sm font-medium text-background hover:opacity-90 disabled:opacity-50"
+                        >
+                          {aiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Maqola yaratish
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => runAi("improve")}
+                          disabled={aiBusy || !draft.contentHtml.trim()}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3.5 py-2 text-sm hover:border-foreground disabled:opacity-50"
+                        >
+                          <Wand2 className="h-4 w-4" /> Matnni yaxshilash
+                        </button>
+                      </div>
+                      <p className="mt-2 text-xs text-muted">AI yozganini tekshirib, tahrirlab chiqing.</p>
+                    </div>
+                  )}
+                </div>
 
                 {/* Muqova rasmi */}
                 <div className="mt-4">

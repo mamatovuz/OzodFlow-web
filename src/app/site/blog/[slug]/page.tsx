@@ -15,6 +15,7 @@ import {
   isPostUnlocked,
   isSiteAdmin,
   publicPostWhere,
+  pickRelated,
 } from "@/lib/site";
 import { getLang, tr } from "@/lib/site-i18n";
 import { LockGate } from "@/components/site/lock-gate";
@@ -114,11 +115,11 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
   const mins = readingTime(post.contentHtml);
   const { html, toc } = buildToc(post.contentHtml);
 
-  const [recommended, comments, seriesParts] = await Promise.all([
+  const [pool, comments, seriesParts, prevPost, nextPost] = await Promise.all([
     prisma.sitePost.findMany({
       where: { ...publicPostWhere(), id: { not: post.id } },
       orderBy: [{ publishDate: "desc" }],
-      take: 3,
+      take: 24,
     }),
     prisma.siteComment.findMany({
       where: { postId: post.id, approved: true },
@@ -132,7 +133,19 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
           select: { id: true, slug: true, title: true, seriesOrder: true },
         })
       : Promise.resolve([]),
+    prisma.sitePost.findFirst({
+      where: { ...publicPostWhere(), publishDate: { lt: post.publishDate }, id: { not: post.id } },
+      orderBy: { publishDate: "desc" },
+      select: { slug: true, title: true },
+    }),
+    prisma.sitePost.findFirst({
+      where: { ...publicPostWhere(), publishDate: { gt: post.publishDate }, id: { not: post.id } },
+      orderBy: { publishDate: "asc" },
+      select: { slug: true, title: true },
+    }),
   ]);
+  // O'xshash maqolalar — umumiy teglar bo'yicha (fallback — eng yangilari)
+  const recommended = pickRelated(post, pool, 3);
 
   // JSON-LD (Google boy natija)
   const jsonLd = {
@@ -242,6 +255,26 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
       <div className="mt-10 border-t border-border pt-10">
         <PostReactions slug={post.slug} initialLikes={post.likes} initialDislikes={post.dislikes} />
       </div>
+
+      {/* Oldingi / keyingi maqola */}
+      {(prevPost || nextPost) && (
+        <nav className="mt-10 grid gap-3 border-t border-border pt-8 sm:grid-cols-2">
+          {prevPost ? (
+            <Link href={`${base}/blog/${prevPost.slug}`} className="group rounded-xl border border-border p-4 transition-colors hover:border-foreground">
+              <span className="flex items-center gap-1 text-xs text-muted"><ArrowLeft className="h-3 w-3" /> Oldingi</span>
+              <p className="mt-1 line-clamp-2 font-medium group-hover:text-accent">{prevPost.title}</p>
+            </Link>
+          ) : (
+            <span />
+          )}
+          {nextPost && (
+            <Link href={`${base}/blog/${nextPost.slug}`} className="group rounded-xl border border-border p-4 text-right transition-colors hover:border-foreground">
+              <span className="flex items-center justify-end gap-1 text-xs text-muted">Keyingi <ArrowUpRight className="h-3 w-3" /></span>
+              <p className="mt-1 line-clamp-2 font-medium group-hover:text-accent">{nextPost.title}</p>
+            </Link>
+          )}
+        </nav>
+      )}
 
       {/* Izohlar */}
       <Comments postId={post.id} initial={JSON.parse(JSON.stringify(comments))} />

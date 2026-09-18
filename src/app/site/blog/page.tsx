@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Eye, Clock, X, Search } from "lucide-react";
+import { Eye, Clock, X, Search, Flame } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { siteBase, siteOrigin, parseTags, readingTime, publicPostWhere, publishDuePosts, stripHtml } from "@/lib/site";
 import { getLang, tr } from "@/lib/site-i18n";
@@ -33,6 +33,8 @@ export default async function SiteBlogList({
   const allTags = [...tagCount.entries()].sort((a, b) => b[1] - a[1]);
 
   const query = (q || "").trim().toLowerCase();
+  const showExtras = !tag && !query; // ommabop bo'lim faqat filtrsiz ko'rinadi
+  const popular = [...all].filter((p) => p.views > 0).sort((a, b) => b.views - a.views).slice(0, 4);
   let posts = tag ? all.filter((p) => parseTags(p.tags).includes(tag)) : all;
   if (query) {
     posts = posts.filter(
@@ -75,6 +77,24 @@ export default async function SiteBlogList({
               </Link>
             ))}
         </div>
+      )}
+
+      {/* Ommabop */}
+      {showExtras && popular.length >= 3 && (
+        <section className="mt-8">
+          <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-muted">
+            <Flame className="h-4 w-4" /> Ommabop
+          </h2>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {popular.map((p, i) => (
+              <Link key={p.id} href={`${base}/blog/${p.slug}`} className="group flex items-center gap-3 rounded-xl border border-border p-3 transition-colors hover:border-foreground">
+                <span className="text-lg font-bold text-muted/50">{i + 1}</span>
+                <span className="min-w-0 flex-1 truncate font-medium group-hover:text-accent">{p.title}</span>
+                <span className="flex shrink-0 items-center gap-1 text-xs text-muted"><Eye className="h-3 w-3" /> {p.views}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
       )}
 
       {posts.length === 0 ? (

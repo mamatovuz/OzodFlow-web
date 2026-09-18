@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { ok, fail } from "@/lib/api";
 import { slugify } from "@/lib/utils";
-import { isSiteAdmin, stripHtml, maybeNotifyTelegram } from "@/lib/site";
+import { isSiteAdmin, stripHtml, maybeNotifyTelegram, maybeEmailSubscribers } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -75,8 +75,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       seriesOrder: d.seriesOrder === undefined ? current.seriesOrder : d.seriesOrder,
     },
   });
-  // Endigina e'lon qilingan bo'lsa Telegramга (fon)
+  // Endigina e'lon qilingan bo'lsa Telegram + email (fon)
   maybeNotifyTelegram(post).catch(() => {});
+  maybeEmailSubscribers(post).catch(() => {});
   return ok(post);
 }
 

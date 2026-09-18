@@ -961,6 +961,7 @@ model SitePost {
   series      String? // turkum nomi (bir xil nom — bog'langan qismlar)
   seriesOrder Int      @default(0) // turkumdagi tartib (1-qism, 2-qism ...)
   tgPosted    Boolean  @default(false) // Telegram kanalga yuborilganmi (takror bo'lmasin)
+  emailed     Boolean  @default(false) // obunachilarga email yuborilganmi (takror bo'lmasin)
   // ─── SEO / ulashish (bo'sh bo'lsa title/excerpt/coverImage'dan olinadi) ───
   metaTitle       String? // ulashishda/brauzer tabida ko'rinadigan sarlavha
   metaDescription String? // ulashish tavsifi

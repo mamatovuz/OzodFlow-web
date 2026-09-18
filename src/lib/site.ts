@@ -3,6 +3,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies, headers } from "next/headers";
 import { prisma } from "./prisma";
+import { emailConfigured, sendEmail } from "./email";
 
 // ─── Kirish ma'lumotlari ───
 export const SITE_ADMIN_EMAIL = "mamatovo354@gmail.com";
@@ -309,25 +310,81 @@ export async function maybeNotifyTelegram(post: {
   if (okSent) await prisma.sitePost.update({ where: { id: post.id }, data: { tgPosted: true } }).catch(() => {});
 }
 
+/** Yangi e'lon qilingan maqola haqida obunachilarga email yuboradi (bir marta). */
+export async function maybeEmailSubscribers(post: {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  status: string;
+  publishDate: Date;
+  emailed: boolean;
+}) {
+  if (post.emailed) return;
+  if (!(post.status === "PUBLIC" || post.status === "SITE")) return;
+  if (new Date(post.publishDate) > new Date()) return;
+  if (!emailConfigured()) return;
+
+  const [subs, s, origin, base] = await Promise.all([
+    prisma.siteSubscriber.findMany({ select: { email: true } }),
+    getSiteSetting(),
+    siteOrigin(),
+    siteBase(),
+  ]);
+  if (subs.length === 0) return;
+
+  const link = `${origin}${base}/blog/${post.slug}`;
+  const html = `
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+      <p style="color:#64748b;font-size:13px">${escHtml(s.siteName)}</p>
+      <h1 style="font-size:22px;margin:8px 0">${escHtml(post.title)}</h1>
+      <p style="color:#334155;line-height:1.6">${escHtml(post.excerpt || "")}</p>
+      <p style="margin-top:20px">
+        <a href="${link}" style="background:#111827;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">O'qish →</a>
+      </p>
+    </div>`;
+  // Ketma-ket yuboramiz (shaxsiy blog uchun yetarli)
+  for (const sub of subs) {
+    await sendEmail({ to: sub.email, subject: post.title, html }).catch(() => {});
+  }
+  await prisma.sitePost.update({ where: { id: post.id }, data: { emailed: true } }).catch(() => {});
+}
+
+function escHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** O'xshash maqolalar: umumiy teglar soni bo'yicha (fallback — eng yangilari). */
+export function pickRelated<T extends { id: string; tags: string }>(
+  current: { id: string; tags: string },
+  pool: T[],
+  take = 3
+): T[] {
+  const curTags = new Set(parseTags(current.tags));
+  const scored = pool
+    .filter((p) => p.id !== current.id)
+    .map((p) => ({ p, score: parseTags(p.tags).filter((t) => curTags.has(t)).length }));
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, take).map((x) => x.p);
+}
+
 /**
  * Sanasi kelgan, e'lon qilingan, lekin Telegramга hali yuborilmagan postlarni
  * kanalga tashlaydi (sekin-cron: sahifa ochilganda ishga tushadi).
  */
-export async function publishDuePosts(origin: string, base: string) {
-  const s = await getSiteSetting();
-  if (!s.tgBotToken || !s.tgChannel) return;
+export async function publishDuePosts(_origin: string, _base: string) {
+  // Rejalashtirilgan sanasi kelgan, lekin hali xabar berilmagan postlar
   const due = await prisma.sitePost.findMany({
-    where: { status: { in: ["PUBLIC", "SITE"] }, publishDate: { lte: new Date() }, tgPosted: false },
+    where: {
+      status: { in: ["PUBLIC", "SITE"] },
+      publishDate: { lte: new Date() },
+      OR: [{ tgPosted: false }, { emailed: false }],
+    },
     take: 5,
   });
   for (const p of due) {
-    const ok = await notifyTelegram(
-      { title: p.title, slug: p.slug, excerpt: p.excerpt },
-      `${origin}${base}/blog/${p.slug}`,
-      s.tgBotToken,
-      s.tgChannel
-    );
-    if (ok) await prisma.sitePost.update({ where: { id: p.id }, data: { tgPosted: true } }).catch(() => {});
+    await maybeNotifyTelegram(p).catch(() => {});
+    await maybeEmailSubscribers(p).catch(() => {});
   }
 }
 

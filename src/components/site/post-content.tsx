@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
 
-// Maqola matnini ko'rsatadi + kod bloklarini ranglaydi (highlight.js) va
-// har kod blokiga "nusxa olish" tugmasini qo'shadi.
+// Maqola matnini ko'rsatadi + kod bloklarini ranglaydi (highlight.js),
+// har kod blokiga "nusxa olish" tugmasini qo'shadi, rasmlarni bosganda kattalashtiradi.
 export function PostContent({ html }: { html: string }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -26,6 +28,11 @@ export function PostContent({ html }: { html: string }) {
           addCopyButton(code);
         });
       }
+
+      // Rasmlarni bosilganda kattalashtirish
+      root.querySelectorAll<HTMLImageElement>("img").forEach((img) => {
+        img.style.cursor = "zoom-in";
+      });
     }
 
     run();
@@ -34,7 +41,28 @@ export function PostContent({ html }: { html: string }) {
     };
   }, [html]);
 
-  return <div ref={ref} className="site-content" dangerouslySetInnerHTML={{ __html: html }} />;
+  function onClick(e: React.MouseEvent) {
+    const t = e.target as HTMLElement;
+    if (t.tagName === "IMG") setZoom((t as HTMLImageElement).src);
+  }
+
+  return (
+    <>
+      <div ref={ref} className="site-content" onClick={onClick} dangerouslySetInnerHTML={{ __html: html }} />
+      {zoom && (
+        <div
+          onClick={() => setZoom(null)}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
+        >
+          <button className="absolute right-4 top-4 text-white/80 hover:text-white" aria-label="Yopish">
+            <X className="h-7 w-7" />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={zoom} alt="" className="max-h-full max-w-full rounded-lg object-contain" />
+        </div>
+      )}
+    </>
+  );
 }
 
 function addCopyButton(code: HTMLElement) {

@@ -11,6 +11,7 @@ import {
   welcomeEmail,
   commentReplyEmail,
   newCommentAdminEmail,
+  digestEmail,
 } from "./email";
 
 // ─── Kirish ma'lumotlari ───
@@ -513,6 +514,61 @@ export async function maybeEmailSubscribers(post: {
   await prisma.sitePost.update({ where: { id: post.id }, data: { emailed: true } }).catch(() => {});
 }
 
+/**
+ * Haftalik digest — so'nggi 7 kunda e'lon qilingan maqolalar (bo'lmasa eng
+ * ommabop 5 ta) jamlanmasini barcha obunachilarga yuboradi. Tashqi cron chaqiradi.
+ */
+export async function sendWeeklyDigest(): Promise<{ sent: number; posts: number }> {
+  if (!emailConfigured()) return { sent: 0, posts: 0 };
+
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  let posts = await prisma.sitePost.findMany({
+    where: { ...publicPostWhere(), publishDate: { gte: weekAgo } },
+    orderBy: { publishDate: "desc" },
+    take: 6,
+  });
+  // Bu hafta post bo'lmasa — eng ommabop 5 tasi bilan "esga solamiz"
+  if (posts.length === 0) {
+    posts = await prisma.sitePost.findMany({
+      where: publicPostWhere(),
+      orderBy: [{ views: "desc" }],
+      take: 5,
+    });
+  }
+  if (posts.length === 0) return { sent: 0, posts: 0 };
+
+  const [subs, s, reqOrigin, reqBase] = await Promise.all([
+    prisma.siteSubscriber.findMany({ select: { email: true } }),
+    getSiteSetting(),
+    siteOrigin(),
+    siteBase(),
+  ]);
+  if (subs.length === 0) return { sent: 0, posts: posts.length };
+
+  const { origin, base } = canonicalFrom(s, reqOrigin, reqBase);
+  const items = posts.map((p) => ({
+    title: p.title,
+    excerpt: p.excerpt || undefined,
+    link: `${origin}${base}/blog/${p.slug}`,
+    minutes: readingTime(p.contentHtml),
+  }));
+  const intro = "So'nggi paytda e'lon qilingan eng qiziqarli maqolalar to'plami — o'qishga arziydi.";
+
+  let sent = 0;
+  for (const sub of subs) {
+    const { subject, html } = digestEmail({
+      brand: s.siteName,
+      intro,
+      posts: items,
+      blogUrl: `${origin}${base}/blog`,
+      unsubscribeUrl: unsubUrl(origin, sub.email),
+    });
+    const okSent = await sendEmail({ to: sub.email, subject, html }).catch(() => false);
+    if (okSent) sent++;
+  }
+  return { sent, posts: posts.length };
+}
+
 /** Muallif (admin) izohga javob berganda — izoh egasining emailiga xabar. */
 export async function notifyCommentReply(
   parent: { email?: string | null; name: string },
@@ -577,6 +633,99 @@ export function pickRelated<T extends { id: string; tags: string }>(
     .map((p) => ({ p, score: parseTags(p.tags).filter((t) => curTags.has(t)).length }));
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, take).map((x) => x.p);
+}
+
+// ─── FAQ va tarjima (AI boyitmalar) ───
+export type FaqItem = { q: string; a: string };
+
+/** SitePost.faq (JSON) ni xavfsiz massivga aylantiradi. */
+export function parseFaq(raw: string | null | undefined): FaqItem[] {
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter((x) => x && typeof x.q === "string" && typeof x.a === "string" && x.q.trim() && x.a.trim())
+      .map((x) => ({ q: String(x.q).trim(), a: String(x.a).trim() }))
+      .slice(0, 20);
+  } catch {
+    return [];
+  }
+}
+
+export type PostTranslation = { title: string; html: string };
+
+/** SitePost.translations (JSON) ni xavfsiz obyektga aylantiradi. */
+export function parseTranslations(raw: string | null | undefined): Record<string, PostTranslation> {
+  if (!raw) return {};
+  try {
+    const o = JSON.parse(raw);
+    if (!o || typeof o !== "object") return {};
+    const out: Record<string, PostTranslation> = {};
+    for (const [k, v] of Object.entries(o as Record<string, { title?: unknown; html?: unknown }>)) {
+      if (v && typeof v.html === "string") {
+        out[k] = { title: String(v.title || ""), html: String(v.html) };
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Matnni "so'z chastotasi" vektoriga aylantiradi (kirill/lotin/raqam).
+ * Semantik-yaqin o'xshashlik uchun — teg + sarlavha + qisqacha bo'yicha.
+ */
+const STOP = new Set(
+  "va bilan uchun ham bu shu u men sen biz siz ular bir har hech yoki agar lekin ammo the a an of to in on for and or is are was".split(
+    " "
+  )
+);
+function termVector(text: string): Map<string, number> {
+  const m = new Map<string, number>();
+  const words = (text.toLowerCase().match(/[a-zа-яё0-9']{3,}/gi) || []).filter((w) => !STOP.has(w));
+  for (const w of words) m.set(w, (m.get(w) || 0) + 1);
+  return m;
+}
+function cosine(a: Map<string, number>, b: Map<string, number>): number {
+  let dot = 0;
+  for (const [k, v] of a) if (b.has(k)) dot += v * (b.get(k) || 0);
+  let na = 0;
+  for (const v of a.values()) na += v * v;
+  let nb = 0;
+  for (const v of b.values()) nb += v * v;
+  return na && nb ? dot / Math.sqrt(na * nb) : 0;
+}
+
+/**
+ * Ma'no-yaqin o'xshash maqolalar: teg (kuchli) + sarlavha + qisqacha bo'yicha
+ * so'z-chastota kosinus o'xshashligi. Teg bir xil bo'lsa bonus. Embeddingsiz,
+ * deterministik, tashqi API'siz.
+ */
+export function relatedByContent<
+  T extends { id: string; title: string; excerpt: string; tags: string }
+>(current: { id: string; title: string; excerpt: string; tags: string }, pool: T[], take = 3): T[] {
+  const curVec = termVector(`${current.title} ${current.title} ${current.excerpt} ${parseTags(current.tags).join(" ")}`);
+  const curTags = new Set(parseTags(current.tags));
+  const scored = pool
+    .filter((p) => p.id !== current.id)
+    .map((p) => {
+      const vec = termVector(`${p.title} ${p.title} ${p.excerpt} ${parseTags(p.tags).join(" ")}`);
+      const tagBonus = parseTags(p.tags).filter((t) => curTags.has(t)).length * 0.15;
+      return { p, score: cosine(curVec, vec) + tagBonus };
+    })
+    .filter((x) => x.score > 0);
+  scored.sort((a, b) => b.score - a.score);
+  const top = scored.slice(0, take).map((x) => x.p);
+  // Yetarli bo'lmasa — eng yangilari bilan to'ldiramiz
+  if (top.length < take) {
+    for (const p of pool) {
+      if (top.length >= take) break;
+      if (p.id !== current.id && !top.some((t) => t.id === p.id)) top.push(p);
+    }
+  }
+  return top;
 }
 
 /**

@@ -33,6 +33,23 @@ export const DICT: Dict = {
   subscribeTitle: { uz: "Yangi maqolalardan xabardor bo'ling", ru: "Будьте в курсе новых статей", en: "Stay updated on new posts" },
   scheduled: { uz: "Rejalashtirilgan", ru: "Запланировано", en: "Scheduled" },
   notFound: { uz: "Sahifa topilmadi", ru: "Страница не найдена", en: "Page not found" },
+  tags: { uz: "Teglar", ru: "Теги", en: "Tags" },
+  allTags: { uz: "Barcha teglar", ru: "Все теги", en: "All tags" },
+  archive: { uz: "Arxiv", ru: "Архив", en: "Archive" },
+  listen: { uz: "Tinglash", ru: "Слушать", en: "Listen" },
+  pause: { uz: "To'xtatish", ru: "Пауза", en: "Pause" },
+  readingMode: { uz: "O'qish rejimi", ru: "Режим чтения", en: "Reading mode" },
+  fontSize: { uz: "Shrift", ru: "Шрифт", en: "Font" },
+  translate: { uz: "Tarjima", ru: "Перевод", en: "Translate" },
+  original: { uz: "Original", ru: "Оригинал", en: "Original" },
+  tldr: { uz: "Qisqacha", ru: "Кратко", en: "TL;DR" },
+  askAi: { uz: "Maqoladan so'rang", ru: "Спросить статью", en: "Ask this article" },
+  askPlaceholder: { uz: "Savolingizni yozing...", ru: "Задайте вопрос...", en: "Ask a question..." },
+  askHint: { uz: "AI faqat shu maqola asosida javob beradi", ru: "ИИ отвечает только по этой статье", en: "AI answers only from this article" },
+  faqTitle: { uz: "Ko'p so'raladigan savollar", ru: "Частые вопросы", en: "FAQ" },
+  postsInTag: { uz: "yozuv", ru: "записей", en: "posts" },
+  quickSearch: { uz: "Tez qidiruv", ru: "Быстрый поиск", en: "Quick search" },
+  like: { uz: "Yoqdi", ru: "Нравится", en: "Like" },
 };
 
 /** Cookie'dan tanlangan tilni oladi (default uz). */

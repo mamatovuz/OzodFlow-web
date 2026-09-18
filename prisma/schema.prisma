@@ -967,6 +967,10 @@ model SitePost {
   metaTitle       String? // ulashishda/brauzer tabida ko'rinadigan sarlavha
   metaDescription String? // ulashish tavsifi
   ogImage         String? // ulashish rasmi (bo'lmasa coverImage yoki avto-rasm)
+  // ─── AI boyitmalar ───
+  summary         String? // AI TL;DR — maqola boshidagi "3 jumlada" xulosa
+  translations    String   @default("{}") // AI tarjima keshi: {"ru":{"title","html"},"en":{...}}
+  faq             String   @default("[]") // FAQ bloki: [{"q":"...","a":"..."}] — FAQPage schema
   publishDate DateTime @default(now())
   views       Int      @default(0)
   likes       Int      @default(0) // "yoqdi" (eski — endi emoji reaksiyalar ishlatiladi)
@@ -1022,11 +1026,24 @@ model SiteComment {
   body      String
   approved  Boolean  @default(false) // admin tasdiqlagach ko'rinadi
   isAuthor  Boolean  @default(false) // muallif (admin) javobi — ajratib ko'rsatiladi
+  likes     Int      @default(0) // izohga "yoqdi" (brauzer localStorage bilan takrorlanmaydi)
   createdAt DateTime @default(now())
 
   @@index([postId])
   @@index([approved])
   @@index([parentId])
+}
+
+// Maqola reviziyalari — har saqlashda oldingi holat snapshoti (tiklash uchun).
+model SiteRevision {
+  id          String   @id @default(cuid())
+  postId      String
+  title       String
+  excerpt     String   @default("")
+  contentHtml String   @default("")
+  createdAt   DateTime @default(now())
+
+  @@index([postId])
 }
 
 // Yuklangan rasmlar kutubxonasi (qayta ishlatish uchun)

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { siteCanonical, absUrl, publicPostWhere } from "@/lib/site";
+import { siteCanonical, absUrl, parseTags, publicPostWhere } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,7 @@ export async function GET() {
 
   const posts = await prisma.sitePost.findMany({
     where: publicPostWhere(),
-    select: { slug: true, updatedAt: true, coverImage: true, title: true },
+    select: { slug: true, updatedAt: true, coverImage: true, title: true, tags: true },
     orderBy: { publishDate: "desc" },
   });
 
@@ -29,11 +29,22 @@ export async function GET() {
   const latest = posts[0] ? new Date(posts[0].updatedAt).toISOString() : now;
   const home = `${origin}${base || ""}` || origin;
 
+  // Barcha noyob teglar — har biri alohida indekslanadigan sahifa
+  const tagSet = new Set<string>();
+  for (const p of posts) for (const t of parseTags(p.tags)) tagSet.add(t);
+
   const urls: Entry[] = [
     { loc: home, lastmod: latest, changefreq: "daily", priority: "1.0" },
     { loc: `${origin}${base}/blog`, lastmod: latest, changefreq: "daily", priority: "0.9" },
+    { loc: `${origin}${base}/blog/tags`, changefreq: "weekly", priority: "0.5" },
+    { loc: `${origin}${base}/blog/archive`, changefreq: "weekly", priority: "0.4" },
     { loc: `${origin}${base}/projects`, changefreq: "monthly", priority: "0.6" },
     { loc: `${origin}${base}/about`, changefreq: "monthly", priority: "0.5" },
+    ...[...tagSet].map((t): Entry => ({
+      loc: `${origin}${base}/tag/${encodeURIComponent(t)}`,
+      changefreq: "weekly",
+      priority: "0.5",
+    })),
     ...posts.map((p): Entry => {
       const img = absUrl(origin, p.coverImage);
       return {

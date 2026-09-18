@@ -22,6 +22,8 @@ const schema = z.object({
   password: z.string().max(60).optional().nullable(),
   series: z.string().max(60).optional().nullable(),
   seriesOrder: z.number().int().optional(),
+  faq: z.array(z.object({ q: z.string(), a: z.string() })).max(20).optional(),
+  summary: z.string().max(600).optional().nullable(),
 });
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -39,6 +41,25 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const nextTitle = d.title?.trim() ?? current.title;
   const nextHtml = d.contentHtml ?? current.contentHtml;
   const clean = stripHtml(nextHtml);
+
+  // Reviziya snapshoti — matn/sarlavha/qisqacha o'zgargan bo'lsa oldingi holatni saqlaymiz
+  const contentChanged =
+    (d.contentHtml !== undefined && d.contentHtml !== current.contentHtml) ||
+    (d.title !== undefined && nextTitle !== current.title) ||
+    (d.excerpt !== undefined && d.excerpt.trim() !== current.excerpt);
+  if (contentChanged && current.contentHtml.trim()) {
+    await prisma.siteRevision
+      .create({ data: { postId: id, title: current.title, excerpt: current.excerpt, contentHtml: current.contentHtml } })
+      .catch(() => {});
+    // Faqat oxirgi 20 tasini saqlaymiz
+    const old = await prisma.siteRevision.findMany({
+      where: { postId: id },
+      orderBy: { createdAt: "desc" },
+      skip: 20,
+      select: { id: true },
+    });
+    if (old.length) await prisma.siteRevision.deleteMany({ where: { id: { in: old.map((o) => o.id) } } }).catch(() => {});
+  }
 
   // slug — berilsa yoki sarlavha o'zgarsa qayta hisoblanadi
   let slug = current.slug;
@@ -73,6 +94,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       password: d.password === undefined ? current.password : d.password?.trim() || null,
       series: d.series === undefined ? current.series : d.series?.trim() || null,
       seriesOrder: d.seriesOrder === undefined ? current.seriesOrder : d.seriesOrder,
+      faq:
+        d.faq === undefined
+          ? current.faq
+          : JSON.stringify(d.faq.filter((f) => f.q.trim() && f.a.trim()).map((f) => ({ q: f.q.trim(), a: f.a.trim() })).slice(0, 20)),
+      summary: d.summary === undefined ? current.summary : d.summary?.trim() || null,
     },
   });
   // Endigina e'lon qilingan bo'lsa Telegram + email (fon)

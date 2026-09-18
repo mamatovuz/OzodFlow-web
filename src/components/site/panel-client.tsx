@@ -30,8 +30,12 @@ import {
   Calendar,
   Sparkles,
   Wand2,
+  ChevronLeft,
+  ChevronRight,
+  Share2,
 } from "lucide-react";
 import { RichEditor } from "@/components/site/rich-editor";
+import { EditorEnhance } from "@/components/site/editor-enhance";
 import { AdminStats } from "@/components/site/admin-stats";
 import { AdminComments } from "@/components/site/admin-comments";
 import { AdminMessages } from "@/components/site/admin-messages";
@@ -58,6 +62,9 @@ type Post = {
   password: string | null;
   series: string | null;
   seriesOrder: number;
+  summary?: string | null;
+  faq?: { q: string; a: string }[];
+  translations?: Record<string, { title: string; html: string }>;
 };
 
 type Settings = {
@@ -106,6 +113,9 @@ const emptyDraft = (): Post => ({
   password: null,
   series: null,
   seriesOrder: 0,
+  summary: null,
+  faq: [],
+  translations: {},
 });
 
 // API'dan kelgan xom postni (tags — JSON satr) mijoz shakliga keltiradi
@@ -116,7 +126,21 @@ function normalize(raw: Record<string, unknown>): Post {
   } catch {
     tags = [];
   }
-  return { ...(raw as unknown as Post), tags };
+  let faq: { q: string; a: string }[] = [];
+  try {
+    const f = Array.isArray(raw.faq) ? raw.faq : JSON.parse(String(raw.faq || "[]"));
+    if (Array.isArray(f)) faq = f.filter((x) => x && typeof x.q === "string" && typeof x.a === "string");
+  } catch {
+    faq = [];
+  }
+  let translations: Record<string, { title: string; html: string }> = {};
+  try {
+    const t = typeof raw.translations === "object" && raw.translations ? raw.translations : JSON.parse(String(raw.translations || "{}"));
+    if (t && typeof t === "object") translations = t as Record<string, { title: string; html: string }>;
+  } catch {
+    translations = {};
+  }
+  return { ...(raw as unknown as Post), tags, faq, translations };
 }
 
 // ISO sanani datetime-local input formatiga (mahalliy vaqt) o'giradi
@@ -160,6 +184,7 @@ export function PanelClient({
   const [ogBusy, setOgBusy] = useState(false);
   const [seoOpen, setSeoOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [showCal, setShowCal] = useState(false);
   const [restored, setRestored] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiTopic, setAiTopic] = useState("");
@@ -256,6 +281,8 @@ export function PanelClient({
       series: draft.series,
       seriesOrder: draft.seriesOrder,
       publishDate: draft.publishDate,
+      summary: draft.summary,
+      faq: draft.faq || [],
     };
     const res = await fetch(draft.id ? `/api/site/posts/${draft.id}` : "/api/site/posts", {
       method: draft.id ? "PUT" : "POST",
@@ -634,6 +661,9 @@ export function PanelClient({
                   )}
                 </div>
 
+                {/* AI boyitish, FAQ, tarjima, versiyalar */}
+                <EditorEnhance draft={draft} onPatch={(p) => setDraft((d) => (d ? { ...d, ...p } : d))} />
+
                 {/* Statistika (tahrirlashda) */}
                 {draft.id && (
                   <div className="mt-5 grid grid-cols-3 gap-2">
@@ -678,9 +708,20 @@ export function PanelClient({
                     className="w-full rounded-lg border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none focus:border-foreground"
                   />
                 </div>
+                <button
+                  onClick={() => setShowCal((v) => !v)}
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                    showCal ? "border-foreground bg-surface-2" : "border-border text-muted hover:border-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Calendar className="h-4 w-4" /> Kalendar
+                </button>
                 <span className="shrink-0 text-sm text-muted">{filtered.length} ta</span>
               </div>
             )}
+
+            {/* Kontent kalendari */}
+            {showCal && posts.length > 0 && <ContentCalendar posts={posts} onEdit={startEdit} />}
 
             {/* Ro'yxat */}
             <div className="mt-4 space-y-2">
@@ -721,6 +762,9 @@ export function PanelClient({
                         <span className="truncate">/{p.slug}</span>
                       </div>
                     </div>
+                    {(p.status === "PUBLIC" || p.status === "SITE") && new Date(p.publishDate) <= new Date() && (
+                      <PostShare siteUrl={initialSettings.siteUrl} slug={p.slug} title={p.title} />
+                    )}
                     <button onClick={() => startEdit(p)} className="rounded-lg p-2 text-muted hover:bg-surface-2 hover:text-foreground" title="Tahrirlash">
                       <Pencil className="h-4 w-4" />
                     </button>
@@ -1201,6 +1245,166 @@ function TagInput({ tags, onChange }: { tags: string[]; onChange: (t: string[]) 
         placeholder={tags.length ? "" : "react, javascript, hayot..."}
         className="min-w-[120px] flex-1 bg-transparent px-1 py-0.5 text-sm outline-none"
       />
+    </div>
+  );
+}
+
+// Maqolani ijtimoiy tarmoqlarga qo'lda ulashish (X, LinkedIn, Telegram, nusxa)
+function PostShare({ siteUrl, slug, title }: { siteUrl: string; slug: string; title: string }) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  function fullUrl() {
+    const origin = (siteUrl || "").trim().replace(/\/+$/, "") || (typeof window !== "undefined" ? window.location.origin : "");
+    return `${/^https?:\/\//i.test(origin) ? origin : `https://${origin}`}/blog/${slug}`;
+  }
+
+  const url = fullUrl();
+  const links = [
+    { label: "X (Twitter)", href: `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}` },
+    { label: "LinkedIn", href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}` },
+    { label: "Telegram", href: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}` },
+    { label: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}` },
+  ];
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="rounded-lg p-2 text-muted hover:bg-surface-2 hover:text-foreground"
+        title="Ulashish"
+      >
+        <Share2 className="h-4 w-4" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-border bg-card py-1 shadow-card">
+            {links.map((l) => (
+              <a
+                key={l.label}
+                href={l.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setOpen(false)}
+                className="block px-3 py-2 text-sm hover:bg-surface-2"
+              >
+                {l.label}
+              </a>
+            ))}
+            <button
+              onClick={() => {
+                navigator.clipboard?.writeText(url).then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
+                });
+              }}
+              className="block w-full px-3 py-2 text-left text-sm hover:bg-surface-2"
+            >
+              {copied ? "✓ Nusxa olindi" : "Havoladan nusxa"}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Kontent kalendari — postlar (va rejalashtirilganlar) oylik ko'rinishda
+const WEEKDAYS = ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"];
+const MONTHS_UZ = ["Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun", "Iyul", "Avgust", "Sentyabr", "Oktyabr", "Noyabr", "Dekabr"];
+
+function ContentCalendar({ posts, onEdit }: { posts: Post[]; onEdit: (p: Post) => void }) {
+  const now = new Date();
+  const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() });
+
+  const byDay = new Map<string, Post[]>();
+  for (const p of posts) {
+    const d = new Date(p.publishDate);
+    if (d.getFullYear() === ym.y && d.getMonth() === ym.m) {
+      const key = String(d.getDate());
+      const arr = byDay.get(key) || [];
+      arr.push(p);
+      byDay.set(key, arr);
+    }
+  }
+
+  const first = new Date(ym.y, ym.m, 1);
+  const startDow = (first.getDay() + 6) % 7; // Dushanba = 0
+  const daysInMonth = new Date(ym.y, ym.m + 1, 0).getDate();
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < startDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  function shift(delta: number) {
+    setYm(({ y, m }) => {
+      const nm = m + delta;
+      return { y: y + Math.floor(nm / 12), m: ((nm % 12) + 12) % 12 };
+    });
+  }
+
+  const todayKey = now.getFullYear() === ym.y && now.getMonth() === ym.m ? now.getDate() : -1;
+
+  return (
+    <div className="mt-4 rounded-2xl border border-border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <button onClick={() => shift(-1)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-border hover:border-foreground">
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="text-sm font-semibold">
+          {MONTHS_UZ[ym.m]} {ym.y}
+        </span>
+        <button onClick={() => shift(1)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-border hover:border-foreground">
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-muted">
+        {WEEKDAYS.map((w) => (
+          <div key={w} className="py-1">{w}</div>
+        ))}
+      </div>
+      <div className="mt-1 grid grid-cols-7 gap-1">
+        {cells.map((d, i) => {
+          if (d === null) return <div key={`e${i}`} />;
+          const items = byDay.get(String(d)) || [];
+          const isToday = d === todayKey;
+          return (
+            <div
+              key={d}
+              className={`min-h-[62px] rounded-lg border p-1 text-left ${isToday ? "border-accent/50 bg-accent/5" : "border-border/60"}`}
+            >
+              <div className={`text-[11px] ${isToday ? "font-bold text-accent" : "text-muted"}`}>{d}</div>
+              <div className="mt-0.5 space-y-0.5">
+                {items.slice(0, 3).map((p) => {
+                  const future = new Date(p.publishDate) > now;
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => onEdit(p)}
+                      title={p.title}
+                      className={`block w-full truncate rounded px-1 py-0.5 text-left text-[10px] leading-tight ${
+                        future
+                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                          : p.status === "DRAFT"
+                            ? "bg-surface-2 text-muted"
+                            : "bg-accent/15 text-accent"
+                      }`}
+                    >
+                      {p.title}
+                    </button>
+                  );
+                })}
+                {items.length > 3 && <span className="block px-1 text-[10px] text-muted">+{items.length - 3}</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-muted">
+        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-accent/40" /> E'lon qilingan</span>
+        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-amber-500/40" /> Rejalashtirilgan</span>
+        <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-surface-2" /> Qoralama</span>
+      </div>
     </div>
   );
 }

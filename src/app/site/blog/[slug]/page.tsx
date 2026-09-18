@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Eye, Clock, ArrowUpRight, Tag as TagIcon, List } from "lucide-react";
+import { ArrowLeft, Eye, Clock, ArrowUpRight, Tag as TagIcon, Sparkles } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import {
   siteBase,
@@ -16,18 +16,24 @@ import {
   isPostUnlocked,
   isSiteAdmin,
   publicPostWhere,
-  pickRelated,
+  relatedByContent,
   parseReactions,
+  parseFaq,
+  parseTranslations,
 } from "@/lib/site";
 import { getLang, tr } from "@/lib/site-i18n";
 import { LockGate } from "@/components/site/lock-gate";
-import { PostContent } from "@/components/site/post-content";
 import { PostReactions } from "@/components/site/post-reactions";
 import { ShareButtons } from "@/components/site/share-buttons";
 import { BookmarkButton } from "@/components/site/bookmark-button";
 import { ReadingAids } from "@/components/site/reading-aids";
+import { ArticleReader } from "@/components/site/article-reader";
+import { AskArticle } from "@/components/site/ask-article";
+import { HighlightShare } from "@/components/site/highlight-share";
+import { FaqSection } from "@/components/site/faq-section";
 import { Comments } from "@/components/site/comments";
 import { BookOpen } from "lucide-react";
+import { aiConfigured } from "@/lib/ai";
 
 export const dynamic = "force-dynamic";
 
@@ -135,7 +141,7 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
       orderBy: { createdAt: "asc" },
       take: 100,
       // Email OMMAGA ko'rinmaydi — faqat ommaviy maydonlar
-      select: { id: true, name: true, body: true, createdAt: true, parentId: true, isAuthor: true },
+      select: { id: true, name: true, body: true, createdAt: true, parentId: true, isAuthor: true, likes: true },
     }),
     post.series
       ? prisma.sitePost.findMany({
@@ -155,8 +161,13 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
       select: { slug: true, title: true },
     }),
   ]);
-  // O'xshash maqolalar — umumiy teglar bo'yicha (fallback — eng yangilari)
-  const recommended = pickRelated(post, pool, 3);
+  // O'xshash maqolalar — ma'no-yaqin (so'z-chastota) + teg bonus
+  const recommended = relatedByContent(post, pool, 3);
+
+  // AI boyitmalar
+  const faq = parseFaq(post.faq);
+  const translations = parseTranslations(post.translations);
+  const aiOn = await aiConfigured();
 
   // JSON-LD (Google boy natija) — kanonik manzil, muallif, nashriyot va nonpareil
   const canonUrl = `${canon.origin}${canon.base}/blog/${post.slug}`;
@@ -193,12 +204,27 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
       { "@type": "ListItem", position: 3, name: post.title, item: canonUrl },
     ],
   };
+  // FAQ — Google boy natija (savol-javob)
+  const faqLd =
+    faq.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: faq.map((f) => ({
+            "@type": "Question",
+            name: f.q,
+            acceptedAnswer: { "@type": "Answer", text: f.a },
+          })),
+        }
+      : null;
 
   return (
     <article className="mx-auto max-w-2xl px-5 py-14 sm:px-6">
       <ReadingAids />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
+      {faqLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />}
+      <HighlightShare url={canonUrl} />
 
       <Link
         href={`${base}/blog`}
@@ -222,7 +248,7 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
             {tags.map((t) => (
               <Link
                 key={t}
-                href={`${base}/blog?tag=${encodeURIComponent(t)}`}
+                href={`${base}/tag/${encodeURIComponent(t)}`}
                 className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 text-xs text-muted transition-colors hover:text-foreground"
               >
                 <TagIcon className="h-3 w-3" /> {t}
@@ -235,6 +261,16 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
       {post.coverImage && (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img src={post.coverImage} alt={post.title} className="mt-8 w-full rounded-2xl object-cover" />
+      )}
+
+      {/* AI TL;DR — o'qishdan oldin qisqacha */}
+      {post.summary && !post.password && (
+        <div className="mt-8 rounded-2xl border border-accent/25 bg-accent/5 p-5">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-accent">
+            <Sparkles className="h-3.5 w-3.5" /> {tr(lang, "tldr")}
+          </p>
+          <p className="text-sm leading-relaxed text-foreground/90">{post.summary}</p>
+        </div>
       )}
 
       {/* Turkum (series) navigatsiyasi */}
@@ -261,27 +297,32 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
         </nav>
       )}
 
-      {/* Mundarija */}
-      {toc.length >= 3 && (
-        <nav className="mt-8 rounded-xl border border-border bg-surface-2/40 p-4">
-          <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-muted">
-            <List className="h-4 w-4" /> Mundarija
-          </p>
-          <ul className="space-y-1">
-            {toc.map((t) => (
-              <li key={t.id} className={t.level === 3 ? "pl-4" : ""}>
-                <a href={`#${t.id}`} className="text-sm text-muted transition-colors hover:text-accent">
-                  {t.text}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
-
+      {/* O'qish asboblari + mundarija (scrollspy) + matn (+ tarjima) */}
       <div className="mt-8">
-        <PostContent html={html} />
+        <ArticleReader
+          html={html}
+          toc={toc}
+          translations={translations}
+          labels={{
+            toc: tr(lang, "toc"),
+            listen: tr(lang, "listen"),
+            pause: tr(lang, "pause"),
+            original: tr(lang, "original"),
+            translate: tr(lang, "translate"),
+          }}
+        />
       </div>
+
+      {/* FAQ (boy natija) */}
+      {faq.length > 0 && <FaqSection items={faq} title={tr(lang, "faqTitle")} />}
+
+      {/* Maqoladan so'rang (AI, RAG) */}
+      {aiOn && !post.password && (
+        <AskArticle
+          slug={post.slug}
+          labels={{ title: tr(lang, "askAi"), placeholder: tr(lang, "askPlaceholder"), hint: tr(lang, "askHint") }}
+        />
+      )}
 
       {/* Ulashish + saqlash */}
       <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">

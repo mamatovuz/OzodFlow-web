@@ -22,6 +22,8 @@ const schema = z.object({
   password: z.string().max(60).optional().nullable(),
   series: z.string().max(60).optional().nullable(),
   seriesOrder: z.number().int().optional(),
+  faq: z.array(z.object({ q: z.string(), a: z.string() })).max(20).optional(),
+  summary: z.string().max(600).optional().nullable(),
 });
 
 export async function GET() {
@@ -64,6 +66,8 @@ export async function POST(req: NextRequest) {
       password: d.password?.trim() || null,
       series: d.series?.trim() || null,
       seriesOrder: d.seriesOrder ?? 0,
+      summary: d.summary?.trim() || null,
+      faq: JSON.stringify((d.faq || []).filter((f) => f.q.trim() && f.a.trim()).slice(0, 20)),
     },
   });
   // Telegram + email (agar sozlangan bo'lsa) — fon rejimida

@@ -8,10 +8,11 @@
 
 /* Blog matni (dangerouslySetInnerHTML) — o'qishga qulay tipografiya */
 .site-content {
-  font-size: 1.075rem;
+  font-size: calc(1.075rem * var(--reading-scale, 1));
   line-height: 1.85;
   color: var(--foreground);
   word-break: break-word;
+  transition: font-size 0.15s ease;
 }
 .site-content > *:first-child {
   margin-top: 0;
@@ -20,13 +21,13 @@
   margin: 0 0 1.25rem;
 }
 .site-content h2 {
-  font-size: 1.5rem;
+  font-size: 1.4em;
   font-weight: 700;
   margin: 2rem 0 0.75rem;
   letter-spacing: -0.01em;
 }
 .site-content h3 {
-  font-size: 1.25rem;
+  font-size: 1.16em;
   font-weight: 700;
   margin: 1.5rem 0 0.5rem;
 }

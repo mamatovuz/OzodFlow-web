@@ -3,11 +3,12 @@ import Link from "next/link";
 import "./site.css";
 import { prisma } from "@/lib/prisma";
 import { SiteNav } from "@/components/site/site-nav";
+import { PwaRegister } from "@/components/site/pwa-register";
 import { siteBase, getSiteSetting, siteCanonical, absUrl, parseNavButtons, parseLinks } from "@/lib/site";
 import { getLang, tr } from "@/lib/site-i18n";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const [s, { origin, base }] = await Promise.all([getSiteSetting(), siteCanonical()]);
+  const [s, { origin, base }, reqBase] = await Promise.all([getSiteSetting(), siteCanonical(), siteBase()]);
   const ogImg = absUrl(origin, s.ogImage);
   const favicon = s.favicon || undefined;
 
@@ -16,6 +17,8 @@ export async function generateMetadata(): Promise<Metadata> {
     title: { default: s.metaTitle, template: `%s · ${s.siteName}` },
     description: s.metaDescription,
     applicationName: s.siteName,
+    manifest: `${reqBase}/manifest.webmanifest`,
+    appleWebApp: { capable: true, title: s.siteName, statusBarStyle: "black-translucent" },
     alternates: { types: { "application/rss+xml": [{ url: `${origin}${base}/rss.xml`, title: s.siteName }] } },
     ...(favicon ? { icons: { icon: favicon, shortcut: favicon, apple: favicon } } : {}),
     openGraph: {
@@ -81,6 +84,8 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     projects: tr(lang, "projects"),
     about: tr(lang, "about"),
     channel: tr(lang, "channel"),
+    quickSearch: tr(lang, "quickSearch"),
+    searchPlaceholder: tr(lang, "search"),
   };
 
   return (
@@ -95,13 +100,17 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         labels={labels}
       />
       <main className="flex-1">{children}</main>
+      <PwaRegister />
       <footer className="border-t border-border py-8">
         <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 px-4 text-center sm:px-6">
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 text-sm text-muted">
             <Link href={base || "/"} className="hover:text-foreground">{tr(lang, "home")}</Link>
             <Link href={`${base}/blog`} className="hover:text-foreground">{tr(lang, "blog")}</Link>
+            <Link href={`${base}/blog/tags`} className="hover:text-foreground">{tr(lang, "tags")}</Link>
+            <Link href={`${base}/blog/archive`} className="hover:text-foreground">{tr(lang, "archive")}</Link>
             <Link href={`${base}/about`} className="hover:text-foreground">{tr(lang, "about")}</Link>
             <Link href={`${base}/saved`} className="hover:text-foreground">{tr(lang, "saved")}</Link>
+            <a href={`${base}/rss.xml`} className="hover:text-foreground">RSS</a>
           </div>
           <p className="text-xs text-muted">
             © {new Date().getFullYear()} {s.siteName}. Barcha huquqlar himoyalangan.

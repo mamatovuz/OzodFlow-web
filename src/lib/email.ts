@@ -191,6 +191,39 @@ export function newPostEmail(opts: {
   };
 }
 
+/** Haftalik digest — so'nggi/eng ommabop maqolalar jamlanmasi. */
+export function digestEmail(opts: {
+  brand: string;
+  intro: string;
+  posts: { title: string; excerpt?: string; link: string; minutes?: number }[];
+  blogUrl: string;
+  unsubscribeUrl?: string;
+}): { subject: string; html: string } {
+  const { brand, intro, posts, blogUrl, unsubscribeUrl } = opts;
+  const list = posts
+    .map(
+      (p, i) => `
+    <a href="${p.link}" style="display:block;text-decoration:none;padding:14px 0;${
+        i < posts.length - 1 ? `border-bottom:1px solid ${LINE};` : ""
+      }">
+      <div style="font-size:16px;font-weight:600;color:${INK};line-height:1.35;letter-spacing:-.01em;">${p.title}</div>
+      ${p.excerpt ? `<div style="margin-top:5px;font-size:13px;line-height:1.6;color:#4A4F57;">${p.excerpt}</div>` : ""}
+      ${p.minutes ? `<div style="margin-top:5px;font-size:12px;color:${MUTED};">${p.minutes} daqiqalik o'qish →</div>` : ""}
+    </a>`
+    )
+    .join("");
+  const inner = `
+    <div style="font-size:20px;font-weight:600;color:${INK};letter-spacing:-.02em;margin:0 0 6px;">Bu haftaning eng yaxshilari</div>
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.65;color:#4A4F57;">${intro}</p>
+    ${list}
+    <div style="margin-top:22px;"><a href="${blogUrl}" style="display:inline-block;background:${INK};color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:500;padding:12px 24px;border-radius:10px;">Blogga o'tish →</a></div>
+  `;
+  return {
+    subject: `${brand} — haftalik jamlanma`,
+    html: blogShell({ brand, inner, unsubscribeUrl, preheader: posts[0]?.title || "Haftalik jamlanma" }),
+  };
+}
+
 /** Obunaga xush kelibsiz xati. */
 export function welcomeEmail(opts: {
   brand: string;

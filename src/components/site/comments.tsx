@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { MessageCircle, Loader2, Send, CornerDownRight } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { MessageCircle, Loader2, Send, CornerDownRight, Heart } from "lucide-react";
 
 type Comment = {
   id: string;
@@ -10,6 +10,7 @@ type Comment = {
   createdAt: string;
   parentId?: string | null;
   isAuthor?: boolean;
+  likes?: number;
 };
 
 function fmt(d: string) {
@@ -117,15 +118,55 @@ function CommentCard({
         </div>
       </div>
       <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed">{c.body}</p>
-      {!reply && onReply && (
-        <button
-          onClick={onReply}
-          className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-muted transition-colors hover:text-accent"
-        >
-          <CornerDownRight className="h-3 w-3" /> {replying ? "Bekor qilish" : "Javob berish"}
-        </button>
-      )}
+      <div className="mt-3 flex items-center gap-4">
+        <CommentLike id={c.id} initial={c.likes || 0} />
+        {!reply && onReply && (
+          <button
+            onClick={onReply}
+            className="inline-flex items-center gap-1 text-xs font-medium text-muted transition-colors hover:text-accent"
+          >
+            <CornerDownRight className="h-3 w-3" /> {replying ? "Bekor qilish" : "Javob berish"}
+          </button>
+        )}
+      </div>
     </div>
+  );
+}
+
+function CommentLike({ id, initial }: { id: string; initial: number }) {
+  const [likes, setLikes] = useState(initial);
+  const [liked, setLiked] = useState(false);
+
+  useEffect(() => {
+    try {
+      setLiked(localStorage.getItem(`clike_${id}`) === "1");
+    } catch {}
+  }, [id]);
+
+  async function toggle() {
+    const next = !liked;
+    setLiked(next);
+    setLikes((n) => Math.max(0, n + (next ? 1 : -1)));
+    try {
+      localStorage.setItem(`clike_${id}`, next ? "1" : "0");
+    } catch {}
+    await fetch(`/api/site/comments/${id}/like`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ delta: next ? 1 : -1 }),
+    }).catch(() => {});
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      className={`inline-flex items-center gap-1 text-xs font-medium transition-colors ${
+        liked ? "text-rose-500" : "text-muted hover:text-rose-500"
+      }`}
+      aria-pressed={liked}
+    >
+      <Heart className={`h-3.5 w-3.5 ${liked ? "fill-current" : ""}`} /> {likes > 0 ? likes : ""}
+    </button>
   );
 }
 

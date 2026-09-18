@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ok, fail } from "@/lib/api";
 import { slugify } from "@/lib/utils";
-import { stripHtml, maybeNotifyTelegram, maybeEmailSubscribers } from "@/lib/site";
+import { stripHtml, maybeNotifyTelegram, maybeEmailSubscribers, sendWeeklyDigest } from "@/lib/site";
 import { aiGenerateJson, aiConfigured, AiUnavailableError } from "@/lib/ai";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +52,12 @@ async function run(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return fail("CRON_SECRET env o'rnatilmagan", 503);
   if (key !== secret) return fail("Ruxsat yo'q", 401);
+
+  // Haftalik digest (job=digest) — AI shart emas
+  if (url.searchParams.get("job") === "digest") {
+    const r = await sendWeeklyDigest();
+    return ok({ job: "digest", ...r });
+  }
 
   if (!(await aiConfigured())) return fail("AI kaliti sozlanmagan", 503);
 

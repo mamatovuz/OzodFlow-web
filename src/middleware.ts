@@ -28,8 +28,13 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // SEO fayllari — /site ichidagi generatorlarga yo'naltiramiz
-  if (pathname === "/sitemap.xml" || pathname === "/robots.txt" || pathname === "/rss.xml") {
+  // SEO / PWA fayllari — /site ichidagi generatorlarga yo'naltiramiz
+  if (
+    pathname === "/sitemap.xml" ||
+    pathname === "/robots.txt" ||
+    pathname === "/rss.xml" ||
+    pathname === "/manifest.webmanifest"
+  ) {
     const seo = req.nextUrl.clone();
     seo.pathname = `/site${pathname}`;
     return NextResponse.rewrite(seo);

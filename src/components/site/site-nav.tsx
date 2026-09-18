@@ -6,9 +6,10 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LangSwitcher } from "@/components/site/lang-switcher";
+import { CommandPalette } from "@/components/site/command-palette";
 import type { SiteNavButton } from "@/lib/site";
 
-type Labels = { blog: string; projects: string; about: string; channel: string };
+type Labels = { blog: string; projects: string; about: string; channel: string; quickSearch: string; searchPlaceholder: string };
 
 export function SiteNav({
   base,
@@ -71,11 +72,13 @@ export function SiteNav({
               {labels.channel}
             </a>
           )}
+          <CommandPalette base={base} labels={{ quickSearch: labels.quickSearch, placeholder: labels.searchPlaceholder }} />
           <LangSwitcher current={lang} />
           <ThemeToggle />
         </div>
 
         <div className="flex items-center gap-1 sm:hidden">
+          <CommandPalette base={base} labels={{ quickSearch: labels.quickSearch, placeholder: labels.searchPlaceholder }} />
           <LangSwitcher current={lang} />
           <ThemeToggle />
           <button

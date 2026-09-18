@@ -62,6 +62,37 @@ export async function isSiteAdmin(): Promise<boolean> {
   }
 }
 
+// ─── Qulflangan maqola (parol) ───
+/** Maqola uchun ochish tokenini yaratadi (cookie'ga yoziladi). */
+export async function makeUnlockCookie(postId: string) {
+  const token = await new SignJWT({ pid: postId, u: 1 })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("30d")
+    .sign(getSecret());
+  const store = await cookies();
+  store.set(`ul_${postId}`, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 30 * 24 * 60 * 60,
+  });
+}
+
+/** Maqola ochilganmi (parol to'g'ri kiritilganmi) — cookie orqali. */
+export async function isPostUnlocked(postId: string): Promise<boolean> {
+  const store = await cookies();
+  const token = store.get(`ul_${postId}`)?.value;
+  if (!token) return false;
+  try {
+    const { payload } = await jwtVerify(token, getSecret());
+    return payload.pid === postId;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Sahifa yo'llari uchun asos (prefix).
  * - Shaxsiy domenda (PERSONAL_SITE_HOST) so'rov kelsa: "" → `/blog`, `/about` ...
@@ -161,6 +192,64 @@ export async function getSiteSetting() {
     return prisma.siteSetting.update({ where: { id: "main" }, data: { links: DEFAULT_LINKS } });
   }
   return s;
+}
+
+/** JSON teg massivini xavfsiz o'qiydi. */
+export function parseTags(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr.map((x) => String(x).trim()).filter(Boolean).slice(0, 12);
+  } catch {
+    return [];
+  }
+}
+
+/** Teg matnini toza slugga o'xshash ko'rinishga keltiradi (ko'rsatish uchun). */
+export function normalizeTag(t: string): string {
+  return t.trim().replace(/\s+/g, " ").slice(0, 24);
+}
+
+/** O'qish vaqti (daqiqa) — ~200 so'z/daqiqa. */
+export function readingTime(html: string): number {
+  const words = stripHtml(html).split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(words / 200));
+}
+
+export type TocItem = { id: string; text: string; level: number };
+
+/**
+ * Kontent HTML'idagi h2/h3 sarlavhalarga id qo'shadi va mundarija ro'yxatini qaytaradi.
+ */
+export function buildToc(html: string): { html: string; toc: TocItem[] } {
+  const toc: TocItem[] = [];
+  const used = new Set<string>();
+  const out = html.replace(/<(h2|h3)(\s[^>]*)?>([\s\S]*?)<\/\1>/gi, (m, tag, attrs, inner) => {
+    const text = inner.replace(/<[^>]*>/g, "").trim();
+    if (!text) return m;
+    let id = text.toLowerCase().replace(/[^a-z0-9Ѐ-ӿ\s-]/gi, "").replace(/\s+/g, "-").slice(0, 60) || "bolim";
+    let base = id, i = 1;
+    while (used.has(id)) id = `${base}-${i++}`;
+    used.add(id);
+    toc.push({ id, text, level: tag.toLowerCase() === "h2" ? 2 : 3 });
+    const cleanAttrs = (attrs || "").replace(/\sid="[^"]*"/i, "");
+    return `<${tag}${cleanAttrs} id="${id}">${inner}</${tag}>`;
+  });
+  return { html: out, toc };
+}
+
+/** Bugungi sana YYYY-MM-DD (server mahalliy). */
+export function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** Kunlik ko'rishlar hisoblagichini oshiradi (dashboard grafigi uchun). */
+export async function bumpDailyView() {
+  const day = today();
+  await prisma.siteDailyStat
+    .upsert({ where: { day }, update: { views: { increment: 1 } }, create: { day, views: 1 } })
+    .catch(() => {});
 }
 
 /** Postdan qisqacha matn (HTML teglarsiz). */

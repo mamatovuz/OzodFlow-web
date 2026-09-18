@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bold, Heading, Link2, Image as ImageIcon, Eraser, Loader2 } from "lucide-react";
+import { Bold, Heading, Link2, Image as ImageIcon, Eraser, Loader2, Code2, Youtube, List, Quote } from "lucide-react";
 
 type Props = {
   /** Post almashganini bildiradi — editor mazmuni qayta yuklanadi */
@@ -35,6 +35,28 @@ export function RichEditor({ docId, initialHtml, onChange, onUpload }: Props) {
   const addLink = () => {
     const url = window.prompt("Havola manzili (URL):", "https://");
     if (url) exec("createLink", url);
+  };
+
+  const insertHtml = (html: string) => {
+    ref.current?.focus();
+    document.execCommand("insertHTML", false, html);
+    sync();
+  };
+
+  const addCode = () => {
+    // Bo'sh kod bloki — foydalanuvchi ichiga yozadi
+    insertHtml('<pre><code>kod shu yerda...</code></pre><p><br/></p>');
+  };
+
+  const addVideo = () => {
+    const url = window.prompt("YouTube havolasi:", "https://youtu.be/");
+    if (!url) return;
+    const id = ytId(url);
+    if (!id) {
+      alert("YouTube havolasi noto'g'ri");
+      return;
+    }
+    insertHtml(`<div class="yt-embed"><iframe src="https://www.youtube.com/embed/${id}" allowfullscreen></iframe></div><p><br/></p>`);
   };
 
   const onPickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,8 +100,21 @@ export function RichEditor({ docId, initialHtml, onChange, onUpload }: Props) {
         <Btn onClick={addLink} title="Havola">
           <Link2 className="h-[15px] w-[15px]" />
         </Btn>
+        <Btn onClick={() => exec("insertUnorderedList")} title="Ro'yxat">
+          <List className="h-[15px] w-[15px]" />
+        </Btn>
+        <Btn onClick={() => exec("formatBlock", "<blockquote>")} title="Iqtibos">
+          <Quote className="h-[15px] w-[15px]" />
+        </Btn>
+        <div className="mx-1 h-4 w-px bg-border" />
         <Btn onClick={() => fileRef.current?.click()} title="Rasm">
           {uploading ? <Loader2 className="h-[15px] w-[15px] animate-spin" /> : <ImageIcon className="h-[15px] w-[15px]" />}
+        </Btn>
+        <Btn onClick={addVideo} title="YouTube video">
+          <Youtube className="h-[15px] w-[15px]" />
+        </Btn>
+        <Btn onClick={addCode} title="Kod bloki">
+          <Code2 className="h-[15px] w-[15px]" />
         </Btn>
         <div className="mx-1 h-4 w-px bg-border" />
         <Btn onClick={() => exec("removeFormat")} title="Formatni tozalash">
@@ -100,4 +135,10 @@ export function RichEditor({ docId, initialHtml, onChange, onUpload }: Props) {
       <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickImage} />
     </div>
   );
+}
+
+// YouTube havolasidan video ID ni ajratadi
+function ytId(url: string): string | null {
+  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
+  return m ? m[1] : null;
 }

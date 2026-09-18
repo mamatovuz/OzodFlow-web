@@ -91,3 +91,75 @@
   color: var(--accent);
   text-decoration: underline;
 }
+
+/* ── Kod bloklari ── */
+.site-content pre,
+.site-editor pre {
+  position: relative;
+  background: #282c34;
+  color: #abb2bf;
+  border-radius: 12px;
+  padding: 2.4rem 1rem 1rem;
+  overflow-x: auto;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  margin: 1.5rem 0;
+}
+.site-content pre code,
+.site-editor pre code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+/* Ichki (inline) kod */
+.site-content code:not(pre code),
+.site-editor code:not(pre code) {
+  background: var(--surface-2);
+  padding: 0.12em 0.4em;
+  border-radius: 6px;
+  font-size: 0.9em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.code-copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.code-copy:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ── YouTube/video embed ── */
+.site-content .yt-embed,
+.site-editor .yt-embed {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin: 1.5rem 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+}
+.site-content .yt-embed iframe,
+.site-editor .yt-embed iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* Heading anchor (mundarija bilan sakraganda tepada joy) */
+.site-content h2,
+.site-content h3 {
+  scroll-margin-top: 80px;
+}

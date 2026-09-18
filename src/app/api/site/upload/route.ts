@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import sharp from "sharp";
+import { prisma } from "@/lib/prisma";
 import { ok, fail } from "@/lib/api";
 import { randomCode } from "@/lib/utils";
 import { UPLOAD_DIR } from "@/lib/uploads";
@@ -45,5 +46,8 @@ export async function POST(req: NextRequest) {
   const name = `site-${Date.now()}-${randomCode(6).toLowerCase()}.${ext}`;
   await mkdir(UPLOAD_DIR, { recursive: true });
   await writeFile(path.join(UPLOAD_DIR, name), bytes);
-  return ok({ url: `/media/${name}` });
+  const url = `/media/${name}`;
+  // Rasm kutubxonasiga yozamiz (qayta ishlatish uchun)
+  await prisma.siteMedia.create({ data: { url } }).catch(() => {});
+  return ok({ url });
 }

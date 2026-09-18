@@ -18,6 +18,8 @@ const schema = z.object({
   metaTitle: z.string().optional().nullable(),
   metaDescription: z.string().optional().nullable(),
   ogImage: z.string().optional().nullable(),
+  tags: z.array(z.string()).max(12).optional(),
+  password: z.string().max(60).optional().nullable(),
 });
 
 export async function GET() {
@@ -56,6 +58,8 @@ export async function POST(req: NextRequest) {
       metaTitle: d.metaTitle?.trim() || null,
       metaDescription: d.metaDescription?.trim() || null,
       ogImage: d.ogImage?.trim() || null,
+      tags: JSON.stringify((d.tags || []).map((t) => t.trim()).filter(Boolean).slice(0, 12)),
+      password: d.password?.trim() || null,
     },
   });
   return ok(post, 201);

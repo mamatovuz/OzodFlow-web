@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { isSiteAdmin, siteBase, getSiteSetting, parseLinks, parseNavButtons } from "@/lib/site";
+import { isSiteAdmin, siteBase, getSiteSetting, parseLinks, parseNavButtons, parseTags } from "@/lib/site";
 import { PanelClient } from "@/components/site/panel-client";
 
 export const dynamic = "force-dynamic";
@@ -31,11 +31,10 @@ export default async function SitePanel() {
     siteName: settings.siteName,
   };
 
-  return (
-    <PanelClient
-      base={base}
-      initialPosts={JSON.parse(JSON.stringify(posts))}
-      initialSettings={initialSettings}
-    />
-  );
+  const initialPosts = posts.map((p) => ({
+    ...JSON.parse(JSON.stringify(p)),
+    tags: parseTags(p.tags),
+  }));
+
+  return <PanelClient base={base} initialPosts={initialPosts} initialSettings={initialSettings} />;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -17,8 +17,22 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
-import { Eye, ThumbsUp, ThumbsDown, Search } from "lucide-react";
+import {
+  Eye,
+  ThumbsUp,
+  ThumbsDown,
+  Search,
+  Lock,
+  BarChart3,
+  MessageSquare,
+  Mail,
+  FolderGit2,
+} from "lucide-react";
 import { RichEditor } from "@/components/site/rich-editor";
+import { AdminStats } from "@/components/site/admin-stats";
+import { AdminComments } from "@/components/site/admin-comments";
+import { AdminMessages } from "@/components/site/admin-messages";
+import { AdminProjects } from "@/components/site/admin-projects";
 import { SITE_ICONS, iconFor } from "@/components/site/link-icons";
 import type { SiteLink, SiteNavButton } from "@/lib/site";
 
@@ -37,6 +51,8 @@ type Post = {
   metaTitle: string | null;
   metaDescription: string | null;
   ogImage: string | null;
+  tags: string[];
+  password: string | null;
 };
 
 type Settings = {
@@ -77,7 +93,20 @@ const emptyDraft = (): Post => ({
   metaTitle: null,
   metaDescription: null,
   ogImage: null,
+  tags: [],
+  password: null,
 });
+
+// API'dan kelgan xom postni (tags — JSON satr) mijoz shakliga keltiradi
+function normalize(raw: Record<string, unknown>): Post {
+  let tags: string[] = [];
+  try {
+    tags = Array.isArray(raw.tags) ? (raw.tags as string[]) : JSON.parse(String(raw.tags || "[]"));
+  } catch {
+    tags = [];
+  }
+  return { ...(raw as unknown as Post), tags };
+}
 
 async function uploadImage(file: File): Promise<string | null> {
   const fd = new FormData();
@@ -101,7 +130,7 @@ export function PanelClient({
   initialSettings: Settings;
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState<"posts" | "settings">("posts");
+  const [tab, setTab] = useState<"dashboard" | "posts" | "comments" | "messages" | "projects" | "settings">("dashboard");
   const [posts, setPosts] = useState<Post[]>(initialPosts);
 
   // ── Editor holati ──
@@ -112,8 +141,34 @@ export function PanelClient({
   const [ogBusy, setOgBusy] = useState(false);
   const [seoOpen, setSeoOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [restored, setRestored] = useState(false);
 
   const filtered = posts.filter((p) => p.title.toLowerCase().includes(query.trim().toLowerCase()));
+
+  // Avtosaqlash: ochiq yozuvni localStorage'ga yozamiz (yo'qolib qolmasin)
+  useEffect(() => {
+    if (!draft) return;
+    try {
+      localStorage.setItem("ozod-draft-active", JSON.stringify({ draft, docId }));
+    } catch {}
+  }, [draft, docId]);
+
+  // Sahifa qayta ochilganda saqlangan yozuvni tiklaymiz
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("ozod-draft-active");
+      if (raw) {
+        const { draft: d, docId: id } = JSON.parse(raw);
+        if (d) {
+          setDraft(d);
+          setDocId(id || "restored-" + Date.now());
+          setRestored(true);
+          setTimeout(() => setRestored(false), 4000);
+        }
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function startNew() {
     setDraft(emptyDraft());
@@ -128,6 +183,9 @@ export function PanelClient({
   }
   function closeEditor() {
     setDraft(null);
+    try {
+      localStorage.removeItem("ozod-draft-active");
+    } catch {}
   }
 
   async function savePost() {
@@ -143,6 +201,8 @@ export function PanelClient({
       metaTitle: draft.metaTitle,
       metaDescription: draft.metaDescription,
       ogImage: draft.ogImage,
+      tags: draft.tags,
+      password: draft.password,
     };
     const res = await fetch(draft.id ? `/api/site/posts/${draft.id}` : "/api/site/posts", {
       method: draft.id ? "PUT" : "POST",
@@ -152,7 +212,10 @@ export function PanelClient({
     const json = await res.json().catch(() => ({}));
     setSaving(false);
     if (!res.ok) return alert(json.error || "Saqlanmadi");
-    const saved: Post = json.data;
+    try {
+      localStorage.removeItem(`ozod-draft-${docId}`);
+    } catch {}
+    const saved: Post = normalize(json.data);
     setPosts((prev) => {
       const others = prev.filter((p) => p.id !== saved.id);
       return [saved, ...others].sort(
@@ -223,15 +286,38 @@ export function PanelClient({
       </header>
 
       <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6">
+        {restored && (
+          <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+            Saqlanmagan yozuv tiklandi. Davom eting yoki yopib tashlang.
+          </div>
+        )}
+
         {/* Tablar */}
-        <div className="mb-6 flex gap-1 rounded-xl border border-border p-1">
+        <div className="mb-6 flex gap-1 overflow-x-auto rounded-xl border border-border p-1">
+          <TabBtn active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon={<BarChart3 className="h-4 w-4" />}>
+            Boshqaruv
+          </TabBtn>
           <TabBtn active={tab === "posts"} onClick={() => setTab("posts")} icon={<FileText className="h-4 w-4" />}>
             Yozuvlar
           </TabBtn>
+          <TabBtn active={tab === "comments"} onClick={() => setTab("comments")} icon={<MessageSquare className="h-4 w-4" />}>
+            Izohlar
+          </TabBtn>
+          <TabBtn active={tab === "messages"} onClick={() => setTab("messages")} icon={<Mail className="h-4 w-4" />}>
+            Xabarlar
+          </TabBtn>
+          <TabBtn active={tab === "projects"} onClick={() => setTab("projects")} icon={<FolderGit2 className="h-4 w-4" />}>
+            Loyihalar
+          </TabBtn>
           <TabBtn active={tab === "settings"} onClick={() => setTab("settings")} icon={<Settings className="h-4 w-4" />}>
-            Sayt sozlamalari
+            Sozlamalar
           </TabBtn>
         </div>
+
+        {tab === "dashboard" && <AdminStats onGoto={(t) => setTab(t)} />}
+        {tab === "comments" && <AdminComments />}
+        {tab === "messages" && <AdminMessages />}
+        {tab === "projects" && <AdminProjects />}
 
         {tab === "posts" && (
           <>
@@ -315,6 +401,30 @@ export function PanelClient({
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* Teglar */}
+                <div className="mt-5">
+                  <label className="text-xs text-muted">Teglar (Enter yoki vergul bilan)</label>
+                  <TagInput tags={draft.tags} onChange={(tags) => setDraft({ ...draft, tags })} />
+                </div>
+
+                {/* Qulf (parol) */}
+                <div className="mt-4">
+                  <label className="flex items-center gap-1.5 text-xs text-muted">
+                    <Lock className="h-3.5 w-3.5" /> Parol bilan qulflash (ixtiyoriy)
+                  </label>
+                  <input
+                    value={draft.password || ""}
+                    onChange={(e) => setDraft({ ...draft, password: e.target.value || null })}
+                    placeholder="Bo'sh — hamma o'qiydi. Parol — faqat bilgan ochadi"
+                    className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground"
+                  />
+                  {draft.password && (
+                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                      🔒 Bu maqola qulflangan — ochish uchun ushbu parol so'raladi.
+                    </p>
+                  )}
                 </div>
 
                 {/* SEO / ulashish — har bir maqolaning o'z sarlavha/tavsif/rasmi */}
@@ -495,7 +605,7 @@ function TabBtn({
   return (
     <button
       onClick={onClick}
-      className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+      className={`flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
         active ? "bg-foreground text-background" : "text-muted hover:text-foreground"
       }`}
     >
@@ -872,6 +982,42 @@ function MiniStat({ icon, value, label }: { icon: React.ReactNode; value: number
       <span className="text-muted">{icon}</span>
       <span className="text-lg font-bold">{value}</span>
       <span className="text-xs text-muted">{label}</span>
+    </div>
+  );
+}
+
+function TagInput({ tags, onChange }: { tags: string[]; onChange: (t: string[]) => void }) {
+  const [value, setValue] = useState("");
+  const add = (raw: string) => {
+    const t = raw.trim().replace(/,$/, "").slice(0, 24);
+    if (t && !tags.includes(t) && tags.length < 12) onChange([...tags, t]);
+    setValue("");
+  };
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-background p-2">
+      {tags.map((t) => (
+        <span key={t} className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 text-xs">
+          {t}
+          <button type="button" onClick={() => onChange(tags.filter((x) => x !== t))} className="text-muted hover:text-red-500">
+            <X className="h-3 w-3" />
+          </button>
+        </span>
+      ))}
+      <input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === ",") {
+            e.preventDefault();
+            add(value);
+          } else if (e.key === "Backspace" && !value && tags.length) {
+            onChange(tags.slice(0, -1));
+          }
+        }}
+        onBlur={() => value && add(value)}
+        placeholder={tags.length ? "" : "react, javascript, hayot..."}
+        className="min-w-[120px] flex-1 bg-transparent px-1 py-0.5 text-sm outline-none"
+      />
     </div>
   );
 }

@@ -11,16 +11,19 @@ export function SiteNav({
   base,
   channel,
   navButtons = [],
+  hasProjects = false,
 }: {
   base: string;
   channel: string;
   navButtons?: SiteNavButton[];
+  hasProjects?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
   const links = [
     { href: `${base}/blog`, label: "Blog" },
+    ...(hasProjects ? [{ href: `${base}/projects`, label: "Loyihalar" }] : []),
     { href: `${base}/about`, label: "Men haqimda" },
   ];
 

@@ -956,6 +956,8 @@ model SitePost {
   excerpt     String   @default("") // qisqa tavsif (ro'yxat kartasi uchun)
   coverImage  String? // ro'yxat/detal ustidagi rasm
   status      String   @default("DRAFT") // DRAFT | PUBLIC | SITE
+  tags        String   @default("[]") // JSON massiv: teglar/kategoriyalar
+  password    String? // bo'sh bo'lmasa — maqola qulflangan, ochish uchun parol so'raladi
   // ─── SEO / ulashish (bo'sh bo'lsa title/excerpt/coverImage'dan olinadi) ───
   metaTitle       String? // ulashishda/brauzer tabida ko'rinadigan sarlavha
   metaDescription String? // ulashish tavsifi
@@ -994,4 +996,64 @@ model SiteSetting {
   favicon         String? // brauzer tab ikonkasi (rasm URL)
   siteName        String   @default("Ozodbek's Blog")
   updatedAt    DateTime @updatedAt
+}
+
+// ─── Shaxsiy sayt: izohlar, media, xabarlar, loyihalar, obuna, kunlik stat ───
+
+model SiteComment {
+  id        String   @id @default(cuid())
+  postId    String
+  name      String
+  body      String
+  approved  Boolean  @default(false) // admin tasdiqlagach ko'rinadi
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+  @@index([approved])
+}
+
+// Yuklangan rasmlar kutubxonasi (qayta ishlatish uchun)
+model SiteMedia {
+  id        String   @id @default(cuid())
+  url       String   @unique
+  createdAt DateTime @default(now())
+}
+
+// Bog'lanish formasi xabarlari
+model SiteMessage {
+  id        String   @id @default(cuid())
+  name      String
+  contact   String   @default("")
+  body      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([read])
+}
+
+// "Loyihalarim" (portfolio) — admin paneldan qo'shiladi
+model SiteProject {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @default("")
+  url         String   @default("")
+  image       String?
+  tags        String   @default("[]")
+  sort        Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([sort])
+}
+
+// Newsletter obunachilari
+model SiteSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
+// Kunlik ko'rishlar statistikasi (dashboard grafigi uchun)
+model SiteDailyStat {
+  day   String @id // YYYY-MM-DD
+  views Int    @default(0)
 }

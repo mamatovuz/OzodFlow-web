@@ -24,6 +24,13 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // SEO fayllari — /site ichidagi generatorlarga yo'naltiramiz
+  if (pathname === "/sitemap.xml" || pathname === "/robots.txt" || pathname === "/rss.xml") {
+    const seo = req.nextUrl.clone();
+    seo.pathname = `/site${pathname}`;
+    return NextResponse.rewrite(seo);
+  }
+
   // Ichki texnik yo'llar — tegmaymiz
   if (
     pathname.startsWith("/_next") ||
@@ -31,8 +38,6 @@ export function middleware(req: NextRequest) {
     pathname.startsWith("/media") ||
     pathname.startsWith("/site") ||
     pathname === "/favicon.ico" ||
-    pathname === "/robots.txt" ||
-    pathname === "/sitemap.xml" ||
     /\.[a-zA-Z0-9]+$/.test(pathname) // fayl kengaytmasi bor (rasm, css, ...)
   ) {
     return NextResponse.next();

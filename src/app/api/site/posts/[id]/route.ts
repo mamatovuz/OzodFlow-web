@@ -18,6 +18,8 @@ const schema = z.object({
   metaTitle: z.string().optional().nullable(),
   metaDescription: z.string().optional().nullable(),
   ogImage: z.string().optional().nullable(),
+  tags: z.array(z.string()).max(12).optional(),
+  password: z.string().max(60).optional().nullable(),
 });
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -62,6 +64,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       metaDescription:
         d.metaDescription === undefined ? current.metaDescription : d.metaDescription?.trim() || null,
       ogImage: d.ogImage === undefined ? current.ogImage : d.ogImage?.trim() || null,
+      tags:
+        d.tags === undefined
+          ? current.tags
+          : JSON.stringify(d.tags.map((t) => t.trim()).filter(Boolean).slice(0, 12)),
+      password: d.password === undefined ? current.password : d.password?.trim() || null,
     },
   });
   return ok(post);

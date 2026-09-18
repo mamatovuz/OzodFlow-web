@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { getSiteSetting, parseLinks } from "@/lib/site";
 import { SocialIcons } from "@/components/site/social-icons";
+import { ContactForm } from "@/components/site/contact-form";
+import { SubscribeForm } from "@/components/site/subscribe-form";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Men haqimda" };
@@ -26,10 +28,20 @@ export default async function SiteAbout() {
 
       {links.length > 0 && (
         <div className="mt-12 border-t border-border pt-8">
-          <p className="mb-4 text-center text-sm text-muted">Men bilan bog'lanish</p>
+          <p className="mb-4 text-center text-sm text-muted">Ijtimoiy tarmoqlar</p>
           <SocialIcons links={links} />
         </div>
       )}
+
+      {/* Obuna */}
+      <div className="mt-12">
+        <SubscribeForm channel={s.channel} />
+      </div>
+
+      {/* Bog'lanish */}
+      <div className="mt-8">
+        <ContactForm />
+      </div>
     </div>
   );
 }

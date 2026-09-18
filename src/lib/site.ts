@@ -1,9 +1,17 @@
 // Shaxsiy sayt (Ozodbek's Blog) — yordamchi funksiyalar.
 // OzodFlow admin tizimidan MUSTAQIL: alohida cookie, alohida login.
+import crypto from "crypto";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies, headers } from "next/headers";
 import { prisma } from "./prisma";
-import { emailConfigured, sendEmail } from "./email";
+import {
+  emailConfigured,
+  sendEmail,
+  newPostEmail,
+  welcomeEmail,
+  commentReplyEmail,
+  newCommentAdminEmail,
+} from "./email";
 
 // ─── Kirish ma'lumotlari ───
 export const SITE_ADMIN_EMAIL = "mamatovo354@gmail.com";
@@ -152,6 +160,21 @@ export async function siteOrigin(): Promise<string> {
   return `${proto}://${host}`;
 }
 
+/**
+ * Kanonik manzil (Telegram/email havolalari uchun). Admin panelda `siteUrl`
+ * kiritilgan bo'lsa — o'sha (masalan https://vizidka.uz), aks holda so'rov domeni.
+ * Shu tufayli botga tashlangan havola railway domeni emas, haqiqiy domen bo'ladi.
+ */
+export function canonicalFrom(
+  s: { siteUrl?: string | null },
+  reqOrigin: string,
+  reqBase: string
+): { origin: string; base: string } {
+  const u = (s.siteUrl || "").trim().replace(/\/+$/, "");
+  if (u) return { origin: /^https?:\/\//i.test(u) ? u : `https://${u}`, base: "" };
+  return { origin: reqOrigin, base: reqBase };
+}
+
 /** Nisbiy (/media/..) yoki absolut URL'ni absolutga aylantiradi. */
 export function absUrl(origin: string, url?: string | null): string | undefined {
   if (!url) return undefined;
@@ -212,6 +235,28 @@ export function normalizeTag(t: string): string {
   return t.trim().replace(/\s+/g, " ").slice(0, 24);
 }
 
+// ─── Emoji reaksiyalar ───
+export const REACTIONS = ["heart", "fire", "idea", "wow", "clap"] as const;
+export type ReactionKey = (typeof REACTIONS)[number];
+
+/** SitePost.reactions (JSON) ni xavfsiz {kalit: son} obyektiga aylantiradi. */
+export function parseReactions(raw: string | null | undefined): Record<ReactionKey, number> {
+  const out = { heart: 0, fire: 0, idea: 0, wow: 0, clap: 0 };
+  try {
+    const o = JSON.parse(raw || "{}");
+    for (const k of REACTIONS) out[k] = Math.max(0, Math.floor(Number(o?.[k]) || 0));
+  } catch {
+    /* bo'sh — nol qoladi */
+  }
+  return out;
+}
+
+/** Reaksiyalar yig'indisi. */
+export function reactionsTotal(raw: string | null | undefined): number {
+  const r = parseReactions(raw);
+  return REACTIONS.reduce((s, k) => s + r[k], 0);
+}
+
 /** O'qish vaqti (daqiqa) — ~200 so'z/daqiqa. */
 export function readingTime(html: string): number {
   const words = stripHtml(html).split(/\s+/).filter(Boolean).length;
@@ -261,28 +306,74 @@ export function publicPostWhere() {
   return { status: { in: ["PUBLIC", "SITE"] }, publishDate: { lte: new Date() } };
 }
 
-/** Maqola Telegram kanalga yuboriladi (bir marta). */
+/** Teg matnini Telegram hashtagiga aylantiradi (#soz). Yaroqsiz bo'lsa "". */
+function tgHashtag(tag: string): string {
+  const clean = tag
+    .trim()
+    .replace(/[^\p{L}\p{N}]+/gu, "_")
+    .replace(/^_+|_+$/g, "");
+  return clean ? `#${clean}` : "";
+}
+
+/** Telegram HTML parse_mode uchun xavfsiz matn. */
+function escTg(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/**
+ * Maqolani Telegram kanalga chiroyli formatda yuboradi (bir marta):
+ * muqova rasm (bo'lsa), sarlavha, qisqacha, o'qish vaqti, hashtag teglar va
+ * "Maqolani o'qish" tugmasi. HTML parse_mode ishlatiladi.
+ */
 export async function notifyTelegram(
-  post: { title: string; slug: string; excerpt: string },
+  post: {
+    title: string;
+    excerpt: string;
+    coverImage?: string | null; // ABSOLUT URL bo'lishi kerak
+    tags?: string;
+    contentHtml?: string;
+  },
   link: string,
   token: string,
   channel: string
 ): Promise<boolean> {
   try {
-    const text = `📝 *${escapeMd(post.title)}*\n\n${escapeMd(post.excerpt || "")}\n\n${link}`;
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const mins = post.contentHtml ? readingTime(post.contentHtml) : 0;
+    const tags = parseTags(post.tags).slice(0, 4).map(tgHashtag).filter(Boolean);
+
+    const parts: string[] = [`📝 <b>${escTg(post.title)}</b>`];
+    const excerpt = (post.excerpt || "").trim();
+    if (excerpt) parts.push("", escTg(excerpt));
+    if (mins) parts.push("", `🕒 ${mins} daqiqalik o'qish`);
+    if (tags.length) parts.push("", tags.join(" "));
+    const caption = parts.join("\n");
+
+    const reply_markup = { inline_keyboard: [[{ text: "🔗 Maqolani o'qish", url: link }]] };
+    const api = (m: string) => `https://api.telegram.org/bot${token}/${m}`;
+    const hdrs = { "Content-Type": "application/json" };
+
+    // Muqova rasm bo'lsa — sendPhoto (caption limiti ~1024)
+    if (post.coverImage && /^https?:\/\//i.test(post.coverImage)) {
+      const cap = caption.length > 1000 ? caption.slice(0, 1000) + "…" : caption;
+      const res = await fetch(api("sendPhoto"), {
+        method: "POST",
+        headers: hdrs,
+        body: JSON.stringify({ chat_id: channel, photo: post.coverImage, caption: cap, parse_mode: "HTML", reply_markup }),
+      });
+      if (res.ok) return true;
+      // Rasm URL yaroqsiz bo'lsa — matnli xabarga qaytamiz
+    }
+
+    const text = `${caption}\n\n${link}`;
+    const res = await fetch(api("sendMessage"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: channel, text, parse_mode: "Markdown", disable_web_page_preview: false }),
+      headers: hdrs,
+      body: JSON.stringify({ chat_id: channel, text, parse_mode: "HTML", disable_web_page_preview: false, reply_markup }),
     });
     return res.ok;
   } catch {
     return false;
   }
-}
-
-function escapeMd(s: string): string {
-  return s.replace(/([_*[\]()~`>#+=|{}.!-])/g, "\\$1");
 }
 
 /** E'lon qilingan va sanasi kelgan maqolani (bir marta) Telegramга yuboradi. */
@@ -294,20 +385,56 @@ export async function maybeNotifyTelegram(post: {
   status: string;
   publishDate: Date;
   tgPosted: boolean;
+  coverImage?: string | null;
+  tags?: string;
+  contentHtml?: string;
 }) {
   if (post.tgPosted) return;
   if (!(post.status === "PUBLIC" || post.status === "SITE")) return;
   if (new Date(post.publishDate) > new Date()) return; // rejalashtirilgan — hali emas
   const s = await getSiteSetting();
   if (!s.tgBotToken || !s.tgChannel) return;
-  const [origin, base] = await Promise.all([siteOrigin(), siteBase()]);
+  const [reqOrigin, reqBase] = await Promise.all([siteOrigin(), siteBase()]);
+  const { origin, base } = canonicalFrom(s, reqOrigin, reqBase);
   const okSent = await notifyTelegram(
-    { title: post.title, slug: post.slug, excerpt: post.excerpt },
+    {
+      title: post.title,
+      excerpt: post.excerpt,
+      coverImage: absUrl(origin, post.coverImage),
+      tags: post.tags,
+      contentHtml: post.contentHtml,
+    },
     `${origin}${base}/blog/${post.slug}`,
     s.tgBotToken,
     s.tgChannel
   );
   if (okSent) await prisma.sitePost.update({ where: { id: post.id }, data: { tgPosted: true } }).catch(() => {});
+}
+
+/** Obunani bekor qilish tokeni (email uchun HMAC — parolsiz, ishonchli). */
+export function subscribeToken(email: string): string {
+  const secret = (process.env.JWT_SECRET || "ozodflow-dev-secret-change-me") + "::unsub";
+  return crypto.createHmac("sha256", secret).update(email.toLowerCase()).digest("hex").slice(0, 20);
+}
+
+/** Obunani bekor qilish tokenini tekshiradi. */
+export function verifySubscribeToken(email: string, token: string): boolean {
+  const expected = subscribeToken(email);
+  if (token.length !== expected.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
+/** Obunani bekor qilish havolasi (kanonik domenda). */
+function unsubUrl(origin: string, email: string): string {
+  return `${origin}/api/site/unsubscribe?e=${encodeURIComponent(email)}&t=${subscribeToken(email)}`;
+}
+
+function escHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 /** Yangi e'lon qilingan maqola haqida obunachilarga email yuboradi (bir marta). */
@@ -319,13 +446,15 @@ export async function maybeEmailSubscribers(post: {
   status: string;
   publishDate: Date;
   emailed: boolean;
+  coverImage?: string | null;
+  contentHtml?: string;
 }) {
   if (post.emailed) return;
   if (!(post.status === "PUBLIC" || post.status === "SITE")) return;
   if (new Date(post.publishDate) > new Date()) return;
   if (!emailConfigured()) return;
 
-  const [subs, s, origin, base] = await Promise.all([
+  const [subs, s, reqOrigin, reqBase] = await Promise.all([
     prisma.siteSubscriber.findMany({ select: { email: true } }),
     getSiteSetting(),
     siteOrigin(),
@@ -333,25 +462,77 @@ export async function maybeEmailSubscribers(post: {
   ]);
   if (subs.length === 0) return;
 
+  const { origin, base } = canonicalFrom(s, reqOrigin, reqBase);
   const link = `${origin}${base}/blog/${post.slug}`;
-  const html = `
-    <div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-      <p style="color:#64748b;font-size:13px">${escHtml(s.siteName)}</p>
-      <h1 style="font-size:22px;margin:8px 0">${escHtml(post.title)}</h1>
-      <p style="color:#334155;line-height:1.6">${escHtml(post.excerpt || "")}</p>
-      <p style="margin-top:20px">
-        <a href="${link}" style="background:#111827;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none">O'qish →</a>
-      </p>
-    </div>`;
-  // Ketma-ket yuboramiz (shaxsiy blog uchun yetarli)
+  const cover = absUrl(origin, post.coverImage);
+  const minutes = post.contentHtml ? readingTime(post.contentHtml) : undefined;
+
+  // Ketma-ket yuboramiz (shaxsiy blog uchun yetarli), har biriga shaxsiy unsubscribe
   for (const sub of subs) {
-    await sendEmail({ to: sub.email, subject: post.title, html }).catch(() => {});
+    const { subject, html } = newPostEmail({
+      brand: s.siteName,
+      title: escHtml(post.title),
+      excerpt: escHtml(post.excerpt || ""),
+      coverImage: cover,
+      minutes,
+      link,
+      unsubscribeUrl: unsubUrl(origin, sub.email),
+    });
+    await sendEmail({ to: sub.email, subject, html }).catch(() => {});
   }
   await prisma.sitePost.update({ where: { id: post.id }, data: { emailed: true } }).catch(() => {});
 }
 
-function escHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+/** Muallif (admin) izohga javob berganda — izoh egasining emailiga xabar. */
+export async function notifyCommentReply(
+  parent: { email?: string | null; name: string },
+  post: { title: string; slug: string },
+  replyBody: string
+) {
+  if (!parent.email || !emailConfigured()) return;
+  const [s, reqOrigin, reqBase] = await Promise.all([getSiteSetting(), siteOrigin(), siteBase()]);
+  const { origin, base } = canonicalFrom(s, reqOrigin, reqBase);
+  const { subject, html } = commentReplyEmail({
+    brand: s.siteName,
+    name: escHtml(parent.name),
+    postTitle: escHtml(post.title),
+    replyBody: escHtml(replyBody),
+    link: `${origin}${base}/blog/${post.slug}`,
+  });
+  await sendEmail({ to: parent.email, subject, html }).catch(() => {});
+}
+
+/** Yangi izoh kelganda — adminga (moderatsiya) xabar. */
+export async function notifyAdminNewComment(
+  comment: { name: string; body: string },
+  post: { title: string; slug: string },
+  isReply: boolean
+) {
+  if (!emailConfigured()) return;
+  const [s, reqOrigin, reqBase] = await Promise.all([getSiteSetting(), siteOrigin(), siteBase()]);
+  const { origin, base } = canonicalFrom(s, reqOrigin, reqBase);
+  const { subject, html } = newCommentAdminEmail({
+    brand: s.siteName,
+    name: escHtml(comment.name),
+    body: escHtml(comment.body),
+    postTitle: escHtml(post.title),
+    link: `${origin}${base}/panel`,
+    isReply,
+  });
+  await sendEmail({ to: SITE_ADMIN_EMAIL, subject, html }).catch(() => {});
+}
+
+/** Yangi obunachiga xush kelibsiz xatini yuboradi (fon rejimida). */
+export async function sendWelcomeEmail(email: string) {
+  if (!emailConfigured()) return;
+  const [s, reqOrigin, reqBase] = await Promise.all([getSiteSetting(), siteOrigin(), siteBase()]);
+  const { origin, base } = canonicalFrom(s, reqOrigin, reqBase);
+  const { subject, html } = welcomeEmail({
+    brand: s.siteName,
+    blogUrl: `${origin}${base}/blog`,
+    unsubscribeUrl: unsubUrl(origin, email),
+  });
+  await sendEmail({ to: email, subject, html }).catch(() => {});
 }
 
 /** O'xshash maqolalar: umumiy teglar soni bo'yicha (fallback — eng yangilari). */

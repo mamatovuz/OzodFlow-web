@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { ok, fail } from "@/lib/api";
 import { limitOrReject, WINDOW } from "@/lib/rate-limit";
+import { sendWelcomeEmail } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,9 @@ export async function POST(req: NextRequest) {
   if (parsed.data.website) return ok({ subscribed: true });
 
   const email = parsed.data.email.toLowerCase();
+  const existing = await prisma.siteSubscriber.findUnique({ where: { email } }).catch(() => null);
   await prisma.siteSubscriber.upsert({ where: { email }, update: {}, create: { email } }).catch(() => null);
+  // Yangi obunachiga xush kelibsiz xati (fon rejimida — javobni kutmaymiz)
+  if (!existing) sendWelcomeEmail(email).catch(() => {});
   return ok({ subscribed: true }, 201);
 }

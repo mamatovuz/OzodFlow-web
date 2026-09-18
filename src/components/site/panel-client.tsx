@@ -75,6 +75,7 @@ type Settings = {
   ogImage: string;
   favicon: string;
   siteName: string;
+  siteUrl: string;
   tgBotToken: string;
   tgChannel: string;
 };
@@ -1081,6 +1082,19 @@ function SettingsTab({ initial }: { initial: Settings }) {
             <label className="text-xs text-muted">Kanal (@kanal yoki -100...)</label>
             <input value={s.tgChannel} onChange={(e) => setS({ ...s, tgChannel: e.target.value })} className={field} placeholder="@mening_kanalim" />
           </div>
+        </div>
+        <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3.5">
+          <label className="text-xs font-medium text-amber-600 dark:text-amber-400">Saytning haqiqiy domeni</label>
+          <input
+            value={s.siteUrl}
+            onChange={(e) => setS({ ...s, siteUrl: e.target.value })}
+            className={field}
+            placeholder="https://vizidka.uz"
+          />
+          <p className="mt-1.5 text-xs text-muted">
+            Botga va emailga tashlanadigan havolalarda shu domen chiqadi. Bo'sh qoldirsangiz — railway
+            manzili (ozodbek.up.railway.app) ko'rinib qolishi mumkin. Domeningizni to'liq yozing.
+          </p>
         </div>
       </section>
 

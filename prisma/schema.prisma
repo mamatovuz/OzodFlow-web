@@ -962,14 +962,17 @@ model SitePost {
   seriesOrder Int      @default(0) // turkumdagi tartib (1-qism, 2-qism ...)
   tgPosted    Boolean  @default(false) // Telegram kanalga yuborilganmi (takror bo'lmasin)
   emailed     Boolean  @default(false) // obunachilarga email yuborilganmi (takror bo'lmasin)
+  aiAuto      Boolean  @default(false) // AI avtomatik yozgan maqola (haftalik avto-post)
   // ─── SEO / ulashish (bo'sh bo'lsa title/excerpt/coverImage'dan olinadi) ───
   metaTitle       String? // ulashishda/brauzer tabida ko'rinadigan sarlavha
   metaDescription String? // ulashish tavsifi
   ogImage         String? // ulashish rasmi (bo'lmasa coverImage yoki avto-rasm)
   publishDate DateTime @default(now())
   views       Int      @default(0)
-  likes       Int      @default(0) // "yoqdi"
-  dislikes    Int      @default(0) // "yoqmadi"
+  likes       Int      @default(0) // "yoqdi" (eski — endi emoji reaksiyalar ishlatiladi)
+  dislikes    Int      @default(0) // "yoqmadi" (eski)
+  // Emoji reaksiyalar sanog'i — JSON: {"heart":3,"fire":5,"idea":1,"wow":0,"clap":2}
+  reactions   String   @default("{}")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -999,6 +1002,9 @@ model SiteSetting {
   ogImage         String? // ulashish rasmi (bo'lmasa avto-rasm chiziladi)
   favicon         String? // brauzer tab ikonkasi (rasm URL)
   siteName        String   @default("Ozodbek's Blog")
+  // Kanonik domen (masalan https://vizidka.uz). Bo'sh bo'lsa — so'rov domeni
+  // ishlatiladi. Telegram/email havolalarida shu manzil chiqadi (railway emas).
+  siteUrl         String   @default("")
   // ─── Telegram kanalga avto-post (yangi maqola chiqsa o'zi tashlaydi) ───
   tgBotToken      String? // bot tokeni
   tgChannel       String? // kanal (@kanal yoki -100... chat id)
@@ -1010,13 +1016,17 @@ model SiteSetting {
 model SiteComment {
   id        String   @id @default(cuid())
   postId    String
+  parentId  String? // javob bo'lsa — ota izoh id (bir daraja chuqurlik)
   name      String
+  email     String? // muallif javob berganda shu emailga xabar boradi (ommaga ko'rinmaydi)
   body      String
   approved  Boolean  @default(false) // admin tasdiqlagach ko'rinadi
+  isAuthor  Boolean  @default(false) // muallif (admin) javobi — ajratib ko'rsatiladi
   createdAt DateTime @default(now())
 
   @@index([postId])
   @@index([approved])
+  @@index([parentId])
 }
 
 // Yuklangan rasmlar kutubxonasi (qayta ishlatish uchun)

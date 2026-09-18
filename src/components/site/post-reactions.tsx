@@ -1,46 +1,61 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ThumbsUp, ThumbsDown } from "lucide-react";
 
-type Vote = "like" | "dislike" | null;
+type ReactionKey = "heart" | "fire" | "idea" | "wow" | "clap";
+type Counts = Record<ReactionKey, number>;
+
+const EMOJI: { key: ReactionKey; char: string; label: string }[] = [
+  { key: "heart", char: "❤️", label: "Yoqdi" },
+  { key: "fire", char: "🔥", label: "Zo'r" },
+  { key: "idea", char: "💡", label: "Foydali" },
+  { key: "wow", char: "😮", label: "Hayratlandim" },
+  { key: "clap", char: "👏", label: "Bravo" },
+];
 
 export function PostReactions({
   slug,
-  initialLikes,
-  initialDislikes,
+  initialReactions,
 }: {
   slug: string;
-  initialLikes: number;
-  initialDislikes: number;
+  initialReactions: Counts;
 }) {
   const key = `ozod-react-${slug}`;
-  const [likes, setLikes] = useState(initialLikes);
-  const [dislikes, setDislikes] = useState(initialDislikes);
-  const [vote, setVote] = useState<Vote>(null);
+  const [counts, setCounts] = useState<Counts>(initialReactions);
+  const [vote, setVote] = useState<ReactionKey | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     try {
-      const v = localStorage.getItem(key);
-      if (v === "like" || v === "dislike") setVote(v);
+      const v = localStorage.getItem(key) as ReactionKey | null;
+      if (v && EMOJI.some((e) => e.key === v)) setVote(v);
     } catch {}
   }, [key]);
 
-  async function react(type: "like" | "dislike") {
+  async function react(emoji: ReactionKey) {
     if (busy) return;
     setBusy(true);
     const prev = vote;
+    // Optimistik yangilash — darhol sezilsin
+    setCounts((c) => {
+      const next = { ...c };
+      if (prev === emoji) next[emoji] = Math.max(0, next[emoji] - 1);
+      else {
+        if (prev) next[prev] = Math.max(0, next[prev] - 1);
+        next[emoji] += 1;
+      }
+      return next;
+    });
+    setVote(prev === emoji ? null : emoji);
     try {
       const res = await fetch("/api/site/react", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, type, prev }),
+        body: JSON.stringify({ slug, emoji, prev }),
       });
       const json = await res.json();
       if (res.ok && json.data) {
-        setLikes(json.data.likes);
-        setDislikes(json.data.dislikes);
+        setCounts(json.data.reactions);
         setVote(json.data.vote);
         try {
           if (json.data.vote) localStorage.setItem(key, json.data.vote);
@@ -51,43 +66,34 @@ export function PostReactions({
     setBusy(false);
   }
 
-  const total = likes + dislikes;
-  const pct = total ? Math.round((likes / total) * 100) : 0;
+  const total = EMOJI.reduce((s, e) => s + (counts[e.key] || 0), 0);
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <p className="text-sm text-muted">Maqola yoqdimi?</p>
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => react("like")}
-          disabled={busy}
-          aria-pressed={vote === "like"}
-          className={`flex items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-medium transition-colors disabled:opacity-60 ${
-            vote === "like"
-              ? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-              : "border-border text-muted hover:border-foreground hover:text-foreground"
-          }`}
-        >
-          <ThumbsUp className="h-4 w-4" /> {likes}
-        </button>
-        <button
-          onClick={() => react("dislike")}
-          disabled={busy}
-          aria-pressed={vote === "dislike"}
-          className={`flex items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-medium transition-colors disabled:opacity-60 ${
-            vote === "dislike"
-              ? "border-red-500 bg-red-500/10 text-red-600 dark:text-red-400"
-              : "border-border text-muted hover:border-foreground hover:text-foreground"
-          }`}
-        >
-          <ThumbsDown className="h-4 w-4" /> {dislikes}
-        </button>
+      <p className="text-sm text-muted">Maqola qanday taassurot qoldirdi?</p>
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        {EMOJI.map((e) => {
+          const active = vote === e.key;
+          return (
+            <button
+              key={e.key}
+              onClick={() => react(e.key)}
+              disabled={busy}
+              aria-pressed={active}
+              title={e.label}
+              className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-all disabled:opacity-60 ${
+                active
+                  ? "border-accent bg-accent/10 text-accent"
+                  : "border-border text-muted hover:border-foreground hover:text-foreground"
+              }`}
+            >
+              <span className={`text-base transition-transform ${active ? "scale-110" : ""}`}>{e.char}</span>
+              {counts[e.key] > 0 && <span>{counts[e.key]}</span>}
+            </button>
+          );
+        })}
       </div>
-      {total > 0 && (
-        <p className="text-xs text-muted">
-          {total} ta ovoz · {pct}% yoqdi
-        </p>
-      )}
+      {total > 0 && <p className="text-xs text-muted">{total} ta reaksiya</p>}
     </div>
   );
 }

@@ -2,14 +2,16 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { ok, fail } from "@/lib/api";
-import { isSiteAdmin } from "@/lib/site";
+import { isSiteAdmin, notifyCommentReply, notifyAdminNewComment } from "@/lib/site";
 import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 const schema = z.object({
   postId: z.string().min(1),
+  parentId: z.string().optional().nullable(), // javob bo'lsa — ota izoh id
   name: z.string().trim().min(1, "Ism kiriting").max(50),
+  email: z.string().trim().email("To'g'ri email kiriting").optional().or(z.literal("")),
   body: z.string().trim().min(2, "Izoh juda qisqa").max(1000),
   // Bot tuzoq (honeypot) — to'ldirilsa spam deb hisoblanadi.
   website: z.string().optional(),
@@ -40,8 +42,61 @@ export async function POST(req: NextRequest) {
   const post = await prisma.sitePost.findUnique({ where: { id: d.postId } });
   if (!post || post.status === "DRAFT") return fail("Maqola topilmadi", 404);
 
-  await prisma.siteComment.create({
-    data: { postId: d.postId, name: d.name, body: d.body, approved: false },
+  // Admin (muallif) javobi — darhol tasdiqlanadi va ajratib ko'rsatiladi.
+  const admin = await isSiteAdmin();
+
+  // Oddiy foydalanuvchi izoh yozsa — email majburiy (muallif javobi shu emailga boradi)
+  if (!admin && !d.email) return fail("Email kiriting", 422);
+
+  // Javob bo'lsa — ota izohni bir daraja chuqurlikka tekislaymiz (javobga javob
+  // ham asosiy izoh tagida turadi). Ota izohning egasini ham topib olamiz.
+  let parentId: string | null = null;
+  let parentComment: { email: string | null; name: string } | null = null;
+  if (d.parentId) {
+    const parent = await prisma.siteComment.findUnique({ where: { id: d.parentId } });
+    if (parent && parent.postId === d.postId) {
+      parentId = parent.parentId || parent.id;
+      parentComment = { email: parent.email, name: parent.name };
+    }
+  }
+
+  const created = await prisma.siteComment.create({
+    data: {
+      postId: d.postId,
+      parentId,
+      name: admin ? d.name || "Muallif" : d.name,
+      email: d.email || null,
+      body: d.body,
+      approved: admin,
+      isAuthor: admin,
+    },
   });
+
+  // Muallif javob bersa — izoh egasining emailiga xabar (fon rejimida)
+  if (admin && parentComment?.email) {
+    notifyCommentReply(parentComment, { title: post.title, slug: post.slug }, d.body).catch(() => {});
+  }
+  // Oddiy izoh — adminga moderatsiya xabari (fon rejimida)
+  if (!admin) {
+    notifyAdminNewComment({ name: d.name, body: d.body }, { title: post.title, slug: post.slug }, !!parentId).catch(() => {});
+  }
+
+  if (admin) {
+    // Tasdiqlangan — mijoz darhol ro'yxatga qo'shsin
+    return ok(
+      {
+        pending: false,
+        comment: {
+          id: created.id,
+          name: created.name,
+          body: created.body,
+          createdAt: created.createdAt,
+          parentId: created.parentId,
+          isAuthor: created.isAuthor,
+        },
+      },
+      201
+    );
+  }
   return ok({ pending: true }, 201);
 }

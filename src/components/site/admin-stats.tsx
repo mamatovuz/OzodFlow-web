@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, ThumbsUp, ThumbsDown, FileText, MessageSquare, Mail, Users, Loader2, TrendingUp } from "lucide-react";
+import { Eye, Heart, FileText, MessageSquare, Mail, Users, Loader2, TrendingUp, Hash, Compass } from "lucide-react";
 
 type Stats = {
   totals: {
@@ -9,13 +9,14 @@ type Stats = {
     published: number;
     drafts: number;
     views: number;
-    likes: number;
-    dislikes: number;
+    reactions: number;
     pendingComments: number;
     unreadMessages: number;
     subscribers: number;
   };
-  topPosts: { id: string; title: string; slug: string; views: number; likes: number; dislikes: number }[];
+  topPosts: { id: string; title: string; slug: string; views: number; reactions: number }[];
+  topTags: { tag: string; count: number }[];
+  sources: { source: string; count: number }[];
   days: { day: string; views: number }[];
 };
 
@@ -45,8 +46,8 @@ export function AdminStats({ onGoto }: { onGoto: (t: Tab) => void }) {
   const cards = [
     { icon: <Eye className="h-4 w-4" />, label: "Jami ko'rish", value: t.views },
     { icon: <FileText className="h-4 w-4" />, label: "Yozuvlar", value: t.posts, sub: `${t.drafts} qoralama` },
-    { icon: <ThumbsUp className="h-4 w-4" />, label: "Yoqdi", value: t.likes },
-    { icon: <ThumbsDown className="h-4 w-4" />, label: "Yoqmadi", value: t.dislikes },
+    { icon: <Heart className="h-4 w-4" />, label: "Reaksiyalar", value: t.reactions },
+    { icon: <Users className="h-4 w-4" />, label: "Obunachilar", value: t.subscribers },
   ];
 
   return (
@@ -110,12 +111,55 @@ export function AdminStats({ onGoto }: { onGoto: (t: Tab) => void }) {
                 <span className="min-w-0 flex-1 truncate text-sm">{p.title}</span>
                 <span className="flex items-center gap-3 text-xs text-muted">
                   <span className="flex items-center gap-1"><Eye className="h-3 w-3" />{p.views}</span>
-                  <span className="flex items-center gap-1"><ThumbsUp className="h-3 w-3" />{p.likes}</span>
+                  <span className="flex items-center gap-1"><Heart className="h-3 w-3" />{p.reactions}</span>
                 </span>
               </div>
             ))}
           </div>
         )}
+      </div>
+
+      {/* Trafik manbai + top teglar */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {/* Qayerdan kelishmoqda */}
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <h3 className="flex items-center gap-2 text-sm font-semibold"><Compass className="h-4 w-4 text-muted" /> Qayerdan kelishmoqda</h3>
+          {data.sources.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">Hali tashrif ma'lumoti yo'q.</p>
+          ) : (
+            <div className="mt-4 space-y-2.5">
+              {(() => {
+                const max = Math.max(1, ...data.sources.map((x) => x.count));
+                return data.sources.map((x) => (
+                  <div key={x.source} className="flex items-center gap-3">
+                    <span className="w-24 shrink-0 truncate text-xs text-muted" title={x.source}>{x.source}</span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
+                      <div className="h-full rounded-full bg-accent/80" style={{ width: `${(x.count / max) * 100}%` }} />
+                    </div>
+                    <span className="w-8 shrink-0 text-right text-xs font-medium">{x.count}</span>
+                  </div>
+                ));
+              })()}
+            </div>
+          )}
+        </div>
+
+        {/* Top teglar */}
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <h3 className="flex items-center gap-2 text-sm font-semibold"><Hash className="h-4 w-4 text-muted" /> Ommabop teglar</h3>
+          {data.topTags.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">Hali teg yo'q.</p>
+          ) : (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {data.topTags.map((x) => (
+                <span key={x.tag} className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-sm">
+                  {x.tag}
+                  <span className="text-xs text-muted">{x.count}</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

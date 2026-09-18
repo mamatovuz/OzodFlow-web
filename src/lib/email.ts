@@ -119,6 +119,140 @@ export function resetLinkEmail(url: string, name?: string): { subject: string; h
   return { subject: "Parolni tiklash", html: shell(inner, "Parolingizni tiklash havolasi") };
 }
 
+// ─────────────────────────────────────────────
+// Blog xatlari — brend nomi, muqova rasmi va "obunani bekor qilish" havolasi
+// bilan alohida qobiq (auth xatlaridan farqli).
+// ─────────────────────────────────────────────
+function blogShell(opts: {
+  brand: string;
+  inner: string;
+  unsubscribeUrl?: string;
+  preheader?: string;
+}): string {
+  const { brand, inner, unsubscribeUrl, preheader = "" } = opts;
+  return `<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+</head>
+<body style="margin:0;padding:0;background:#F6F6F7;">
+${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${preheader}</div>` : ""}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F6F6F7;">
+  <tr><td align="center" style="padding:40px 16px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#FFFFFF;border:1px solid ${LINE};border-radius:16px;overflow:hidden;">
+      <tr><td style="font-family:${FONT};padding:28px 28px 8px;">
+        <div style="font-size:14px;font-weight:600;color:${INK};letter-spacing:-.01em;">${brand}</div>
+      </td></tr>
+      <tr><td style="font-family:${FONT};padding:8px 28px 28px;">
+        ${inner}
+      </td></tr>
+      <tr><td style="font-family:${FONT};border-top:1px solid ${LINE};padding:16px 28px;font-size:12px;line-height:1.7;color:${MUTED};">
+        Siz ${brand} yangiliklariga obuna bo'lgansiz.${
+          unsubscribeUrl
+            ? ` <a href="${unsubscribeUrl}" style="color:${MUTED};text-decoration:underline;">Obunani bekor qilish</a>.`
+            : ""
+        }
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`;
+}
+
+/** Yangi maqola e'loni — muqova, sarlavha, qisqacha, o'qish vaqti, "O'qish" tugmasi. */
+export function newPostEmail(opts: {
+  brand: string;
+  title: string;
+  excerpt?: string;
+  coverImage?: string | null;
+  minutes?: number;
+  link: string;
+  unsubscribeUrl?: string;
+}): { subject: string; html: string } {
+  const { brand, title, excerpt, coverImage, minutes, link, unsubscribeUrl } = opts;
+  const meta = minutes ? `${minutes} daqiqalik o'qish` : "";
+  const inner = `
+    ${
+      coverImage
+        ? `<a href="${link}" style="text-decoration:none;"><img src="${coverImage}" alt="" width="424" style="display:block;width:100%;max-width:424px;height:auto;border-radius:12px;margin:0 0 20px;" /></a>`
+        : ""
+    }
+    ${meta ? `<div style="font-size:12px;color:${MUTED};margin:0 0 6px;">${meta}</div>` : ""}
+    <a href="${link}" style="display:block;font-size:21px;font-weight:600;color:${INK};letter-spacing:-.02em;line-height:1.3;text-decoration:none;margin:0 0 10px;">${title}</a>
+    ${excerpt ? `<p style="margin:0 0 22px;font-size:14px;line-height:1.65;color:#4A4F57;">${excerpt}</p>` : `<div style="height:12px;"></div>`}
+    <a href="${link}" style="display:inline-block;background:${INK};color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:500;padding:12px 24px;border-radius:10px;">O'qishni boshlash →</a>
+  `;
+  return {
+    subject: title,
+    html: blogShell({ brand, inner, unsubscribeUrl, preheader: excerpt || title }),
+  };
+}
+
+/** Obunaga xush kelibsiz xati. */
+export function welcomeEmail(opts: {
+  brand: string;
+  blogUrl: string;
+  unsubscribeUrl?: string;
+}): { subject: string; html: string } {
+  const { brand, blogUrl, unsubscribeUrl } = opts;
+  const inner = `
+    ${heading("Obuna bo'lganingiz uchun rahmat 🙌")}
+    ${paragraph(`Endi <b>${brand}</b>'da yangi maqola chiqqan zahoti birinchilardan bo'lib xabar olasiz.`)}
+    ${paragraph("Bu yerda texnologiya, fikrlash va raqamli dunyodagi raqamsiz narsalar haqida yozamiz.")}
+    <a href="${blogUrl}" style="display:inline-block;background:${INK};color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:500;padding:12px 24px;border-radius:10px;">Blogni ochish →</a>
+  `;
+  return {
+    subject: `${brand}'ga xush kelibsiz`,
+    html: blogShell({ brand, inner, unsubscribeUrl, preheader: "Obuna tasdiqlandi" }),
+  };
+}
+
+/** Muallif izohga javob berdi — izoh egasiga xabar. */
+export function commentReplyEmail(opts: {
+  brand: string;
+  name: string; // izoh egasining ismi
+  postTitle: string;
+  replyBody: string;
+  link: string; // maqola (izohlar bo'limi) havolasi
+}): { subject: string; html: string } {
+  const { brand, name, postTitle, replyBody, link } = opts;
+  const inner = `
+    ${heading("Izohingizga javob keldi 💬")}
+    ${paragraph(`${name}, siz <b>“${postTitle}”</b> maqolasidagi izohingizga muallifdan javob oldingiz:`)}
+    <div style="margin:0 0 20px;padding:14px 16px;background:#F6F6F7;border-left:3px solid ${INK};border-radius:8px;font-size:14px;line-height:1.6;color:#333;">${replyBody}</div>
+    <a href="${link}" style="display:inline-block;background:${INK};color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:500;padding:12px 22px;border-radius:10px;">Suhbatni ko'rish →</a>
+  `;
+  return {
+    subject: `“${postTitle}” — izohingizga javob`,
+    html: blogShell({ brand, inner, preheader: "Muallif izohingizga javob berdi" }),
+  };
+}
+
+/** Yangi izoh keldi — adminga (moderatsiya) xabar. */
+export function newCommentAdminEmail(opts: {
+  brand: string;
+  name: string;
+  body: string;
+  postTitle: string;
+  link: string;
+  isReply: boolean;
+}): { subject: string; html: string } {
+  const { brand, name, body, postTitle, link, isReply } = opts;
+  const inner = `
+    ${heading(isReply ? "Yangi javob (tasdiq kutmoqda)" : "Yangi izoh (tasdiq kutmoqda)")}
+    ${paragraph(`<b>${name}</b> — “${postTitle}”:`)}
+    <div style="margin:0 0 20px;padding:14px 16px;background:#F6F6F7;border-radius:8px;font-size:14px;line-height:1.6;color:#333;">${body}</div>
+    <a href="${link}" style="display:inline-block;background:${INK};color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:500;padding:12px 22px;border-radius:10px;">Panelda ko'rish →</a>
+  `;
+  return {
+    subject: `Yangi izoh: ${name}`,
+    html: blogShell({ brand, inner, preheader: body.slice(0, 100) }),
+  };
+}
+
 /** Admin parol tiklash kodi. */
 export function adminCodeEmail(code: string): { subject: string; html: string } {
   const spaced = code.split("").join(" ");

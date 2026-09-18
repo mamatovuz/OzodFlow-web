@@ -29,6 +29,7 @@ export default async function SitePanel() {
     ogImage: settings.ogImage || "",
     favicon: settings.favicon || "",
     siteName: settings.siteName,
+    siteUrl: settings.siteUrl || "",
     tgBotToken: settings.tgBotToken || "",
     tgChannel: settings.tgChannel || "",
   };

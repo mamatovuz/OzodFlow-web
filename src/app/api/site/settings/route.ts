@@ -35,6 +35,7 @@ const schema = z.object({
   ogImage: z.string().optional().nullable(),
   favicon: z.string().optional().nullable(),
   siteName: z.string().max(60).optional(),
+  siteUrl: z.string().max(200).optional(),
   tgBotToken: z.string().max(120).optional().nullable(),
   tgChannel: z.string().max(120).optional().nullable(),
 });

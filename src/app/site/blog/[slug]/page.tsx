@@ -16,6 +16,7 @@ import {
   isSiteAdmin,
   publicPostWhere,
   pickRelated,
+  parseReactions,
 } from "@/lib/site";
 import { getLang, tr } from "@/lib/site-i18n";
 import { LockGate } from "@/components/site/lock-gate";
@@ -87,9 +88,11 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
 
   if (!post || post.status === "DRAFT") notFound();
 
+  const isAdmin = await isSiteAdmin();
+
   // Rejalashtirilgan (kelajak sanali) maqola — admin bo'lmaganlarga ko'rinmaydi
   if (new Date(post.publishDate).getTime() > Date.now()) {
-    if (!(await isSiteAdmin())) notFound();
+    if (!isAdmin) notFound();
   }
 
   // Qulflangan maqola — parol kiritilmagan bo'lsa qulf ekrani
@@ -125,6 +128,8 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
       where: { postId: post.id, approved: true },
       orderBy: { createdAt: "asc" },
       take: 100,
+      // Email OMMAGA ko'rinmaydi — faqat ommaviy maydonlar
+      select: { id: true, name: true, body: true, createdAt: true, parentId: true, isAuthor: true },
     }),
     post.series
       ? prisma.sitePost.findMany({
@@ -176,6 +181,9 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
         <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-[2.5rem]">{post.title}</h1>
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
           <span>{fmt(post.publishDate)}</span>
+          {new Date(post.updatedAt).getTime() - new Date(post.publishDate).getTime() > 86400000 && (
+            <span className="italic">· yangilandi {fmt(post.updatedAt)}</span>
+          )}
           <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {mins} {tr(lang, "minutes")}</span>
           <span className="flex items-center gap-1"><Eye className="h-3.5 w-3.5" /> {post.views}</span>
         </div>
@@ -251,9 +259,9 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
         <BookmarkButton slug={post.slug} title={post.title} />
       </div>
 
-      {/* Yoqdi / Yoqmadi */}
+      {/* Emoji reaksiyalar */}
       <div className="mt-10 border-t border-border pt-10">
-        <PostReactions slug={post.slug} initialLikes={post.likes} initialDislikes={post.dislikes} />
+        <PostReactions slug={post.slug} initialReactions={parseReactions(post.reactions)} />
       </div>
 
       {/* Oldingi / keyingi maqola */}
@@ -277,7 +285,7 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
       )}
 
       {/* Izohlar */}
-      <Comments postId={post.id} initial={JSON.parse(JSON.stringify(comments))} />
+      <Comments postId={post.id} initial={JSON.parse(JSON.stringify(comments))} isAdmin={isAdmin} />
 
       {/* Tavsiya */}
       {recommended.length > 0 && (

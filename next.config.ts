@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  serverExternalPackages: ["read-excel-file", "write-excel-file", "sharp"],
+  serverExternalPackages: ["read-excel-file", "write-excel-file", "sharp", "ws"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**" },

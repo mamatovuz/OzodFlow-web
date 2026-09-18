@@ -164,3 +164,124 @@
 .site-content h3 {
   scroll-margin-top: 80px;
 }
+
+/* ─────────────────────────────────────────────
+   Dizayn polishi — tipografiya va vizual nafislik
+   ───────────────────────────────────────────── */
+
+/* Matn tanlash rangi — brend urg'usi */
+.site-root ::selection {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--foreground);
+}
+
+/* Yetakchi abzas — birinchi harf katta (drop cap) */
+.site-content > p:first-of-type::first-letter {
+  float: left;
+  font-size: 3.1rem;
+  line-height: 0.82;
+  font-weight: 800;
+  padding: 0.1em 0.12em 0 0;
+  color: var(--accent);
+}
+
+/* h2 — chapda nozik urg'u chizig'i */
+.site-content h2 {
+  position: relative;
+  padding-left: 0.85rem;
+}
+.site-content h2::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.18em;
+  bottom: 0.18em;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+/* Havola — pastdan chiziladigan animatsiya */
+.site-content a {
+  text-decoration: none;
+  background-image: linear-gradient(var(--accent), var(--accent));
+  background-size: 0% 1.5px;
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  transition: background-size 0.25s ease;
+  padding-bottom: 1px;
+}
+.site-content a:hover {
+  background-size: 100% 1.5px;
+}
+
+/* Iqtibos — katta tirnoq belgisi bilan */
+.site-content blockquote {
+  position: relative;
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+  border-radius: 0 12px 12px 0;
+  padding: 0.9rem 1.1rem 0.9rem 1.3rem;
+  font-style: normal;
+}
+.site-content blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* Rasm — nozik soya va yumshoq ko'tarilish */
+.site-content img {
+  box-shadow: 0 8px 30px -12px rgba(0, 0, 0, 0.28);
+}
+
+/* Ajratuvchi chiziq — markazda nuqta */
+.site-content hr {
+  border: none;
+  height: 1px;
+  background: var(--border);
+  margin: 2.5rem 0;
+  position: relative;
+}
+.site-content hr::after {
+  content: "•••";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--background);
+  padding: 0 0.8rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.3em;
+}
+
+/* Jadvallar */
+.site-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.95em;
+}
+.site-content th,
+.site-content td {
+  border: 1px solid var(--border);
+  padding: 0.6rem 0.8rem;
+  text-align: left;
+}
+.site-content th {
+  background: var(--surface-2);
+  font-weight: 600;
+}
+
+/* Kod bloki — chiroyli scrollbar */
+.site-content pre::-webkit-scrollbar {
+  height: 8px;
+}
+.site-content pre::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+}
+
+/* Rasmga bosilganda kattalashtirish belgisi */
+.site-content img:hover {
+  filter: brightness(0.97);
+}

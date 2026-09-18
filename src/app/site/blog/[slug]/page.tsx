@@ -34,6 +34,7 @@ import { FaqSection } from "@/components/site/faq-section";
 import { Comments } from "@/components/site/comments";
 import { BookOpen } from "lucide-react";
 import { aiConfigured } from "@/lib/ai";
+import { voicelabConfigured } from "@/lib/voicelab";
 
 export const dynamic = "force-dynamic";
 
@@ -168,6 +169,7 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
   const faq = parseFaq(post.faq);
   const translations = parseTranslations(post.translations);
   const aiOn = await aiConfigured();
+  const ttsOn = voicelabConfigured();
 
   // JSON-LD (Google boy natija) — kanonik manzil, muallif, nashriyot va nonpareil
   const canonUrl = `${canon.origin}${canon.base}/blog/${post.slug}`;
@@ -303,6 +305,8 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
           html={html}
           toc={toc}
           translations={translations}
+          slug={post.slug}
+          ttsOn={ttsOn}
           labels={{
             toc: tr(lang, "toc"),
             listen: tr(lang, "listen"),

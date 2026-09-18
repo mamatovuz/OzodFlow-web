@@ -3,11 +3,11 @@ import Link from "next/link";
 import "./site.css";
 import { prisma } from "@/lib/prisma";
 import { SiteNav } from "@/components/site/site-nav";
-import { siteBase, getSiteSetting, siteOrigin, absUrl, parseNavButtons } from "@/lib/site";
+import { siteBase, getSiteSetting, siteCanonical, absUrl, parseNavButtons, parseLinks } from "@/lib/site";
 import { getLang, tr } from "@/lib/site-i18n";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const [s, origin, base] = await Promise.all([getSiteSetting(), siteOrigin(), siteBase()]);
+  const [s, { origin, base }] = await Promise.all([getSiteSetting(), siteCanonical()]);
   const ogImg = absUrl(origin, s.ogImage);
   const favicon = s.favicon || undefined;
 
@@ -35,25 +35,46 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const [base, s, projectCount, lang, origin] = await Promise.all([
+  const [base, s, projectCount, lang, canon] = await Promise.all([
     siteBase(),
     getSiteSetting(),
     prisma.siteProject.count(),
     getLang(),
-    siteOrigin(),
+    siteCanonical(),
   ]);
   const navButtons = parseNavButtons(s.navButtons);
+  const origin = canon.origin;
+  const homeUrl = `${origin}${canon.base || ""}` || origin;
+  const sameAs = parseLinks(s.links).map((l) => l.url).filter((u) => /^https?:\/\//i.test(u));
+  // WebSite + Person + qidiruv harakati — Google boy natija va sitelinks qidiruv oynasi
   const siteLd = {
     "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: s.siteName,
-    url: `${origin}${base || ""}`,
-    description: s.metaDescription,
-    potentialAction: {
-      "@type": "SearchAction",
-      target: `${origin}${base}/blog?q={q}`,
-      "query-input": "required name=q",
-    },
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": `${homeUrl}#website`,
+        name: s.siteName,
+        url: homeUrl,
+        description: s.metaDescription,
+        inLanguage: "uz",
+        publisher: { "@id": `${homeUrl}#person` },
+        potentialAction: {
+          "@type": "SearchAction",
+          target: { "@type": "EntryPoint", urlTemplate: `${origin}${canon.base}/blog?q={q}` },
+          "query-input": "required name=q",
+        },
+      },
+      {
+        "@type": "Person",
+        "@id": `${homeUrl}#person`,
+        name: s.heroTitle || s.siteName,
+        jobTitle: s.heroRole || undefined,
+        description: s.heroTagline || s.metaDescription,
+        url: homeUrl,
+        ...(absUrl(origin, s.profileImage) ? { image: absUrl(origin, s.profileImage) } : {}),
+        ...(sameAs.length ? { sameAs } : {}),
+      },
+    ],
   };
   const labels = {
     blog: tr(lang, "blog"),

@@ -1091,11 +1091,12 @@ function SettingsTab({ initial }: { initial: Settings }) {
             value={s.siteUrl}
             onChange={(e) => setS({ ...s, siteUrl: e.target.value })}
             className={field}
-            placeholder="https://vizidka.uz"
+            placeholder="https://ozodbeck.uz"
           />
           <p className="mt-1.5 text-xs text-muted">
-            Botga va emailga tashlanadigan havolalarda shu domen chiqadi. Bo'sh qoldirsangiz — railway
-            manzili (ozodbek.up.railway.app) ko'rinib qolishi mumkin. Domeningizni to'liq yozing.
+            <b>sitemap.xml</b>, <b>robots.txt</b>, canonical havolalar, Telegram va email — barchasida shu
+            domen ishlatiladi. Bo'sh qoldirsangiz railway manzili (ozodbek.up.railway.app) ko'rinib
+            qolishi mumkin. To'liq yozing: <b>https://ozodbeck.uz</b>
           </p>
         </div>
       </section>

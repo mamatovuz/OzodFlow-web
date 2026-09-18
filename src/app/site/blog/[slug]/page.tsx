@@ -5,9 +5,10 @@ import { ArrowLeft, Eye, Clock, ArrowUpRight, Tag as TagIcon, List } from "lucid
 import { prisma } from "@/lib/prisma";
 import {
   siteBase,
-  siteOrigin,
+  siteCanonical,
   absUrl,
   parseTags,
+  stripHtml,
   readingTime,
   buildToc,
   bumpDailyView,
@@ -40,9 +41,9 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const [post, origin] = await Promise.all([
+  const [post, { origin, base }] = await Promise.all([
     prisma.sitePost.findUnique({ where: { slug } }),
-    siteOrigin(),
+    siteCanonical(),
   ]);
   if (!post || post.status === "DRAFT") return { title: "Topilmadi" };
   // Rejalashtirilgan (kelajak) maqola — sarlavha/tavsif sizib chiqmasin
@@ -54,14 +55,17 @@ export async function generateMetadata({
     ? "Bu maqola qulflangan — ochish uchun parol kerak."
     : post.metaDescription?.trim() || post.excerpt || undefined;
   const custom = post.password ? undefined : absUrl(origin, post.ogImage || post.coverImage);
+  const canonical = `${origin}${base}/blog/${post.slug}`;
 
   return {
     title,
     description,
     keywords: parseTags(post.tags),
+    alternates: { canonical },
     // Yashirin post — qidiruv tizimlari indekslamasin (faqat havola bilan)
     ...(post.status === "UNLISTED" ? { robots: { index: false, follow: false } } : {}),
     openGraph: {
+      url: canonical,
       type: "article",
       title,
       description,
@@ -80,9 +84,9 @@ export async function generateMetadata({
 
 export default async function SiteBlogDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const [base, origin, post, settings, lang] = await Promise.all([
+  const [base, canon, post, settings, lang] = await Promise.all([
     siteBase(),
-    siteOrigin(),
+    siteCanonical(),
     prisma.sitePost.findUnique({ where: { slug } }),
     getSiteSetting(),
     getLang(),
@@ -154,23 +158,47 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
   // O'xshash maqolalar — umumiy teglar bo'yicha (fallback — eng yangilari)
   const recommended = pickRelated(post, pool, 3);
 
-  // JSON-LD (Google boy natija)
+  // JSON-LD (Google boy natija) — kanonik manzil, muallif, nashriyot va nonpareil
+  const canonUrl = `${canon.origin}${canon.base}/blog/${post.slug}`;
+  const ogImg = absUrl(canon.origin, post.ogImage || post.coverImage);
+  const wordCount = stripHtml(post.contentHtml).split(/\s+/).filter(Boolean).length;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",
-    headline: post.title,
+    mainEntityOfPage: { "@type": "WebPage", "@id": canonUrl },
+    url: canonUrl,
+    headline: post.title.slice(0, 110),
     datePublished: new Date(post.publishDate).toISOString(),
     dateModified: new Date(post.updatedAt).toISOString(),
-    author: { "@type": "Person", name: settings.siteName },
-    image: absUrl(origin, post.ogImage || post.coverImage) || undefined,
+    author: { "@type": "Person", name: settings.heroTitle || settings.siteName, url: `${canon.origin}${canon.base}/about` },
+    publisher: {
+      "@type": "Organization",
+      name: settings.siteName,
+      ...(absUrl(canon.origin, settings.ogImage) ? { logo: { "@type": "ImageObject", url: absUrl(canon.origin, settings.ogImage) } } : {}),
+    },
+    ...(ogImg ? { image: ogImg } : {}),
     description: post.excerpt || undefined,
     keywords: tags.join(", ") || undefined,
+    wordCount,
+    timeRequired: `PT${mins}M`,
+    inLanguage: "uz",
+  };
+  // Non (breadcrumb) — qidiruv natijasida yo'l ko'rinadi
+  const breadcrumbLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: settings.siteName, item: `${canon.origin}${canon.base || ""}` },
+      { "@type": "ListItem", position: 2, name: tr(lang, "blog"), item: `${canon.origin}${canon.base}/blog` },
+      { "@type": "ListItem", position: 3, name: post.title, item: canonUrl },
+    ],
   };
 
   return (
     <article className="mx-auto max-w-2xl px-5 py-14 sm:px-6">
       <ReadingAids />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }} />
 
       <Link
         href={`${base}/blog`}

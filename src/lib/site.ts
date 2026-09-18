@@ -182,6 +182,29 @@ export function canonicalFrom(
   return { origin: reqOrigin, base: reqBase };
 }
 
+/**
+ * Kanonik sayt manzili — sitemap, robots.txt, `<link rel="canonical">` va RSS uchun.
+ * Ustuvorlik tartibi:
+ *   1) admin paneldagi `siteUrl` (masalan https://ozodbeck.uz)
+ *   2) PERSONAL_SITE_HOST env dagi birinchi domen
+ *   3) so'rov domeni (fallback)
+ * Shu tufayli sitemap/robots doim HAQIQIY domenni ko'rsatadi — hatto Railway yoki
+ * proxy domeni orqali ochilganda ham qidiruv tizimlari to'g'ri manzilni oladi.
+ */
+export async function siteCanonical(): Promise<{ origin: string; base: string }> {
+  const [s, reqOrigin, reqBase] = await Promise.all([getSiteSetting(), siteOrigin(), siteBase()]);
+  const u = (s.siteUrl || "").trim().replace(/\/+$/, "");
+  if (u) return { origin: /^https?:\/\//i.test(u) ? u : `https://${u}`, base: "" };
+  // PERSONAL_SITE_HOST ichidan HAQIQIY domenni tanlaymiz (railway/localhost/vercel — kanonik emas).
+  const envHost = (process.env.PERSONAL_SITE_HOST || "")
+    .split(",")
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean)
+    .find((h) => !/(railway\.app|localhost|127\.0\.0\.1|vercel\.app)/.test(h));
+  if (envHost) return { origin: `https://${envHost}`, base: "" };
+  return { origin: reqOrigin, base: reqBase };
+}
+
 /** Nisbiy (/media/..) yoki absolut URL'ni absolutga aylantiradi. */
 export function absUrl(origin: string, url?: string | null): string | undefined {
   if (!url) return undefined;

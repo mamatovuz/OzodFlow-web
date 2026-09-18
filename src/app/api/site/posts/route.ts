@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { ok, fail } from "@/lib/api";
 import { slugify } from "@/lib/utils";
-import { isSiteAdmin, stripHtml } from "@/lib/site";
+import { isSiteAdmin, stripHtml, maybeNotifyTelegram } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +20,8 @@ const schema = z.object({
   ogImage: z.string().optional().nullable(),
   tags: z.array(z.string()).max(12).optional(),
   password: z.string().max(60).optional().nullable(),
+  series: z.string().max(60).optional().nullable(),
+  seriesOrder: z.number().int().optional(),
 });
 
 export async function GET() {
@@ -60,7 +62,11 @@ export async function POST(req: NextRequest) {
       ogImage: d.ogImage?.trim() || null,
       tags: JSON.stringify((d.tags || []).map((t) => t.trim()).filter(Boolean).slice(0, 12)),
       password: d.password?.trim() || null,
+      series: d.series?.trim() || null,
+      seriesOrder: d.seriesOrder ?? 0,
     },
   });
+  // Telegram kanalga (agar sozlangan bo'lsa) — fon rejimida
+  maybeNotifyTelegram(post).catch(() => {});
   return ok(post, 201);
 }

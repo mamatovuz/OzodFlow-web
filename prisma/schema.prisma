@@ -958,6 +958,9 @@ model SitePost {
   status      String   @default("DRAFT") // DRAFT | PUBLIC | SITE
   tags        String   @default("[]") // JSON massiv: teglar/kategoriyalar
   password    String? // bo'sh bo'lmasa — maqola qulflangan, ochish uchun parol so'raladi
+  series      String? // turkum nomi (bir xil nom — bog'langan qismlar)
+  seriesOrder Int      @default(0) // turkumdagi tartib (1-qism, 2-qism ...)
+  tgPosted    Boolean  @default(false) // Telegram kanalga yuborilganmi (takror bo'lmasin)
   // ─── SEO / ulashish (bo'sh bo'lsa title/excerpt/coverImage'dan olinadi) ───
   metaTitle       String? // ulashishda/brauzer tabida ko'rinadigan sarlavha
   metaDescription String? // ulashish tavsifi
@@ -995,6 +998,9 @@ model SiteSetting {
   ogImage         String? // ulashish rasmi (bo'lmasa avto-rasm chiziladi)
   favicon         String? // brauzer tab ikonkasi (rasm URL)
   siteName        String   @default("Ozodbek's Blog")
+  // ─── Telegram kanalga avto-post (yangi maqola chiqsa o'zi tashlaydi) ───
+  tgBotToken      String? // bot tokeni
+  tgChannel       String? // kanal (@kanal yoki -100... chat id)
   updatedAt    DateTime @updatedAt
 }
 

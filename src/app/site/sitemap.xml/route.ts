@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/prisma";
-import { siteOrigin, siteBase } from "@/lib/site";
+import { siteOrigin, siteBase, publicPostWhere } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const [origin, base] = await Promise.all([siteOrigin(), siteBase()]);
   const posts = await prisma.sitePost.findMany({
-    where: { status: { in: ["PUBLIC", "SITE"] } },
+    where: publicPostWhere(),
     select: { slug: true, updatedAt: true },
     orderBy: { publishDate: "desc" },
   });

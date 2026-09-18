@@ -27,6 +27,7 @@ import {
   MessageSquare,
   Mail,
   FolderGit2,
+  Calendar,
 } from "lucide-react";
 import { RichEditor } from "@/components/site/rich-editor";
 import { AdminStats } from "@/components/site/admin-stats";
@@ -53,6 +54,8 @@ type Post = {
   ogImage: string | null;
   tags: string[];
   password: string | null;
+  series: string | null;
+  seriesOrder: number;
 };
 
 type Settings = {
@@ -70,6 +73,8 @@ type Settings = {
   ogImage: string;
   favicon: string;
   siteName: string;
+  tgBotToken: string;
+  tgChannel: string;
 };
 
 const STATUS: { key: Post["status"]; label: string; hint: string }[] = [
@@ -95,6 +100,8 @@ const emptyDraft = (): Post => ({
   ogImage: null,
   tags: [],
   password: null,
+  series: null,
+  seriesOrder: 0,
 });
 
 // API'dan kelgan xom postni (tags — JSON satr) mijoz shakliga keltiradi
@@ -106,6 +113,14 @@ function normalize(raw: Record<string, unknown>): Post {
     tags = [];
   }
   return { ...(raw as unknown as Post), tags };
+}
+
+// ISO sanani datetime-local input formatiga (mahalliy vaqt) o'giradi
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 async function uploadImage(file: File): Promise<string | null> {
@@ -203,6 +218,9 @@ export function PanelClient({
       ogImage: draft.ogImage,
       tags: draft.tags,
       password: draft.password,
+      series: draft.series,
+      seriesOrder: draft.seriesOrder,
+      publishDate: draft.publishDate,
     };
     const res = await fetch(draft.id ? `/api/site/posts/${draft.id}` : "/api/site/posts", {
       method: draft.id ? "PUT" : "POST",
@@ -427,6 +445,46 @@ export function PanelClient({
                   )}
                 </div>
 
+                {/* Nashr sanasi (rejalashtirish) + turkum */}
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="flex items-center gap-1.5 text-xs text-muted">
+                      <Calendar className="h-3.5 w-3.5" /> Nashr sanasi (kelajakka qo'ysangiz — rejalashtiriladi)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={toLocalInput(draft.publishDate)}
+                      onChange={(e) =>
+                        setDraft({ ...draft, publishDate: e.target.value ? new Date(e.target.value).toISOString() : draft.publishDate })
+                      }
+                      className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground"
+                    />
+                    {new Date(draft.publishDate) > new Date() && (
+                      <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">⏰ Bu sana kelganda avtomatik chiqadi.</p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2">
+                      <label className="text-xs text-muted">Turkum (ixtiyoriy)</label>
+                      <input
+                        value={draft.series || ""}
+                        onChange={(e) => setDraft({ ...draft, series: e.target.value || null })}
+                        placeholder="masalan: React darslari"
+                        className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted">Tartib</label>
+                      <input
+                        type="number"
+                        value={draft.seriesOrder}
+                        onChange={(e) => setDraft({ ...draft, seriesOrder: parseInt(e.target.value) || 0 })}
+                        className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {/* SEO / ulashish — har bir maqolaning o'z sarlavha/tavsif/rasmi */}
                 <div className="mt-5 rounded-xl border border-border">
                   <button
@@ -564,6 +622,13 @@ export function PanelClient({
                       <div className="flex items-center gap-2">
                         <h3 className="truncate font-medium">{p.title}</h3>
                         <StatusBadge status={p.status} />
+                        {new Date(p.publishDate) > new Date() && (
+                          <span className="flex shrink-0 items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                            <Calendar className="h-3 w-3" /> Rejalashtirilgan
+                          </span>
+                        )}
+                        {p.password && <Lock className="h-3 w-3 shrink-0 text-muted" />}
+                        {p.series && <span className="shrink-0 text-[11px] text-muted">📚 {p.series}</span>}
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
                         <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {p.views}</span>
@@ -916,6 +981,25 @@ function SettingsTab({ initial }: { initial: Settings }) {
             })}
           </div>
         )}
+      </section>
+
+      {/* Telegram avto-post */}
+      <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+        <h2 className="font-semibold">Telegram avto-post</h2>
+        <p className="mt-0.5 text-sm text-muted">
+          Yangi maqola e'lon qilinganda kanalga avtomatik tashlanadi. Bot tokenini @BotFather'dan oling,
+          botni kanalga admin qiling.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="text-xs text-muted">Bot tokeni</label>
+            <input value={s.tgBotToken} onChange={(e) => setS({ ...s, tgBotToken: e.target.value })} className={field} placeholder="123456:ABC-..." />
+          </div>
+          <div>
+            <label className="text-xs text-muted">Kanal (@kanal yoki -100...)</label>
+            <input value={s.tgChannel} onChange={(e) => setS({ ...s, tgChannel: e.target.value })} className={field} placeholder="@mening_kanalim" />
+          </div>
+        </div>
       </section>
 
       <div className="flex items-center gap-3">

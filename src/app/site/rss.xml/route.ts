@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { siteOrigin, siteBase, getSiteSetting } from "@/lib/site";
+import { siteOrigin, siteBase, getSiteSetting, publicPostWhere } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ function esc(s: string) {
 export async function GET() {
   const [origin, base, s] = await Promise.all([siteOrigin(), siteBase(), getSiteSetting()]);
   const posts = await prisma.sitePost.findMany({
-    where: { status: { in: ["PUBLIC", "SITE"] } },
+    where: publicPostWhere(),
     orderBy: { publishDate: "desc" },
     take: 30,
   });

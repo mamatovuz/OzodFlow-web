@@ -13,13 +13,18 @@ import {
   bumpDailyView,
   getSiteSetting,
   isPostUnlocked,
+  isSiteAdmin,
+  publicPostWhere,
 } from "@/lib/site";
+import { getLang, tr } from "@/lib/site-i18n";
 import { LockGate } from "@/components/site/lock-gate";
 import { PostContent } from "@/components/site/post-content";
 import { PostReactions } from "@/components/site/post-reactions";
 import { ShareButtons } from "@/components/site/share-buttons";
+import { BookmarkButton } from "@/components/site/bookmark-button";
 import { ReadingAids } from "@/components/site/reading-aids";
 import { Comments } from "@/components/site/comments";
+import { BookOpen } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +43,8 @@ export async function generateMetadata({
     siteOrigin(),
   ]);
   if (!post || post.status === "DRAFT") return { title: "Topilmadi" };
+  // Rejalashtirilgan (kelajak) maqola — sarlavha/tavsif sizib chiqmasin
+  if (new Date(post.publishDate).getTime() > Date.now()) return { title: "Topilmadi" };
 
   const title = post.metaTitle?.trim() || post.title;
   // Qulflangan maqola — tavsif/rasm sizib chiqmasin
@@ -69,14 +76,20 @@ export async function generateMetadata({
 
 export default async function SiteBlogDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const [base, origin, post, settings] = await Promise.all([
+  const [base, origin, post, settings, lang] = await Promise.all([
     siteBase(),
     siteOrigin(),
     prisma.sitePost.findUnique({ where: { slug } }),
     getSiteSetting(),
+    getLang(),
   ]);
 
   if (!post || post.status === "DRAFT") notFound();
+
+  // Rejalashtirilgan (kelajak sanali) maqola — admin bo'lmaganlarga ko'rinmaydi
+  if (new Date(post.publishDate).getTime() > Date.now()) {
+    if (!(await isSiteAdmin())) notFound();
+  }
 
   // Qulflangan maqola — parol kiritilmagan bo'lsa qulf ekrani
   if (post.password) {
@@ -85,7 +98,7 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
       return (
         <div className="mx-auto max-w-2xl px-5 py-8 sm:px-6">
           <Link href={`${base}/blog`} className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" /> Barcha yozuvlar
+            <ArrowLeft className="h-4 w-4" /> {tr(lang, "allPosts")}
           </Link>
           <LockGate slug={post.slug} title={post.title} />
         </div>
@@ -101,9 +114,9 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
   const mins = readingTime(post.contentHtml);
   const { html, toc } = buildToc(post.contentHtml);
 
-  const [recommended, comments] = await Promise.all([
+  const [recommended, comments, seriesParts] = await Promise.all([
     prisma.sitePost.findMany({
-      where: { status: { in: ["PUBLIC", "SITE"] }, id: { not: post.id } },
+      where: { ...publicPostWhere(), id: { not: post.id } },
       orderBy: [{ publishDate: "desc" }],
       take: 3,
     }),
@@ -112,6 +125,13 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
       orderBy: { createdAt: "asc" },
       take: 100,
     }),
+    post.series
+      ? prisma.sitePost.findMany({
+          where: { ...publicPostWhere(), series: post.series },
+          orderBy: [{ seriesOrder: "asc" }, { publishDate: "asc" }],
+          select: { id: true, slug: true, title: true, seriesOrder: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   // JSON-LD (Google boy natija)
@@ -136,14 +156,14 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
         href={`${base}/blog`}
         className="inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-foreground"
       >
-        <ArrowLeft className="h-4 w-4" /> Barcha yozuvlar
+        <ArrowLeft className="h-4 w-4" /> {tr(lang, "allPosts")}
       </Link>
 
       <header className="mt-6">
         <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-[2.5rem]">{post.title}</h1>
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
           <span>{fmt(post.publishDate)}</span>
-          <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {mins} daqiqa</span>
+          <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {mins} {tr(lang, "minutes")}</span>
           <span className="flex items-center gap-1"><Eye className="h-3.5 w-3.5" /> {post.views}</span>
         </div>
         {tags.length > 0 && (
@@ -164,6 +184,30 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
       {post.coverImage && (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img src={post.coverImage} alt={post.title} className="mt-8 w-full rounded-2xl object-cover" />
+      )}
+
+      {/* Turkum (series) navigatsiyasi */}
+      {post.series && seriesParts.length > 1 && (
+        <nav className="mt-8 rounded-xl border border-accent/30 bg-accent/5 p-4">
+          <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-accent">
+            <BookOpen className="h-4 w-4" /> {tr(lang, "series")}: {post.series}
+          </p>
+          <ol className="space-y-1">
+            {seriesParts.map((sp, i) => (
+              <li key={sp.id}>
+                {sp.id === post.id ? (
+                  <span className="text-sm font-medium">
+                    {i + 1}-{tr(lang, "part")}. {sp.title}
+                  </span>
+                ) : (
+                  <Link href={`${base}/blog/${sp.slug}`} className="text-sm text-muted transition-colors hover:text-accent">
+                    {i + 1}-{tr(lang, "part")}. {sp.title}
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ol>
+        </nav>
       )}
 
       {/* Mundarija */}
@@ -188,9 +232,10 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
         <PostContent html={html} />
       </div>
 
-      {/* Ulashish */}
-      <div className="mt-10 border-t border-border pt-6">
+      {/* Ulashish + saqlash */}
+      <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
         <ShareButtons title={post.title} />
+        <BookmarkButton slug={post.slug} title={post.title} />
       </div>
 
       {/* Yoqdi / Yoqmadi */}
@@ -204,7 +249,7 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
       {/* Tavsiya */}
       {recommended.length > 0 && (
         <section className="mt-12 border-t border-border pt-10">
-          <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-muted">Tavsiya etamiz</h2>
+          <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-muted">{tr(lang, "recommend")}</h2>
           <div className="space-y-2">
             {recommended.map((r) => (
               <Link

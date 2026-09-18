@@ -29,6 +29,8 @@ export default async function SitePanel() {
     ogImage: settings.ogImage || "",
     favicon: settings.favicon || "",
     siteName: settings.siteName,
+    tgBotToken: settings.tgBotToken || "",
+    tgChannel: settings.tgChannel || "",
   };
 
   const initialPosts = posts.map((p) => ({

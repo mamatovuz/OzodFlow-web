@@ -35,6 +35,8 @@ const schema = z.object({
   ogImage: z.string().optional().nullable(),
   favicon: z.string().optional().nullable(),
   siteName: z.string().max(60).optional(),
+  tgBotToken: z.string().max(120).optional().nullable(),
+  tgChannel: z.string().max(120).optional().nullable(),
 });
 
 export async function GET() {
@@ -50,7 +52,7 @@ export async function PUT(req: NextRequest) {
   if (!parsed.success) return fail(parsed.error.issues[0]?.message || "Ma'lumot noto'g'ri", 422);
 
   await getSiteSetting(); // qator borligiga ishonch
-  const { links, navButtons, ogImage, favicon, ...rest } = parsed.data;
+  const { links, navButtons, ogImage, favicon, tgBotToken, tgChannel, ...rest } = parsed.data;
   const s = await prisma.siteSetting.update({
     where: { id: "main" },
     data: {
@@ -59,6 +61,8 @@ export async function PUT(req: NextRequest) {
       ...(navButtons !== undefined ? { navButtons: JSON.stringify(navButtons) } : {}),
       ...(ogImage !== undefined ? { ogImage: ogImage || null } : {}),
       ...(favicon !== undefined ? { favicon: favicon || null } : {}),
+      ...(tgBotToken !== undefined ? { tgBotToken: tgBotToken || null } : {}),
+      ...(tgChannel !== undefined ? { tgChannel: tgChannel || null } : {}),
     },
   });
   return ok(s);

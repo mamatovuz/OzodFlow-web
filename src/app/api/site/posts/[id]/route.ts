@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { ok, fail } from "@/lib/api";
 import { slugify } from "@/lib/utils";
-import { isSiteAdmin, stripHtml } from "@/lib/site";
+import { isSiteAdmin, stripHtml, maybeNotifyTelegram } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +20,8 @@ const schema = z.object({
   ogImage: z.string().optional().nullable(),
   tags: z.array(z.string()).max(12).optional(),
   password: z.string().max(60).optional().nullable(),
+  series: z.string().max(60).optional().nullable(),
+  seriesOrder: z.number().int().optional(),
 });
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -69,8 +71,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           ? current.tags
           : JSON.stringify(d.tags.map((t) => t.trim()).filter(Boolean).slice(0, 12)),
       password: d.password === undefined ? current.password : d.password?.trim() || null,
+      series: d.series === undefined ? current.series : d.series?.trim() || null,
+      seriesOrder: d.seriesOrder === undefined ? current.seriesOrder : d.seriesOrder,
     },
   });
+  // Endigina e'lon qilingan bo'lsa Telegramга (fon)
+  maybeNotifyTelegram(post).catch(() => {});
   return ok(post);
 }
 

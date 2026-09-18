@@ -252,6 +252,85 @@ export async function bumpDailyView() {
     .catch(() => {});
 }
 
+/**
+ * Ommaviy postlar filtri: e'lon qilingan (PUBLIC/SITE) VA sanasi kelgan
+ * (rejalashtirilgan — kelajak sanali postlar hali ko'rinmaydi).
+ */
+export function publicPostWhere() {
+  return { status: { in: ["PUBLIC", "SITE"] }, publishDate: { lte: new Date() } };
+}
+
+/** Maqola Telegram kanalga yuboriladi (bir marta). */
+export async function notifyTelegram(
+  post: { title: string; slug: string; excerpt: string },
+  link: string,
+  token: string,
+  channel: string
+): Promise<boolean> {
+  try {
+    const text = `📝 *${escapeMd(post.title)}*\n\n${escapeMd(post.excerpt || "")}\n\n${link}`;
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: channel, text, parse_mode: "Markdown", disable_web_page_preview: false }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+function escapeMd(s: string): string {
+  return s.replace(/([_*[\]()~`>#+=|{}.!-])/g, "\\$1");
+}
+
+/** E'lon qilingan va sanasi kelgan maqolani (bir marta) Telegramга yuboradi. */
+export async function maybeNotifyTelegram(post: {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  status: string;
+  publishDate: Date;
+  tgPosted: boolean;
+}) {
+  if (post.tgPosted) return;
+  if (!(post.status === "PUBLIC" || post.status === "SITE")) return;
+  if (new Date(post.publishDate) > new Date()) return; // rejalashtirilgan — hali emas
+  const s = await getSiteSetting();
+  if (!s.tgBotToken || !s.tgChannel) return;
+  const [origin, base] = await Promise.all([siteOrigin(), siteBase()]);
+  const okSent = await notifyTelegram(
+    { title: post.title, slug: post.slug, excerpt: post.excerpt },
+    `${origin}${base}/blog/${post.slug}`,
+    s.tgBotToken,
+    s.tgChannel
+  );
+  if (okSent) await prisma.sitePost.update({ where: { id: post.id }, data: { tgPosted: true } }).catch(() => {});
+}
+
+/**
+ * Sanasi kelgan, e'lon qilingan, lekin Telegramга hali yuborilmagan postlarni
+ * kanalga tashlaydi (sekin-cron: sahifa ochilganda ishga tushadi).
+ */
+export async function publishDuePosts(origin: string, base: string) {
+  const s = await getSiteSetting();
+  if (!s.tgBotToken || !s.tgChannel) return;
+  const due = await prisma.sitePost.findMany({
+    where: { status: { in: ["PUBLIC", "SITE"] }, publishDate: { lte: new Date() }, tgPosted: false },
+    take: 5,
+  });
+  for (const p of due) {
+    const ok = await notifyTelegram(
+      { title: p.title, slug: p.slug, excerpt: p.excerpt },
+      `${origin}${base}/blog/${p.slug}`,
+      s.tgBotToken,
+      s.tgChannel
+    );
+    if (ok) await prisma.sitePost.update({ where: { id: p.id }, data: { tgPosted: true } }).catch(() => {});
+  }
+}
+
 /** Postdan qisqacha matn (HTML teglarsiz). */
 export function stripHtml(value = ""): string {
   return value

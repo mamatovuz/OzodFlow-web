@@ -22,7 +22,7 @@ export default async function SiteHome() {
     siteBase(),
     getSiteSetting(),
     prisma.sitePost.findMany({
-      where: { status: "SITE" },
+      where: { status: "SITE", publishDate: { lte: new Date() } },
       orderBy: [{ publishDate: "desc" }],
       take: 4,
     }),

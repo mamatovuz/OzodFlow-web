@@ -9,9 +9,11 @@ type Item = { slug: string; title: string; excerpt: string; coverImage?: string 
 export function CommandPalette({
   base,
   labels,
+  hideTrigger = false,
 }: {
   base: string;
   labels: { quickSearch: string; placeholder: string };
+  hideTrigger?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -50,6 +52,13 @@ export function CommandPalette({
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 40);
   }, [open]);
+
+  // "Ko'proq" menyusidagi Qidiruv tugmasi yoki boshqa joydan ochish uchun
+  useEffect(() => {
+    const openIt = () => setOpen(true);
+    window.addEventListener("site:search", openIt);
+    return () => window.removeEventListener("site:search", openIt);
+  }, []);
 
   // Qidiruv (debounce)
   useEffect(() => {
@@ -99,17 +108,19 @@ export function CommandPalette({
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        aria-label={labels.quickSearch}
-        className="flex h-9 items-center gap-2 rounded-full border border-border px-3 text-muted transition-colors hover:border-foreground hover:text-foreground"
-      >
-        <Search className="h-4 w-4" />
-        <span className="hidden text-xs lg:inline">{labels.quickSearch}</span>
-        <span className="hidden items-center gap-0.5 rounded border border-border px-1 text-[10px] text-muted lg:flex">
-          <Command className="h-2.5 w-2.5" />K
-        </span>
-      </button>
+      {!hideTrigger && (
+        <button
+          onClick={() => setOpen(true)}
+          aria-label={labels.quickSearch}
+          className="flex h-9 items-center gap-2 rounded-full border border-border px-3 text-muted transition-colors hover:border-foreground hover:text-foreground"
+        >
+          <Search className="h-4 w-4" />
+          <span className="hidden text-xs lg:inline">{labels.quickSearch}</span>
+          <span className="hidden items-center gap-0.5 rounded border border-border px-1 text-[10px] text-muted lg:flex">
+            <Command className="h-2.5 w-2.5" />K
+          </span>
+        </button>
+      )}
 
       {open && (
         <div className="modal-overlay fixed inset-0 z-[80] flex items-start justify-center bg-black/50 px-4 pt-[12vh] backdrop-blur-sm" onClick={close}>

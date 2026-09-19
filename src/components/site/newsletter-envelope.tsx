@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { Loader2, Check, X, Send } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Loader2, Check, X } from "lucide-react";
 
-// Chap pastda suzib turadigan konvert. Bosilganda obuna oynasi ochiladi
-// (1–3 rasmlardek). Email saqlanadi va unga yangiliklar yuboriladi.
+// Chap pastda suzuvchi oq qog'oz konvert. Bosilganda ustida newsletter kartasi
+// ochiladi (otabek.io bilan 1:1). Escape bilan yopiladi.
 export function NewsletterEnvelope({ channel }: { channel?: string }) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -12,6 +12,14 @@ export function NewsletterEnvelope({ channel }: { channel?: string }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [err, setErr] = useState("");
+
+  // Escape bilan yopish
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,135 +47,108 @@ export function NewsletterEnvelope({ channel }: { channel?: string }) {
 
   return (
     <>
-      {/* Suzuvchi konvert tugmasi */}
+      {/* Suzuvchi oq qog'oz konvert */}
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Yangiliklarga obuna"
-        className="float-y group fixed bottom-5 left-5 z-40 flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-card shadow-card transition-all hover:-translate-y-1 hover:shadow-xl"
+        onClick={() => setOpen((v) => !v)}
+        aria-label="Newsletterga obuna"
+        aria-expanded={open}
+        className="group fixed bottom-5 left-4 z-40 transition-transform hover:-translate-y-1 sm:bottom-7 sm:left-[30px]"
       >
-        <EnvelopeIcon />
-        <span className="absolute -right-1 -top-1 flex h-3.5 w-3.5">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent/60" />
-          <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-accent" />
-        </span>
-        <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg bg-foreground px-2.5 py-1.5 text-xs font-medium text-background opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-          Obuna bo'ling ✉️
-        </span>
+        <EnvelopeArt />
       </button>
 
-      {/* Modal */}
+      {/* Newsletter paneli — konvert ustida */}
       {open && (
-        <div
-          className="modal-overlay fixed inset-0 z-[70] flex items-end justify-start bg-black/50 p-4 backdrop-blur-sm sm:items-center sm:justify-center"
-          onClick={() => setOpen(false)}
-        >
+        <>
+          {/* fon (mobil uchun bosib yopish) */}
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden />
           <div
-            className="modal-pop relative w-full max-w-sm overflow-hidden rounded-[26px] border border-border bg-card p-6 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
+            className="np-pop fixed bottom-[105px] left-4 right-4 z-50 w-auto rounded-[22px] bg-white p-6 shadow-[0_15px_50px_rgba(0,0,0,0.14)] sm:right-auto sm:left-[30px] sm:w-[300px]"
+            role="dialog"
+            aria-label="Newsletter"
           >
-            {/* dekorativ rangli halo */}
-            <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-accent/20 blur-3xl" />
-            <div aria-hidden className="pointer-events-none absolute -bottom-16 -left-10 h-36 w-36 rounded-full bg-violet-400/15 blur-3xl" />
-
-            {/* Yopishqoq qog'oz (sticky note) — o'ynoqi bezak */}
-            <div
-              aria-hidden
-              className="note-pop pointer-events-none absolute -top-5 right-10 z-0 h-24 w-28 -rotate-6 bg-yellow-200 p-3 text-[13px] leading-tight text-neutral-800 shadow-lg"
-              style={{ fontFamily: "'Comic Sans MS', 'Segoe Print', cursive" }}
-            >
-              {/* qizil to'g'nog'ich */}
-              <span className="absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 rounded-full bg-red-500 shadow-[inset_0_-2px_3px_rgba(0,0,0,0.3)]" />
-              Har hafta bitta xat :)
-            </div>
-
             <button
               onClick={() => setOpen(false)}
-              className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
               aria-label="Yopish"
+              className="absolute right-4 top-4 z-10 text-neutral-400 transition-colors hover:text-neutral-700"
             >
               <X className="h-5 w-5" />
             </button>
 
-            <div className="float-y flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10">
-              <EnvelopeIcon />
+            {/* Sariq sticky note */}
+            <div
+              aria-hidden
+              className="note-pop absolute -top-6 left-4 z-0 h-[130px] w-[150px] rotate-6 bg-[#fdf6b2] p-4 text-[15px] leading-snug text-neutral-800 shadow-[0_10px_25px_rgba(0,0,0,0.12)]"
+              style={{ fontFamily: "'Comic Sans MS','Segoe Print','Bradley Hand',cursive" }}
+            >
+              <span className="absolute -top-2.5 left-1/2 h-5 w-5 -translate-x-1/2 rounded-full bg-red-500 shadow-[inset_0_-2px_4px_rgba(0,0,0,0.35)]" />
+              Taking a break
+              <br />: )
             </div>
 
             {done ? (
-              <div className="mt-4">
-                <h3 className="text-lg font-bold tracking-tight">Obuna bo'ldingiz 🎉</h3>
-                <p className="mt-1.5 text-sm text-muted">
-                  Rahmat! Yangi maqolalar chiqqanda birinchilardan bo'lib emailingizga xabar boradi.
-                </p>
-                <button
-                  onClick={() => setOpen(false)}
-                  className="mt-4 w-full rounded-xl bg-foreground py-2.5 text-sm font-medium text-background"
-                >
-                  Yopish
-                </button>
+              <div className="relative z-[1] pt-24">
+                <h3 className="text-lg font-bold text-neutral-900">You&apos;re in 🎉</h3>
+                <p className="mt-1.5 text-sm text-neutral-500">Rahmat! Yangi maqolalar emailingizga keladi.</p>
+                <button onClick={() => setOpen(false)} className="mt-4 rounded-full bg-neutral-900 px-5 py-2 text-sm font-medium text-white">Yopish</button>
               </div>
             ) : (
-              <>
-                <h3 className="mt-4 text-lg font-bold tracking-tight">Yangiliklardan xabardor bo'ling</h3>
-                <p className="mt-1.5 text-sm text-muted">
-                  Emailingizni qoldiring — yangi maqola va e'lonlar to'g'ridan-to'g'ri sizga keladi.
-                </p>
+              <div className="relative z-[1] pt-24">
+                <h3 className="text-[22px] font-bold tracking-tight text-neutral-900">Beyond the horizon</h3>
+                <p className="mt-0.5 text-sm text-neutral-500">Join the waitlist</p>
 
                 <form onSubmit={submit} className="mt-4">
-                  <input
-                    value={website}
-                    onChange={(e) => setWebsite(e.target.value)}
-                    tabIndex={-1}
-                    className="hidden"
-                    aria-hidden
-                  />
-                  <label className="text-xs font-medium text-muted">Email</label>
+                  <input value={website} onChange={(e) => setWebsite(e.target.value)} tabIndex={-1} className="hidden" aria-hidden />
+                  <label className="text-xs font-medium text-neutral-500">Email</label>
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="siz@example.com"
-                    className="mt-1 w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-foreground"
+                    placeholder="hello@ozodbeck.uz"
+                    className="mt-1 w-full rounded-lg bg-neutral-100 px-3.5 py-2.5 text-sm text-neutral-800 outline-none ring-1 ring-transparent transition focus:bg-white focus:ring-neutral-300"
                   />
                   {err && <p className="mt-2 text-xs text-red-500">{err}</p>}
                   <button
                     type="submit"
                     disabled={busy}
-                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                    className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#93b4f5] px-5 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-60"
                   >
-                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    Obuna bo'lish
+                    {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Subscribe
                   </button>
                 </form>
 
                 {channel && (
-                  <a
-                    href={channel}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-3 block text-center text-xs text-accent hover:underline"
-                  >
+                  <a href={channel} target="_blank" rel="noreferrer" className="mt-3 block text-xs text-[#6b8fe0] hover:underline">
                     yoki Telegram kanalga o'tish →
                   </a>
                 )}
-                <p className="mt-3 flex items-center justify-center gap-1 text-[11px] text-muted">
+                <p className="mt-3 flex items-center gap-1 text-[11px] text-neutral-400">
                   <Check className="h-3 w-3" /> Spam yo'q. Istalgan payt bekor qilasiz.
                 </p>
-              </>
+              </div>
             )}
           </div>
-        </div>
+        </>
       )}
     </>
   );
 }
 
-function EnvelopeIcon() {
+// Oq qog'oz konvert illustratsiyasi (SVG) + oltin muhr ("O").
+function EnvelopeArt() {
   return (
-    <svg viewBox="0 0 24 24" className="h-6 w-6 text-accent" fill="none" stroke="currentColor" strokeWidth={1.8}>
-      <rect x="2.5" y="4.5" width="19" height="15" rx="2.5" />
-      <path d="M3 6l9 7 9-7" strokeLinecap="round" strokeLinejoin="round" />
+    <svg width="100" height="70" viewBox="0 0 100 70" className="drop-shadow-[0_8px_18px_rgba(0,0,0,0.12)] transition-transform group-hover:rotate-[-2deg]">
+      {/* tana */}
+      <rect x="2" y="6" width="96" height="60" rx="6" fill="#ffffff" stroke="#e5e5e5" strokeWidth="1.5" />
+      {/* pastki burmalar */}
+      <path d="M3 63 L44 34 M97 63 L56 34" stroke="#e2e2e2" strokeWidth="1.5" fill="none" />
+      {/* yuqori qopqoq */}
+      <path d="M3 8 L50 40 L97 8" fill="#ffffff" stroke="#e0e0e0" strokeWidth="1.5" strokeLinejoin="round" />
+      {/* oltin muhr */}
+      <circle cx="50" cy="35" r="11" fill="#f4cf55" stroke="#e6bd3c" strokeWidth="1" />
+      <text x="50" y="39.5" textAnchor="middle" fontSize="12" fontWeight="700" fill="#8a6d1a" fontFamily="Georgia, serif">O</text>
     </svg>
   );
 }

@@ -2,9 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Menu, X, ChevronDown, Coffee, User, FolderGit2, Send, ExternalLink, Hash, Archive, Bookmark, Rss } from "lucide-react";
-import { LangSwitcher } from "@/components/site/lang-switcher";
+import { usePathname, useRouter } from "next/navigation";
+import { ChevronDown, Coffee, User, FolderGit2, Send, ExternalLink, Hash, Archive, Bookmark, Rss, Search, Languages, Check } from "lucide-react";
 import { CommandPalette } from "@/components/site/command-palette";
 import type { SiteNavButton } from "@/lib/site";
 
@@ -23,6 +22,12 @@ type Labels = {
 };
 
 type MoreItem = { label: string; href: string; external?: boolean; icon: React.ComponentType<{ className?: string }> };
+
+const LANGS = [
+  { key: "uz", label: "O'zbek" },
+  { key: "ru", label: "Русский" },
+  { key: "en", label: "English" },
+];
 
 export function SiteNav({
   base,
@@ -43,15 +48,11 @@ export function SiteNav({
   lang?: string;
   labels: Labels;
 }) {
-  const [open, setOpen] = useState(false); // mobil menyu
-  const [moreOpen, setMoreOpen] = useState(false); // "Ko'proq" dropdown (desktop)
+  const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const router = useRouter();
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
-
-  // "Ko'proq" ichidagi bo'limlar: Men haqimda, Loyihalar, Teglar, Arxiv,
-  // Saqlangan, Kofe, RSS, Kanal + admin tugmalari (footer havolalari shu yerga ko'chdi)
   const moreItems: MoreItem[] = [
     { label: labels.about, href: `${base}/about`, icon: User },
     ...(hasProjects ? [{ label: labels.projects, href: `${base}/projects`, icon: FolderGit2 }] : []),
@@ -64,7 +65,6 @@ export function SiteNav({
     ...navButtons.map((b) => ({ label: b.label, href: b.url, external: b.external, icon: ExternalLink })),
   ];
 
-  // Tashqariga bosilsa dropdown yopiladi
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
       if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false);
@@ -74,107 +74,84 @@ export function SiteNav({
   }, []);
   useEffect(() => setMoreOpen(false), [pathname]);
 
+  function pickLang(key: string) {
+    document.cookie = `site_lang=${key}; path=/; max-age=${60 * 60 * 24 * 365}`;
+    setMoreOpen(false);
+    router.refresh();
+  }
+  function openSearch() {
+    setMoreOpen(false);
+    window.dispatchEvent(new Event("site:search"));
+  }
+
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
-      <nav className="mx-auto flex max-w-2xl items-center justify-between px-4 py-3.5 sm:px-6">
-        <Link href={base || "/"} className="text-lg font-bold tracking-tight" onClick={() => setOpen(false)}>
+    <header className="w-full">
+      {/* Klaviatura ⌘K uchun ko'rinmas qidiruv (tugmasiz) */}
+      <CommandPalette base={base} hideTrigger labels={{ quickSearch: labels.quickSearch, placeholder: labels.searchPlaceholder }} />
+
+      <nav className="mx-auto flex max-w-2xl items-center justify-between px-5 py-6 sm:px-6 sm:py-7">
+        <Link href={base || "/"} className="text-[19px] font-semibold tracking-tight text-foreground sm:text-[21px]">
           {brand}
         </Link>
 
-        <div className="hidden items-center gap-5 sm:flex">
+        <div className="flex items-center gap-7 sm:gap-9">
           <Link
             href={`${base}/blog`}
-            className={`text-sm transition-colors hover:text-foreground ${isActive(`${base}/blog`) ? "text-foreground" : "text-muted"}`}
+            className={`text-[15px] transition-colors hover:text-foreground sm:text-base ${
+              pathname === `${base}/blog` || pathname.startsWith(`${base}/blog/`) ? "text-foreground" : "text-muted"
+            }`}
           >
             {labels.blog}
           </Link>
 
-          {/* Ko'proq (More) dropdown */}
-          {moreItems.length > 0 && (
-            <div className="relative" ref={moreRef}>
-              <button
-                onClick={() => setMoreOpen((v) => !v)}
-                className="inline-flex items-center gap-1 text-sm text-muted transition-colors hover:text-foreground"
-              >
-                {labels.more}
-                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${moreOpen ? "rotate-180" : ""}`} />
-              </button>
-              {moreOpen && (
-                <div className="absolute right-0 top-full z-20 mt-2 w-52 overflow-hidden rounded-2xl border border-border bg-card py-1.5 shadow-card">
-                  {moreItems.map((it) =>
-                    it.external ? (
-                      <a
-                        key={it.href + it.label}
-                        href={it.href}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-foreground hover:bg-surface-2"
-                      >
-                        <it.icon className="h-4 w-4 text-muted" /> {it.label}
-                      </a>
-                    ) : (
-                      <Link
-                        key={it.href + it.label}
-                        href={it.href}
-                        className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-foreground hover:bg-surface-2"
-                      >
-                        <it.icon className="h-4 w-4 text-muted" /> {it.label}
-                      </Link>
-                    )
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Ko'proq (More) */}
+          <div className="relative" ref={moreRef}>
+            <button
+              onClick={() => setMoreOpen((v) => !v)}
+              className="inline-flex items-center gap-1 text-[15px] text-muted transition-colors hover:text-foreground sm:text-base"
+            >
+              {labels.more}
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${moreOpen ? "rotate-180" : ""}`} />
+            </button>
+            {moreOpen && (
+              <div className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-2xl border border-border bg-card py-1.5 shadow-xl">
+                {/* Qidiruv */}
+                <button onClick={openSearch} className="flex w-full items-center justify-between px-3.5 py-2.5 text-sm text-foreground hover:bg-surface-2">
+                  <span className="flex items-center gap-2.5"><Search className="h-4 w-4 text-muted" /> {labels.quickSearch}</span>
+                  <span className="hidden items-center gap-0.5 rounded border border-border px-1 text-[10px] text-muted sm:flex">⌘K</span>
+                </button>
 
-          <CommandPalette base={base} labels={{ quickSearch: labels.quickSearch, placeholder: labels.searchPlaceholder }} />
-          <LangSwitcher current={lang} />
-        </div>
+                <div className="my-1 h-px bg-border" />
 
-        <div className="flex items-center gap-1 sm:hidden">
-          <CommandPalette base={base} labels={{ quickSearch: labels.quickSearch, placeholder: labels.searchPlaceholder }} />
-          <LangSwitcher current={lang} />
-          <button
-            type="button"
-            aria-label="Menyu"
-            onClick={() => setOpen((v) => !v)}
-            className="flex h-10 w-10 items-center justify-center rounded-lg text-muted"
-          >
-            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
+                {moreItems.map((it) =>
+                  it.external ? (
+                    <a key={it.href + it.label} href={it.href} target="_blank" rel="noreferrer" className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-foreground hover:bg-surface-2">
+                      <it.icon className="h-4 w-4 text-muted" /> {it.label}
+                    </a>
+                  ) : (
+                    <Link key={it.href + it.label} href={it.href} className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-foreground hover:bg-surface-2">
+                      <it.icon className="h-4 w-4 text-muted" /> {it.label}
+                    </Link>
+                  )
+                )}
+
+                <div className="my-1 h-px bg-border" />
+
+                {/* Til */}
+                <p className="flex items-center gap-2 px-3.5 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wide text-muted/70">
+                  <Languages className="h-3.5 w-3.5" /> Til
+                </p>
+                {LANGS.map((l) => (
+                  <button key={l.key} onClick={() => pickLang(l.key)} className="flex w-full items-center justify-between px-3.5 py-2 text-sm hover:bg-surface-2">
+                    <span className={lang === l.key ? "font-semibold text-foreground" : "text-muted"}>{l.label}</span>
+                    {lang === l.key && <Check className="h-3.5 w-3.5 text-accent" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </nav>
-
-      {open && (
-        <div className="border-t border-border bg-background px-4 py-2 sm:hidden">
-          <Link href={`${base}/blog`} onClick={() => setOpen(false)} className="block rounded-lg px-2 py-2.5 text-sm text-foreground">
-            {labels.blog}
-          </Link>
-          {moreItems.map((it) =>
-            it.external ? (
-              <a
-                key={it.href + it.label}
-                href={it.href}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 rounded-lg px-2 py-2.5 text-sm text-foreground"
-              >
-                <it.icon className="h-4 w-4 text-muted" /> {it.label}
-              </a>
-            ) : (
-              <Link
-                key={it.href + it.label}
-                href={it.href}
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 rounded-lg px-2 py-2.5 text-sm text-foreground"
-              >
-                <it.icon className="h-4 w-4 text-muted" /> {it.label}
-              </Link>
-            )
-          )}
-        </div>
-      )}
     </header>
   );
 }

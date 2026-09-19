@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { SiteNav } from "@/components/site/site-nav";
 import { PwaRegister } from "@/components/site/pwa-register";
 import { NewsletterEnvelope } from "@/components/site/newsletter-envelope";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { SiteThemeToggle } from "@/components/site/site-theme-toggle";
 import { siteBase, getSiteSetting, siteCanonical, absUrl, parseNavButtons, parseLinks } from "@/lib/site";
 import { getLang, tr } from "@/lib/site-i18n";
 
@@ -119,13 +119,11 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
 
       {/* Butun sayt bo'ylab: pastda chapda obuna konverti, o'ngda tema tugmasi */}
       <NewsletterEnvelope channel={s.channel} />
-      <div className="fixed bottom-5 right-5 z-40">
-        <ThemeToggle />
-      </div>
+      <SiteThemeToggle />
 
       {/* Minimalist footer — faqat yil va domen (otabek.io uslubi) */}
-      <footer className="py-8">
-        <p className="text-center text-sm text-muted">
+      <footer className="py-10">
+        <p className="text-center text-sm text-[#73737d]">
           © {new Date().getFullYear()} {domain}
         </p>
       </footer>

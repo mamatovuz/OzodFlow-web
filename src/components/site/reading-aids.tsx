@@ -28,7 +28,7 @@ export function ReadingAids() {
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           aria-label="Tepaga"
-          className="fixed bottom-5 right-5 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card shadow-card transition-colors hover:border-foreground"
+          className="fixed bottom-[74px] right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card shadow-card transition-all hover:-translate-y-0.5 hover:border-foreground sm:bottom-[88px] sm:right-[46px]"
         >
           <ArrowUp className="h-5 w-5" />
         </button>

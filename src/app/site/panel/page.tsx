@@ -31,6 +31,10 @@ export default async function SitePanel() {
     siteName: settings.siteName,
     siteUrl: settings.siteUrl || "",
     coffeeUrl: settings.coffeeUrl || "",
+    saleAdLogo: settings.saleAdLogo || "",
+    saleAdUrl: settings.saleAdUrl || "",
+    saleAdTitle: settings.saleAdTitle || "",
+    saleAdText: settings.saleAdText || "",
     tgBotToken: settings.tgBotToken || "",
     tgChannel: settings.tgChannel || "",
   };

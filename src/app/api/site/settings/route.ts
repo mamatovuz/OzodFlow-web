@@ -37,6 +37,10 @@ const schema = z.object({
   siteName: z.string().max(60).optional(),
   siteUrl: z.string().max(200).optional(),
   coffeeUrl: z.string().max(200).optional(),
+  saleAdLogo: z.string().max(500).optional(),
+  saleAdUrl: z.string().max(500).optional(),
+  saleAdTitle: z.string().max(120).optional(),
+  saleAdText: z.string().max(400).optional(),
   tgBotToken: z.string().max(120).optional().nullable(),
   tgChannel: z.string().max(120).optional().nullable(),
 });

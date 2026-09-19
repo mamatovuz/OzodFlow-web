@@ -89,6 +89,10 @@ type Settings = {
   siteName: string;
   siteUrl: string;
   coffeeUrl: string;
+  saleAdLogo: string;
+  saleAdUrl: string;
+  saleAdTitle: string;
+  saleAdText: string;
   tgBotToken: string;
   tgChannel: string;
 };
@@ -844,9 +848,10 @@ function SettingsTab({ initial }: { initial: Settings }) {
     profile: "profileImage",
     og: "ogImage",
     favicon: "favicon",
+    saleLogo: "saleAdLogo",
   };
 
-  async function pick(kind: "hero" | "profile" | "og" | "favicon", e: React.ChangeEvent<HTMLInputElement>) {
+  async function pick(kind: "hero" | "profile" | "og" | "favicon" | "saleLogo", e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
@@ -1129,6 +1134,38 @@ function SettingsTab({ initial }: { initial: Settings }) {
             })}
           </div>
         )}
+      </section>
+
+      {/* Sotuv sahifasi reklamasi — FAQAT public API'da chiqadi (blog saytda emas) */}
+      <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+        <h2 className="font-semibold">Sotuv reklamasi (faqat API)</h2>
+        <p className="mt-0.5 text-sm text-muted">
+          Bu logo va havola <b>blog saytda ko'rinmaydi</b> — faqat public API orqali (masalan domen sotiladigan
+          sahifada) chiqadi. API: <code className="rounded bg-surface-2 px-1">/api/public/site</code>.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <ImageField
+            label="Reklama logosi"
+            url={s.saleAdLogo || "/site/profile.jpg"}
+            busy={busyKey === "saleLogo"}
+            onPick={(e) => pick("saleLogo", e)}
+            onClear={s.saleAdLogo ? () => setS({ ...s, saleAdLogo: "" }) : undefined}
+          />
+          <div>
+            <label className="text-xs text-muted">Havola (silka)</label>
+            <input value={s.saleAdUrl} onChange={(e) => setS({ ...s, saleAdUrl: e.target.value })} className={field} placeholder="https://..." />
+          </div>
+        </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="text-xs text-muted">Sarlavha (ixtiyoriy)</label>
+            <input value={s.saleAdTitle} onChange={(e) => setS({ ...s, saleAdTitle: e.target.value })} className={field} placeholder="Masalan: Bu domen sotuvda" />
+          </div>
+          <div>
+            <label className="text-xs text-muted">Matn (ixtiyoriy)</label>
+            <input value={s.saleAdText} onChange={(e) => setS({ ...s, saleAdText: e.target.value })} className={field} placeholder="Qisqa reklama matni" />
+          </div>
+        </div>
       </section>
 
       {/* AI kalit (ovozli o'qish uchun) */}

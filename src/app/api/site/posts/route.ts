@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { ok, fail } from "@/lib/api";
 import { slugify } from "@/lib/utils";
-import { isSiteAdmin, stripHtml, maybeNotifyTelegram, maybeEmailSubscribers } from "@/lib/site";
+import { isSiteAdmin, stripHtml, maybeNotifyTelegram, maybeEmailSubscribers, bumpActivity } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -73,5 +73,6 @@ export async function POST(req: NextRequest) {
   // Telegram + email (agar sozlangan bo'lsa) — fon rejimida
   maybeNotifyTelegram(post).catch(() => {});
   maybeEmailSubscribers(post).catch(() => {});
+  bumpActivity().catch(() => {}); // bugun faol (bosh sahifadagi yashil katak)
   return ok(post, 201);
 }

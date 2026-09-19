@@ -12,6 +12,7 @@ import {
   commentReplyEmail,
   newCommentAdminEmail,
   digestEmail,
+  broadcastEmail,
 } from "./email";
 
 // ─── Kirish ma'lumotlari ───
@@ -330,6 +331,83 @@ export async function bumpDailyView() {
 }
 
 /**
+ * Bugungi kunni "faol" deb belgilaydi (bosh sahifadagi yashil katakchalar uchun).
+ * Admin panelga kirganda yoki maqola yozib/tahrirlanganda chaqiriladi.
+ */
+export async function bumpActivity() {
+  const day = today();
+  await prisma.siteActivity
+    .upsert({ where: { day }, update: { count: { increment: 1 } }, create: { day, count: 1 } })
+    .catch(() => {});
+}
+
+export type ActivityDay = { day: string; count: number; level: 0 | 1 | 2 | 3 | 4 };
+
+/**
+ * GitHub uslubidagi faollik "katakchalari" ma'lumoti — berilgan yil uchun
+ * hafta ustunlariga (Dushanba–Yakshanba) joylashtirilgan kunlar. Har kunning
+ * faollik darajasi (0–4) hisoblanadi: admin faolligi + o'sha kuni chiqqan maqola.
+ */
+export async function getActivityGrid(year?: number): Promise<{
+  year: number;
+  weeks: (ActivityDay | null)[][];
+  totalActive: number;
+}> {
+  const now = new Date();
+  const y = year ?? now.getFullYear();
+  const start = `${y}-01-01`;
+  const end = `${y}-12-31`;
+
+  const [acts, posts] = await Promise.all([
+    prisma.siteActivity.findMany({ where: { day: { gte: start, lte: end } } }).catch(() => []),
+    prisma.sitePost
+      .findMany({
+        where: { ...publicPostWhere(), publishDate: { gte: new Date(`${y}-01-01T00:00:00`), lte: new Date(`${y}-12-31T23:59:59`) } },
+        select: { publishDate: true },
+      })
+      .catch(() => [] as { publishDate: Date }[]),
+  ]);
+
+  const counts = new Map<string, number>();
+  for (const a of acts) counts.set(a.day, (counts.get(a.day) || 0) + a.count);
+  for (const p of posts) {
+    const d = new Date(p.publishDate);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    counts.set(key, (counts.get(key) || 0) + 2); // maqola — kuchliroq faollik
+  }
+
+  const level = (c: number): ActivityDay["level"] =>
+    c <= 0 ? 0 : c === 1 ? 1 : c <= 3 ? 2 : c <= 6 ? 3 : 4;
+
+  // Yilning birinchi kunidan boshlab, dushanbaga tekislangan ustunlar
+  const firstDay = new Date(y, 0, 1);
+  const startDow = (firstDay.getDay() + 6) % 7; // Dushanba = 0
+  const weeks: (ActivityDay | null)[][] = [];
+  let week: (ActivityDay | null)[] = new Array(startDow).fill(null);
+
+  const todayStr = today();
+  const daysInYear = (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)) ? 366 : 365;
+  let totalActive = 0;
+  for (let i = 0; i < daysInYear; i++) {
+    const d = new Date(y, 0, 1 + i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const future = key > todayStr;
+    const c = future ? 0 : counts.get(key) || 0;
+    if (c > 0) totalActive++;
+    week.push({ day: key, count: c, level: future ? 0 : level(c) });
+    if (week.length === 7) {
+      weeks.push(week);
+      week = [];
+    }
+  }
+  if (week.length) {
+    while (week.length < 7) week.push(null);
+    weeks.push(week);
+  }
+  return { year: y, weeks, totalActive };
+}
+
+/**
  * Ommaviy postlar filtri: e'lon qilingan (PUBLIC/SITE) VA sanasi kelgan
  * (rejalashtirilgan — kelajak sanali postlar hali ko'rinmaydi).
  */
@@ -567,6 +645,45 @@ export async function sendWeeklyDigest(): Promise<{ sent: number; posts: number 
     if (okSent) sent++;
   }
   return { sent, posts: posts.length };
+}
+
+/**
+ * Admin ommaviy xabari — obunachilarga (yoki tanlangan emaillarga) ixtiyoriy
+ * sarlavha + matn yuboradi. Har biriga shaxsiy "obunani bekor qilish" havolasi.
+ */
+export async function sendBroadcast(opts: {
+  subject: string;
+  bodyHtml: string;
+  emails?: string[]; // bo'sh bo'lsa — barcha obunachilar
+}): Promise<{ sent: number; total: number }> {
+  if (!emailConfigured()) return { sent: 0, total: 0 };
+
+  const [s, reqOrigin, reqBase] = await Promise.all([getSiteSetting(), siteOrigin(), siteBase()]);
+  const { origin, base } = canonicalFrom(s, reqOrigin, reqBase);
+
+  let targets: { email: string }[];
+  if (opts.emails && opts.emails.length) {
+    const set = new Set(opts.emails.map((e) => e.toLowerCase()));
+    targets = await prisma.siteSubscriber.findMany({ select: { email: true } });
+    targets = targets.filter((t) => set.has(t.email.toLowerCase()));
+  } else {
+    targets = await prisma.siteSubscriber.findMany({ select: { email: true } });
+  }
+  if (targets.length === 0) return { sent: 0, total: 0 };
+
+  let sent = 0;
+  for (const t of targets) {
+    const { subject, html } = broadcastEmail({
+      brand: s.siteName,
+      subject: opts.subject,
+      bodyHtml: opts.bodyHtml,
+      blogUrl: `${origin}${base}/blog`,
+      unsubscribeUrl: unsubUrl(origin, t.email),
+    });
+    const okSent = await sendEmail({ to: t.email, subject, html }).catch(() => false);
+    if (okSent) sent++;
+  }
+  return { sent, total: targets.length };
 }
 
 /** Muallif (admin) izohga javob berganda — izoh egasining emailiga xabar. */

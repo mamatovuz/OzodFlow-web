@@ -30,6 +30,7 @@ export default async function SitePanel() {
     favicon: settings.favicon || "",
     siteName: settings.siteName,
     siteUrl: settings.siteUrl || "",
+    coffeeUrl: settings.coffeeUrl || "",
     tgBotToken: settings.tgBotToken || "",
     tgChannel: settings.tgChannel || "",
   };

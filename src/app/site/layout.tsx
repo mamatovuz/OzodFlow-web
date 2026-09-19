@@ -86,6 +86,8 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     channel: tr(lang, "channel"),
     quickSearch: tr(lang, "quickSearch"),
     searchPlaceholder: tr(lang, "search"),
+    more: lang === "en" ? "More" : lang === "ru" ? "Ещё" : "Ko'proq",
+    coffee: lang === "en" ? "Buy me a coffee" : lang === "ru" ? "Купить кофе" : "Kofe sotib olish",
   };
 
   return (
@@ -93,7 +95,9 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(siteLd) }} />
       <SiteNav
         base={base}
+        brand={s.siteName}
         channel={s.channel}
+        coffeeUrl={s.coffeeUrl}
         navButtons={navButtons}
         hasProjects={projectCount > 0}
         lang={lang}

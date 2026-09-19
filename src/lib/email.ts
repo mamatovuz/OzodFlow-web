@@ -224,6 +224,26 @@ export function digestEmail(opts: {
   };
 }
 
+/** Admin ommaviy xabari — ixtiyoriy sarlavha + erkin matn (HTML). */
+export function broadcastEmail(opts: {
+  brand: string;
+  subject: string;
+  bodyHtml: string;
+  blogUrl: string;
+  unsubscribeUrl?: string;
+}): { subject: string; html: string } {
+  const { brand, subject, bodyHtml, blogUrl, unsubscribeUrl } = opts;
+  const inner = `
+    ${subject ? `<div style="font-size:20px;font-weight:600;color:${INK};letter-spacing:-.02em;margin:0 0 14px;line-height:1.3;">${subject}</div>` : ""}
+    <div style="font-size:14px;line-height:1.7;color:#333;">${bodyHtml}</div>
+    <div style="margin-top:24px;"><a href="${blogUrl}" style="display:inline-block;background:${INK};color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:500;padding:12px 24px;border-radius:10px;">Blogga o'tish →</a></div>
+  `;
+  return {
+    subject: subject || `${brand}'dan xabar`,
+    html: blogShell({ brand, inner, unsubscribeUrl, preheader: subject || `${brand}'dan yangi xabar` }),
+  };
+}
+
 /** Obunaga xush kelibsiz xati. */
 export function welcomeEmail(opts: {
   brand: string;

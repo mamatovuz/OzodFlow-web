@@ -33,6 +33,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Share2,
+  Users,
 } from "lucide-react";
 import { RichEditor } from "@/components/site/rich-editor";
 import { EditorEnhance } from "@/components/site/editor-enhance";
@@ -40,6 +41,7 @@ import { AdminStats } from "@/components/site/admin-stats";
 import { AdminComments } from "@/components/site/admin-comments";
 import { AdminMessages } from "@/components/site/admin-messages";
 import { AdminProjects } from "@/components/site/admin-projects";
+import { AdminBroadcast } from "@/components/site/admin-broadcast";
 import { SITE_ICONS, iconFor } from "@/components/site/link-icons";
 import type { SiteLink, SiteNavButton } from "@/lib/site";
 
@@ -83,6 +85,7 @@ type Settings = {
   favicon: string;
   siteName: string;
   siteUrl: string;
+  coffeeUrl: string;
   tgBotToken: string;
   tgChannel: string;
 };
@@ -173,7 +176,7 @@ export function PanelClient({
   initialSettings: Settings;
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState<"dashboard" | "posts" | "comments" | "messages" | "projects" | "settings">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "posts" | "comments" | "messages" | "projects" | "subscribers" | "settings">("dashboard");
   const [posts, setPosts] = useState<Post[]>(initialPosts);
 
   // ── Editor holati ──
@@ -389,6 +392,9 @@ export function PanelClient({
           <TabBtn active={tab === "projects"} onClick={() => setTab("projects")} icon={<FolderGit2 className="h-4 w-4" />}>
             Loyihalar
           </TabBtn>
+          <TabBtn active={tab === "subscribers"} onClick={() => setTab("subscribers")} icon={<Users className="h-4 w-4" />}>
+            Obunachilar
+          </TabBtn>
           <TabBtn active={tab === "settings"} onClick={() => setTab("settings")} icon={<Settings className="h-4 w-4" />}>
             Sozlamalar
           </TabBtn>
@@ -398,6 +404,7 @@ export function PanelClient({
         {tab === "comments" && <AdminComments />}
         {tab === "messages" && <AdminMessages />}
         {tab === "projects" && <AdminProjects />}
+        {tab === "subscribers" && <AdminBroadcast />}
 
         {tab === "posts" && (
           <>
@@ -1048,8 +1055,13 @@ function SettingsTab({ initial }: { initial: Settings }) {
         )}
 
         <div className="mt-5 border-t border-border pt-4">
-          <label className="text-xs text-muted">Navbar "Kanal" havolasi (ixtiyoriy)</label>
+          <label className="text-xs text-muted">Telegram kanal havolasi ("Ko'proq" menyusida chiqadi)</label>
           <input value={s.channel} onChange={(e) => setS({ ...s, channel: e.target.value })} className={field} placeholder="https://t.me/..." />
+        </div>
+        <div className="mt-4">
+          <label className="text-xs text-muted">☕ "Menga kofe sotib oling" havolasi (buymeacoffee)</label>
+          <input value={s.coffeeUrl} onChange={(e) => setS({ ...s, coffeeUrl: e.target.value })} className={field} placeholder="https://buymeacoffee.com/ozodbeck" />
+          <p className="mt-1 text-xs text-muted">Bosh sahifa, maqolalar ostida va "Ko'proq" menyusidagi Kofe sahifasida ishlatiladi.</p>
         </div>
       </section>
 

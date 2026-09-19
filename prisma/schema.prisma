@@ -998,6 +998,7 @@ model SiteSetting {
   // JSON massiv: [{ id, icon, url, label }]. icon — site-icons ro'yxatidagi kalit.
   links        String   @default("[]")
   channel      String   @default("https://t.me/OzodFlow") // navbar "Kanal" havolasi
+  coffeeUrl    String   @default("") // "Menga kofe sotib oling" (buymeacoffee) havolasi
   // Navbar qo'shimcha tugmalari — admin paneldan. JSON: [{ id, label, url, external }]
   navButtons   String   @default("[]")
   // ─── Sayt darajasidagi SEO / ulashish (Telegram, Google) ───
@@ -1090,4 +1091,11 @@ model SiteSubscriber {
 model SiteDailyStat {
   day   String @id // YYYY-MM-DD
   views Int    @default(0)
+}
+
+// Kunlik faollik (GitHub uslubidagi "yashil katakchalar" — bosh sahifada).
+// Admin panelga kirsa yoki maqola yozsa/tahrirlasa — o'sha kun faol bo'ladi.
+model SiteActivity {
+  day   String @id // YYYY-MM-DD
+  count Int    @default(1) // shu kundagi harakatlar soni (yashil to'yinganlik darajasi)
 }

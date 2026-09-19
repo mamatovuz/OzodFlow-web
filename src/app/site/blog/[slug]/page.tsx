@@ -20,7 +20,10 @@ import {
   parseReactions,
   parseFaq,
   parseTranslations,
+  parseLinks,
 } from "@/lib/site";
+import { SocialIcons } from "@/components/site/social-icons";
+import { CoffeeCard } from "@/components/site/coffee-card";
 import { getLang, tr } from "@/lib/site-i18n";
 import { LockGate } from "@/components/site/lock-gate";
 import { PostReactions } from "@/components/site/post-reactions";
@@ -356,6 +359,21 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
             </Link>
           )}
         </nav>
+      )}
+
+      {/* Meni kuzatib boring — ijtimoiy tarmoqlar (har maqola ostida) */}
+      {parseLinks(settings.links).length > 0 && (
+        <section className="mt-12 border-t border-border pt-10 text-center">
+          <p className="mb-4 text-sm text-muted">Meni kuzatib boring</p>
+          <SocialIcons links={parseLinks(settings.links)} />
+        </section>
+      )}
+
+      {/* Qo'llab-quvvatlash (kofe + Telegram) */}
+      {(settings.coffeeUrl || settings.channel) && (
+        <section className="mt-12 border-t border-border pt-10">
+          <CoffeeCard coffeeUrl={settings.coffeeUrl} channel={settings.channel} />
+        </section>
       )}
 
       {/* Izohlar */}

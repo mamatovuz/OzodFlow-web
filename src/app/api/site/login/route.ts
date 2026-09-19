@@ -4,6 +4,7 @@ import {
   SITE_ADMIN_EMAIL,
   SITE_ADMIN_PASSWORD,
   createSiteSession,
+  bumpActivity,
 } from "@/lib/site";
 import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
@@ -22,5 +23,6 @@ export async function POST(req: NextRequest) {
   }
 
   await createSiteSession();
+  bumpActivity().catch(() => {}); // bugungi kunni "yashil" qilamiz
   return ok({ success: true });
 }

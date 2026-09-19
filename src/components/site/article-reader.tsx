@@ -150,12 +150,14 @@ export function ArticleReader({
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
     const all = window.speechSynthesis.getVoices();
     if (!all.length) return null;
-    const pref = ttsLang === "ru" ? "ru" : ttsLang === "en" ? "en" : "uz";
-    return (
-      all.find((v) => v.lang?.toLowerCase().startsWith(pref)) ||
-      all.find((v) => v.lang?.toLowerCase().startsWith("ru")) || // uz ovoz bo'lmasa, ru yaqinroq talaffuz
-      all[0]
-    );
+    // O'zbek matni uchun eng yaqin talaffuz tartibi: uz → az → tr → ru → default
+    // (Azerbayjan/Turk lotin fonetikasi o'zbekchaga eng yaqin).
+    const order = ttsLang === "ru" ? ["ru"] : ttsLang === "en" ? ["en"] : ["uz", "az", "tr", "ru"];
+    for (const pref of order) {
+      const v = all.find((x) => x.lang?.toLowerCase().startsWith(pref));
+      if (v) return v;
+    }
+    return all[0];
   }, [ttsLang]);
 
   const speakBrowser = useCallback(

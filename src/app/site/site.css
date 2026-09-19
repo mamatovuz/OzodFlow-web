@@ -285,3 +285,76 @@
 .site-content img:hover {
   filter: brightness(0.97);
 }
+
+/* ─────────────────────────────────────────────
+   Animatsiyalar (bosh sahifa, faollik, obuna)
+   prefers-reduced-motion — hurmat qilinadi
+   ───────────────────────────────────────────── */
+@keyframes actPop {
+  0% { opacity: 0; transform: scale(0.4); }
+  60% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes floatY {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.act-card { animation: cardIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.act-cell { animation: actPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+.fade-up { animation: fadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.fade-up-1 { animation: fadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both; }
+.fade-up-2 { animation: fadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both; }
+.fade-up-3 { animation: fadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both; }
+.fade-up-4 { animation: fadeUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.28s both; }
+
+.modal-overlay { animation: overlayIn 0.2s ease both; }
+.modal-pop { animation: popIn 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.float-y { animation: floatY 3s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .act-card, .act-cell, .fade-up, .fade-up-1, .fade-up-2, .fade-up-3, .fade-up-4,
+  .modal-overlay, .modal-pop, .float-y {
+    animation: none !important;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Responsive himoya — tasodifiy gorizontal scrollni yo'qotadi
+   ───────────────────────────────────────────── */
+.site-root {
+  overflow-x: hidden;
+}
+.site-root img,
+.site-root video,
+.site-content img,
+.site-content pre,
+.site-content table {
+  max-width: 100%;
+}
+/* Uzun so'z/havolalar mobilда konteynerdan chiqmasin */
+.site-content p,
+.site-content li,
+.site-content h1,
+.site-content h2,
+.site-content h3 {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}

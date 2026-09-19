@@ -341,28 +341,49 @@ export async function bumpActivity() {
     .catch(() => {});
 }
 
-export type ActivityDay = { day: string; count: number; level: 0 | 1 | 2 | 3 | 4 };
+export type ActivityDay = {
+  date: number; // oy kuni (1..31)
+  day: string; // YYYY-MM-DD
+  count: number;
+  level: 0 | 1 | 2 | 3 | 4;
+  isToday: boolean;
+};
+
+const MONTHS_UZ_FULL = [
+  "Yanvar", "Fevral", "Mart", "Aprel", "May", "Iyun",
+  "Iyul", "Avgust", "Sentabr", "Oktabr", "Noyabr", "Dekabr",
+];
 
 /**
- * GitHub uslubidagi faollik "katakchalari" ma'lumoti — berilgan yil uchun
- * hafta ustunlariga (Dushanba–Yakshanba) joylashtirilgan kunlar. Har kunning
- * faollik darajasi (0–4) hisoblanadi: admin faolligi + o'sha kuni chiqqan maqola.
+ * Faollik "katakchalari" — FAQAT joriy oy uchun (GitHub uslubidagi yashil
+ * kataklar). Oydagi kunlar soniga qarab (28–31) katak chiqadi, dushanbadan
+ * boshlab kalendar ko'rinishida tekislangan. Har kun darajasi (0–4): admin
+ * faolligi + o'sha kuni chiqqan maqola. Oy o'tsa avtomatik yangi oy ko'rinadi.
  */
-export async function getActivityGrid(year?: number): Promise<{
+export async function getActivityGrid(): Promise<{
   year: number;
-  weeks: (ActivityDay | null)[][];
+  month: number; // 0-indeks
+  monthName: string;
+  cells: (ActivityDay | null)[]; // boshida tekislash uchun null'lar bo'lishi mumkin
   totalActive: number;
+  daysInMonth: number;
 }> {
   const now = new Date();
-  const y = year ?? now.getFullYear();
-  const start = `${y}-01-01`;
-  const end = `${y}-12-31`;
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const mm = String(m + 1).padStart(2, "0");
+  const start = `${y}-${mm}-01`;
+  const end = `${y}-${mm}-${String(daysInMonth).padStart(2, "0")}`;
 
   const [acts, posts] = await Promise.all([
     prisma.siteActivity.findMany({ where: { day: { gte: start, lte: end } } }).catch(() => []),
     prisma.sitePost
       .findMany({
-        where: { ...publicPostWhere(), publishDate: { gte: new Date(`${y}-01-01T00:00:00`), lte: new Date(`${y}-12-31T23:59:59`) } },
+        where: {
+          ...publicPostWhere(),
+          publishDate: { gte: new Date(y, m, 1, 0, 0, 0), lte: new Date(y, m, daysInMonth, 23, 59, 59) },
+        },
         select: { publishDate: true },
       })
       .catch(() => [] as { publishDate: Date }[]),
@@ -379,32 +400,20 @@ export async function getActivityGrid(year?: number): Promise<{
   const level = (c: number): ActivityDay["level"] =>
     c <= 0 ? 0 : c === 1 ? 1 : c <= 3 ? 2 : c <= 6 ? 3 : 4;
 
-  // Yilning birinchi kunidan boshlab, dushanbaga tekislangan ustunlar
-  const firstDay = new Date(y, 0, 1);
-  const startDow = (firstDay.getDay() + 6) % 7; // Dushanba = 0
-  const weeks: (ActivityDay | null)[][] = [];
-  let week: (ActivityDay | null)[] = new Array(startDow).fill(null);
-
   const todayStr = today();
-  const daysInYear = (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)) ? 366 : 365;
+  // Oy 1-kuni qaysi hafta kuniga to'g'ri kelishi (Dushanba = 0) — kalendar tekislash
+  const startDow = (new Date(y, m, 1).getDay() + 6) % 7;
+  const cells: (ActivityDay | null)[] = new Array(startDow).fill(null);
+
   let totalActive = 0;
-  for (let i = 0; i < daysInYear; i++) {
-    const d = new Date(y, 0, 1 + i);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = `${y}-${mm}-${String(d).padStart(2, "0")}`;
     const future = key > todayStr;
     const c = future ? 0 : counts.get(key) || 0;
     if (c > 0) totalActive++;
-    week.push({ day: key, count: c, level: future ? 0 : level(c) });
-    if (week.length === 7) {
-      weeks.push(week);
-      week = [];
-    }
+    cells.push({ date: d, day: key, count: c, level: future ? 0 : level(c), isToday: key === todayStr });
   }
-  if (week.length) {
-    while (week.length < 7) week.push(null);
-    weeks.push(week);
-  }
-  return { year: y, weeks, totalActive };
+  return { year: y, month: m, monthName: MONTHS_UZ_FULL[m], cells, totalActive, daysInMonth };
 }
 
 /**

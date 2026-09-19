@@ -91,6 +91,18 @@ export async function getGeminiKey(): Promise<string | null> {
   return null;
 }
 
+// Ishlashga tayyor birinchi OpenAI kalitini ochib qaytaradi (neyron TTS uchun).
+export async function getOpenAiKey(): Promise<{ key: string; model: string } | null> {
+  const keys = await usableKeys();
+  for (const k of keys) {
+    if (providerOf(k) === "openai") {
+      const dec = safeDecrypt(k.keyEnc);
+      if (dec) return { key: dec, model: k.model };
+    }
+  }
+  return null;
+}
+
 // Ishlatishga tayyor kalitlar (faol, cooldown tugagan) — failover tartibida
 async function usableKeys(): Promise<AiKey[]> {
   const now = new Date();

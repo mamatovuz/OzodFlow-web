@@ -44,34 +44,41 @@ export function NewsletterEnvelope({ channel }: { channel?: string }) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Yangiliklarga obuna"
-        className="group fixed bottom-5 left-5 z-40 flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-card shadow-card transition-transform hover:-translate-y-0.5 hover:shadow-lg"
+        className="float-y group fixed bottom-5 left-5 z-40 flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-card shadow-card transition-all hover:-translate-y-1 hover:shadow-xl"
       >
         <EnvelopeIcon />
         <span className="absolute -right-1 -top-1 flex h-3.5 w-3.5">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent/60" />
           <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-accent" />
         </span>
+        <span className="pointer-events-none absolute left-full ml-3 whitespace-nowrap rounded-lg bg-foreground px-2.5 py-1.5 text-xs font-medium text-background opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+          Obuna bo'ling ✉️
+        </span>
       </button>
 
       {/* Modal */}
       {open && (
         <div
-          className="fixed inset-0 z-[70] flex items-end justify-start bg-black/40 p-4 backdrop-blur-sm sm:items-center sm:justify-center"
+          className="modal-overlay fixed inset-0 z-[70] flex items-end justify-start bg-black/50 p-4 backdrop-blur-sm sm:items-center sm:justify-center"
           onClick={() => setOpen(false)}
         >
           <div
-            className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-card"
+            className="modal-pop relative w-full max-w-sm overflow-hidden rounded-[26px] border border-border bg-card p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* dekorativ rangli halo */}
+            <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-accent/20 blur-3xl" />
+            <div aria-hidden className="pointer-events-none absolute -bottom-16 -left-10 h-36 w-36 rounded-full bg-violet-400/15 blur-3xl" />
+
             <button
               onClick={() => setOpen(false)}
-              className="absolute right-4 top-4 text-muted transition-colors hover:text-foreground"
+              className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
               aria-label="Yopish"
             >
               <X className="h-5 w-5" />
             </button>
 
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10">
+            <div className="float-y flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10">
               <EnvelopeIcon />
             </div>
 

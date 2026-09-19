@@ -40,7 +40,7 @@ export default async function SiteHome() {
   return (
     <div className="mx-auto max-w-2xl px-5 sm:px-6">
       {/* ─── Minimalist "hero" ─── */}
-      <section className="pt-16 text-center sm:pt-24">
+      <section className="fade-up pt-16 text-center sm:pt-24">
         {s.heroTagline && (
           <p className="mx-auto max-w-md text-balance text-base leading-relaxed text-muted sm:text-lg">
             {s.heroTagline}
@@ -48,15 +48,19 @@ export default async function SiteHome() {
         )}
       </section>
 
-      {/* ─── Faollik katakchalari (GitHub uslubi) ─── */}
-      <section className="mt-10">
-        <p className="mb-3 text-center text-xs font-semibold tracking-widest text-muted">{activity.year}</p>
-        <ActivityGrid year={activity.year} weeks={activity.weeks} totalActive={activity.totalActive} />
+      {/* ─── Faollik katakchalari (joriy oy, GitHub uslubi) ─── */}
+      <section className="fade-up-1 mt-10">
+        <ActivityGrid
+          monthName={activity.monthName}
+          year={activity.year}
+          cells={activity.cells}
+          totalActive={activity.totalActive}
+        />
       </section>
 
       {/* ─── So'nggi yozuvlar (ixcham) ─── */}
       {posts.length > 0 && (
-        <section className="mt-14">
+        <section className="fade-up-2 mt-14">
           <div className="mb-4 flex items-baseline justify-between">
             <h2 className="text-sm font-semibold tracking-tight">So'nggi yozuvlar</h2>
             <Link href={`${base}/blog`} className="text-sm text-muted transition-colors hover:text-foreground">
@@ -90,7 +94,7 @@ export default async function SiteHome() {
 
       {/* ─── Ijtimoiy tarmoqlar ─── */}
       {links.length > 0 && (
-        <section className="mt-14 text-center">
+        <section className="fade-up-3 mt-14 text-center">
           <p className="mb-4 text-sm text-muted">Meni kuzatib boring</p>
           <SocialIcons links={links} />
         </section>
@@ -98,7 +102,7 @@ export default async function SiteHome() {
 
       {/* ─── Qo'llab-quvvatlash (kofe + Telegram) ─── */}
       {(s.coffeeUrl || s.channel) && (
-        <section className="mt-16">
+        <section className="fade-up-4 mt-16">
           <CoffeeCard coffeeUrl={s.coffeeUrl} channel={s.channel} />
         </section>
       )}

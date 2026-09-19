@@ -16,8 +16,10 @@ import type { AiKey } from "@prisma/client";
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const OPENAI_BASE = "https://api.openai.com/v1";
+const ANTHROPIC_BASE = "https://api.anthropic.com/v1";
+const ANTHROPIC_VERSION = "2023-06-01";
 
-export type Provider = "gemini" | "openai";
+export type Provider = "gemini" | "openai" | "anthropic";
 
 // ─── Shifrlash (AI kalitlari uchun) ───
 function aiKey(): Buffer {
@@ -61,6 +63,7 @@ export function keyHint(value: string): string {
 // Kalit formatidan provayderni taxmin qilamiz (aniq tekshiruv detectApiKey'da).
 export function guessProvider(apiKey: string): Provider {
   const k = apiKey.trim();
+  if (/^sk-ant-/.test(k)) return "anthropic"; // Claude kalitlari sk-ant- bilan boshlanadi
   if (/^sk-/.test(k) || /^sess-/.test(k)) return "openai";
   if (/^AIza/.test(k)) return "gemini";
   // Noma'lum: Gemini kalitlari odatda 39 belgi, OpenAI kalitlari uzunroq/sk- bilan.
@@ -276,7 +279,83 @@ function safeDecrypt(enc: string): string | null {
 }
 
 function providerOf(k: AiKey): Provider {
-  return k.provider === "openai" ? "openai" : "gemini";
+  if (k.provider === "openai") return "openai";
+  if (k.provider === "anthropic") return "anthropic";
+  return "gemini";
+}
+
+// ─────────────────────────────────────────────
+// ANTHROPIC (Claude) — past darajali (xom fetch, SDK'siz — mavjud uslubga mos)
+// ─────────────────────────────────────────────
+type AnthropicContent =
+  | { type: "text"; text: string }
+  | { type: "image"; source: { type: "base64"; media_type: string; data: string } };
+
+// Javobdan ```json ... ``` bloklarini olib tashlaydi
+function stripJsonFence(s: string): string {
+  return s
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+}
+
+async function anthropicChat(
+  apiKey: string,
+  model: string,
+  content: AnthropicContent[],
+  opts?: { json?: boolean }
+): Promise<{ ok: true; text: string } | { ok: false; status: number; body: string }> {
+  try {
+    // JSON so'ralsa — Claude'ga faqat JSON qaytarishni aytamiz (u response_format'ni qo'llamaydi)
+    const finalContent: AnthropicContent[] = opts?.json
+      ? [...content, { type: "text", text: "\n\nMuhim: javobни FAQAT haqiqiy JSON ko'rinishida qaytar — markdown yoki ```json bloklarisiz." }]
+      : content;
+    const res = await fetch(`${ANTHROPIC_BASE}/messages`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": ANTHROPIC_VERSION,
+      },
+      body: JSON.stringify({ model, max_tokens: 16000, messages: [{ role: "user", content: finalContent }] }),
+    });
+    const text = await res.text();
+    if (!res.ok) return { ok: false, status: res.status, body: text };
+    const data = JSON.parse(text) as { content?: { type: string; text?: string }[] };
+    let out = (data.content || [])
+      .filter((b) => b.type === "text")
+      .map((b) => b.text || "")
+      .join("")
+      .trim();
+    if (opts?.json) out = stripJsonFence(out);
+    return { ok: true, text: out };
+  } catch (e) {
+    return { ok: false, status: 0, body: e instanceof Error ? e.message : "network" };
+  }
+}
+
+async function anthropicListModels(apiKey: string): Promise<string[] | { error: string }> {
+  try {
+    const res = await fetch(`${ANTHROPIC_BASE}/models?limit=200`, {
+      headers: { "x-api-key": apiKey, "anthropic-version": ANTHROPIC_VERSION },
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      const msg = (() => {
+        try {
+          return (JSON.parse(text) as { error?: { message?: string } }).error?.message || text;
+        } catch {
+          return text;
+        }
+      })();
+      return { error: msg.slice(0, 200) };
+    }
+    const data = JSON.parse(text) as { data?: { id?: string }[] };
+    return (data.data || []).map((m) => m.id || "").filter(Boolean);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "network" };
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -299,6 +378,20 @@ export async function aiGenerateJson(
       for (const img of images)
         content.push({ type: "image_url", image_url: { url: `data:${img.mime};base64,${img.base64}` } });
       const r = await openaiChat(apiKey, k.model, content, { json: true });
+      if (r.ok) {
+        await markSuccess(k.id);
+        return r.text;
+      }
+      lastErr = r.body;
+      await markFailure(k.id, r.body, isQuotaError(r.status, r.body) ? 2 * 60 * 1000 : 0);
+      continue;
+    }
+
+    if (providerOf(k) === "anthropic") {
+      const content: AnthropicContent[] = [{ type: "text", text: promptText }];
+      for (const img of images)
+        content.push({ type: "image", source: { type: "base64", media_type: img.mime, data: img.base64 } });
+      const r = await anthropicChat(apiKey, k.model, content, { json: true });
       if (r.ok) {
         await markSuccess(k.id);
         return r.text;
@@ -333,6 +426,9 @@ export async function aiGenerateDishImage(prompt: string): Promise<AiImage | nul
   for (const k of keys) {
     const apiKey = safeDecrypt(k.keyEnc);
     if (!apiKey) continue;
+
+    // Claude rasm generatsiya qilmaydi — bu kalitni rasm uchun o'tkazib yuboramiz
+    if (providerOf(k) === "anthropic") continue;
 
     if (providerOf(k) === "openai") {
       const r = await openaiImage(apiKey, k.imageModel || "gpt-image-1", prompt);
@@ -428,6 +524,19 @@ async function openaiListModels(apiKey: string): Promise<string[] | { error: str
 // Ro'yxatdan eng yaxshi matn/vision modelini tanlaymiz (tartib = ustuvorlik)
 function pickTextModel(provider: Provider, models: string[]): string {
   const has = (needle: string) => models.find((m) => m.toLowerCase().includes(needle));
+  if (provider === "anthropic") {
+    // Eng kuchli Claude modeli ustuvor (mavjud bo'lganidan)
+    return (
+      models.find((m) => m === "claude-opus-5") ||
+      has("opus-5") ||
+      has("sonnet-5") ||
+      has("opus") ||
+      has("sonnet") ||
+      has("haiku") ||
+      has("claude") ||
+      "claude-opus-5"
+    );
+  }
   if (provider === "gemini") {
     return (
       models.find((m) => m === "gemini-2.0-flash") ||
@@ -452,6 +561,7 @@ function pickTextModel(provider: Provider, models: string[]): string {
 
 function pickImageModel(provider: Provider, models: string[]): string {
   const has = (needle: string) => models.find((m) => m.toLowerCase().includes(needle));
+  if (provider === "anthropic") return ""; // Claude rasm generatsiya qilmaydi
   if (provider === "gemini") {
     return (
       has("flash-image") ||
@@ -474,12 +584,18 @@ export type DetectResult = {
 export async function detectApiKey(apiKey: string): Promise<DetectResult> {
   const trimmed = apiKey.trim();
   const guessed = guessProvider(trimmed);
-  // Taxmin qilingan provayderdan boshlab, kerak bo'lsa ikkinchisini ham sinaymiz.
-  const order: Provider[] = guessed === "openai" ? ["openai", "gemini"] : ["gemini", "openai"];
+  // Taxmin qilingan provayderdan boshlab, qolganlarini ham sinaymiz.
+  const all: Provider[] = ["anthropic", "openai", "gemini"];
+  const order: Provider[] = [guessed, ...all.filter((p) => p !== guessed)];
 
   let lastErr = "";
   for (const provider of order) {
-    const models = provider === "gemini" ? await geminiListModels(trimmed) : await openaiListModels(trimmed);
+    const models =
+      provider === "gemini"
+        ? await geminiListModels(trimmed)
+        : provider === "anthropic"
+          ? await anthropicListModels(trimmed)
+          : await openaiListModels(trimmed);
     if (Array.isArray(models)) {
       if (models.length === 0) {
         lastErr = "Model ro'yxati bo'sh";
@@ -497,8 +613,8 @@ export async function detectApiKey(apiKey: string): Promise<DetectResult> {
   return {
     ok: false,
     provider: guessed,
-    model: guessed === "openai" ? "gpt-4o-mini" : "gemini-2.0-flash",
-    imageModel: guessed === "openai" ? "gpt-image-1" : "gemini-2.5-flash-image-preview",
+    model: guessed === "openai" ? "gpt-4o-mini" : guessed === "anthropic" ? "claude-opus-5" : "gemini-2.0-flash",
+    imageModel: guessed === "openai" ? "gpt-image-1" : guessed === "anthropic" ? "" : "gemini-2.5-flash-image-preview",
     error: lastErr || "Kalit tekshirilmadi",
   };
 }
@@ -514,6 +630,10 @@ export async function aiTextWithKey(
 ): Promise<string | null> {
   if (provider === "openai") {
     const r = await openaiChat(apiKey, model, [{ type: "text", text: promptText }], { json: opts?.json });
+    return r.ok ? r.text : null;
+  }
+  if (provider === "anthropic") {
+    const r = await anthropicChat(apiKey, model, [{ type: "text", text: promptText }], { json: opts?.json });
     return r.ok ? r.text : null;
   }
   const r = await geminiGenerate(apiKey, model, [{ text: promptText }], { json: opts?.json });

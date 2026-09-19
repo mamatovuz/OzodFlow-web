@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Loader2, Check, X } from "lucide-react";
+
+// Maqola ichida (blog/<slug>) suzuvchi elementlar ko'rinmasin (o'qishga xalaqit
+// bermasin) — tags/archive ro'yxatlari bundan mustasno.
+function isArticlePage(pathname: string | null): boolean {
+  const m = pathname?.match(/\/blog\/([^/]+)\/?$/);
+  return !!m && !["tags", "archive"].includes(m[1]);
+}
 
 // Chap pastda suzuvchi oq qog'oz konvert. Bosilganda ustida newsletter kartasi
 // ochiladi (otabek.io bilan 1:1). Escape bilan yopiladi.
@@ -12,6 +20,8 @@ export function NewsletterEnvelope({ channel }: { channel?: string }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [err, setErr] = useState("");
+  const pathname = usePathname();
+  const hidden = isArticlePage(pathname);
 
   // Escape bilan yopish
   useEffect(() => {
@@ -44,6 +54,8 @@ export function NewsletterEnvelope({ channel }: { channel?: string }) {
       setBusy(false);
     }
   }
+
+  if (hidden) return null;
 
   return (
     <>

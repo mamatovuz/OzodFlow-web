@@ -122,9 +122,9 @@ export function AiKeysManager() {
         <Card className="p-10 text-center">
           <KeyRound className="mx-auto h-10 w-10 text-muted/40" />
           <p className="mt-3 text-sm text-muted">
-            Hali AI kalit yo'q. <b>Gemini</b> (aistudio.google.com — bepul) yoki{" "}
-            <b>OpenAI</b> (platform.openai.com) kalitini qo'shing — provayder va model
-            avtomatik aniqlanadi.
+            Hali AI kalit yo'q. <b>Gemini</b> (aistudio.google.com — bepul),{" "}
+            <b>OpenAI</b> (platform.openai.com) yoki <b>Claude</b> (console.anthropic.com)
+            kalitini qo'shing — provayder va model avtomatik aniqlanadi.
           </p>
         </Card>
       ) : (
@@ -154,9 +154,10 @@ export function AiKeysManager() {
                   </div>
                   <p className="mt-0.5 text-xs text-muted">
                     <span className="font-medium text-foreground/80">
-                      {k.provider === "openai" ? "OpenAI" : "Gemini"}
+                      {k.provider === "openai" ? "OpenAI" : k.provider === "anthropic" ? "Claude" : "Gemini"}
                     </span>{" "}
-                    · {k.model} · rasm: {k.imageModel.replace(/^gemini-/, "")}
+                    · {k.model}
+                    {k.imageModel ? ` · rasm: ${k.imageModel.replace(/^gemini-/, "")}` : ""}
                     {k.lastUsedAt && ` · oxirgi: ${new Date(k.lastUsedAt).toLocaleString("uz-UZ")}`}
                     {k.failCount > 0 && ` · ${k.failCount} xato`}
                   </p>
@@ -285,7 +286,7 @@ function AddKeyModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
     onDone();
   }
 
-  const providerLabel = detected?.provider === "openai" ? "OpenAI" : "Gemini";
+  const providerLabel = detected?.provider === "openai" ? "OpenAI" : detected?.provider === "anthropic" ? "Claude" : "Gemini";
 
   return (
     <Modal open onClose={onClose} title="AI kalit qo'shish">
@@ -301,7 +302,7 @@ function AddKeyModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-foreground">
-            API kaliti (Gemini yoki OpenAI)
+            API kaliti (Gemini, OpenAI yoki Claude)
           </label>
           <input
             value={apiKey}
@@ -311,12 +312,12 @@ function AddKeyModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
               setError("");
             }}
             onBlur={() => apiKey.trim().length >= 10 && !detected && detect()}
-            placeholder="AIza...  yoki  sk-..."
+            placeholder="AIza...  yoki  sk-...  yoki  sk-ant-..."
             className="h-10 w-full rounded-lg border border-border bg-card px-3 font-mono text-sm text-foreground outline-none focus:border-accent"
           />
           <p className="mt-1 text-xs text-muted">
             Provayder va model avtomatik aniqlanadi. Gemini: aistudio.google.com
-            (bepul) · OpenAI: platform.openai.com.
+            (bepul) · OpenAI: platform.openai.com · Claude: console.anthropic.com.
           </p>
         </div>
 

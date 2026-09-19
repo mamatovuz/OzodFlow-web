@@ -1,8 +1,15 @@
 "use client";
 
 import { useTheme } from "next-themes";
+import { usePathname } from "next/navigation";
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
+
+// Maqola ichida (blog/<slug>) tugma ko'rinmasin — tags/archive mustasno.
+function isArticlePage(pathname: string | null): boolean {
+  const m = pathname?.match(/\/blog\/([^/]+)\/?$/);
+  return !!m && !["tags", "archive"].includes(m[1]);
+}
 
 // Sayt uchun dumaloq tema tugmasi (o'ng pastda, fixed) — otabek.io uslubi.
 export function SiteThemeToggle() {
@@ -10,6 +17,9 @@ export function SiteThemeToggle() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const dark = mounted && resolvedTheme === "dark";
+  const pathname = usePathname();
+
+  if (isArticlePage(pathname)) return null;
 
   return (
     <button

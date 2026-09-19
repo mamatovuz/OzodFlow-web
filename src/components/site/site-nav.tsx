@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, Coffee, User, FolderGit2, Send, ExternalLink, Hash, Archive, Bookmark, Rss, Search, Languages, Check } from "lucide-react";
+import { ChevronDown, Coffee, User, FolderGit2, Send, ExternalLink, Hash, Archive, Bookmark, Search, Languages, Check } from "lucide-react";
 import { CommandPalette } from "@/components/site/command-palette";
 import type { SiteNavButton } from "@/lib/site";
 
@@ -60,7 +60,6 @@ export function SiteNav({
     { label: labels.archive, href: `${base}/blog/archive`, icon: Archive },
     { label: labels.saved, href: `${base}/saved`, icon: Bookmark },
     ...(coffeeUrl ? [{ label: labels.coffee, href: `${base}/coffee`, icon: Coffee }] : []),
-    { label: "RSS", href: `${base}/rss.xml`, external: true, icon: Rss },
     ...(channel ? [{ label: labels.channel, href: channel, external: true, icon: Send }] : []),
     ...navButtons.map((b) => ({ label: b.label, href: b.url, external: b.external, icon: ExternalLink })),
   ];
@@ -89,7 +88,7 @@ export function SiteNav({
       {/* Klaviatura ⌘K uchun ko'rinmas qidiruv (tugmasiz) */}
       <CommandPalette base={base} hideTrigger labels={{ quickSearch: labels.quickSearch, placeholder: labels.searchPlaceholder }} />
 
-      <nav className="mx-auto flex max-w-2xl items-center justify-between px-5 py-6 sm:px-6 sm:py-7">
+      <nav className="mx-auto flex max-w-[530px] items-center justify-between px-5 pb-4 pt-10 sm:pt-14">
         <Link href={base || "/"} className="text-[19px] font-semibold tracking-tight text-foreground sm:text-[21px]">
           {brand}
         </Link>

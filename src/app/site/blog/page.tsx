@@ -112,7 +112,6 @@ export default async function SiteBlogList({
                   {p.password && <Lock className="h-3.5 w-3.5 shrink-0 text-muted" />}
                   <span className="min-w-0">{p.title}</span>
                 </h2>
-                {p.excerpt && <p className="mt-1 line-clamp-2 text-sm text-muted">{p.excerpt}</p>}
                 <div className="mt-1.5 flex items-center gap-3 text-xs text-muted">
                   <span>{fmt(p.publishDate)}</span>
                   <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {readingTime(p.contentHtml)} {tr(lang, "minutes")}</span>

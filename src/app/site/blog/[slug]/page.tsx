@@ -281,6 +281,7 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
           translations={translations}
           slug={post.slug}
           ttsOn={ttsOn}
+          audioUrl={post.audioUrl}
           labels={{
             toc: tr(lang, "toc"),
             listen: tr(lang, "listen"),

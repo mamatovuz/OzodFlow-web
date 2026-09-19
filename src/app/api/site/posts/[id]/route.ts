@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { ok, fail } from "@/lib/api";
 import { slugify } from "@/lib/utils";
 import { isSiteAdmin, stripHtml, maybeNotifyTelegram, maybeEmailSubscribers } from "@/lib/site";
+import { generatePostAudio, clearPostAudio } from "@/lib/site-audio";
 
 export const dynamic = "force-dynamic";
 
@@ -104,12 +105,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   // Endigina e'lon qilingan bo'lsa Telegram + email (fon)
   maybeNotifyTelegram(post).catch(() => {});
   maybeEmailSubscribers(post).catch(() => {});
+  // Ovozni oldindan tayyorlaymiz (matn o'zgargan bo'lsa qayta) — fon rejimida
+  if (post.status !== "DRAFT") generatePostAudio(post).catch(() => {});
+  else if (contentChanged) clearPostAudio(post).catch(() => {});
   return ok(post);
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await isSiteAdmin())) return fail("Ruxsat yo'q", 401);
   const { id } = await params;
+  const post = await prisma.sitePost.findUnique({ where: { id }, select: { id: true, audioUrl: true } });
+  if (post) await clearPostAudio(post).catch(() => {});
   await prisma.sitePost.delete({ where: { id } }).catch(() => null);
   return ok({ success: true });
 }

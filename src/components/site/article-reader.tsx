@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { List, Minus, Plus, Volume2, Pause, Play, Languages, Loader2, ChevronDown } from "lucide-react";
+import { Minus, Plus, Volume2, Pause, Play, Languages, Loader2, ChevronDown } from "lucide-react";
 import { PostContent } from "./post-content";
+import { SideToc } from "./side-toc";
 
 type Toc = { id: string; text: string; level: number };
 type Tr = { title: string; html: string };
@@ -10,8 +11,8 @@ type Voice = { id: string; name: string; gender?: string; short?: string };
 
 const SCALES = [0.9, 1, 1.12, 1.28];
 
-// Matnni ≤900 baytli jumla bo'laklariga bo'ladi (VoiceLab 1000 bayt chegarasi)
-function splitChunks(text: string, maxBytes = 900): string[] {
+// Matnni ≤1200 baytli jumla bo'laklariga bo'ladi (jonli TTS uchun)
+function splitChunks(text: string, maxBytes = 1200): string[] {
   const clean = text.replace(/\s+/g, " ").trim();
   if (!clean) return [];
   const enc = new TextEncoder();
@@ -43,6 +44,7 @@ export function ArticleReader({
   translations,
   slug,
   ttsOn,
+  audioUrl,
   labels,
 }: {
   html: string;
@@ -50,34 +52,38 @@ export function ArticleReader({
   translations: Record<string, Tr>;
   slug: string;
   ttsOn: boolean;
+  audioUrl?: string | null;
   labels: { toc: string; listen: string; pause: string; original: string; translate: string };
 }) {
   const [scaleIdx, setScaleIdx] = useState(1);
   const [lang, setLang] = useState<string>("orig");
-  const [activeId, setActiveId] = useState<string>("");
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // ── Ovozli o'qish (VoiceLab) ──
   const [audioState, setAudioState] = useState<"idle" | "loading" | "playing" | "paused">("idle");
   const [voices, setVoices] = useState<Voice[]>([]);
   const [voiceId, setVoiceId] = useState<string>("");
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [ttsError, setTtsError] = useState("");
+  const [usingBrowser, setUsingBrowser] = useState(false);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const chunksRef = useRef<string[]>([]);
   const idxRef = useRef(0);
   const prefetchRef = useRef<Map<number, string>>(new Map());
   const abortRef = useRef(false);
-  // Brauzer ovozi (server TTS ishlamasa — zaxira). SpeechSynthesis.
   const browserRef = useRef(false);
-  const [usingBrowser, setUsingBrowser] = useState(false);
+
+  // Karaoke: matn bloklari (o'qilayotgan blok ko'k bo'ladi)
+  const blocksRef = useRef<{ el: HTMLElement; start: number; end: number }[]>([]);
+  const totalCharsRef = useRef(1);
+  const activeBlockRef = useRef<HTMLElement | null>(null);
 
   const trLangs = useMemo(() => Object.keys(translations || {}), [translations]);
   const current = lang === "orig" ? html : translations[lang]?.html || html;
-  const showToc = lang === "orig" && toc.length >= 3;
   const ttsLang = lang === "ru" ? "ru" : lang === "en" ? "en" : "uz";
+  // Saqlangan ovoz faqat asl (orig) matn uchun — tarjimalar jonli o'qiladi
+  const savedAudio = lang === "orig" ? audioUrl || null : null;
 
-  // Shrift o'lchamini eslab qolamiz
   useEffect(() => {
     try {
       const saved = Number(localStorage.getItem("site_reading_scale"));
@@ -92,25 +98,9 @@ export function ArticleReader({
     } catch {}
   }, [scaleIdx]);
 
-  // Scrollspy
+  // Jonli rejim uchun ovozlar ro'yxati (saqlangan ovoz bo'lmasa)
   useEffect(() => {
-    if (!showToc) return;
-    const onScroll = () => {
-      let cur = "";
-      for (const t of toc) {
-        const el = document.getElementById(t.id);
-        if (el && el.getBoundingClientRect().top <= 120) cur = t.id;
-      }
-      setActiveId(cur);
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [toc, showToc]);
-
-  // Ovozlar ro'yxatini yuklaymiz (til o'zgarsa qayta)
-  useEffect(() => {
-    if (!ttsOn) return;
+    if (!ttsOn || savedAudio) return;
     let cancelled = false;
     fetch(`/api/site/tts/voices?lang=${ttsLang}`)
       .then((r) => r.json())
@@ -124,7 +114,44 @@ export function ArticleReader({
     return () => {
       cancelled = true;
     };
-  }, [ttsLang, ttsOn]);
+  }, [ttsLang, ttsOn, savedAudio]);
+
+  // ── Karaoke yoritish ──
+  const buildBlocks = useCallback(() => {
+    const root = contentRef.current;
+    if (!root) return;
+    const els = Array.from(root.querySelectorAll<HTMLElement>("p, li, h2, h3, blockquote, pre"));
+    const blocks: { el: HTMLElement; start: number; end: number }[] = [];
+    let pos = 0;
+    for (const el of els) {
+      const len = (el.textContent || "").trim().length;
+      if (len < 2) continue;
+      blocks.push({ el, start: pos, end: pos + len });
+      pos += len;
+    }
+    blocksRef.current = blocks;
+    totalCharsRef.current = Math.max(1, pos);
+  }, []);
+
+  const clearHighlight = useCallback(() => {
+    if (activeBlockRef.current) activeBlockRef.current.classList.remove("tts-reading");
+    activeBlockRef.current = null;
+  }, []);
+
+  const highlightAt = useCallback((fraction: number) => {
+    const blocks = blocksRef.current;
+    if (!blocks.length) return;
+    const target = Math.max(0, Math.min(1, fraction)) * totalCharsRef.current;
+    const b = blocks.find((x) => target >= x.start && target < x.end) || blocks[blocks.length - 1];
+    if (b.el === activeBlockRef.current) return;
+    if (activeBlockRef.current) activeBlockRef.current.classList.remove("tts-reading");
+    b.el.classList.add("tts-reading");
+    activeBlockRef.current = b.el;
+    const r = b.el.getBoundingClientRect();
+    if (r.top < 90 || r.bottom > window.innerHeight - 60) {
+      b.el.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }, []);
 
   const stopAudio = useCallback(() => {
     abortRef.current = true;
@@ -132,26 +159,34 @@ export function ArticleReader({
     if (a) {
       a.pause();
       a.removeAttribute("src");
+      a.load();
     }
     prefetchRef.current.forEach((url) => URL.revokeObjectURL(url));
     prefetchRef.current.clear();
     idxRef.current = 0;
-    // Brauzer ovozini ham to'xtatamiz
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      try { window.speechSynthesis.cancel(); } catch {}
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
     }
     browserRef.current = false;
     setUsingBrowser(false);
+    clearHighlight();
     setAudioState("idle");
-  }, []);
+  }, [clearHighlight]);
 
-  // ── Brauzer ovozi (zaxira) — server TTS bloklangan/xato bo'lsa ishlaydi ──
+  // Til almashsa yoki komponent yopilsa — to'xtatamiz
+  useEffect(() => {
+    stopAudio();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]);
+  useEffect(() => () => stopAudio(), [stopAudio]);
+
+  // ── Brauzer ovozi (zaxira) ──
   const pickBrowserVoice = useCallback(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
     const all = window.speechSynthesis.getVoices();
     if (!all.length) return null;
-    // O'zbek matni uchun eng yaqin talaffuz tartibi: uz → az → tr → ru → default
-    // (Azerbayjan/Turk lotin fonetikasi o'zbekchaga eng yaqin).
     const order = ttsLang === "ru" ? ["ru"] : ttsLang === "en" ? ["en"] : ["uz", "az", "tr", "ru"];
     for (const pref of order) {
       const v = all.find((x) => x.lang?.toLowerCase().startsWith(pref));
@@ -165,41 +200,36 @@ export function ArticleReader({
       if (typeof window === "undefined" || !("speechSynthesis" in window)) return false;
       const synth = window.speechSynthesis;
       const voice = pickBrowserVoice();
+      const total = chunksRef.current.length;
       browserRef.current = true;
       setUsingBrowser(true);
       setAudioState("playing");
 
       const speakAt = (i: number) => {
-        if (abortRef.current || i >= chunksRef.current.length) {
-          if (i >= chunksRef.current.length) stopAudio();
+        if (abortRef.current || i >= total) {
+          if (i >= total) stopAudio();
           return;
         }
         idxRef.current = i;
-        const u = new SpeechSynthesisUtterance(chunksRef.current[i]);
+        const text = chunksRef.current[i];
+        const u = new SpeechSynthesisUtterance(text);
         if (voice) u.voice = voice;
         u.lang = voice?.lang || (ttsLang === "ru" ? "ru-RU" : ttsLang === "en" ? "en-US" : "uz-UZ");
         u.rate = 1;
-        u.onend = () => {
-          if (!abortRef.current) speakAt(i + 1);
-        };
-        u.onerror = () => {
-          if (!abortRef.current) speakAt(i + 1);
-        };
+        u.onstart = () => highlightAt(i / total);
+        u.onboundary = (e) => highlightAt((i + (e.charIndex || 0) / Math.max(1, text.length)) / total);
+        u.onend = () => !abortRef.current && speakAt(i + 1);
+        u.onerror = () => !abortRef.current && speakAt(i + 1);
         synth.speak(u);
       };
       synth.cancel();
       speakAt(from);
       return true;
     },
-    [pickBrowserVoice, stopAudio, ttsLang]
+    [pickBrowserVoice, stopAudio, ttsLang, highlightAt]
   );
 
-  // Til/tarjima almashsa yoki komponent yopilsa — to'xtatamiz
-  useEffect(() => {
-    stopAudio();
-  }, [lang, stopAudio]);
-  useEffect(() => () => stopAudio(), [stopAudio]);
-
+  // ── Jonli server TTS (bo'lak-bo'lak) ──
   async function fetchChunk(i: number): Promise<string | null> {
     const cached = prefetchRef.current.get(i);
     if (cached) return cached;
@@ -210,21 +240,19 @@ export function ArticleReader({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ slug, text, lang: ttsLang, voice: voiceId || undefined }),
     });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      throw new Error(j?.error || "Ovoz xatosi");
-    }
+    if (!res.ok) throw new Error("tts");
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     prefetchRef.current.set(i, url);
     return url;
   }
 
-  async function playFrom(i: number) {
+  async function playLiveFrom(i: number) {
     if (abortRef.current) return;
     const a = audioRef.current;
     if (!a) return;
-    if (i >= chunksRef.current.length) {
+    const total = chunksRef.current.length;
+    if (i >= total) {
       stopAudio();
       return;
     }
@@ -235,64 +263,101 @@ export function ArticleReader({
       a.src = url;
       await a.play();
       setAudioState("playing");
-      // Keyingi bo'lakni oldindan yuklaymiz (silliq o'tish)
+      highlightAt(i / total);
       fetchChunk(i + 1).catch(() => {});
     } catch {
-      // Server ovozi ishlamadi — brauzer ovoziga o'tamiz (xato ko'rsatmaymiz)
       if (!abortRef.current && speakBrowser(i)) return;
       setTtsError("Ovozli o'qish hozir mavjud emas.");
       stopAudio();
     }
   }
 
-  async function toggleListen() {
-    if (!ttsOn) return;
-    setTtsError("");
-    if (audioState === "playing") {
-      if (browserRef.current && "speechSynthesis" in window) {
-        try { window.speechSynthesis.pause(); } catch {}
-      } else {
-        audioRef.current?.pause();
-      }
-      setAudioState("paused");
-      return;
-    }
-    if (audioState === "paused") {
-      if (browserRef.current && "speechSynthesis" in window) {
-        try { window.speechSynthesis.resume(); } catch {}
-      } else {
-        audioRef.current?.play();
-      }
-      setAudioState("playing");
-      return;
-    }
-    // Boshlash
-    const text = contentRef.current?.innerText?.trim();
-    if (!text) return;
-    chunksRef.current = splitChunks(text, 1200);
-    if (chunksRef.current.length === 0) return;
-    abortRef.current = false;
-    prefetchRef.current.clear();
-    setAudioState("loading");
-    await playFrom(0);
-  }
-
-  function onEnded() {
-    if (abortRef.current) return;
-    // Joriy bo'lak URL'ini tozalaymiz
+  function onLiveEnded() {
+    if (abortRef.current || browserRef.current) return;
     const done = idxRef.current;
     const url = prefetchRef.current.get(done);
     if (url) {
       URL.revokeObjectURL(url);
       prefetchRef.current.delete(done);
     }
-    playFrom(done + 1);
+    playLiveFrom(done + 1);
+  }
+
+  // Jonli rejim uchun audio elementining vaqti bo'yicha yoritish
+  function onLiveTime() {
+    if (browserRef.current || savedAudio) return;
+    const a = audioRef.current;
+    const total = chunksRef.current.length;
+    if (!a || !a.duration || !total) return;
+    highlightAt((idxRef.current + a.currentTime / a.duration) / total);
+  }
+
+  // Saqlangan ovoz vaqti bo'yicha yoritish
+  function onSavedTime() {
+    const a = audioRef.current;
+    if (!a || !a.duration) return;
+    highlightAt(a.currentTime / a.duration);
+  }
+
+  async function toggleListen() {
+    if (!ttsOn) return;
+    setTtsError("");
+
+    if (audioState === "playing") {
+      if (browserRef.current && "speechSynthesis" in window) {
+        try {
+          window.speechSynthesis.pause();
+        } catch {}
+      } else audioRef.current?.pause();
+      setAudioState("paused");
+      return;
+    }
+    if (audioState === "paused") {
+      if (browserRef.current && "speechSynthesis" in window) {
+        try {
+          window.speechSynthesis.resume();
+        } catch {}
+      } else audioRef.current?.play();
+      setAudioState("playing");
+      return;
+    }
+
+    // Boshlash
+    buildBlocks();
+    abortRef.current = false;
+
+    // 1) Saqlangan ovoz (bir marta yaratilган mp3) — eng silliq
+    if (savedAudio && audioRef.current) {
+      const a = audioRef.current;
+      setAudioState("loading");
+      a.src = savedAudio;
+      try {
+        await a.play();
+        setAudioState("playing");
+      } catch {
+        setTtsError("Ovoz yuklanmadi.");
+        setAudioState("idle");
+      }
+      return;
+    }
+
+    // 2) Jonli rejim (bo'lak-bo'lak)
+    const text = contentRef.current?.innerText?.trim();
+    if (!text) return;
+    chunksRef.current = splitChunks(text, 1200);
+    if (chunksRef.current.length === 0) return;
+    prefetchRef.current.clear();
+    setAudioState("loading");
+    await playLiveFrom(0);
   }
 
   const selectedVoice = voices.find((v) => v.id === voiceId);
+  const showVoicePicker = !savedAudio && voices.length > 1;
 
   return (
     <div>
+      <SideToc toc={toc} label={labels.toc} />
+
       {/* O'qish asboblari */}
       <div className="sticky top-2 z-30 mb-6 flex flex-wrap items-center gap-2 rounded-full border border-border bg-card/80 px-2 py-1.5 backdrop-blur-md">
         {ttsOn && (
@@ -315,8 +380,7 @@ export function ArticleReader({
               {audioState === "playing" ? labels.pause : labels.listen}
             </button>
 
-            {/* Ovoz tanlash */}
-            {voices.length > 1 && (
+            {showVoicePicker && (
               <div className="relative">
                 <button
                   onClick={() => setVoiceOpen((v) => !v)}
@@ -407,34 +471,17 @@ export function ArticleReader({
 
       {ttsError && <p className="mb-4 text-xs text-red-500">{ttsError}</p>}
       {usingBrowser && (audioState === "playing" || audioState === "paused") && (
-        <p className="mb-4 text-xs text-muted">🔊 Brauzer ovozi bilan o'qilmoqda.</p>
+        <p className="mb-4 text-xs text-muted">🔊 Brauzer ovozi bilan o'qilmoqda (tabiiy ovoz uchun admin AI kalit qo'ysin).</p>
       )}
 
-      {/* Yashirin audio element */}
-      <audio ref={audioRef} onEnded={onEnded} onError={() => setAudioState("idle")} className="hidden" />
-
-      {/* Mundarija (scrollspy) */}
-      {showToc && (
-        <nav className="mb-8 rounded-xl border border-border bg-surface-2/40 p-4">
-          <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-muted">
-            <List className="h-4 w-4" /> {labels.toc}
-          </p>
-          <ul className="space-y-1">
-            {toc.map((t) => (
-              <li key={t.id} className={t.level === 3 ? "pl-4" : ""}>
-                <a
-                  href={`#${t.id}`}
-                  className={`text-sm transition-colors ${
-                    activeId === t.id ? "font-medium text-accent" : "text-muted hover:text-accent"
-                  }`}
-                >
-                  {t.text}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
+      {/* Yashirin audio element (saqlangan yoki jonli) */}
+      <audio
+        ref={audioRef}
+        onEnded={() => (savedAudio ? stopAudio() : onLiveEnded())}
+        onTimeUpdate={() => (savedAudio ? onSavedTime() : onLiveTime())}
+        onError={() => !savedAudio && setAudioState((s) => (s === "loading" ? s : "idle"))}
+        className="hidden"
+      />
 
       <div ref={contentRef} style={{ ["--reading-scale" as string]: String(SCALES[scaleIdx]) }}>
         <PostContent html={current} />

@@ -42,6 +42,8 @@ import { AdminComments } from "@/components/site/admin-comments";
 import { AdminMessages } from "@/components/site/admin-messages";
 import { AdminProjects } from "@/components/site/admin-projects";
 import { AdminBroadcast } from "@/components/site/admin-broadcast";
+import { AdminAiKey } from "@/components/site/admin-ai-key";
+import { PostAudioButton } from "@/components/site/post-audio-button";
 import { SITE_ICONS, iconFor } from "@/components/site/link-icons";
 import type { SiteLink, SiteNavButton } from "@/lib/site";
 
@@ -67,6 +69,7 @@ type Post = {
   summary?: string | null;
   faq?: { q: string; a: string }[];
   translations?: Record<string, { title: string; html: string }>;
+  audioUrl?: string | null;
 };
 
 type Settings = {
@@ -673,10 +676,14 @@ export function PanelClient({
 
                 {/* Statistika (tahrirlashda) */}
                 {draft.id && (
-                  <div className="mt-5 grid grid-cols-3 gap-2">
-                    <MiniStat icon={<Eye className="h-4 w-4" />} value={draft.views} label="Ko'rish" />
-                    <MiniStat icon={<ThumbsUp className="h-4 w-4" />} value={draft.likes} label="Yoqdi" />
-                    <MiniStat icon={<ThumbsDown className="h-4 w-4" />} value={draft.dislikes} label="Yoqmadi" />
+                  <div className="mt-5">
+                    <div className="grid grid-cols-3 gap-2">
+                      <MiniStat icon={<Eye className="h-4 w-4" />} value={draft.views} label="Ko'rish" />
+                      <MiniStat icon={<ThumbsUp className="h-4 w-4" />} value={draft.likes} label="Yoqdi" />
+                      <MiniStat icon={<ThumbsDown className="h-4 w-4" />} value={draft.dislikes} label="Yoqmadi" />
+                    </div>
+                    {/* Ovozli o'qish (oldindan tayyorlash) */}
+                    <PostAudioButton postId={draft.id} hasAudio={!!draft.audioUrl} />
                   </div>
                 )}
 
@@ -1123,6 +1130,9 @@ function SettingsTab({ initial }: { initial: Settings }) {
           </div>
         )}
       </section>
+
+      {/* AI kalit (ovozli o'qish uchun) */}
+      <AdminAiKey />
 
       {/* Telegram avto-post */}
       <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">

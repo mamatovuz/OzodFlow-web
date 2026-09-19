@@ -962,6 +962,8 @@ model SitePost {
   seriesOrder Int      @default(0) // turkumdagi tartib (1-qism, 2-qism ...)
   tgPosted    Boolean  @default(false) // Telegram kanalga yuborilganmi (takror bo'lmasin)
   emailed     Boolean  @default(false) // obunachilarga email yuborilganmi (takror bo'lmasin)
+  audioUrl    String? // oldindan tayyorlangan ovozli o'qish (mp3) — /media/...; har safar qayta yaratilmaydi
+  audioHash   String? // ovoz yaratilgan matn hash'i (matn o'zgarsa qayta yaratiladi)
   aiAuto      Boolean  @default(false) // AI avtomatik yozgan maqola (haftalik avto-post)
   // ─── SEO / ulashish (bo'sh bo'lsa title/excerpt/coverImage'dan olinadi) ───
   metaTitle       String? // ulashishda/brauzer tabida ko'rinadigan sarlavha

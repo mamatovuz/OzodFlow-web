@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { PLAN_DAYS, type PlanKey } from "./plans";
 import { parsePurchasedThemes } from "./themes";
+import { MENU_AI_DAYS } from "./menu-ai-plan";
 import type { PaymentRequest } from "@prisma/client";
 
 // To'langan so'rovni qo'llaydi: tarifni/dizaynni/filialni faollashtiradi va
@@ -26,6 +27,30 @@ export async function applyApprovedPayment(
       prisma.restaurant.update({
         where: { id: request.restaurantId },
         data: { purchasedThemes: JSON.stringify(owned) },
+      }),
+      prisma.paymentRequest.update({
+        where: { id: request.id },
+        data: { status: "APPROVED", adminNote: note || null, reviewedAt: new Date() },
+      }),
+    ]);
+    return;
+  }
+
+  // ── Menyu AI oylik obunasi ──
+  if (request.kind === "MENU_AI") {
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id: request.restaurantId },
+      select: { menuAiPaidUntil: true },
+    });
+    const now = new Date();
+    const current = restaurant?.menuAiPaidUntil ? new Date(restaurant.menuAiPaidUntil) : null;
+    const base = current && current > now ? current : now;
+    const paidUntil = new Date(base.getTime() + request.months * MENU_AI_DAYS * 24 * 60 * 60 * 1000);
+    await prisma.$transaction([
+      prisma.restaurant.update({
+        where: { id: request.restaurantId },
+        // To'lagach: obuna muddati uzaytiriladi va bepul kvota hisoblagichi nolga tushadi
+        data: { menuAiPaidUntil: paidUntil, menuAiUsed: 0 },
       }),
       prisma.paymentRequest.update({
         where: { id: request.id },

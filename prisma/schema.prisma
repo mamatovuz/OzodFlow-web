@@ -155,9 +155,11 @@ model Restaurant {
   // ─── Menyu AI (mijozlar uchun) — restoran O'Z kalitini qo'yadi (platforma emas) ───
   menuAiEnabled      Boolean   @default(false)
   menuAiKeyEnc       String? // restoran AI kaliti (AES-GCM shifrlangan)
-  menuAiProvider     String? // gemini | openai
+  menuAiProvider     String? // gemini | openai | anthropic
   menuAiModel        String? // avtomatik aniqlangan model
   menuAiStyle        String    @default("bubble") // widget uslubi: bubble | minimal | bar
+  menuAiUsed         Int       @default(0) // mijozlar tomonidan ishlatilgan AI so'rovlar soni (bepul kvota hisobi)
+  menuAiPaidUntil    DateTime? // AI menyu pullik obunasi muddati (o'tsa — limit qulflanadi)
   askPhone           Boolean   @default(true) // buyurtmada mijozdan telefon raqam so'ralsinmi
   orderBotToken      String? // buyurtmalarni Telegram kanaliga yuborish uchun bot tokeni
   orderChatId        String? // buyurtmalar tushadigan kanal/guruh ID si (@channel yoki -100...)

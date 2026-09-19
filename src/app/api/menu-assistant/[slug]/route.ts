@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ok, fail } from "@/lib/api";
 import { decryptApiKey, aiTextWithKey, type Provider } from "@/lib/ai";
+import { menuAiStatus } from "@/lib/menu-ai-plan";
 import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -34,10 +35,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
       menuAiKeyEnc: true,
       menuAiProvider: true,
       menuAiModel: true,
+      menuAiUsed: true,
+      menuAiPaidUntil: true,
     },
   });
   if (!restaurant || !restaurant.menuAiEnabled || !restaurant.menuAiKeyEnc) {
     return fail("Menyu yordamchisi yoqilmagan", 404);
+  }
+
+  // Bepul kvota tugagan va to'lanmagan bo'lsa — yumshoq xabar (mijozga)
+  const access = menuAiStatus(restaurant);
+  if (access.locked) {
+    return ok({
+      reply: "AI yordamchi hozircha band. Iltimos, birozdan so'ng qayta urinib ko'ring 🙏",
+      items: [],
+      limitReached: true,
+    });
   }
 
   const body = await req.json().catch(() => null);
@@ -51,8 +64,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   } catch {
     return fail("Yordamchi sozlamasi xato", 500);
   }
-  const provider: Provider = restaurant.menuAiProvider === "openai" ? "openai" : "gemini";
-  const model = restaurant.menuAiModel || (provider === "openai" ? "gpt-4o-mini" : "gemini-2.0-flash");
+  const provider: Provider =
+    restaurant.menuAiProvider === "openai"
+      ? "openai"
+      : restaurant.menuAiProvider === "anthropic"
+        ? "anthropic"
+        : "gemini";
+  const model =
+    restaurant.menuAiModel ||
+    (provider === "openai" ? "gpt-4o-mini" : provider === "anthropic" ? "claude-opus-5" : "gemini-2.0-flash");
 
   // MENYU konteksti — FAQAT ko'rinadigan, mavjud taomlar (sotuv ma'lumoti YO'Q)
   const products = await prisma.product.findMany({
@@ -87,6 +107,11 @@ FAQAT shu JSON'ni qaytar: {"reply":"javob matni","items":["tavsiya qilingan aniq
 
   const raw = await aiTextWithKey(provider, apiKey, model, prompt, { json: true });
   if (!raw) return ok({ reply: "Hozir javob bera olmadim. Birozdan so'ng urinib ko'ring.", items: [] });
+
+  // Bepul kvotadan foydalanildi (pullik obuna davrida sanamaymiz) — fon rejimida
+  if (!access.paidActive) {
+    prisma.restaurant.update({ where: { id: restaurant.id }, data: { menuAiUsed: { increment: 1 } } }).catch(() => {});
+  }
 
   const parsed = parseReply(raw);
   if (!parsed) return ok({ reply: raw.slice(0, 500), items: [] });

@@ -219,7 +219,7 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
         <ArrowLeft className="h-4 w-4" /> {tr(lang, "allPosts")}
       </Link>
 
-      <header className="mt-6">
+      <header className="fade-up mt-6">
         <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-[2.5rem]">{post.title}</h1>
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
           <span>{fmt(post.publishDate)}</span>

@@ -2,8 +2,22 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { authGuard, getUserRestaurant, ok, fail } from "@/lib/api";
 import { encryptApiKey, detectApiKey } from "@/lib/ai";
+import { menuAiStatus } from "@/lib/menu-ai-plan";
 
 const STYLES = ["bubble", "minimal", "bar"];
+
+// Menyu AI holati (kvota/obuna) — dashboard sozlamalari uchun.
+export async function GET() {
+  const { user, res } = await authGuard();
+  if (!user) return res;
+  const restaurant = await getUserRestaurant(user.id);
+  if (!restaurant) return fail("Restoran topilmadi", 404);
+  const r = await prisma.restaurant.findUnique({
+    where: { id: restaurant.id },
+    select: { menuAiUsed: true, menuAiPaidUntil: true },
+  });
+  return ok(menuAiStatus(r || { menuAiUsed: 0, menuAiPaidUntil: null }));
+}
 
 // Restoran egasi: menyu AI (mijozlar uchun) sozlamalari.
 // Restoran O'Z kalitini qo'yadi (platforma kaliti emas).

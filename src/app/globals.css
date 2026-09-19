@@ -61,6 +61,8 @@ html {
   scroll-behavior: smooth;
   /* Telefonda chetga tortilganda "qimirlash"/cho'zilish (rubber-band) bo'lmasin */
   overscroll-behavior: none;
+  /* 2 marta bosganda zoom (double-tap) bo'lmasin — pinch-zoom saqlanadi */
+  touch-action: manipulation;
 }
 
 body {

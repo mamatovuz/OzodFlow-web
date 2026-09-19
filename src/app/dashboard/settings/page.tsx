@@ -13,6 +13,7 @@ import { TelegramBotManager } from "@/components/dashboard/telegram-bot-manager"
 import { PaymentCardSettings } from "@/components/dashboard/payment-card-settings";
 import { OnlineOrderSettings } from "@/components/dashboard/online-order-settings";
 import { MenuAiSettings } from "@/components/dashboard/menu-ai-settings";
+import { MenuAiUsageCard } from "@/components/dashboard/menu-ai-usage";
 import { parseAdminIds } from "@/lib/order-telegram";
 import { SessionsManager } from "@/components/dashboard/sessions-manager";
 
@@ -90,6 +91,7 @@ export default async function SettingsPage() {
 
       {/* ─── Menyu AI (mijozlar uchun) ─── */}
       <Section id="menyu-ai" title="Menyu AI" desc="Mijozlarga taom tavsiya qiluvchi yordamchi (o'z kalitingiz bilan)">
+        <MenuAiUsageCard />
         <MenuAiSettings
           enabled={restaurant.menuAiEnabled}
           hasKey={!!restaurant.menuAiKeyEnc}

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ok, fail } from "@/lib/api";
-import { isSiteAdmin, parseTags, reactionsTotal } from "@/lib/site";
+import { isSiteAdmin, parseTags, reactionsTotal, getActivityGrid } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,7 @@ function refSource(ref: string | null): string {
 export async function GET() {
   if (!(await isSiteAdmin())) return fail("Ruxsat yo'q", 401);
 
-  const [posts, agg, pendingComments, unreadMessages, subscribers, daily, visits] = await Promise.all([
+  const [posts, agg, pendingComments, unreadMessages, subscribers, daily, visits, activity] = await Promise.all([
     prisma.sitePost.findMany({
       orderBy: { views: "desc" },
       select: { id: true, title: true, slug: true, views: true, reactions: true, status: true, tags: true },
@@ -41,6 +41,7 @@ export async function GET() {
       select: { referrer: true },
       take: 1000,
     }),
+    getActivityGrid(),
   ]);
 
   // Top teglar — barcha maqolalar bo'yicha
@@ -99,5 +100,11 @@ export async function GET() {
     topTags,
     sources,
     days,
+    activity: {
+      monthName: activity.monthName,
+      year: activity.year,
+      totalActive: activity.totalActive,
+      cells: activity.cells,
+    },
   });
 }

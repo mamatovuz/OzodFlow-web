@@ -70,6 +70,17 @@ export function NewsletterEnvelope({ channel }: { channel?: string }) {
             <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-accent/20 blur-3xl" />
             <div aria-hidden className="pointer-events-none absolute -bottom-16 -left-10 h-36 w-36 rounded-full bg-violet-400/15 blur-3xl" />
 
+            {/* Yopishqoq qog'oz (sticky note) — o'ynoqi bezak */}
+            <div
+              aria-hidden
+              className="note-pop pointer-events-none absolute -top-5 right-10 z-0 h-24 w-28 -rotate-6 bg-yellow-200 p-3 text-[13px] leading-tight text-neutral-800 shadow-lg"
+              style={{ fontFamily: "'Comic Sans MS', 'Segoe Print', cursive" }}
+            >
+              {/* qizil to'g'nog'ich */}
+              <span className="absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 rounded-full bg-red-500 shadow-[inset_0_-2px_3px_rgba(0,0,0,0.3)]" />
+              Har hafta bitta xat :)
+            </div>
+
             <button
               onClick={() => setOpen(false)}
               className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-foreground"

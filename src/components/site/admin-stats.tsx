@@ -18,7 +18,22 @@ type Stats = {
   topTags: { tag: string; count: number }[];
   sources: { source: string; count: number }[];
   days: { day: string; views: number }[];
+  activity: {
+    monthName: string;
+    year: number;
+    totalActive: number;
+    cells: ({ date: number; day: string; count: number; level: number; isToday: boolean } | null)[];
+  };
 };
+
+const WEEKDAYS = ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"];
+const ACT_BG = [
+  "bg-surface-2",
+  "bg-emerald-500/35",
+  "bg-emerald-500/55",
+  "bg-emerald-500/75",
+  "bg-emerald-500",
+];
 
 type Tab = "dashboard" | "posts" | "comments" | "messages" | "projects" | "settings";
 
@@ -97,6 +112,44 @@ export function AdminStats({ onGoto }: { onGoto: (t: Tab) => void }) {
           ))}
         </div>
       </div>
+
+      {/* Faollik — joriy oy (bosh sahifadagi yashil katakchalar) */}
+      {data.activity && (
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <div className="flex items-center justify-between">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500" /> Faollik
+              <span className="font-normal text-muted">· {data.activity.monthName} {data.activity.year}</span>
+            </h3>
+            <span className="text-xs text-muted">{data.activity.totalActive} kun faol</span>
+          </div>
+          <div className="mx-auto mt-4 max-w-xs">
+            <div className="mb-1.5 grid grid-cols-7 gap-1.5">
+              {WEEKDAYS.map((w) => (
+                <div key={w} className="text-center text-[10px] font-medium text-muted">{w}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-1.5">
+              {data.activity.cells.map((c, i) =>
+                c === null ? (
+                  <div key={`e${i}`} />
+                ) : (
+                  <div
+                    key={c.day}
+                    title={`${c.day} — ${c.count} harakat`}
+                    className={`flex aspect-square items-center justify-center rounded-md text-[9px] font-medium transition-transform hover:scale-110 ${ACT_BG[c.level]} ${
+                      c.isToday ? "ring-2 ring-emerald-400 ring-offset-1 ring-offset-card" : ""
+                    } ${c.level >= 3 ? "text-white" : "text-muted"}`}
+                  >
+                    {c.date}
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+          <p className="mt-3 text-center text-xs text-muted">Panelga kirsangiz yoki maqola yozsangiz — kun yashil bo'ladi.</p>
+        </div>
+      )}
 
       {/* Top maqolalar */}
       <div className="rounded-2xl border border-border bg-card p-5">

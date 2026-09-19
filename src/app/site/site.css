@@ -358,3 +358,12 @@
   overflow-wrap: break-word;
   word-break: break-word;
 }
+
+/* Sticky note (obuna oynasi) — o'ynoqi kirish animatsiyasi */
+@keyframes notePop {
+  0% { opacity: 0; transform: rotate(-6deg) scale(0.5) translateY(-10px); }
+  70% { opacity: 1; transform: rotate(-9deg) scale(1.06); }
+  100% { opacity: 1; transform: rotate(-6deg) scale(1); }
+}
+.note-pop { animation: notePop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.12s both; }
+@media (prefers-reduced-motion: reduce) { .note-pop { animation: none !important; } }

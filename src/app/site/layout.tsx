@@ -106,7 +106,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       <main className="flex-1">{children}</main>
       <PwaRegister />
       <footer className="border-t border-border py-8">
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 px-4 text-center sm:px-6">
+        <div className="mx-auto flex max-w-2xl flex-col items-center gap-3 px-4 text-center sm:px-6">
           <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 text-sm text-muted">
             <Link href={base || "/"} className="hover:text-foreground">{tr(lang, "home")}</Link>
             <Link href={`${base}/blog`} className="hover:text-foreground">{tr(lang, "blog")}</Link>

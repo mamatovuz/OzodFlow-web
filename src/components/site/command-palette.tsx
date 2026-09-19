@@ -112,9 +112,9 @@ export function CommandPalette({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[80] flex items-start justify-center bg-black/40 px-4 pt-[12vh] backdrop-blur-sm" onClick={close}>
+        <div className="modal-overlay fixed inset-0 z-[80] flex items-start justify-center bg-black/50 px-4 pt-[12vh] backdrop-blur-sm" onClick={close}>
           <div
-            className="w-full max-w-lg overflow-hidden rounded-2xl border border-border bg-card shadow-card"
+            className="modal-pop w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 border-b border-border px-4">
@@ -125,9 +125,19 @@ export function CommandPalette({
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={onKeyDown}
                 placeholder={labels.placeholder}
-                className="w-full bg-transparent py-3.5 text-sm outline-none"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                enterKeyHint="search"
+                name="site-search-cmd"
+                className="w-full bg-transparent py-4 text-[15px] outline-none placeholder:text-muted/60"
               />
-              {loading && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted" />}
+              {loading ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted" />
+              ) : (
+                <kbd className="hidden shrink-0 rounded-md border border-border px-1.5 py-0.5 text-[10px] text-muted sm:block">ESC</kbd>
+              )}
             </div>
 
             <div className="max-h-[52vh] overflow-y-auto p-2">
@@ -170,6 +180,26 @@ export function CommandPalette({
                   </button>
                 ))
               )}
+            </div>
+
+            {/* Klaviatura maslahatlari */}
+            <div className="flex items-center justify-between border-t border-border px-4 py-2.5 text-[11px] text-muted">
+              <span className="flex items-center gap-3">
+                <span className="flex items-center gap-1">
+                  <kbd className="rounded border border-border px-1 py-0.5">↑</kbd>
+                  <kbd className="rounded border border-border px-1 py-0.5">↓</kbd>
+                  harakat
+                </span>
+                <span className="flex items-center gap-1">
+                  <kbd className="rounded border border-border px-1 py-0.5">↵</kbd>
+                  tanlash
+                </span>
+              </span>
+              <span className="flex items-center gap-1">
+                <kbd className="rounded border border-border px-1 py-0.5">⌘</kbd>
+                <kbd className="rounded border border-border px-1 py-0.5">K</kbd>
+                yopish
+              </span>
             </div>
           </div>
         </div>

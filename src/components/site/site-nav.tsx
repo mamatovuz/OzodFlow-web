@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, ChevronDown, Coffee, User, FolderGit2, Send, ExternalLink } from "lucide-react";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { Menu, X, ChevronDown, Coffee, User, FolderGit2, Send, ExternalLink, Hash, Archive, Bookmark, Rss } from "lucide-react";
 import { LangSwitcher } from "@/components/site/lang-switcher";
 import { CommandPalette } from "@/components/site/command-palette";
 import type { SiteNavButton } from "@/lib/site";
@@ -18,6 +17,9 @@ type Labels = {
   searchPlaceholder: string;
   more: string;
   coffee: string;
+  tags: string;
+  archive: string;
+  saved: string;
 };
 
 type MoreItem = { label: string; href: string; external?: boolean; icon: React.ComponentType<{ className?: string }> };
@@ -48,11 +50,16 @@ export function SiteNav({
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
-  // "Ko'proq" ichidagi bo'limlar: Men haqimda, Loyihalar, Kofe + admin tugmalari
+  // "Ko'proq" ichidagi bo'limlar: Men haqimda, Loyihalar, Teglar, Arxiv,
+  // Saqlangan, Kofe, RSS, Kanal + admin tugmalari (footer havolalari shu yerga ko'chdi)
   const moreItems: MoreItem[] = [
     { label: labels.about, href: `${base}/about`, icon: User },
     ...(hasProjects ? [{ label: labels.projects, href: `${base}/projects`, icon: FolderGit2 }] : []),
+    { label: labels.tags, href: `${base}/blog/tags`, icon: Hash },
+    { label: labels.archive, href: `${base}/blog/archive`, icon: Archive },
+    { label: labels.saved, href: `${base}/saved`, icon: Bookmark },
     ...(coffeeUrl ? [{ label: labels.coffee, href: `${base}/coffee`, icon: Coffee }] : []),
+    { label: "RSS", href: `${base}/rss.xml`, external: true, icon: Rss },
     ...(channel ? [{ label: labels.channel, href: channel, external: true, icon: Send }] : []),
     ...navButtons.map((b) => ({ label: b.label, href: b.url, external: b.external, icon: ExternalLink })),
   ];
@@ -122,13 +129,11 @@ export function SiteNav({
 
           <CommandPalette base={base} labels={{ quickSearch: labels.quickSearch, placeholder: labels.searchPlaceholder }} />
           <LangSwitcher current={lang} />
-          <ThemeToggle />
         </div>
 
         <div className="flex items-center gap-1 sm:hidden">
           <CommandPalette base={base} labels={{ quickSearch: labels.quickSearch, placeholder: labels.searchPlaceholder }} />
           <LangSwitcher current={lang} />
-          <ThemeToggle />
           <button
             type="button"
             aria-label="Menyu"

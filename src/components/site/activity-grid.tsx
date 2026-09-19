@@ -67,14 +67,6 @@ export function ActivityGrid({
         )}
       </div>
 
-      {/* Izoh (kam → ko'p) */}
-      <div className="mt-4 flex items-center justify-end gap-1.5 text-[10px] text-white/40">
-        Kam
-        {LEVEL_BG.map((cl, i) => (
-          <span key={i} className={`h-[11px] w-[11px] rounded-[3px] ${cl}`} />
-        ))}
-        Ko&apos;p
-      </div>
     </div>
   );
 }

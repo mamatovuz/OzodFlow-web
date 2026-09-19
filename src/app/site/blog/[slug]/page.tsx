@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Eye, Clock, ArrowUpRight, Tag as TagIcon, Sparkles } from "lucide-react";
+import { ArrowLeft, Eye, Clock, Tag as TagIcon } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import {
   siteBase,
@@ -16,7 +16,6 @@ import {
   isPostUnlocked,
   isSiteAdmin,
   publicPostWhere,
-  relatedByContent,
   parseReactions,
   parseFaq,
   parseTranslations,
@@ -133,12 +132,7 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
   const mins = readingTime(post.contentHtml);
   const { html, toc } = buildToc(post.contentHtml);
 
-  const [pool, comments, seriesParts, prevPost, nextPost] = await Promise.all([
-    prisma.sitePost.findMany({
-      where: { ...publicPostWhere(), id: { not: post.id } },
-      orderBy: [{ publishDate: "desc" }],
-      take: 24,
-    }),
+  const [comments, seriesParts] = await Promise.all([
     prisma.siteComment.findMany({
       where: { postId: post.id, approved: true },
       orderBy: { createdAt: "asc" },
@@ -153,19 +147,7 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
           select: { id: true, slug: true, title: true, seriesOrder: true },
         })
       : Promise.resolve([]),
-    prisma.sitePost.findFirst({
-      where: { ...publicPostWhere(), publishDate: { lt: post.publishDate }, id: { not: post.id } },
-      orderBy: { publishDate: "desc" },
-      select: { slug: true, title: true },
-    }),
-    prisma.sitePost.findFirst({
-      where: { ...publicPostWhere(), publishDate: { gt: post.publishDate }, id: { not: post.id } },
-      orderBy: { publishDate: "asc" },
-      select: { slug: true, title: true },
-    }),
   ]);
-  // O'xshash maqolalar — ma'no-yaqin (so'z-chastota) + teg bonus
-  const recommended = relatedByContent(post, pool, 3);
 
   // AI boyitmalar
   const faq = parseFaq(post.faq);
@@ -267,16 +249,6 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
         <img src={post.coverImage} alt={post.title} className="mt-8 w-full rounded-2xl object-cover" />
       )}
 
-      {/* AI TL;DR — o'qishdan oldin qisqacha */}
-      {post.summary && !post.password && (
-        <div className="mt-8 rounded-2xl border border-accent/25 bg-accent/5 p-5">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-accent">
-            <Sparkles className="h-3.5 w-3.5" /> {tr(lang, "tldr")}
-          </p>
-          <p className="text-sm leading-relaxed text-foreground/90">{post.summary}</p>
-        </div>
-      )}
-
       {/* Turkum (series) navigatsiyasi */}
       {post.series && seriesParts.length > 1 && (
         <nav className="mt-8 rounded-xl border border-accent/30 bg-accent/5 p-4">
@@ -341,26 +313,6 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
         <PostReactions slug={post.slug} initialReactions={parseReactions(post.reactions)} />
       </div>
 
-      {/* Oldingi / keyingi maqola */}
-      {(prevPost || nextPost) && (
-        <nav className="mt-10 grid gap-3 border-t border-border pt-8 sm:grid-cols-2">
-          {prevPost ? (
-            <Link href={`${base}/blog/${prevPost.slug}`} className="group rounded-xl border border-border p-4 transition-colors hover:border-foreground">
-              <span className="flex items-center gap-1 text-xs text-muted"><ArrowLeft className="h-3 w-3" /> Oldingi</span>
-              <p className="mt-1 line-clamp-2 font-medium group-hover:text-accent">{prevPost.title}</p>
-            </Link>
-          ) : (
-            <span />
-          )}
-          {nextPost && (
-            <Link href={`${base}/blog/${nextPost.slug}`} className="group rounded-xl border border-border p-4 text-right transition-colors hover:border-foreground">
-              <span className="flex items-center justify-end gap-1 text-xs text-muted">Keyingi <ArrowUpRight className="h-3 w-3" /></span>
-              <p className="mt-1 line-clamp-2 font-medium group-hover:text-accent">{nextPost.title}</p>
-            </Link>
-          )}
-        </nav>
-      )}
-
       {/* Meni kuzatib boring — ijtimoiy tarmoqlar (har maqola ostida) */}
       {parseLinks(settings.links).length > 0 && (
         <section className="mt-12 border-t border-border pt-10 text-center">
@@ -378,32 +330,6 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
 
       {/* Izohlar */}
       <Comments postId={post.id} initial={JSON.parse(JSON.stringify(comments))} isAdmin={isAdmin} />
-
-      {/* Tavsiya */}
-      {recommended.length > 0 && (
-        <section className="mt-12 border-t border-border pt-10">
-          <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-muted">{tr(lang, "recommend")}</h2>
-          <div className="space-y-2">
-            {recommended.map((r) => (
-              <Link
-                key={r.id}
-                href={`${base}/blog/${r.slug}`}
-                className="group flex items-center gap-4 rounded-xl border border-border p-4 transition-colors hover:border-foreground"
-              >
-                {r.coverImage && (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img src={r.coverImage} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <h3 className="truncate font-medium group-hover:text-accent">{r.title}</h3>
-                  <p className="truncate text-sm text-muted">{r.excerpt || fmt(r.publishDate)}</p>
-                </div>
-                <ArrowUpRight className="h-4 w-4 shrink-0 text-muted transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
     </article>
   );
 }

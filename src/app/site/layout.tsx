@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import "./site.css";
 import { prisma } from "@/lib/prisma";
 import { SiteNav } from "@/components/site/site-nav";
 import { PwaRegister } from "@/components/site/pwa-register";
+import { NewsletterEnvelope } from "@/components/site/newsletter-envelope";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { siteBase, getSiteSetting, siteCanonical, absUrl, parseNavButtons, parseLinks } from "@/lib/site";
 import { getLang, tr } from "@/lib/site-i18n";
 
@@ -88,7 +89,17 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     searchPlaceholder: tr(lang, "search"),
     more: lang === "en" ? "More" : lang === "ru" ? "Ещё" : "Ko'proq",
     coffee: lang === "en" ? "Buy me a coffee" : lang === "ru" ? "Купить кофе" : "Kofe sotib olish",
+    tags: tr(lang, "tags"),
+    archive: tr(lang, "archive"),
+    saved: tr(lang, "saved"),
   };
+
+  // Footer uchun domen (© 2026 ozodbeck.uz) — kanonik/siteUrl'dan olinadi.
+  const rawDomain = (s.siteUrl || origin || "")
+    .replace(/^https?:\/\//, "")
+    .replace(/\/.*$/, "")
+    .replace(/^www\./, "");
+  const domain = !rawDomain || rawDomain.startsWith("localhost") || /^\d/.test(rawDomain) ? s.siteName : rawDomain;
 
   return (
     <div className="site-root flex min-h-screen flex-col">
@@ -105,21 +116,18 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       />
       <main className="flex-1">{children}</main>
       <PwaRegister />
-      <footer className="border-t border-border py-8">
-        <div className="mx-auto flex max-w-2xl flex-col items-center gap-3 px-4 text-center sm:px-6">
-          <div className="flex flex-wrap justify-center gap-x-5 gap-y-1 text-sm text-muted">
-            <Link href={base || "/"} className="hover:text-foreground">{tr(lang, "home")}</Link>
-            <Link href={`${base}/blog`} className="hover:text-foreground">{tr(lang, "blog")}</Link>
-            <Link href={`${base}/blog/tags`} className="hover:text-foreground">{tr(lang, "tags")}</Link>
-            <Link href={`${base}/blog/archive`} className="hover:text-foreground">{tr(lang, "archive")}</Link>
-            <Link href={`${base}/about`} className="hover:text-foreground">{tr(lang, "about")}</Link>
-            <Link href={`${base}/saved`} className="hover:text-foreground">{tr(lang, "saved")}</Link>
-            <a href={`${base}/rss.xml`} className="hover:text-foreground">RSS</a>
-          </div>
-          <p className="text-xs text-muted">
-            © {new Date().getFullYear()} {s.siteName}. Barcha huquqlar himoyalangan.
-          </p>
-        </div>
+
+      {/* Butun sayt bo'ylab: pastda chapda obuna konverti, o'ngda tema tugmasi */}
+      <NewsletterEnvelope channel={s.channel} />
+      <div className="fixed bottom-5 right-5 z-40">
+        <ThemeToggle />
+      </div>
+
+      {/* Minimalist footer — faqat yil va domen (otabek.io uslubi) */}
+      <footer className="py-8">
+        <p className="text-center text-sm text-muted">
+          © {new Date().getFullYear()} {domain}
+        </p>
       </footer>
     </div>
   );

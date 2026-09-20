@@ -23,8 +23,8 @@ export default async function SiteHome() {
         {activity.year}
       </span>
 
-      {/* Faollik kartasi */}
-      <div className="fade-up-1 mt-10 w-full">
+      {/* Faollik kartasi — pastdan ko'tarilib chiqadi (act-card) */}
+      <div className="mt-10 w-full">
         <ActivityGrid cells={activity.cells} />
       </div>
     </div>

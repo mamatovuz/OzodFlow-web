@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Loader2, Check, X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 
 // Maqola ichida (blog/<slug>) suzuvchi elementlar ko'rinmasin (o'qishga xalaqit
 // bermasin) — tags/archive ro'yxatlari bundan mustasno.
@@ -137,9 +137,6 @@ export function NewsletterEnvelope({ channel }: { channel?: string }) {
                     yoki Telegram kanalga o'tish →
                   </a>
                 )}
-                <p className="mt-3 flex items-center gap-1 text-[11px] text-neutral-400">
-                  <Check className="h-3 w-3" /> Spam yo'q. Istalgan payt bekor qilasiz.
-                </p>
               </div>
             )}
           </div>

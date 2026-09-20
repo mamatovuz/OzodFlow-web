@@ -381,59 +381,12 @@
   .note-pop, .np-pop { animation: none !important; }
 }
 
-/* Karaoke — ovozli o'qishda joriy blok ko'k chiziq bilan yoritiladi */
-.site-content .tts-reading {
-  position: relative;
-  background: rgba(59, 130, 246, 0.16);
-  border-radius: 6px;
-  outline: 1px solid rgba(59, 130, 246, 0.2);
-  outline-offset: 5px;
-  color: #1d4ed8;
-  box-shadow: -8px 0 0 -5px #2563eb;
-  background-image: linear-gradient(rgba(59, 130, 246, 0.18), rgba(59, 130, 246, 0.18));
-  background-size: var(--tts-progress, 0%) 100%;
-  background-repeat: no-repeat;
-  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
-}
-/* chapdagi "o'qish chizig'i" — nozik puls */
-.site-content .tts-reading::before {
-  content: "";
-  position: absolute;
-  left: -9px;
-  top: 6px;
-  bottom: 6px;
-  width: 4px;
-  border-radius: 4px;
-  background: #2563eb;
-  animation: ttsBar 1.4s ease-in-out infinite;
-}
-@keyframes ttsBar {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-:root:not([data-theme="light"]) .site-content .tts-reading,
-:root[data-theme="dark"] .site-content .tts-reading {
-  background-color: rgba(96, 165, 250, 0.2);
-  color: #bfdbfe;
-  box-shadow: -8px 0 0 -5px #60a5fa;
-}
-:root:not([data-theme="light"]) .site-content .tts-reading::before,
-:root[data-theme="dark"] .site-content .tts-reading::before {
-  background: #60a5fa;
-}
-@media (prefers-reduced-motion: reduce) {
-  .site-content .tts-reading::before { animation: none; }
-}
-
-[data-tts-state="paused"] .tts-reading::before,
-[data-tts-state="loading"] .tts-reading::before {
-  animation-play-state: paused;
-}
-
+/* Only the spoken word is highlighted; surrounding text retains its normal contrast. */
 ::highlight(article-tts-word) {
-  background-color: #2563eb;
-  color: #fff;
-  text-decoration: underline;
+  background-color: #1d4ed8;
+  color: #ffffff;
+  text-decoration: none;
+  text-shadow: none;
 }
 
 /* Yon mundarija paneli — silliq ochilish */

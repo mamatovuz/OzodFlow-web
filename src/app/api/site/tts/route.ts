@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { fail } from "@/lib/api";
 import { publicPostWhere } from "@/lib/site";
 import { geminiTts } from "@/lib/gemini-tts";
-import { ttsMp3 } from "@/lib/tts";
+import { ttsTimedMp3 } from "@/lib/tts";
 import { limitOrReject, WINDOW } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +16,7 @@ const schema = z.object({
   text: z.string().min(1).max(2500),
   lang: z.enum(["uz", "ru", "en"]).default("uz"),
   voice: z.string().max(60).optional(),
+  timings: z.boolean().optional(),
 });
 
 // Matn→nutq. Zanjir: avval Microsoft Edge (BEPUL, a'lo o'zbek neyron ovozi);
@@ -36,8 +37,10 @@ export async function POST(req: NextRequest) {
 
   // 1) Edge (bepul neyron) → 2) OpenAI (kalit) — ikkalasi MP3
   try {
-    const mp3 = await ttsMp3(text, lang, voice);
-    if (mp3 && mp3.length > 200) {
+    const result = await ttsTimedMp3(text, lang, voice);
+    if (result && result.audio.length > 200) {
+      const mp3 = result.audio;
+      if (parsed.data.timings) return Response.json({ audio: mp3.toString("base64"), mime: "audio/mpeg", timings: result.timings }, { headers: { "Cache-Control": "private, no-store" } });
       return new Response(new Uint8Array(mp3), {
         headers: { "Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=86400", "X-Tts": "mp3" },
       });
@@ -50,6 +53,7 @@ export async function POST(req: NextRequest) {
   try {
     const wav = await geminiTts(text);
     if (wav && wav.length > 200) {
+      if (parsed.data.timings) return Response.json({ audio: wav.toString("base64"), mime: "audio/wav", timings: [] }, { headers: { "Cache-Control": "private, no-store" } });
       return new Response(new Uint8Array(wav), {
         headers: { "Content-Type": "audio/wav", "Cache-Control": "private, max-age=86400", "X-Tts": "gemini" },
       });

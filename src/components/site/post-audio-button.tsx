@@ -1,15 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Volume2, Check, Trash2 } from "lucide-react";
 
-// Editorda: maqola uchun ovozni qo'lda yaratish/yangilash. Odatda saqlashda
-// avtomatik yaratiladi; bu tugma kalit keyin qo'shilganda foydali.
+// Audio is created only when the admin explicitly requests it here.
 export function PostAudioButton({ postId, hasAudio }: { postId: string; hasAudio: boolean }) {
   const [busy, setBusy] = useState(false);
   const [state, setState] = useState<"idle" | "ok" | "err">("idle");
   const [has, setHas] = useState(hasAudio);
   const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    setHas(hasAudio);
+    setState("idle");
+  }, [postId, hasAudio]);
 
   async function gen() {
     setBusy(true);

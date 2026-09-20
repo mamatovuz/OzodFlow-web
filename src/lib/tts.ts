@@ -1,5 +1,6 @@
 // Umumiy TTS yordamchilari — TTS route ham, ovoz oldindan tayyorlash ham ishlatadi.
-import { edgeSynthesize, resolveEdgeVoice } from "./edge-tts";
+import { edgeSynthesizeTimed, resolveEdgeVoice } from "./edge-tts";
+import type { WordTiming } from "./tts-timing";
 import { openaiTts } from "./openai-tts";
 
 /**
@@ -8,18 +9,22 @@ import { openaiTts } from "./openai-tts";
  * Datacenter'da (Railway) Edge 403 bo'lsa OpenAI ishlaydi.
  */
 export async function ttsMp3(text: string, lang = "uz", voice?: string): Promise<Buffer | null> {
+  return (await ttsTimedMp3(text, lang, voice))?.audio || null;
+}
+
+export async function ttsTimedMp3(text: string, lang = "uz", voice?: string): Promise<{ audio: Buffer; timings: WordTiming[] } | null> {
   // 1) Edge
   try {
     const v = resolveEdgeVoice(lang, voice);
-    const mp3 = await edgeSynthesize(text, v);
-    if (mp3 && mp3.length > 200) return mp3;
+    const result = await edgeSynthesizeTimed(text, v);
+    if (result.audio.length > 200) return result;
   } catch {
     /* keyingisi */
   }
   // 2) OpenAI
   try {
     const mp3 = await openaiTts(text, lang, voice);
-    if (mp3 && mp3.length > 200) return mp3;
+    if (mp3 && mp3.length > 200) return { audio: mp3, timings: [] };
   } catch {
     /* yo'q */
   }

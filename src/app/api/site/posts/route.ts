@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { ok, fail } from "@/lib/api";
 import { slugify } from "@/lib/utils";
 import { isSiteAdmin, stripHtml, maybeNotifyTelegram, maybeEmailSubscribers, bumpActivity } from "@/lib/site";
-import { generatePostAudio } from "@/lib/site-audio";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +74,5 @@ export async function POST(req: NextRequest) {
   maybeNotifyTelegram(post).catch(() => {});
   maybeEmailSubscribers(post).catch(() => {});
   bumpActivity().catch(() => {}); // bugun faol (bosh sahifadagi yashil katak)
-  if (post.status !== "DRAFT") generatePostAudio(post).catch(() => {}); // ovozni oldindan tayyorlaymiz (fon)
   return ok(post, 201);
 }

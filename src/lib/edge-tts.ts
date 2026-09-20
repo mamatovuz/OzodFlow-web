@@ -9,6 +9,7 @@
 // ─────────────────────────────────────────────
 import crypto from "crypto";
 import WebSocket from "ws";
+import type { WordTiming } from "./tts-timing";
 
 const TRUSTED_TOKEN = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
 const WIN_EPOCH = 11644473600;
@@ -83,7 +84,7 @@ function ssml(text: string, voice: EdgeVoice, rate: string): string {
 // Bitta ulanish urinishi. 403 bo'lsa — server `Date` sarlavhasidan vaqt farqini qaytaradi.
 function open(skewSec: number): Promise<{ ws?: WebSocket; skew?: number }> {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(wsUrl(skewSec), { headers: WS_HEADERS });
+    const ws = new WebSocket(wsUrl(skewSec), { headers: WS_HEADERS, handshakeTimeout: 8000 });
     let settled = false;
     ws.once("open", () => {
       settled = true;
@@ -115,6 +116,10 @@ function open(skewSec: number): Promise<{ ws?: WebSocket; skew?: number }> {
  * server vaqtiga moslashib bir marta qayta urinadi.
  */
 export async function edgeSynthesize(text: string, voice: EdgeVoice, rate = "+0%"): Promise<Buffer> {
+  return (await edgeSynthesizeTimed(text, voice, rate)).audio;
+}
+
+export async function edgeSynthesizeTimed(text: string, voice: EdgeVoice, rate = "+0%"): Promise<{ audio: Buffer; timings: WordTiming[] }> {
   let r = await open(0);
   if (!r.ws && typeof r.skew === "number") {
     // Vaqt farqiga moslashib qayta urinamiz
@@ -123,8 +128,10 @@ export async function edgeSynthesize(text: string, voice: EdgeVoice, rate = "+0%
   const ws = r.ws;
   if (!ws) throw new Error("Edge TTS ulanmadi (403)");
 
-  return new Promise<Buffer>((resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
+    const timings: WordTiming[] = [];
+    let completed = false;
     const date = new Date().toString();
     const timer = setTimeout(() => {
       try {
@@ -140,12 +147,24 @@ export async function edgeSynthesize(text: string, voice: EdgeVoice, rate = "+0%
         if (header.includes("Path:audio")) chunks.push(data.slice(2 + headerLen));
       } else {
         const s = data.toString();
+        if (s.includes("Path:audio.metadata")) {
+          try {
+            const payload = JSON.parse(s.slice(s.indexOf("\r\n\r\n") + 4));
+            for (const item of payload.Metadata || []) {
+              if (item.Type !== "WordBoundary") continue;
+              const info = item.Data;
+              const text = String(info.text.Text).replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+              timings.push({ time: info.Offset / 10000000, duration: info.Duration / 10000000, text });
+            }
+          } catch { /* Audio remains usable if metadata is unavailable. */ }
+        }
         if (s.includes("Path:turn.end")) {
+          completed = true;
           clearTimeout(timer);
           try {
             ws.close();
           } catch {}
-          resolve(Buffer.concat(chunks));
+          resolve({ audio: Buffer.concat(chunks), timings });
         }
       }
     });
@@ -154,7 +173,7 @@ export async function edgeSynthesize(text: string, voice: EdgeVoice, rate = "+0%
       reject(e);
     });
     ws.on("close", () => {
-      if (chunks.length === 0) {
+      if (!completed) {
         clearTimeout(timer);
         reject(new Error("Edge TTS audio kelmadi"));
       }
@@ -163,7 +182,7 @@ export async function edgeSynthesize(text: string, voice: EdgeVoice, rate = "+0%
     // 1) Audio format konfiguratsiyasi
     ws.send(
       `X-Timestamp:${date}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n` +
-        `{"context":{"synthesis":{"audio":{"metadataoptions":{"sentenceBoundaryEnabled":"false","wordBoundaryEnabled":"false"},"outputFormat":"audio-24khz-48kbitrate-mono-mp3"}}}}`
+        `{"context":{"synthesis":{"audio":{"metadataoptions":{"sentenceBoundaryEnabled":"false","wordBoundaryEnabled":"true"},"outputFormat":"audio-24khz-48kbitrate-mono-mp3"}}}}`
     );
     // 2) SSML matn
     const reqId = crypto.randomUUID().replace(/-/g, "");

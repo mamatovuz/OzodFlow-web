@@ -1,49 +1,21 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Minus, Plus, Volume2, Pause, Play, Languages, Loader2, ChevronDown } from "lucide-react";
+import { Minus, Plus, Volume2, Pause, Play, Languages, Loader2 } from "lucide-react";
 import { PostContent } from "./post-content";
 import { SideToc } from "./side-toc";
+import { cueAtTime, mapWordTimings, type WordCue } from "@/lib/tts-timing";
 
 type Toc = { id: string; text: string; level: number };
 type Tr = { title: string; html: string };
-type Voice = { id: string; name: string; gender?: string; short?: string };
 
 const SCALES = [0.9, 1, 1.12, 1.28];
 const StablePostContent = memo(PostContent);
-
-// Matnni ≤1200 baytli jumla bo'laklariga bo'ladi (jonli TTS uchun)
-function splitChunks(text: string, maxBytes = 1200): string[] {
-  const clean = text.replace(/\s+/g, " ").trim();
-  if (!clean) return [];
-  const enc = new TextEncoder();
-  const sentences = clean.match(/[^.!?…]+[.!?…]*\s*/g) || [clean];
-  const out: string[] = [];
-  let cur = "";
-  for (const s of sentences) {
-    if (enc.encode(cur + s).length > maxBytes) {
-      if (cur.trim()) out.push(cur.trim());
-      if (enc.encode(s).length > maxBytes) {
-        let piece = "";
-        for (const w of s.split(" ")) {
-          if (enc.encode(`${piece} ${w}`).length > maxBytes) {
-            if (piece.trim()) out.push(piece.trim());
-            piece = w;
-          } else piece = piece ? `${piece} ${w}` : w;
-        }
-        cur = piece;
-      } else cur = s;
-    } else cur += s;
-  }
-  if (cur.trim()) out.push(cur.trim());
-  return out;
-}
 
 export function ArticleReader({
   html,
   toc,
   translations,
-  slug,
   ttsOn,
   audioUrl,
   labels,
@@ -61,18 +33,12 @@ export function ArticleReader({
   const contentRef = useRef<HTMLDivElement>(null);
 
   const [audioState, setAudioState] = useState<"idle" | "loading" | "playing" | "paused">("idle");
-  const [voices, setVoices] = useState<Voice[]>([]);
-  const [voiceId, setVoiceId] = useState<string>("");
-  const [voiceOpen, setVoiceOpen] = useState(false);
   const [ttsError, setTtsError] = useState("");
-  const [usingBrowser, setUsingBrowser] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const chunksRef = useRef<string[]>([]);
-  const idxRef = useRef(0);
-  const prefetchRef = useRef<Map<number, string>>(new Map());
   const abortRef = useRef(false);
-  const browserRef = useRef(false);
+  const savedCuesRef = useRef<WordCue[]>([]);
+  const [syncUnavailable, setSyncUnavailable] = useState(false);
   const pausedRef = useRef(false);
   const sessionRef = useRef(0);
   const spokenTextRef = useRef("");
@@ -80,25 +46,22 @@ export function ArticleReader({
   const wordHighlightRef = useRef<{ clear(): void; add(range: Range): void } | null>(null);
   const [progress, setProgress] = useState(0);
 
-  // Karaoke: matn bloklari (o'qilayotgan blok ko'k bo'ladi)
+  // Blocks only control scrolling; the highlight covers the spoken word.
   const blocksRef = useRef<{ el: HTMLElement; start: number; end: number }[]>([]);
   const totalCharsRef = useRef(1);
   const activeBlockRef = useRef<HTMLElement | null>(null);
-  // Brauzer ovozida vaqtga asoslangan yoritish taymeri (iOS'da onboundary ishlamaydi)
+  // Poll the audio clock, never estimate how quickly the voice reads.
   const hlTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const trLangs = useMemo(() => Object.keys(translations || {}), [translations]);
   const current = lang === "orig" ? html : translations[lang]?.html || html;
-  const ttsLang = lang === "ru" ? "ru" : lang === "en" ? "en" : "uz";
-  // Saqlangan ovoz faqat asl (orig) matn uchun — tarjimalar jonli o'qiladi
+  // Only the original text has an admin-created recording.
   const savedAudio = lang === "orig" ? audioUrl || null : null;
 
   useEffect(() => {
     try {
       const saved = Number(localStorage.getItem("site_reading_scale"));
       if (Number.isFinite(saved) && saved >= 0 && saved < SCALES.length) setScaleIdx(saved);
-      const v = localStorage.getItem("site_tts_voice");
-      if (v) setVoiceId(v);
     } catch {}
   }, []);
   useEffect(() => {
@@ -107,25 +70,6 @@ export function ArticleReader({
     } catch {}
   }, [scaleIdx]);
 
-  // Jonli rejim uchun ovozlar ro'yxati (saqlangan ovoz bo'lmasa)
-  useEffect(() => {
-    if (!ttsOn || savedAudio) return;
-    let cancelled = false;
-    fetch(`/api/site/tts/voices?lang=${ttsLang}`)
-      .then((r) => r.json())
-      .then((j) => {
-        if (cancelled) return;
-        const vs: Voice[] = j?.data?.voices || [];
-        setVoices(vs);
-        setVoiceId((prev) => (vs.some((v) => v.id === prev) ? prev : vs[0]?.id || ""));
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [ttsLang, ttsOn, savedAudio]);
-
-  // ── Karaoke yoritish ──
   const buildBlocks = useCallback(() => {
     const root = contentRef.current;
     if (!root) return;
@@ -181,10 +125,6 @@ export function ArticleReader({
     wordHighlightRef.current?.clear();
     const registry = (window.CSS as unknown as { highlights?: Map<string, unknown> }).highlights;
     registry?.delete("article-tts-word");
-    if (activeBlockRef.current) {
-      activeBlockRef.current.classList.remove("tts-reading");
-      activeBlockRef.current.style.removeProperty("--tts-progress");
-    }
     activeBlockRef.current = null;
   }, []);
 
@@ -197,10 +137,7 @@ export function ArticleReader({
     if (word) wordHighlightRef.current?.add(word.range);
     setProgress(Math.round(Math.max(0, Math.min(1, fraction)) * 100));
     const b = blocks.find((x) => target < x.end) || blocks[blocks.length - 1];
-    b.el.style.setProperty("--tts-progress", `${Math.max(0, Math.min(1, (target - b.start) / (b.end - b.start))) * 100}%`);
     if (b.el === activeBlockRef.current) return;
-    if (activeBlockRef.current) activeBlockRef.current.classList.remove("tts-reading");
-    b.el.classList.add("tts-reading");
     activeBlockRef.current = b.el;
     const r = b.el.getBoundingClientRect();
     if (r.top < 90 || r.bottom > window.innerHeight - 60) {
@@ -213,23 +150,15 @@ export function ArticleReader({
     sessionRef.current += 1;
     pausedRef.current = false;
     setProgress(0);
+    setSyncUnavailable(false);
+    savedCuesRef.current = [];
     const a = audioRef.current;
     if (a) {
       a.pause();
       a.removeAttribute("src");
       a.load();
     }
-    prefetchRef.current.forEach((url) => URL.revokeObjectURL(url));
-    prefetchRef.current.clear();
-    idxRef.current = 0;
     stopHlTimer();
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      try {
-        window.speechSynthesis.cancel();
-      } catch {}
-    }
-    browserRef.current = false;
-    setUsingBrowser(false);
     clearHighlight();
     setAudioState("idle");
   }, [clearHighlight, stopHlTimer]);
@@ -241,242 +170,71 @@ export function ArticleReader({
   }, [lang, current, savedAudio, ttsOn]);
   useEffect(() => () => stopAudio(), [stopAudio]);
 
-  const highlightChunk = useCallback((index: number, within: number) => {
-    const offset = chunksRef.current.slice(0, index).reduce((sum, text) => sum + text.length + 1, 0);
-    highlightAt((offset + (chunksRef.current[index]?.length || 0) * within) / totalCharsRef.current);
-  }, [highlightAt]);
-
-  // ── Brauzer ovozi (zaxira) ──
-  const pickBrowserVoice = useCallback(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
-    const all = window.speechSynthesis.getVoices();
-    if (!all.length) return null;
-    const order = ttsLang === "ru" ? ["ru"] : ttsLang === "en" ? ["en"] : ["uz", "az", "tr", "ru"];
-    for (const pref of order) {
-      const v = all.find((x) => x.lang?.toLowerCase().startsWith(pref));
-      if (v) return v;
-    }
-    return all[0];
-  }, [ttsLang]);
-
-  const speakBrowser = useCallback(
-    (from: number) => {
-      if (typeof window === "undefined" || !("speechSynthesis" in window)) return false;
-      const synth = window.speechSynthesis;
-      const session = sessionRef.current;
-      const voice = pickBrowserVoice();
-      const total = chunksRef.current.length;
-      browserRef.current = true;
-      setUsingBrowser(true);
-      setAudioState("playing");
-
-      const speakAt = (i: number) => {
-        if (session !== sessionRef.current) return;
-        if (abortRef.current || i >= total) {
-          if (i >= total) stopAudio();
-          return;
-        }
-        idxRef.current = i;
-        const text = chunksRef.current[i];
-        const u = new SpeechSynthesisUtterance(text);
-        if (voice) u.voice = voice;
-        u.lang = voice?.lang || (ttsLang === "ru" ? "ru-RU" : ttsLang === "en" ? "en-US" : "uz-UZ");
-        u.rate = 1;
-        // Bo'lak ichidagi eng katta (monotonik oldinga) o'qilgan ulush
-        let within = 0;
-        const setWithin = (w: number) => {
-          within = Math.max(within, Math.min(1, w));
-          highlightChunk(i, within);
-        };
-        // Use real boundaries when available; otherwise estimate active speaking time.
-        let lastTick = performance.now();
-        let elapsed = 0;
-        let started = false;
-        let hasBoundary = false;
-        const durMs = Math.max(1400, (text.length / 13) * 1000);
-        stopHlTimer();
-        setWithin(0);
-        hlTimerRef.current = setInterval(() => {
-          const now = performance.now();
-          const delta = now - lastTick;
-          lastTick = now;
-          if (!started || pausedRef.current || session !== sessionRef.current) return;
-          elapsed += delta;
-          if (!hasBoundary) setWithin(Math.min(0.98, elapsed / durMs));
-        }, 120);
-        u.onstart = () => {
-          started = true;
-          lastTick = performance.now();
-        };
-        u.onboundary = (e) => {
-          if (pausedRef.current || session !== sessionRef.current) return;
-          hasBoundary = true;
-          within = (e.charIndex || 0) / Math.max(1, text.length);
-          highlightChunk(i, within);
-        };
-        u.onend = () => {
-          if (session !== sessionRef.current) return;
-          stopHlTimer();
-          if (!abortRef.current) speakAt(i + 1);
-        };
-        u.onerror = () => {
-          if (session !== sessionRef.current || abortRef.current) return;
-          stopAudio();
-          setTtsError("Ovozli o'qishda xatolik yuz berdi. Qayta urinib ko'ring.");
-        };
-        synth.speak(u);
-      };
-      synth.cancel();
-      speakAt(from);
-      return true;
-    },
-    [pickBrowserVoice, stopAudio, stopHlTimer, ttsLang, highlightChunk]
-  );
-
-  // ── Jonli server TTS (bo'lak-bo'lak) ──
-  async function fetchChunk(i: number): Promise<string | null> {
-    const session = sessionRef.current;
-    const cached = prefetchRef.current.get(i);
-    if (cached) return cached;
-    const text = chunksRef.current[i];
-    if (!text) return null;
-    const res = await fetch("/api/site/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug, text, lang: ttsLang, voice: voiceId || undefined }),
-    });
-    if (!res.ok) throw new Error("tts");
-    const blob = await res.blob();
-    if (session !== sessionRef.current || abortRef.current) return null;
-    const existing = prefetchRef.current.get(i);
-    if (existing) return existing;
-    const url = URL.createObjectURL(blob);
-    prefetchRef.current.set(i, url);
-    return url;
-  }
-
-  async function playLiveFrom(i: number) {
-    const session = sessionRef.current;
-    if (abortRef.current) return;
-    const a = audioRef.current;
-    if (!a) return;
-    const total = chunksRef.current.length;
-    if (i >= total) {
-      stopAudio();
-      return;
-    }
-    idxRef.current = i;
-    setAudioState("loading");
-    try {
-      const url = await fetchChunk(i);
-      if (!url || abortRef.current || session !== sessionRef.current) return;
-      a.src = url;
-      await a.play();
-      if (session !== sessionRef.current) return;
-      setAudioState("playing");
-      highlightChunk(i, 0);
-      fetchChunk(i + 1).catch(() => {});
-    } catch {
-      if (session !== sessionRef.current || abortRef.current) return;
-      if (!abortRef.current && speakBrowser(i)) return;
-      setTtsError("Ovozli o'qish hozir mavjud emas.");
-      stopAudio();
-    }
-  }
-
-  function onLiveEnded() {
-    if (abortRef.current || browserRef.current) return;
-    const done = idxRef.current;
-    const url = prefetchRef.current.get(done);
-    if (url) {
-      URL.revokeObjectURL(url);
-      prefetchRef.current.delete(done);
-    }
-    playLiveFrom(done + 1);
-  }
-
-  // Jonli rejim uchun audio elementining vaqti bo'yicha yoritish
-  function onLiveTime() {
-    if (browserRef.current || savedAudio) return;
-    const a = audioRef.current;
-    const total = chunksRef.current.length;
-    if (!a || a.paused || !Number.isFinite(a.duration) || !a.duration || !total) return;
-    highlightChunk(idxRef.current, a.currentTime / a.duration);
-  }
-
-  // Saqlangan ovoz vaqti bo'yicha yoritish
   function onSavedTime() {
     const a = audioRef.current;
     if (!a || a.paused || !Number.isFinite(a.duration) || !a.duration) return;
-    highlightAt(a.currentTime / a.duration);
+    if (pausedRef.current) return;
+    const cue = cueAtTime(savedCuesRef.current, a.currentTime);
+    if (cue) highlightAt(cue.charIndex / totalCharsRef.current);
+    else wordHighlightRef.current?.clear();
+    setProgress(Math.round(a.currentTime / a.duration * 100));
   }
 
   async function toggleListen() {
-    if (!ttsOn || audioState === "loading") return;
+    if (!ttsOn || !savedAudio || audioState === "loading") return;
+    const audio = audioRef.current;
+    if (!audio) return;
     setTtsError("");
-
+    const session = sessionRef.current;
     if (audioState === "playing") {
       pausedRef.current = true;
-      if (browserRef.current && "speechSynthesis" in window) {
-        try {
-          window.speechSynthesis.pause();
-        } catch {}
-        // The clock excludes paused time and resumes from the same position.
-      } else audioRef.current?.pause();
+      audio.pause();
       setAudioState("paused");
       return;
     }
     if (audioState === "paused") {
-      const session = sessionRef.current;
       try {
-        if (browserRef.current && "speechSynthesis" in window) {
-          window.speechSynthesis.resume();
-        } else await audioRef.current?.play();
+        await audio.play();
         if (session !== sessionRef.current) return;
         pausedRef.current = false;
         setAudioState("playing");
       } catch {
+        if (session !== sessionRef.current) return;
         setTtsError("Ovozni davom ettirib bo'lmadi. Qayta urinib ko'ring.");
       }
       return;
     }
 
-    // Boshlash
     buildBlocks();
     abortRef.current = false;
     pausedRef.current = false;
-    const session = sessionRef.current;
-    highlightAt(0);
-
-    // 1) Saqlangan ovoz (bir marta yaratilган mp3) — eng silliq
-    if (savedAudio && audioRef.current) {
-      const a = audioRef.current;
-      setAudioState("loading");
-      a.src = savedAudio;
-      try {
-        await a.play();
-        if (session !== sessionRef.current) return;
-        setAudioState("playing");
-      } catch {
-        if (session !== sessionRef.current) return;
-        setTtsError("Ovoz yuklanmadi.");
-        stopAudio();
-      }
-      return;
-    }
-
-    // 2) Jonli rejim (bo'lak-bo'lak)
-    const text = spokenTextRef.current;
-    if (!text) return;
-    chunksRef.current = splitChunks(text, 1200);
-    if (chunksRef.current.length === 0) return;
-    prefetchRef.current.clear();
     setAudioState("loading");
-    await playLiveFrom(0);
+    savedCuesRef.current = [];
+    // Only use metadata belonging to this admin-created recording.
+    try {
+      const response = await fetch(savedAudio + ".timings.json");
+      if (response.ok) {
+        const data = await response.json();
+        if (session !== sessionRef.current) return;
+        savedCuesRef.current = mapWordTimings(spokenTextRef.current, data.timings || []);
+      }
+    } catch { /* Legacy recordings still play without speculative highlighting. */ }
+    if (session !== sessionRef.current) return;
+    setSyncUnavailable(!savedCuesRef.current.length);
+    try {
+      audio.src = savedAudio;
+      await audio.play();
+      if (session !== sessionRef.current) return;
+      setAudioState("playing");
+      stopHlTimer();
+      hlTimerRef.current = setInterval(onSavedTime, 50);
+      onSavedTime();
+    } catch {
+      if (session !== sessionRef.current) return;
+      stopAudio();
+      setTtsError("Ovoz yuklanmadi. Qayta urinib ko'ring.");
+    }
   }
-
-  const selectedVoice = voices.find((v) => v.id === voiceId);
-  const showVoicePicker = !savedAudio && voices.length > 1;
 
   return (
     <div>
@@ -486,7 +244,7 @@ export function ArticleReader({
       <div className="sticky top-2 z-30 mb-6 flex flex-wrap items-center gap-2 rounded-full border border-border bg-card/80 px-2 py-1.5 backdrop-blur-md">
         {ttsOn && (
           <div className="flex items-center">
-            <button
+            {savedAudio ? <button
               onClick={toggleListen}
               disabled={audioState === "loading"}
               aria-busy={audioState === "loading"}
@@ -504,44 +262,13 @@ export function ArticleReader({
                 <Volume2 className="h-3.5 w-3.5" />
               )}
               {audioState === "playing" ? labels.pause : audioState === "paused" ? "Davom ettirish" : audioState === "loading" ? "Yuklanmoqda…" : labels.listen}
-            </button>
-
-            {showVoicePicker && (
-              <div className="relative">
-                <button
-                  onClick={() => setVoiceOpen((v) => !v)}
-                  className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-1.5 text-[11px] text-muted hover:bg-surface-2"
-                  title="Ovozni tanlash"
-                >
-                  {selectedVoice ? selectedVoice.name.split(" ")[0] : "Ovoz"}
-                  <ChevronDown className="h-3 w-3" />
-                </button>
-                {voiceOpen && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setVoiceOpen(false)} />
-                    <div className="absolute left-0 top-full z-20 mt-1 max-h-64 w-52 overflow-y-auto rounded-xl border border-border bg-card py-1 shadow-card">
-                      {voices.map((v) => (
-                        <button
-                          key={v.id}
-                          onClick={() => {
-                            setVoiceId(v.id);
-                            try {
-                              localStorage.setItem("site_tts_voice", v.id);
-                            } catch {}
-                            stopAudio();
-                            setVoiceOpen(false);
-                          }}
-                          className={`block w-full px-3 py-2 text-left text-xs hover:bg-surface-2 ${v.id === voiceId ? "text-accent" : ""}`}
-                        >
-                          <span className="font-medium">{v.name}</span>
-                          {v.short && <span className="block truncate text-[10px] text-muted">{v.short}</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
+            </button> : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted">
+                <Volume2 className="h-3.5 w-3.5" aria-hidden="true" />
+                Hali ovoz qo‘shilmagan
+              </span>
             )}
+
             <span className="mx-0.5 h-4 w-px bg-border" />
           </div>
         )}
@@ -603,18 +330,19 @@ export function ArticleReader({
           <span className="tabular-nums">{progress}%{audioState === "paused" ? " · Pauza" : ""}</span>
         </div>
       )}
-      {ttsError && <p role="alert" className="mb-4 text-xs text-red-500">{ttsError}</p>}
-      {usingBrowser && (audioState === "playing" || audioState === "paused") && (
-        <p className="mb-4 text-xs text-muted">Brauzer ovozi bilan o'qilmoqda.</p>
+      {syncUnavailable && audioState !== "idle" && (
+        <p className="mb-4 text-xs text-muted">Bu ovozda sinxron belgilash mavjud emas.</p>
       )}
-
+      {ttsError && <p role="alert" className="mb-4 text-xs text-red-500">{ttsError}</p>}
       {/* Yashirin audio element (saqlangan yoki jonli) */}
       <audio
         ref={audioRef}
-        onEnded={() => (savedAudio ? stopAudio() : onLiveEnded())}
-        onTimeUpdate={() => (savedAudio ? onSavedTime() : onLiveTime())}
+        onEnded={stopAudio}
+        onTimeUpdate={onSavedTime}
         onError={() => {
-          if (abortRef.current || browserRef.current) return;
+          if (abortRef.current) return;
+          // During loading, play() rejects and toggleListen handles the error.
+          if (audioState === "loading") return;
           setTtsError("Ovoz yuklanmadi. Qayta urinib ko'ring.");
           stopAudio();
         }}

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { ok, fail } from "@/lib/api";
 import { slugify } from "@/lib/utils";
 import { isSiteAdmin, stripHtml, maybeNotifyTelegram, maybeEmailSubscribers } from "@/lib/site";
-import { generatePostAudio, clearPostAudio } from "@/lib/site-audio";
+import { clearPostAudio } from "@/lib/site-audio";
 
 export const dynamic = "force-dynamic";
 
@@ -105,9 +105,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   // Endigina e'lon qilingan bo'lsa Telegram + email (fon)
   maybeNotifyTelegram(post).catch(() => {});
   maybeEmailSubscribers(post).catch(() => {});
-  // Ovozni oldindan tayyorlaymiz (matn o'zgargan bo'lsa qayta) — fon rejimida
-  if (post.status !== "DRAFT") generatePostAudio(post).catch(() => {});
-  else if (contentChanged) clearPostAudio(post).catch(() => {});
+  // A changed article needs a fresh recording explicitly created in the panel.
+  if (nextHtml !== current.contentHtml) {
+    await clearPostAudio(post);
+    post.audioUrl = null;
+    post.audioHash = null;
+  }
   return ok(post);
 }
 

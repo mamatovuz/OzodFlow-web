@@ -381,19 +381,45 @@
   .note-pop, .np-pop { animation: none !important; }
 }
 
-/* Karaoke — ovozli o'qishda joriy blok ko'k bo'ladi */
+/* Karaoke — ovozli o'qishda joriy blok ko'k chiziq bilan yoritiladi */
 .site-content .tts-reading {
-  background: rgba(59, 130, 246, 0.14);
-  box-shadow: -6px 0 0 rgba(59, 130, 246, 0.14), 6px 0 0 rgba(59, 130, 246, 0.14);
-  border-radius: 4px;
+  position: relative;
+  background: rgba(59, 130, 246, 0.16);
+  border-radius: 6px;
+  margin-left: -0.9rem;
+  padding: 0.15rem 0.6rem 0.15rem 0.9rem;
   color: #1d4ed8;
-  transition: background 0.25s ease, color 0.25s ease;
+  box-shadow: inset 4px 0 0 #2563eb;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+/* chapdagi "o'qish chizig'i" — nozik puls */
+.site-content .tts-reading::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 4px;
+  border-radius: 4px;
+  background: #2563eb;
+  animation: ttsBar 1.4s ease-in-out infinite;
+}
+@keyframes ttsBar {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 :root:not([data-theme="light"]) .site-content .tts-reading,
 :root[data-theme="dark"] .site-content .tts-reading {
-  background: rgba(96, 165, 250, 0.18);
-  box-shadow: -6px 0 0 rgba(96, 165, 250, 0.18), 6px 0 0 rgba(96, 165, 250, 0.18);
-  color: #93c5fd;
+  background: rgba(96, 165, 250, 0.2);
+  color: #bfdbfe;
+  box-shadow: inset 4px 0 0 #60a5fa;
+}
+:root:not([data-theme="light"]) .site-content .tts-reading::before,
+:root[data-theme="dark"] .site-content .tts-reading::before {
+  background: #60a5fa;
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-content .tts-reading::before { animation: none; }
 }
 
 /* Yon mundarija paneli — silliq ochilish */

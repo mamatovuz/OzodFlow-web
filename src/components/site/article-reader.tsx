@@ -77,6 +77,8 @@ export function ArticleReader({
   const blocksRef = useRef<{ el: HTMLElement; start: number; end: number }[]>([]);
   const totalCharsRef = useRef(1);
   const activeBlockRef = useRef<HTMLElement | null>(null);
+  // Brauzer ovozida vaqtga asoslangan yoritish taymeri (iOS'da onboundary ishlamaydi)
+  const hlTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const trLangs = useMemo(() => Object.keys(translations || {}), [translations]);
   const current = lang === "orig" ? html : translations[lang]?.html || html;
@@ -133,6 +135,13 @@ export function ArticleReader({
     totalCharsRef.current = Math.max(1, pos);
   }, []);
 
+  const stopHlTimer = useCallback(() => {
+    if (hlTimerRef.current) {
+      clearInterval(hlTimerRef.current);
+      hlTimerRef.current = null;
+    }
+  }, []);
+
   const clearHighlight = useCallback(() => {
     if (activeBlockRef.current) activeBlockRef.current.classList.remove("tts-reading");
     activeBlockRef.current = null;
@@ -164,6 +173,7 @@ export function ArticleReader({
     prefetchRef.current.forEach((url) => URL.revokeObjectURL(url));
     prefetchRef.current.clear();
     idxRef.current = 0;
+    stopHlTimer();
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       try {
         window.speechSynthesis.cancel();
@@ -173,7 +183,7 @@ export function ArticleReader({
     setUsingBrowser(false);
     clearHighlight();
     setAudioState("idle");
-  }, [clearHighlight]);
+  }, [clearHighlight, stopHlTimer]);
 
   // Til almashsa yoki komponent yopilsa — to'xtatamiz
   useEffect(() => {
@@ -216,17 +226,38 @@ export function ArticleReader({
         if (voice) u.voice = voice;
         u.lang = voice?.lang || (ttsLang === "ru" ? "ru-RU" : ttsLang === "en" ? "en-US" : "uz-UZ");
         u.rate = 1;
-        u.onstart = () => highlightAt(i / total);
-        u.onboundary = (e) => highlightAt((i + (e.charIndex || 0) / Math.max(1, text.length)) / total);
-        u.onend = () => !abortRef.current && speakAt(i + 1);
-        u.onerror = () => !abortRef.current && speakAt(i + 1);
+        // Bo'lak ichidagi eng katta (monotonik oldinga) o'qilgan ulush
+        let within = 0;
+        const setWithin = (w: number) => {
+          within = Math.max(within, Math.min(1, w));
+          highlightAt((i + within) / total);
+        };
+        u.onstart = () => {
+          const startedAt = performance.now();
+          // Taxminiy davomiylik: ~13 belgi/sek (onboundary ishlamasa — iOS)
+          const durMs = Math.max(1200, (text.length / 13) * 1000);
+          stopHlTimer();
+          setWithin(0);
+          hlTimerRef.current = setInterval(() => {
+            setWithin((performance.now() - startedAt) / durMs);
+          }, 130);
+        };
+        u.onboundary = (e) => setWithin((e.charIndex || 0) / Math.max(1, text.length));
+        u.onend = () => {
+          stopHlTimer();
+          if (!abortRef.current) speakAt(i + 1);
+        };
+        u.onerror = () => {
+          stopHlTimer();
+          if (!abortRef.current) speakAt(i + 1);
+        };
         synth.speak(u);
       };
       synth.cancel();
       speakAt(from);
       return true;
     },
-    [pickBrowserVoice, stopAudio, ttsLang, highlightAt]
+    [pickBrowserVoice, stopAudio, stopHlTimer, ttsLang, highlightAt]
   );
 
   // ── Jonli server TTS (bo'lak-bo'lak) ──
@@ -308,6 +339,7 @@ export function ArticleReader({
         try {
           window.speechSynthesis.pause();
         } catch {}
+        stopHlTimer(); // yoritish chizig'i to'xtaydi (pauza)
       } else audioRef.current?.pause();
       setAudioState("paused");
       return;

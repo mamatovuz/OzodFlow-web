@@ -27,19 +27,19 @@ export default async function SiteAbout() {
       <div className="site-content mt-10" dangerouslySetInnerHTML={{ __html: s.aboutHtml || "" }} />
 
       {links.length > 0 && (
-        <div className="mt-12 border-t border-border pt-8">
+        <div className="sr mt-12 border-t border-border pt-8">
           <p className="mb-4 text-center text-sm text-muted">Ijtimoiy tarmoqlar</p>
           <SocialIcons links={links} />
         </div>
       )}
 
       {/* Obuna */}
-      <div className="mt-12">
+      <div className="sr mt-12">
         <SubscribeForm channel={s.channel} />
       </div>
 
       {/* Bog'lanish */}
-      <div className="mt-8">
+      <div className="sr mt-8">
         <ContactForm />
       </div>
     </div>

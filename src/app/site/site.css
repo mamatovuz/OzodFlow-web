@@ -420,3 +420,21 @@
 @media (prefers-reduced-motion: reduce) {
   .act-today, .reveal-scale { animation: none !important; }
 }
+
+/* ─── Scroll-reveal — faqat ekran ostidagilar (.sr-hidden) yashiriladi ─── */
+.sr-hidden {
+  opacity: 0;
+  transform: translateY(26px);
+  will-change: opacity, transform;
+}
+.sr.sr-in {
+  animation: srReveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes srReveal {
+  from { opacity: 0; transform: translateY(26px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sr-hidden { opacity: 1; transform: none; }
+  .sr.sr-in { animation: none; }
+}

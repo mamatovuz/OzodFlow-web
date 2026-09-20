@@ -4,47 +4,50 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 
 // Scroll-reveal — `.sr` klassli elementlar ekranga kelganda silliq ochiladi.
-// Sahifa almashsa (Next Link) yangi elementlarni ham kuzatadi. JS bo'lmasa
-// yoki reduced-motion bo'lsa — hammasi ko'rinadi (kontent yashirin qolmaydi).
+// FAQAT ekran ostidagi (below-fold) elementlar yashiriladi — yuqoridagilar darrov
+// ko'rinadi (miltillash yo'q). JS/IO bo'lmasa yoki reduced-motion — hammasi ko'rinadi.
 export function SiteReveal() {
   const pathname = usePathname();
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const root = document.documentElement;
-    root.classList.add("sr-ready");
-
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const scan = () => {
-      const els = Array.from(document.querySelectorAll<HTMLElement>(".sr:not(.sr-in)"));
-      if (reduce || !("IntersectionObserver" in window)) {
-        els.forEach((e) => e.classList.add("sr-in"));
-        return null;
-      }
-      const io = new IntersectionObserver(
-        (entries) => {
-          for (const e of entries) {
-            if (e.isIntersecting) {
-              (e.target as HTMLElement).classList.add("sr-in");
-              io.unobserve(e.target);
-            }
-          }
-        },
-        { rootMargin: "0px 0px -8% 0px", threshold: 0.08 }
-      );
-      els.forEach((e) => io.observe(e));
-      return io;
-    };
+    let io: IntersectionObserver | null = null;
 
-    // DOM tayyor bo'lishi uchun kichik kechikish (sahifa almashganda)
     const t = setTimeout(() => {
-      const io = scan();
-      cleanup = () => io?.disconnect();
+      const els = Array.from(document.querySelectorAll<HTMLElement>(".sr:not(.sr-seen)"));
+      const supported = "IntersectionObserver" in window;
+      if (supported && !reduce) {
+        io = new IntersectionObserver(
+          (entries) => {
+            for (const e of entries) {
+              if (e.isIntersecting) {
+                const el = e.target as HTMLElement;
+                el.classList.remove("sr-hidden");
+                el.classList.add("sr-in");
+                io?.unobserve(el);
+              }
+            }
+          },
+          { rootMargin: "0px 0px -8% 0px", threshold: 0.08 }
+        );
+      }
+      const foldY = window.innerHeight * 0.92;
+      for (const el of els) {
+        el.classList.add("sr-seen");
+        const belowFold = el.getBoundingClientRect().top > foldY;
+        if (!io || !belowFold) {
+          el.classList.add("sr-in"); // yuqorida yoki IO yo'q — darrov ko'rinadi
+        } else {
+          el.classList.add("sr-hidden");
+          io.observe(el);
+        }
+      }
     }, 60);
-    let cleanup: (() => void) | null = null;
+
     return () => {
       clearTimeout(t);
-      cleanup?.();
+      io?.disconnect();
     };
   }, [pathname]);
 

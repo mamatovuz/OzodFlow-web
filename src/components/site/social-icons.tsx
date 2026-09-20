@@ -15,7 +15,7 @@ export function SocialIcons({ links, className }: { links: SiteLink[]; className
             rel="noreferrer"
             aria-label={l.label || l.icon}
             title={l.label || l.icon}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted transition-colors hover:border-accent hover:text-accent"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-border text-muted transition-all duration-200 hover:-translate-y-0.5 hover:scale-110 hover:border-accent hover:text-accent hover:shadow-md"
           >
             <Icon className="h-[18px] w-[18px]" />
           </a>

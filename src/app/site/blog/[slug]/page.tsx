@@ -304,19 +304,19 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
       )}
 
       {/* Ulashish + saqlash */}
-      <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
+      <div className="sr mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
         <ShareButtons title={post.title} />
         <BookmarkButton slug={post.slug} title={post.title} />
       </div>
 
       {/* Emoji reaksiyalar */}
-      <div className="mt-10 border-t border-border pt-10">
+      <div className="sr mt-10 border-t border-border pt-10">
         <PostReactions slug={post.slug} initialReactions={parseReactions(post.reactions)} />
       </div>
 
       {/* Meni kuzatib boring — ijtimoiy tarmoqlar (har maqola ostida) */}
       {parseLinks(settings.links).length > 0 && (
-        <section className="mt-12 border-t border-border pt-10 text-center">
+        <section className="sr mt-12 border-t border-border pt-10 text-center">
           <p className="mb-4 text-sm text-muted">Meni kuzatib boring</p>
           <SocialIcons links={parseLinks(settings.links)} />
         </section>
@@ -324,7 +324,7 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
 
       {/* Qo'llab-quvvatlash (kofe + Telegram) */}
       {(settings.coffeeUrl || settings.channel) && (
-        <section className="mt-12 border-t border-border pt-10">
+        <section className="sr mt-12 border-t border-border pt-10">
           <CoffeeCard coffeeUrl={settings.coffeeUrl} channel={settings.channel} />
         </section>
       )}

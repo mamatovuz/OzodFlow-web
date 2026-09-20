@@ -5,6 +5,7 @@ import { SiteNav } from "@/components/site/site-nav";
 import { PwaRegister } from "@/components/site/pwa-register";
 import { NewsletterEnvelope } from "@/components/site/newsletter-envelope";
 import { SiteThemeToggle } from "@/components/site/site-theme-toggle";
+import { SiteReveal } from "@/components/site/site-reveal";
 import { siteBase, getSiteSetting, siteCanonical, absUrl, parseNavButtons, parseLinks } from "@/lib/site";
 import { getLang, tr } from "@/lib/site-i18n";
 
@@ -115,6 +116,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         labels={labels}
       />
       <main className="flex-1">{children}</main>
+      <SiteReveal />
       <PwaRegister />
 
       {/* Butun sayt bo'ylab: pastda chapda obuna konverti, o'ngda tema tugmasi */}

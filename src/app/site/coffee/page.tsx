@@ -38,7 +38,7 @@ export default async function CoffeePage() {
         )}
       </div>
 
-      <div className="mt-16 border-t border-border pt-12">
+      <div className="sr mt-16 border-t border-border pt-12">
         <CoffeeCard coffeeUrl={s.coffeeUrl} channel={s.channel} />
       </div>
     </div>

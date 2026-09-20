@@ -33,18 +33,20 @@ export function absolutizeHtml(html: string, origin: string): string {
 }
 
 /**
- * Sotuv reklamasi obyekti — FAQAT public API'da chiqadi. Logo yoki havola bo'lsa
- * qaytaradi, aks holda null. Logo nisbiy bo'lsa absolutga aylantiriladi.
+ * Sotuv reklamalari — FAQAT public API'da chiqadi (4 tagacha). Bo'sh reklamalar
+ * tashlanadi. Logo nisbiy bo'lsa absolutga aylantiriladi.
  */
-export function buildSaleAd(
-  s: { saleAdLogo?: string; saleAdUrl?: string; saleAdTitle?: string; saleAdText?: string },
+export function buildSaleAds(
+  ads: { logo: string; url: string; title: string; text: string }[],
   origin: string
-): { logo: string | null; url: string; title: string; text: string } | null {
-  const logo = (s.saleAdLogo || "").trim();
-  const url = (s.saleAdUrl || "").trim();
-  const title = (s.saleAdTitle || "").trim();
-  const text = (s.saleAdText || "").trim();
-  if (!logo && !url && !title && !text) return null;
-  const absLogo = logo ? (/^https?:\/\//i.test(logo) ? logo : `${origin}${logo.startsWith("/") ? "" : "/"}${logo}`) : null;
-  return { logo: absLogo, url, title, text };
+): { logo: string | null; url: string; title: string; text: string }[] {
+  return ads
+    .filter((a) => a.logo || a.url || a.title || a.text)
+    .slice(0, 4)
+    .map((a) => ({
+      logo: a.logo ? (/^https?:\/\//i.test(a.logo) ? a.logo : `${origin}${a.logo.startsWith("/") ? "" : "/"}${a.logo}`) : null,
+      url: a.url,
+      title: a.title,
+      text: a.text,
+    }));
 }

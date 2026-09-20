@@ -7,6 +7,7 @@ import path from "path";
 import { prisma } from "./prisma";
 import { stripHtml } from "./site";
 import { ttsMp3, splitForTts } from "./tts";
+import { geminiTtsPcm, wavHeader } from "./gemini-tts";
 import { UPLOAD_DIR } from "./uploads";
 
 function textHash(text: string): string {
@@ -32,16 +33,46 @@ export async function generatePostAudio(post: {
   if (post.audioHash === hash && post.audioUrl) return post.audioUrl;
 
   const chunks = splitForTts(text, 3500);
-  const buffers: Buffer[] = [];
+  if (chunks.length === 0) return null;
+
+  // 1) MP3 yo'li (Edge → OpenAI). Har bo'lak mp3 bo'lsa — ulaymiz.
+  let audio: Buffer | null = null;
+  let ext = "mp3";
+  const mp3s: Buffer[] = [];
+  let mp3ok = true;
   for (const c of chunks) {
     const mp3 = await ttsMp3(c, "uz").catch(() => null);
-    if (!mp3) return null; // kalit yo'q/ishlamadi — jonli rejimga qoldiramiz
-    buffers.push(mp3);
+    if (!mp3) {
+      mp3ok = false;
+      break;
+    }
+    mp3s.push(mp3);
   }
-  if (buffers.length === 0) return null;
+  if (mp3ok && mp3s.length) {
+    audio = Buffer.concat(mp3s);
+    ext = "mp3";
+  } else {
+    // 2) Gemini yo'li (WAV) — foydalanuvchida faqat Gemini kaliti bo'lsa.
+    //    Har bo'lakning xom PCM'ini olib, bitta WAV faylga birlashtiramiz.
+    try {
+      const pcms: Buffer[] = [];
+      let rate = 24000;
+      for (const c of chunks) {
+        const g = await geminiTtsPcm(c);
+        if (!g.pcm.length) throw new Error("bo'sh");
+        pcms.push(g.pcm);
+        rate = g.rate;
+      }
+      const pcm = Buffer.concat(pcms);
+      audio = Buffer.concat([wavHeader(pcm.length, rate), pcm]);
+      ext = "wav";
+    } catch {
+      return null; // hech qaysi provayder ishlamadi
+    }
+  }
+  if (!audio || audio.length < 200) return null;
 
-  const audio = Buffer.concat(buffers);
-  const name = `audio-${post.slug.slice(0, 40)}-${Date.now().toString(36)}.mp3`;
+  const name = `audio-${post.slug.slice(0, 40)}-${Date.now().toString(36)}.${ext}`;
   await mkdir(UPLOAD_DIR, { recursive: true });
   await writeFile(path.join(UPLOAD_DIR, name), audio);
   const url = `/media/${name}`;
@@ -49,7 +80,7 @@ export async function generatePostAudio(post: {
   // Eski faylni o'chiramiz (joy egallamasin)
   if (post.audioUrl) {
     const old = path.basename(post.audioUrl);
-    if (old && old.endsWith(".mp3")) await unlink(path.join(UPLOAD_DIR, old)).catch(() => {});
+    if (old && (old.endsWith(".mp3") || old.endsWith(".wav"))) await unlink(path.join(UPLOAD_DIR, old)).catch(() => {});
   }
 
   await prisma.sitePost.update({ where: { id: post.id }, data: { audioUrl: url, audioHash: hash } }).catch(() => {});
@@ -60,7 +91,7 @@ export async function generatePostAudio(post: {
 export async function clearPostAudio(post: { id: string; audioUrl?: string | null }): Promise<void> {
   if (post.audioUrl) {
     const old = path.basename(post.audioUrl);
-    if (old && old.endsWith(".mp3")) await unlink(path.join(UPLOAD_DIR, old)).catch(() => {});
+    if (old && (old.endsWith(".mp3") || old.endsWith(".wav"))) await unlink(path.join(UPLOAD_DIR, old)).catch(() => {});
   }
   await prisma.sitePost.update({ where: { id: post.id }, data: { audioUrl: null, audioHash: null } }).catch(() => {});
 }

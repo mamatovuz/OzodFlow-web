@@ -246,7 +246,7 @@ export default async function SiteBlogDetail({ params }: { params: Promise<{ slu
 
       {post.coverImage && (
         /* eslint-disable-next-line @next/next/no-img-element */
-        <img src={post.coverImage} alt={post.title} className="mt-8 w-full rounded-2xl object-cover" />
+        <img src={post.coverImage} alt={post.title} className="reveal-scale mt-8 w-full rounded-2xl object-cover" />
       )}
 
       {/* Turkum (series) navigatsiyasi */}

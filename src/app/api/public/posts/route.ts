@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { siteCanonical, getSiteSetting, absUrl, parseTags, readingTime, publicPostWhere } from "@/lib/site";
-import { jsonRes, optionsRes, buildSaleAd } from "@/lib/public-api";
+import { siteCanonical, getSiteSetting, absUrl, parseTags, readingTime, publicPostWhere, parseSaleAds } from "@/lib/site";
+import { jsonRes, optionsRes, buildSaleAds } from "@/lib/public-api";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
 
   return jsonRes({
     site: { name: s.siteName, url: `${origin}${base || ""}`, description: s.metaDescription },
-    ad: buildSaleAd(s, origin), // sotuv reklamasi (faqat API'da) — yo'q bo'lsa null
+    ads: buildSaleAds(parseSaleAds(s.saleAds), origin), // sotuv reklamalari (4 tagacha, faqat API'da)
     total,
     count: items.length,
     posts: items,

@@ -45,7 +45,7 @@ import { AdminBroadcast } from "@/components/site/admin-broadcast";
 import { AdminAiKey } from "@/components/site/admin-ai-key";
 import { PostAudioButton } from "@/components/site/post-audio-button";
 import { SITE_ICONS, iconFor } from "@/components/site/link-icons";
-import type { SiteLink, SiteNavButton } from "@/lib/site";
+import type { SiteLink, SiteNavButton, SaleAd } from "@/lib/site";
 
 type Post = {
   id: string;
@@ -89,10 +89,7 @@ type Settings = {
   siteName: string;
   siteUrl: string;
   coffeeUrl: string;
-  saleAdLogo: string;
-  saleAdUrl: string;
-  saleAdTitle: string;
-  saleAdText: string;
+  saleAds: SaleAd[];
   tgBotToken: string;
   tgChannel: string;
 };
@@ -407,6 +404,7 @@ export function PanelClient({
           </TabBtn>
         </div>
 
+        <div key={tab} className="fade-up">
         {tab === "dashboard" && <AdminStats onGoto={(t) => setTab(t)} />}
         {tab === "comments" && <AdminComments />}
         {tab === "messages" && <AdminMessages />}
@@ -797,6 +795,7 @@ export function PanelClient({
         )}
 
         {tab === "settings" && <SettingsTab initial={initialSettings} />}
+        </div>
       </div>
     </div>
   );
@@ -848,10 +847,9 @@ function SettingsTab({ initial }: { initial: Settings }) {
     profile: "profileImage",
     og: "ogImage",
     favicon: "favicon",
-    saleLogo: "saleAdLogo",
   };
 
-  async function pick(kind: "hero" | "profile" | "og" | "favicon" | "saleLogo", e: React.ChangeEvent<HTMLInputElement>) {
+  async function pick(kind: "hero" | "profile" | "og" | "favicon", e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
@@ -1136,37 +1134,8 @@ function SettingsTab({ initial }: { initial: Settings }) {
         )}
       </section>
 
-      {/* Sotuv sahifasi reklamasi — FAQAT public API'da chiqadi (blog saytda emas) */}
-      <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-        <h2 className="font-semibold">Sotuv reklamasi (faqat API)</h2>
-        <p className="mt-0.5 text-sm text-muted">
-          Bu logo va havola <b>blog saytda ko'rinmaydi</b> — faqat public API orqali (masalan domen sotiladigan
-          sahifada) chiqadi. API: <code className="rounded bg-surface-2 px-1">/api/public/site</code>.
-        </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <ImageField
-            label="Reklama logosi"
-            url={s.saleAdLogo || "/site/profile.jpg"}
-            busy={busyKey === "saleLogo"}
-            onPick={(e) => pick("saleLogo", e)}
-            onClear={s.saleAdLogo ? () => setS({ ...s, saleAdLogo: "" }) : undefined}
-          />
-          <div>
-            <label className="text-xs text-muted">Havola (silka)</label>
-            <input value={s.saleAdUrl} onChange={(e) => setS({ ...s, saleAdUrl: e.target.value })} className={field} placeholder="https://..." />
-          </div>
-        </div>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="text-xs text-muted">Sarlavha (ixtiyoriy)</label>
-            <input value={s.saleAdTitle} onChange={(e) => setS({ ...s, saleAdTitle: e.target.value })} className={field} placeholder="Masalan: Bu domen sotuvda" />
-          </div>
-          <div>
-            <label className="text-xs text-muted">Matn (ixtiyoriy)</label>
-            <input value={s.saleAdText} onChange={(e) => setS({ ...s, saleAdText: e.target.value })} className={field} placeholder="Qisqa reklama matni" />
-          </div>
-        </div>
-      </section>
+      {/* Sotuv sahifasi reklamalari (4 ta) — FAQAT public API'da chiqadi (blog saytda emas) */}
+      <SaleAdsEditor ads={s.saleAds} onChange={(saleAds) => setS((v) => ({ ...v, saleAds }))} field={field} />
 
       {/* AI kalit (ovozli o'qish uchun) */}
       <AdminAiKey />
@@ -1219,6 +1188,89 @@ function SettingsTab({ initial }: { initial: Settings }) {
         )}
       </div>
     </div>
+  );
+}
+
+// Sotuv reklamalari (4 ta slot) — FAQAT public API'da chiqadi, blog saytda emas.
+function SaleAdsEditor({
+  ads,
+  onChange,
+  field,
+}: {
+  ads: SaleAd[];
+  onChange: (ads: SaleAd[]) => void;
+  field: string;
+}) {
+  const [busyIdx, setBusyIdx] = useState<number>(-1);
+  // Har doim 4 ta slot ko'rsatamiz
+  const slots: SaleAd[] = Array.from({ length: 4 }, (_, i) => ads[i] || { logo: "", url: "", title: "", text: "" });
+
+  const patch = (i: number, p: Partial<SaleAd>) => onChange(slots.map((a, idx) => (idx === i ? { ...a, ...p } : a)));
+
+  async function uploadLogo(i: number, e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setBusyIdx(i);
+    const url = await uploadImage(file);
+    setBusyIdx(-1);
+    if (url) patch(i, { logo: url });
+  }
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+      <h2 className="font-semibold">Sotuv reklamalari (4 ta — faqat API)</h2>
+      <p className="mt-0.5 text-sm text-muted">
+        Bu reklamalar <b>blog saytda ko'rinmaydi</b> — faqat public API orqali (masalan domen sotiladigan sahifada)
+        chiqadi. API: <code className="rounded bg-surface-2 px-1">/api/public/site</code> → <code className="rounded bg-surface-2 px-1">ads</code>.
+      </p>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {slots.map((a, i) => (
+          <div key={i} className="rounded-xl border border-border p-3">
+            <div className="mb-2 text-xs font-medium text-muted">Reklama {i + 1}</div>
+            <div className="flex items-center gap-3">
+              {a.logo ? (
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={a.logo} alt="" className="h-12 w-12 rounded-lg object-cover ring-1 ring-border" />
+                  <button
+                    type="button"
+                    onClick={() => patch(i, { logo: "" })}
+                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-foreground text-background"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-lg border border-dashed border-border text-muted hover:border-foreground hover:text-foreground">
+                  {busyIdx === i ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
+                  <input type="file" accept="image/*" hidden onChange={(e) => uploadLogo(i, e)} />
+                </label>
+              )}
+              <input
+                value={a.url}
+                onChange={(e) => patch(i, { url: e.target.value })}
+                placeholder="Havola (silka) https://..."
+                className="h-9 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-foreground"
+              />
+            </div>
+            <input
+              value={a.title}
+              onChange={(e) => patch(i, { title: e.target.value })}
+              placeholder="Sarlavha (ixtiyoriy)"
+              className={`${field} mt-2`}
+            />
+            <input
+              value={a.text}
+              onChange={(e) => patch(i, { text: e.target.value })}
+              placeholder="Matn (ixtiyoriy)"
+              className={`${field} mt-2`}
+            />
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

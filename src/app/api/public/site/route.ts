@@ -1,5 +1,5 @@
-import { siteCanonical, getSiteSetting, absUrl, parseLinks } from "@/lib/site";
-import { jsonRes, optionsRes, buildSaleAd } from "@/lib/public-api";
+import { siteCanonical, getSiteSetting, absUrl, parseLinks, parseSaleAds } from "@/lib/site";
+import { jsonRes, optionsRes, buildSaleAds } from "@/lib/public-api";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,7 @@ export async function GET() {
       description: s.metaDescription,
       logo: absUrl(origin, s.ogImage || s.profileImage) || null,
     },
-    ad: buildSaleAd(s, origin), // faqat API'da chiqadigan reklama
+    ads: buildSaleAds(parseSaleAds(s.saleAds), origin), // faqat API'da chiqadigan reklamalar (4 tagacha)
     social: parseLinks(s.links).map((l) => ({ icon: l.icon, url: l.url, label: l.label || l.icon })),
   });
 }

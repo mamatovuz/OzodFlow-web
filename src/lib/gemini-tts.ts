@@ -39,8 +39,10 @@ function wavHeader(dataLen: number, rate = 24000, channels = 1, bits = 16): Buff
   return b;
 }
 
-/** Matnni Gemini TTS orqali WAV (24kHz) ga o'giradi. */
-export async function geminiTts(text: string, voice = "Charon"): Promise<Buffer> {
+export { wavHeader };
+
+/** Matnni Gemini TTS orqali xom PCM (16-bit, mono) + namuna chastotasiga o'giradi. */
+export async function geminiTtsPcm(text: string, voice = "Charon"): Promise<{ pcm: Buffer; rate: number }> {
   const key = await getGeminiKey();
   if (!key) throw new Error("Gemini kaliti yo'q");
 
@@ -67,8 +69,7 @@ export async function geminiTts(text: string, voice = "Charon"): Promise<Buffer>
     }
     if (!res.ok) {
       lastErr = (await res.text().catch(() => "")).slice(0, 200);
-      if (res.status === 404) continue; // model yo'q — keyingisini sinaymiz
-      continue;
+      continue; // model yo'q/xato — keyingisini sinaymiz
     }
     const data = (await res.json()) as {
       candidates?: { content?: { parts?: { inlineData?: { data?: string; mimeType?: string } }[] } }[];
@@ -81,7 +82,13 @@ export async function geminiTts(text: string, voice = "Charon"): Promise<Buffer>
     }
     const pcm = Buffer.from(b64, "base64");
     const rate = Number(/rate=(\d+)/.exec(part?.inlineData?.mimeType || "")?.[1] || 24000);
-    return Buffer.concat([wavHeader(pcm.length, rate), pcm]);
+    return { pcm, rate };
   }
   throw new Error(`Gemini TTS: ${lastErr || "xato"}`);
+}
+
+/** Matnni Gemini TTS orqali WAV (24kHz) ga o'giradi. */
+export async function geminiTts(text: string, voice = "Charon"): Promise<Buffer> {
+  const { pcm, rate } = await geminiTtsPcm(text, voice);
+  return Buffer.concat([wavHeader(pcm.length, rate), pcm]);
 }

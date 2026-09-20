@@ -1003,11 +1003,9 @@ model SiteSetting {
   links        String   @default("[]")
   channel      String   @default("https://t.me/OzodFlow") // navbar "Kanal" havolasi
   coffeeUrl    String   @default("") // "Menga kofe sotib oling" (buymeacoffee) havolasi
-  // ─── Sotuv sahifasi reklamasi — FAQAT public API'da chiqadi (blog saytda emas) ───
-  saleAdLogo   String   @default("") // reklama logosi (rasm URL)
-  saleAdUrl    String   @default("") // reklama havolasi (silka)
-  saleAdTitle  String   @default("") // reklama sarlavhasi (ixtiyoriy)
-  saleAdText   String   @default("") // reklama matni (ixtiyoriy)
+  // ─── Sotuv sahifasi reklamalari — FAQAT public API'da chiqadi (blog saytda emas) ───
+  // JSON massiv (4 tagacha): [{ logo, url, title, text }]
+  saleAds      String   @default("[]")
   // Navbar qo'shimcha tugmalari — admin paneldan. JSON: [{ id, label, url, external }]
   navButtons   String   @default("[]")
   // ─── Sayt darajasidagi SEO / ulashish (Telegram, Google) ───

@@ -37,10 +37,17 @@ const schema = z.object({
   siteName: z.string().max(60).optional(),
   siteUrl: z.string().max(200).optional(),
   coffeeUrl: z.string().max(200).optional(),
-  saleAdLogo: z.string().max(500).optional(),
-  saleAdUrl: z.string().max(500).optional(),
-  saleAdTitle: z.string().max(120).optional(),
-  saleAdText: z.string().max(400).optional(),
+  saleAds: z
+    .array(
+      z.object({
+        logo: z.string().max(500).default(""),
+        url: z.string().max(500).default(""),
+        title: z.string().max(120).default(""),
+        text: z.string().max(400).default(""),
+      })
+    )
+    .max(4)
+    .optional(),
   tgBotToken: z.string().max(120).optional().nullable(),
   tgChannel: z.string().max(120).optional().nullable(),
 });
@@ -58,13 +65,14 @@ export async function PUT(req: NextRequest) {
   if (!parsed.success) return fail(parsed.error.issues[0]?.message || "Ma'lumot noto'g'ri", 422);
 
   await getSiteSetting(); // qator borligiga ishonch
-  const { links, navButtons, ogImage, favicon, tgBotToken, tgChannel, ...rest } = parsed.data;
+  const { links, navButtons, saleAds, ogImage, favicon, tgBotToken, tgChannel, ...rest } = parsed.data;
   const s = await prisma.siteSetting.update({
     where: { id: "main" },
     data: {
       ...rest,
       ...(links !== undefined ? { links: JSON.stringify(links) } : {}),
       ...(navButtons !== undefined ? { navButtons: JSON.stringify(navButtons) } : {}),
+      ...(saleAds !== undefined ? { saleAds: JSON.stringify(saleAds.slice(0, 4)) } : {}),
       ...(ogImage !== undefined ? { ogImage: ogImage || null } : {}),
       ...(favicon !== undefined ? { favicon: favicon || null } : {}),
       ...(tgBotToken !== undefined ? { tgBotToken: tgBotToken || null } : {}),

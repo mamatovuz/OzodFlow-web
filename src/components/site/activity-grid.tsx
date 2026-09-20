@@ -17,7 +17,7 @@ export function ActivityGrid({ cells }: { cells: (ActivityDay | null)[] }) {
   const days = cells.filter((c): c is ActivityDay => c !== null);
 
   return (
-    <div className="act-card mx-auto w-full max-w-[385px] rounded-[24px] bg-[#27272a] px-7 pb-7 pt-6 shadow-[0_20px_30px_rgba(0,0,0,0.10),0_5px_12px_rgba(0,0,0,0.05)]">
+    <div className="act-card mx-auto w-full max-w-[385px] rounded-[24px] bg-[#27272a] px-7 pb-7 pt-6 shadow-[0_20px_30px_rgba(0,0,0,0.10),0_5px_12px_rgba(0,0,0,0.05)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_28px_44px_rgba(0,0,0,0.18)]">
       <h2 className="mb-4 text-sm font-semibold text-[#d4d4d8]">Activites</h2>
       <div className="grid grid-cols-7 gap-2">
         {days.map((c, i) => (
@@ -25,11 +25,11 @@ export function ActivityGrid({ cells }: { cells: (ActivityDay | null)[] }) {
             key={c.day}
             title={`${c.day} — ${c.count} harakat`}
             style={{ animationDelay: `${i * 16}ms` }}
-            className={`act-cell aspect-square rounded-lg transition-colors duration-150 ${
+            className={`act-cell aspect-square rounded-lg transition-all duration-150 hover:scale-110 ${
               c.level > 0
                 ? ACTIVE_BG[c.level]
                 : "bg-[#343438] hover:bg-[#3f3f46]"
-            } ${c.isToday && c.level === 0 ? "ring-1 ring-white/15" : ""}`}
+            } ${c.isToday ? "act-today ring-1 ring-emerald-300/70" : ""}`}
           />
         ))}
       </div>

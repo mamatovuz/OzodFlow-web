@@ -140,6 +140,26 @@ const DEFAULT_LINKS = JSON.stringify([
 
 export type SiteLink = { id: string; icon: string; url: string; label?: string };
 export type SiteNavButton = { id: string; label: string; url: string; external?: boolean };
+export type SaleAd = { logo: string; url: string; title: string; text: string };
+
+/** SiteSetting.saleAds (JSON) ni xavfsiz massivga (4 tagacha) aylantiradi. */
+export function parseSaleAds(raw: string | null | undefined): SaleAd[] {
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .map((x) => ({
+        logo: String(x?.logo || "").trim(),
+        url: String(x?.url || "").trim(),
+        title: String(x?.title || "").trim(),
+        text: String(x?.text || "").trim(),
+      }))
+      .slice(0, 4);
+  } catch {
+    return [];
+  }
+}
 
 /** SiteSetting.navButtons (JSON) ni xavfsiz massivga aylantiradi. */
 export function parseNavButtons(raw: string | null | undefined): SiteNavButton[] {

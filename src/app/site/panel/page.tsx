@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { isSiteAdmin, siteBase, getSiteSetting, parseLinks, parseNavButtons, parseTags, parseFaq, parseTranslations } from "@/lib/site";
+import { isSiteAdmin, siteBase, getSiteSetting, parseLinks, parseNavButtons, parseSaleAds, parseTags, parseFaq, parseTranslations, bumpActivity } from "@/lib/site";
 import { PanelClient } from "@/components/site/panel-client";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +8,9 @@ export const dynamic = "force-dynamic";
 export default async function SitePanel() {
   const base = await siteBase();
   if (!(await isSiteAdmin())) redirect(`${base}/panel/login`);
+
+  // Panelga har kirganда bugungi kun "faol" (yashil katak) bo'ladi
+  bumpActivity().catch(() => {});
 
   const [posts, settings] = await Promise.all([
     prisma.sitePost.findMany({ orderBy: [{ publishDate: "desc" }, { createdAt: "desc" }] }),
@@ -31,10 +34,7 @@ export default async function SitePanel() {
     siteName: settings.siteName,
     siteUrl: settings.siteUrl || "",
     coffeeUrl: settings.coffeeUrl || "",
-    saleAdLogo: settings.saleAdLogo || "",
-    saleAdUrl: settings.saleAdUrl || "",
-    saleAdTitle: settings.saleAdTitle || "",
-    saleAdText: settings.saleAdText || "",
+    saleAds: parseSaleAds(settings.saleAds),
     tgBotToken: settings.tgBotToken || "",
     tgChannel: settings.tgChannel || "",
   };

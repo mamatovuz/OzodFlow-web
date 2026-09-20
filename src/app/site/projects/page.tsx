@@ -13,13 +13,13 @@ export default async function SiteProjects() {
 
   return (
     <div className="mx-auto max-w-3xl px-5 py-14 sm:px-6">
-      <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Loyihalar</h1>
+      <h1 className="fade-up text-3xl font-bold tracking-tight sm:text-4xl">Loyihalar</h1>
       <p className="mt-2 text-muted">Men ishlagan va yaratgan ishlar.</p>
 
       {projects.length === 0 ? (
         <p className="mt-16 text-center text-muted">Hozircha loyiha yo'q.</p>
       ) : (
-        <div className="mt-10 grid gap-4 sm:grid-cols-2">
+        <div className="fade-up-1 mt-10 grid gap-4 sm:grid-cols-2">
           {projects.map((p) => {
             const tags = parseTags(p.tags);
             const Card = (

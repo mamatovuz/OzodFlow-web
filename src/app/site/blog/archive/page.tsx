@@ -44,7 +44,7 @@ export default async function Archive() {
 
   return (
     <div className="mx-auto max-w-2xl px-5 py-14 sm:px-6">
-      <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight sm:text-4xl">
+      <h1 className="fade-up flex items-center gap-2 text-3xl font-bold tracking-tight sm:text-4xl">
         <Calendar className="h-7 w-7 text-accent" /> {tr(lang, "archive")}
       </h1>
       <p className="mt-2 text-muted">Jami {posts.length} ta maqola.</p>
@@ -52,7 +52,7 @@ export default async function Archive() {
       {years.length === 0 ? (
         <p className="mt-16 text-center text-muted">Hozircha maqola yo'q.</p>
       ) : (
-        <div className="mt-10 space-y-10">
+        <div className="fade-up-1 mt-10 space-y-10">
           {years.map((y) => {
             const months = byYear.get(y)!;
             const monthKeys = [...months.keys()].sort((a, b) => b - a);

@@ -30,15 +30,15 @@ export default async function TagsIndex() {
 
   return (
     <div className="mx-auto max-w-2xl px-5 py-14 sm:px-6">
-      <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight sm:text-4xl">
+      <h1 className="fade-up flex items-center gap-2 text-3xl font-bold tracking-tight sm:text-4xl">
         <TagIcon className="h-7 w-7 text-accent" /> {tr(lang, "tags") || "Teglar"}
       </h1>
-      <p className="mt-2 text-muted">Qiziqtirgan mavzuni tanlang — {tags.length} ta teg.</p>
+      <p className="fade-up mt-2 text-muted">Qiziqtirgan mavzuni tanlang — {tags.length} ta teg.</p>
 
       {tags.length === 0 ? (
         <p className="mt-16 text-center text-muted">Hozircha teg yo'q.</p>
       ) : (
-        <div className="mt-8 flex flex-wrap gap-2.5">
+        <div className="fade-up-1 mt-8 flex flex-wrap gap-2.5">
           {tags.map(([t, n]) => {
             // Ko'proq maqola — kattaroq shrift (teg buluti)
             const scale = 0.85 + (n / max) * 0.7;
@@ -46,7 +46,7 @@ export default async function TagsIndex() {
               <Link
                 key={t}
                 href={`${base}/tag/${encodeURIComponent(t)}`}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2/50 px-3.5 py-1.5 font-medium text-muted transition-all hover:border-accent hover:text-accent"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2/50 px-3.5 py-1.5 font-medium text-muted transition-all hover:-translate-y-0.5 hover:scale-105 hover:border-accent hover:text-accent hover:shadow-sm"
                 style={{ fontSize: `${scale}rem` }}
               >
                 {t} <span className="text-xs opacity-50">{n}</span>

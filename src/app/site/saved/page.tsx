@@ -28,7 +28,7 @@ export default function SavedPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-5 py-14 sm:px-6">
-      <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight sm:text-4xl">
+      <h1 className="fade-up flex items-center gap-2 text-3xl font-bold tracking-tight sm:text-4xl">
         <Bookmark className="h-7 w-7" /> Saqlangan
       </h1>
       <p className="mt-2 text-muted">Siz belgilab qo'ygan maqolalar (shu qurilmada saqlanadi).</p>
@@ -38,7 +38,7 @@ export default function SavedPage() {
       ) : (
         <div className="mt-8 space-y-2">
           {items.map((it) => (
-            <div key={it.slug} className="flex items-center gap-3 rounded-xl border border-border p-4">
+            <div key={it.slug} className="flex items-center gap-3 rounded-xl border border-border p-4 transition-all hover:-translate-y-0.5 hover:border-foreground/25 hover:shadow-sm">
               <Link href={`${base}/blog/${it.slug}`} className="group flex min-w-0 flex-1 items-center gap-2">
                 <span className="truncate font-medium group-hover:text-accent">{it.title}</span>
                 <ArrowUpRight className="h-4 w-4 shrink-0 text-muted" />

@@ -352,19 +352,22 @@ export function PanelClient({
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3.5 sm:px-6">
-          <h1 className="text-base font-bold tracking-tight">Studio</h1>
+          <h1 className="flex items-center gap-2 text-base font-bold tracking-tight">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-violet-500 text-xs font-extrabold text-white shadow-sm">S</span>
+            Studio
+          </h1>
           <div className="flex items-center gap-2">
             <a
               href={base || "/"}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-muted hover:text-foreground"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-muted transition-all hover:-translate-y-0.5 hover:border-foreground/30 hover:text-foreground"
             >
               <ExternalLink className="h-4 w-4" /> Saytni ko'rish
             </a>
             <button
               onClick={logout}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-muted hover:text-foreground"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-muted transition-all hover:-translate-y-0.5 hover:border-red-500/40 hover:text-red-500"
             >
               <LogOut className="h-4 w-4" /> Chiqish
             </button>
@@ -750,10 +753,11 @@ export function PanelClient({
                   Topilmadi.
                 </p>
               ) : (
-                filtered.map((p) => (
+                filtered.map((p, i) => (
                   <div
                     key={p.id}
-                    className="flex items-center gap-3 rounded-xl border border-border bg-card p-3.5"
+                    style={{ animationDelay: `${Math.min(i, 10) * 40}ms` }}
+                    className="fade-up flex items-center gap-3 rounded-xl border border-border bg-card p-3.5 transition-all hover:-translate-y-0.5 hover:border-foreground/25 hover:shadow-sm"
                   >
                     {p.coverImage && (
                       /* eslint-disable-next-line @next/next/no-img-element */
@@ -815,8 +819,8 @@ function TabBtn({
   return (
     <button
       onClick={onClick}
-      className={`flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-medium transition-colors ${
-        active ? "bg-foreground text-background" : "text-muted hover:text-foreground"
+      className={`flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
+        active ? "bg-foreground text-background shadow-sm" : "text-muted hover:bg-surface-2 hover:text-foreground"
       }`}
     >
       {icon}
